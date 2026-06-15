@@ -1,0 +1,23 @@
+{
+  "name": "easy-invoice",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "db:generate": "npm run generate -w @easy-invoice/db",
+    "db:push": "npm run push -w @easy-invoice/db",
+    "db:migrate": "npm run migrate -w @easy-invoice/db",
+    "db:studio": "npm run studio -w @easy-invoice/db"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.4"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

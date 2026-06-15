@@ -1,0 +1,41 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# build
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+
+# env
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# prisma
+packages/db/generated/
+
+# misc
+.DS_Store
+*.pem
+npm-debug.log*
+.idea/
+.vscode/
+
+# turbo
+.turbo/
+
+# vercel
+.vercel
