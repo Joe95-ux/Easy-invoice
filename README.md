@@ -90,8 +90,9 @@ Open [http://localhost:3000](http://localhost:3000).
 
 1. **Sign up** → Clerk auth
 2. **Onboarding** → create company profile (`POST /api/companies`)
-3. **New invoice** → form or AI description → save draft (`POST /api/invoices`)
-4. **Stripe** → webhook at `/api/webhooks/stripe` updates plan on subscription events
+3. **New invoice** → form or AI description → save draft → view detail
+4. **Invoice detail** → download PDF, send by email, mark paid, delete
+5. **Stripe** → webhook at `/api/webhooks/stripe` updates plan on subscription events (coming last)
 
 ## API routes (Next.js)
 
@@ -99,6 +100,9 @@ Open [http://localhost:3000](http://localhost:3000).
 |-------|---------|
 | `POST /api/companies` | Onboarding — create company + owner membership |
 | `POST /api/invoices` | Create invoice draft with line items |
+| `GET/PATCH/DELETE /api/invoices/[id]` | Invoice detail, status updates, delete |
+| `GET /api/invoices/[id]/pdf` | Download invoice PDF |
+| `POST /api/invoices/[id]/send` | Email invoice PDF to client |
 | `POST /api/ai/parse-invoice` | Proxy to Python OpenAI parser |
 | `POST /api/webhooks/stripe` | Subscription lifecycle |
 
@@ -114,8 +118,7 @@ All protected endpoints require header: `X-Service-Secret: <your-secret>`.
 
 ## Next steps
 
-- [ ] PDF download from saved invoices
-- [ ] Email delivery (Resend)
 - [ ] Stripe Checkout + plan limits
-- [ ] Invoice templates
+- [ ] Invoice templates (picker + seed data)
+- [ ] Client management pages
 - [ ] Drag-and-drop custom fields

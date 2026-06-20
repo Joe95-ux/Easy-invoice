@@ -1,6 +1,15 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { calculateInvoiceTotals, lineItemAmount } from "@/lib/calculator";
 import type { InvoiceDraft } from "@/lib/schemas/invoice";
 
@@ -21,17 +30,22 @@ type InvoiceCreatorProps = {
   currency: string;
 };
 
-export function InvoiceCreator({ companyId, currency }: InvoiceCreatorProps) {
-  const [mode, setMode] = useState<"form" | "ai">("form");
+export function InvoiceCreator({ companyId, currency: defaultCurrency }: InvoiceCreatorProps) {
+  const router = useRouter();
   const [clientName, setClientName] = useState("");
+  const [clientEmail, setClientEmail] = useState("");
+  const [clientPhone, setClientPhone] = useState("");
+  const [clientAddress, setClientAddress] = useState("");
   const [notes, setNotes] = useState("");
+  const [currency, setCurrency] = useState(defaultCurrency);
+  const [issueDate, setIssueDate] = useState(new Date().toISOString().slice(0, 10));
+  const [dueDate, setDueDate] = useState("");
   const [taxRate, setTaxRate] = useState(0);
   const [discount, setDiscount] = useState(0);
   const [lineItems, setLineItems] = useState<LineItem[]>([emptyLineItem()]);
   const [aiText, setAiText] = useState("");
   const [parsing, setParsing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
 
   const totals = calculateInvoiceTotals({
     lineItems: lineItems.map((item) => ({
@@ -50,9 +64,15 @@ export function InvoiceCreator({ companyId, currency }: InvoiceCreatorProps) {
 
   function applyDraft(draft: InvoiceDraft) {
     setClientName(draft.client_name);
+    setClientEmail(draft.client_email ?? "");
+    setClientPhone(draft.client_phone ?? "");
+    setClientAddress(draft.client_address ?? "");
     setNotes(draft.notes ?? "");
+    setCurrency(draft.currency ?? defaultCurrency);
     setTaxRate((draft.tax_rate ?? 0) * 100);
     setDiscount(draft.discount ?? 0);
+    if (draft.issue_date) setIssueDate(draft.issue_date.slice(0, 10));
+    if (draft.due_date) setDueDate(draft.due_date.slice(0, 10));
     setLineItems(
       draft.line_items.map((item) => ({
         description: item.description,
@@ -60,13 +80,11 @@ export function InvoiceCreator({ companyId, currency }: InvoiceCreatorProps) {
         unitPrice: item.unit_price,
       })),
     );
-    setMode("form");
-    setMessage("AI draft applied — review before saving.");
+    toast.success("AI draft applied — review before saving.");
   }
 
   async function handleParse() {
     setParsing(true);
-    setMessage(null);
     try {
       const response = await fetch("/api/ai/parse-invoice", {
         method: "POST",
@@ -77,7 +95,7 @@ export function InvoiceCreator({ companyId, currency }: InvoiceCreatorProps) {
       const draft = (await response.json()) as InvoiceDraft;
       applyDraft(draft);
     } catch {
-      setMessage("Could not parse that description. Try again or use the form.");
+      toast.error("Could not parse that description. Try again or use the form.");
     } finally {
       setParsing(false);
     }
@@ -85,7 +103,6 @@ export function InvoiceCreator({ companyId, currency }: InvoiceCreatorProps) {
 
   async function handleSave() {
     setSaving(true);
-    setMessage(null);
     try {
       const response = await fetch("/api/invoices", {
         method: "POST",
@@ -93,8 +110,13 @@ export function InvoiceCreator({ companyId, currency }: InvoiceCreatorProps) {
         body: JSON.stringify({
           companyId,
           clientName,
+          clientEmail: clientEmail || undefined,
+          clientPhone: clientPhone || undefined,
+          clientAddress: clientAddress || undefined,
           notes,
           currency,
+          issueDate: issueDate ? new Date(issueDate).toISOString() : undefined,
+          dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
           taxRate: taxRate / 100,
           discount,
           lineItems: lineItems.map((item, index) => ({
@@ -107,196 +129,225 @@ export function InvoiceCreator({ companyId, currency }: InvoiceCreatorProps) {
           ...totals,
         }),
       });
-      if (!response.ok) throw new Error("Failed to save invoice");
-      setMessage("Invoice saved as draft.");
-      setClientName("");
-      setNotes("");
-      setLineItems([emptyLineItem()]);
-    } catch {
-      setMessage("Could not save invoice.");
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Failed to save invoice");
+
+      toast.success("Invoice saved as draft.");
+      router.push(`/invoices/${data.invoice.id}`);
+      router.refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save invoice.");
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex gap-2">
-        <TabButton active={mode === "form"} onClick={() => setMode("form")}>
-          Form
-        </TabButton>
-        <TabButton active={mode === "ai"} onClick={() => setMode("ai")}>
-          Describe with AI
-        </TabButton>
-      </div>
+    <Tabs defaultValue="form">
+      <TabsList>
+        <TabsTrigger value="form">Form</TabsTrigger>
+        <TabsTrigger value="ai">Describe with AI</TabsTrigger>
+      </TabsList>
 
-      {mode === "ai" ? (
-        <section className="rounded-xl border border-border bg-card p-6">
-          <label className="block text-sm font-medium">
-            Describe the job (any language)
-          </label>
-          <textarea
-            value={aiText}
-            onChange={(e) => setAiText(e.target.value)}
-            rows={6}
-            placeholder="Example: Fixed Maria's kitchen sink, 2 hours at $85/hr, parts $45, due in 14 days..."
-            className="mt-2 w-full rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-primary"
-          />
-          <button
-            type="button"
-            onClick={handleParse}
-            disabled={parsing || !aiText.trim()}
-            className="mt-4 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60"
-          >
-            {parsing ? "Parsing..." : "Parse with AI"}
-          </button>
-        </section>
-      ) : (
-        <section className="space-y-4 rounded-xl border border-border bg-card p-6">
-          <Field label="Client name" value={clientName} onChange={setClientName} />
-          <Field label="Notes" value={notes} onChange={setNotes} />
-
-          <div>
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-sm font-medium">Line items</span>
-              <button
-                type="button"
-                onClick={() => setLineItems((items) => [...items, emptyLineItem()])}
-                className="text-sm text-primary"
-              >
-                + Add line
-              </button>
-            </div>
-            <div className="space-y-3">
-              {lineItems.map((item, index) => (
-                <div key={index} className="grid gap-2 sm:grid-cols-4">
-                  <input
-                    placeholder="Description"
-                    value={item.description}
-                    onChange={(e) => updateLineItem(index, { description: e.target.value })}
-                    className="rounded-lg border border-border px-3 py-2 text-sm sm:col-span-2"
-                  />
-                  <input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    placeholder="Qty"
-                    value={item.quantity}
-                    onChange={(e) =>
-                      updateLineItem(index, { quantity: Number(e.target.value) })
-                    }
-                    className="rounded-lg border border-border px-3 py-2 text-sm"
-                  />
-                  <input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    placeholder="Rate"
-                    value={item.unitPrice}
-                    onChange={(e) =>
-                      updateLineItem(index, { unitPrice: Number(e.target.value) })
-                    }
-                    className="rounded-lg border border-border px-3 py-2 text-sm"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field
-              label="Tax rate (%)"
-              value={String(taxRate)}
-              onChange={(v) => setTaxRate(Number(v))}
-              type="number"
+      <TabsContent value="ai">
+        <Card>
+          <CardHeader>
+            <CardTitle>Describe the job</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Textarea
+              value={aiText}
+              onChange={(e) => setAiText(e.target.value)}
+              rows={6}
+              placeholder="Example: Fixed Maria's kitchen sink, 2 hours at $85/hr, parts $45, due in 14 days..."
             />
-            <Field
-              label="Discount"
-              value={String(discount)}
-              onChange={(v) => setDiscount(Number(v))}
-              type="number"
-            />
-          </div>
+            <Button onClick={handleParse} disabled={parsing || !aiText.trim()}>
+              {parsing ? "Parsing..." : "Parse with AI"}
+            </Button>
+          </CardContent>
+        </Card>
+      </TabsContent>
 
-          <div className="rounded-lg bg-muted p-4 text-sm">
-            <div className="flex justify-between">
-              <span>Subtotal</span>
-              <span>
-                {currency} {totals.subtotal.toFixed(2)}
-              </span>
+      <TabsContent value="form">
+        <Card>
+          <CardHeader>
+            <CardTitle>Invoice details</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="client-name">Client name</Label>
+                <Input
+                  id="client-name"
+                  value={clientName}
+                  onChange={(e) => setClientName(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="client-email">Client email</Label>
+                <Input
+                  id="client-email"
+                  type="email"
+                  value={clientEmail}
+                  onChange={(e) => setClientEmail(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="client-phone">Client phone</Label>
+                <Input
+                  id="client-phone"
+                  value={clientPhone}
+                  onChange={(e) => setClientPhone(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="currency">Currency</Label>
+                <Input
+                  id="currency"
+                  value={currency}
+                  maxLength={3}
+                  onChange={(e) => setCurrency(e.target.value.toUpperCase())}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="issue-date">Issue date</Label>
+                <Input
+                  id="issue-date"
+                  type="date"
+                  value={issueDate}
+                  onChange={(e) => setIssueDate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="due-date">Due date</Label>
+                <Input
+                  id="due-date"
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                />
+              </div>
             </div>
-            <div className="mt-1 flex justify-between">
-              <span>Tax</span>
-              <span>
-                {currency} {totals.taxAmount.toFixed(2)}
-              </span>
+
+            <div className="space-y-2">
+              <Label htmlFor="client-address">Client address</Label>
+              <Input
+                id="client-address"
+                value={clientAddress}
+                onChange={(e) => setClientAddress(e.target.value)}
+              />
             </div>
-            <div className="mt-2 flex justify-between font-semibold">
-              <span>Total</span>
-              <span>
-                {currency} {totals.total.toFixed(2)}
-              </span>
+
+            <div className="space-y-2">
+              <Label htmlFor="notes">Notes</Label>
+              <Textarea
+                id="notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={3}
+              />
             </div>
-          </div>
 
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saving || !clientName.trim()}
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60"
-          >
-            {saving ? "Saving..." : "Save draft"}
-          </button>
-        </section>
-      )}
+            <div>
+              <div className="mb-3 flex items-center justify-between">
+                <Label>Line items</Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setLineItems((items) => [...items, emptyLineItem()])}
+                >
+                  + Add line
+                </Button>
+              </div>
+              <div className="space-y-3">
+                {lineItems.map((item, index) => (
+                  <div key={index} className="grid gap-2 sm:grid-cols-4">
+                    <Input
+                      placeholder="Description"
+                      value={item.description}
+                      onChange={(e) => updateLineItem(index, { description: e.target.value })}
+                      className="sm:col-span-2"
+                    />
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      placeholder="Qty"
+                      value={item.quantity}
+                      onChange={(e) =>
+                        updateLineItem(index, { quantity: Number(e.target.value) })
+                      }
+                    />
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      placeholder="Rate"
+                      value={item.unitPrice}
+                      onChange={(e) =>
+                        updateLineItem(index, { unitPrice: Number(e.target.value) })
+                      }
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
 
-      {message && <p className="text-sm text-muted-foreground">{message}</p>}
-    </div>
-  );
-}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="tax-rate">Tax rate (%)</Label>
+                <Input
+                  id="tax-rate"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={taxRate}
+                  onChange={(e) => setTaxRate(Number(e.target.value))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="discount">Discount</Label>
+                <Input
+                  id="discount"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={discount}
+                  onChange={(e) => setDiscount(Number(e.target.value))}
+                />
+              </div>
+            </div>
 
-function TabButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-lg px-4 py-2 text-sm font-medium ${
-        active ? "bg-primary text-primary-foreground" : "border border-border bg-card"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
+            <Separator />
 
-function Field({
-  label,
-  value,
-  onChange,
-  type = "text",
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  type?: string;
-}) {
-  return (
-    <label className="block">
-      <span className="text-sm font-medium">{label}</span>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="mt-1.5 w-full rounded-lg border border-border px-3 py-2 text-sm outline-none focus:border-primary"
-      />
-    </label>
+            <div className="ml-auto max-w-xs space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Subtotal</span>
+                <span>
+                  {currency} {totals.subtotal.toFixed(2)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Tax</span>
+                <span>
+                  {currency} {totals.taxAmount.toFixed(2)}
+                </span>
+              </div>
+              <div className="flex justify-between border-t pt-2 font-semibold">
+                <span>Total</span>
+                <span>
+                  {currency} {totals.total.toFixed(2)}
+                </span>
+              </div>
+            </div>
+
+            <Button onClick={handleSave} disabled={saving || !clientName.trim()}>
+              {saving ? "Saving..." : "Save draft"}
+            </Button>
+          </CardContent>
+        </Card>
+      </TabsContent>
+    </Tabs>
   );
 }

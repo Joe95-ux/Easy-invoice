@@ -7,6 +7,9 @@ import { prisma } from "@/lib/db";
 const createInvoiceSchema = z.object({
   companyId: z.string(),
   clientName: z.string().min(1),
+  clientEmail: z.string().email().optional().or(z.literal("")),
+  clientPhone: z.string().optional(),
+  clientAddress: z.string().optional(),
   notes: z.string().optional(),
   currency: z.string().length(3),
   taxRate: z.number().min(0).max(1),
@@ -14,6 +17,8 @@ const createInvoiceSchema = z.object({
   subtotal: z.number(),
   taxAmount: z.number(),
   total: z.number(),
+  issueDate: z.string().optional(),
+  dueDate: z.string().optional(),
   lineItems: z.array(
     z.object({
       description: z.string().min(1),
@@ -54,14 +59,25 @@ export async function POST(request: Request) {
     where: { companyId: member.companyId, name: parsed.data.clientName },
   });
 
-  const client =
-    existingClient ??
-    (await prisma.client.create({
-      data: {
-        companyId: member.companyId,
-        name: parsed.data.clientName,
-      },
-    }));
+  const clientData = {
+    name: parsed.data.clientName,
+    email: parsed.data.clientEmail || null,
+    phone: parsed.data.clientPhone || null,
+    address: parsed.data.clientAddress || null,
+  };
+
+  const client = existingClient
+    ? await prisma.client.update({
+        where: { id: existingClient.id },
+        data: {
+          email: clientData.email ?? existingClient.email,
+          phone: clientData.phone ?? existingClient.phone,
+          address: clientData.address ?? existingClient.address,
+        },
+      })
+    : await prisma.client.create({
+        data: { companyId: member.companyId, ...clientData },
+      });
 
   const invoice = await prisma.invoice.create({
     data: {
@@ -75,6 +91,8 @@ export async function POST(request: Request) {
       discount: parsed.data.discount,
       total: parsed.data.total,
       notes: parsed.data.notes,
+      issueDate: parsed.data.issueDate ? new Date(parsed.data.issueDate) : new Date(),
+      dueDate: parsed.data.dueDate ? new Date(parsed.data.dueDate) : null,
       items: {
         create: parsed.data.lineItems,
       },

@@ -1,0 +1,46 @@
+import { Resend } from "resend";
+
+function getResend() {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    throw new Error("RESEND_API_KEY is not configured");
+  }
+  return new Resend(apiKey);
+}
+
+type SendInvoiceEmailInput = {
+  to: string;
+  companyName: string;
+  invoiceNumber: string;
+  total: string;
+  pdfBuffer: Buffer;
+};
+
+export async function sendInvoiceEmail(input: SendInvoiceEmailInput) {
+  const from = process.env.RESEND_FROM_EMAIL ?? "Easy Invoice <onboarding@resend.dev>";
+  const resend = getResend();
+
+  const { data, error } = await resend.emails.send({
+    from,
+    to: input.to,
+    subject: `Invoice ${input.invoiceNumber} from ${input.companyName}`,
+    html: `
+      <p>Hello,</p>
+      <p>Please find attached invoice <strong>${input.invoiceNumber}</strong> from <strong>${input.companyName}</strong>.</p>
+      <p>Total due: <strong>${input.total}</strong></p>
+      <p>Thank you for your business.</p>
+    `,
+    attachments: [
+      {
+        filename: `${input.invoiceNumber}.pdf`,
+        content: input.pdfBuffer,
+      },
+    ],
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}

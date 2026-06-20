@@ -1,7 +1,24 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { getCurrentMember } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import {
+  formatDate,
+  formatMoney,
+  invoiceStatusLabel,
+  invoiceStatusVariant,
+} from "@/lib/invoices";
 
 export default async function InvoicesPage() {
   const member = await getCurrentMember();
@@ -21,55 +38,60 @@ export default async function InvoicesPage() {
           <h1 className="text-2xl font-bold tracking-tight">Invoices</h1>
           <p className="mt-1 text-muted-foreground">Track and manage your invoices</p>
         </div>
-        <Link
-          href="/invoices/new"
-          className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
-        >
-          New invoice
+        <Link href="/invoices/new">
+          <Button>New invoice</Button>
         </Link>
       </div>
 
       {invoices.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border p-12 text-center">
-          <p className="text-muted-foreground">No invoices yet.</p>
-          <Link
-            href="/invoices/new"
-            className="mt-4 inline-block text-sm font-medium text-primary"
-          >
-            Create your first invoice
-          </Link>
-        </div>
+        <Card>
+          <CardContent className="flex flex-col items-center py-12 text-center">
+            <p className="text-muted-foreground">No invoices yet.</p>
+            <Link href="/invoices/new">
+              <Button className="mt-4">Create your first invoice</Button>
+            </Link>
+          </CardContent>
+        </Card>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-border bg-card">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-border bg-muted/50">
-              <tr>
-                <th className="px-4 py-3 font-medium">Number</th>
-                <th className="px-4 py-3 font-medium">Client</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium">Total</th>
-                <th className="px-4 py-3 font-medium">Due</th>
-              </tr>
-            </thead>
-            <tbody>
+        <Card>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Number</TableHead>
+                <TableHead>Client</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Total</TableHead>
+                <TableHead>Due</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {invoices.map((invoice) => (
-                <tr key={invoice.id} className="border-b border-border last:border-0">
-                  <td className="px-4 py-3 font-medium">{invoice.number}</td>
-                  <td className="px-4 py-3">{invoice.client?.name ?? "—"}</td>
-                  <td className="px-4 py-3">{invoice.status}</td>
-                  <td className="px-4 py-3">
-                    {invoice.currency} {Number(invoice.total).toFixed(2)}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {invoice.dueDate
-                      ? new Date(invoice.dueDate).toLocaleDateString()
-                      : "—"}
-                  </td>
-                </tr>
+                <TableRow key={invoice.id}>
+                  <TableCell>
+                    <Link
+                      href={`/invoices/${invoice.id}`}
+                      className="font-medium hover:underline"
+                    >
+                      {invoice.number}
+                    </Link>
+                  </TableCell>
+                  <TableCell>{invoice.client?.name ?? "—"}</TableCell>
+                  <TableCell>
+                    <Badge variant={invoiceStatusVariant(invoice.status)}>
+                      {invoiceStatusLabel(invoice.status)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {formatMoney(invoice.total, invoice.currency)}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {formatDate(invoice.dueDate)}
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </TableBody>
+          </Table>
+        </Card>
       )}
     </div>
   );

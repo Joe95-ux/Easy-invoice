@@ -1,1 +1,1 @@
-export { prisma } from "@easy-invoice/db";
+export { prisma, UserRole } from "@easy-invoice/db";
