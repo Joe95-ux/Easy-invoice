@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 
 const createInvoiceSchema = z.object({
   companyId: z.string(),
+  clientId: z.string().optional(),
   clientName: z.string().min(1),
   clientEmail: z.string().email().optional().or(z.literal("")),
   clientPhone: z.string().optional(),
@@ -55,10 +56,6 @@ export async function POST(request: Request) {
     where: { companyId: member.companyId },
   });
 
-  const existingClient = await prisma.client.findFirst({
-    where: { companyId: member.companyId, name: parsed.data.clientName },
-  });
-
   const clientData = {
     name: parsed.data.clientName,
     email: parsed.data.clientEmail || null,
@@ -66,18 +63,42 @@ export async function POST(request: Request) {
     address: parsed.data.clientAddress || null,
   };
 
-  const client = existingClient
-    ? await prisma.client.update({
-        where: { id: existingClient.id },
-        data: {
-          email: clientData.email ?? existingClient.email,
-          phone: clientData.phone ?? existingClient.phone,
-          address: clientData.address ?? existingClient.address,
-        },
-      })
-    : await prisma.client.create({
-        data: { companyId: member.companyId, ...clientData },
-      });
+  let client;
+
+  if (parsed.data.clientId) {
+    const existingById = await prisma.client.findFirst({
+      where: { id: parsed.data.clientId, companyId: member.companyId },
+    });
+    if (!existingById) {
+      return NextResponse.json({ error: "Client not found" }, { status: 404 });
+    }
+    client = await prisma.client.update({
+      where: { id: existingById.id },
+      data: {
+        name: clientData.name,
+        email: clientData.email ?? existingById.email,
+        phone: clientData.phone ?? existingById.phone,
+        address: clientData.address ?? existingById.address,
+      },
+    });
+  } else {
+    const existingClient = await prisma.client.findFirst({
+      where: { companyId: member.companyId, name: parsed.data.clientName },
+    });
+
+    client = existingClient
+      ? await prisma.client.update({
+          where: { id: existingClient.id },
+          data: {
+            email: clientData.email ?? existingClient.email,
+            phone: clientData.phone ?? existingClient.phone,
+            address: clientData.address ?? existingClient.address,
+          },
+        })
+      : await prisma.client.create({
+          data: { companyId: member.companyId, ...clientData },
+        });
+  }
 
   const invoice = await prisma.invoice.create({
     data: {

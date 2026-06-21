@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCurrentMember } from "@/lib/auth";
 
 export default async function DashboardPage() {
@@ -15,9 +17,7 @@ export default async function DashboardPage() {
     <div>
       <div className="mb-8">
         <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-        <p className="mt-1 text-muted-foreground">
-          Welcome back, {company.name}
-        </p>
+        <p className="mt-1 text-muted-foreground">Welcome back, {company.name}</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
@@ -26,32 +26,36 @@ export default async function DashboardPage() {
         <StatCard label="Locale" value={company.locale} />
       </div>
 
-      <div className="mt-8 rounded-xl border border-border bg-card p-6">
-        <h2 className="font-semibold">Quick actions</h2>
-        <div className="mt-4 flex flex-wrap gap-3">
-          <Link
-            href="/invoices/new"
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
-          >
-            New invoice
+      <Card className="mt-8">
+        <CardHeader>
+          <CardTitle>Quick actions</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-3">
+          <Link href="/invoices/new">
+            <Button>New invoice</Button>
           </Link>
-          <Link
-            href="/invoices"
-            className="rounded-lg border border-border px-4 py-2 text-sm font-medium"
-          >
-            View invoices
+          <Link href="/invoices">
+            <Button variant="outline">View invoices</Button>
           </Link>
-        </div>
-      </div>
+          <Link href="/clients/new">
+            <Button variant="outline">Add client</Button>
+          </Link>
+          <Link href="/clients">
+            <Button variant="outline">View clients</Button>
+          </Link>
+        </CardContent>
+      </Card>
     </div>
   );
 }
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-5">
-      <p className="text-sm text-muted-foreground">{label}</p>
-      <p className="mt-1 text-xl font-semibold">{value}</p>
-    </div>
+    <Card>
+      <CardContent className="pt-6">
+        <p className="text-sm text-muted-foreground">{label}</p>
+        <p className="mt-1 text-xl font-semibold">{value}</p>
+      </CardContent>
+    </Card>
   );
 }

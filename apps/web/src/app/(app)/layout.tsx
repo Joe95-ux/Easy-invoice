@@ -17,6 +17,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <Link href="/invoices" className="hover:text-foreground">
                 Invoices
               </Link>
+              <Link href="/clients" className="hover:text-foreground">
+                Clients
+              </Link>
             </nav>
           </div>
           <UserButton afterSignOutUrl="/" />

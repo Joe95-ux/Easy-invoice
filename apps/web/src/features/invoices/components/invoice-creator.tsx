@@ -1,12 +1,16 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from "@/components/ui/native-select";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,19 +23,45 @@ type LineItem = {
   unitPrice: number;
 };
 
+type ClientOption = {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+  country: string | null;
+};
+
 const emptyLineItem = (): LineItem => ({
   description: "",
   quantity: 1,
   unitPrice: 0,
 });
 
+function formatClientAddress(client: ClientOption): string {
+  return [client.address, client.city, client.state, client.zip, client.country]
+    .filter(Boolean)
+    .join(", ");
+}
+
 type InvoiceCreatorProps = {
   companyId: string;
   currency: string;
+  clients?: ClientOption[];
+  initialClientId?: string;
 };
 
-export function InvoiceCreator({ companyId, currency: defaultCurrency }: InvoiceCreatorProps) {
+export function InvoiceCreator({
+  companyId,
+  currency: defaultCurrency,
+  clients = [],
+  initialClientId,
+}: InvoiceCreatorProps) {
   const router = useRouter();
+  const [selectedClientId, setSelectedClientId] = useState(initialClientId ?? "");
   const [clientName, setClientName] = useState("");
   const [clientEmail, setClientEmail] = useState("");
   const [clientPhone, setClientPhone] = useState("");
@@ -62,7 +92,32 @@ export function InvoiceCreator({ companyId, currency: defaultCurrency }: Invoice
     );
   }
 
+  function applyClient(client: ClientOption) {
+    setClientName(client.name);
+    setClientEmail(client.email ?? "");
+    setClientPhone(client.phone ?? "");
+    setClientAddress(formatClientAddress(client));
+  }
+
+  function handleClientSelect(clientId: string) {
+    setSelectedClientId(clientId);
+    if (!clientId) return;
+
+    const client = clients.find((c) => c.id === clientId);
+    if (client) applyClient(client);
+  }
+
+  useEffect(() => {
+    if (!initialClientId) return;
+    const client = clients.find((c) => c.id === initialClientId);
+    if (client) {
+      setSelectedClientId(client.id);
+      applyClient(client);
+    }
+  }, [initialClientId, clients]);
+
   function applyDraft(draft: InvoiceDraft) {
+    setSelectedClientId("");
     setClientName(draft.client_name);
     setClientEmail(draft.client_email ?? "");
     setClientPhone(draft.client_phone ?? "");
@@ -109,6 +164,7 @@ export function InvoiceCreator({ companyId, currency: defaultCurrency }: Invoice
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           companyId,
+          clientId: selectedClientId || undefined,
           clientName,
           clientEmail: clientEmail || undefined,
           clientPhone: clientPhone || undefined,
@@ -174,6 +230,25 @@ export function InvoiceCreator({ companyId, currency: defaultCurrency }: Invoice
             <CardTitle>Invoice details</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
+            {clients.length > 0 && (
+              <div className="space-y-2">
+                <Label htmlFor="existing-client">Existing client</Label>
+                <NativeSelect
+                  id="existing-client"
+                  className="w-full"
+                  value={selectedClientId}
+                  onChange={(e) => handleClientSelect(e.target.value)}
+                >
+                  <NativeSelectOption value="">Enter manually</NativeSelectOption>
+                  {clients.map((client) => (
+                    <NativeSelectOption key={client.id} value={client.id}>
+                      {client.name}
+                    </NativeSelectOption>
+                  ))}
+                </NativeSelect>
+              </div>
+            )}
+
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="client-name">Client name</Label>
