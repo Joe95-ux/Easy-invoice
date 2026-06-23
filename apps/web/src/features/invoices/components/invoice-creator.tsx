@@ -14,6 +14,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { TemplatePicker } from "@/features/invoices/components/template-picker";
 import { calculateInvoiceTotals, lineItemAmount } from "@/lib/calculator";
 import type { InvoiceDraft } from "@/lib/schemas/invoice";
 
@@ -47,21 +48,33 @@ function formatClientAddress(client: ClientOption): string {
     .join(", ");
 }
 
+type TemplateOption = {
+  id: string;
+  name: string;
+  slug: string;
+  isSystem: boolean;
+};
+
 type InvoiceCreatorProps = {
   companyId: string;
   currency: string;
   clients?: ClientOption[];
+  templates?: TemplateOption[];
   initialClientId?: string;
+  defaultTemplateId?: string;
 };
 
 export function InvoiceCreator({
   companyId,
   currency: defaultCurrency,
   clients = [],
+  templates = [],
   initialClientId,
+  defaultTemplateId,
 }: InvoiceCreatorProps) {
   const router = useRouter();
   const [selectedClientId, setSelectedClientId] = useState(initialClientId ?? "");
+  const [templateId, setTemplateId] = useState(defaultTemplateId ?? templates[0]?.id ?? "");
   const [clientName, setClientName] = useState("");
   const [clientEmail, setClientEmail] = useState("");
   const [clientPhone, setClientPhone] = useState("");
@@ -165,6 +178,7 @@ export function InvoiceCreator({
         body: JSON.stringify({
           companyId,
           clientId: selectedClientId || undefined,
+          templateId: templateId || undefined,
           clientName,
           clientEmail: clientEmail || undefined,
           clientPhone: clientPhone || undefined,
@@ -230,6 +244,14 @@ export function InvoiceCreator({
             <CardTitle>Invoice details</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
+            {templates.length > 0 && (
+              <TemplatePicker
+                templates={templates}
+                value={templateId}
+                onChange={setTemplateId}
+              />
+            )}
+
             {clients.length > 0 && (
               <div className="space-y-2">
                 <Label htmlFor="existing-client">Existing client</Label>

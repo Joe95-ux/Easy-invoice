@@ -5,8 +5,11 @@ import { getCurrentMember } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getInvoiceForMember } from "@/lib/invoices";
 
+import { getTemplateById } from "@/lib/templates";
+
 const updateInvoiceSchema = z.object({
   status: z.enum(["DRAFT", "SENT", "VIEWED", "PAID", "OVERDUE", "CANCELLED"]).optional(),
+  templateId: z.string().optional().nullable(),
   notes: z.string().optional(),
   dueDate: z.string().optional().nullable(),
   clientEmail: z.string().email().optional(),
@@ -58,7 +61,14 @@ export async function PATCH(request: Request, context: RouteContext) {
     return NextResponse.json({ error: "Invalid input" }, { status: 400 });
   }
 
-  const { status, notes, dueDate, clientEmail } = parsed.data;
+  const { status, notes, dueDate, clientEmail, templateId } = parsed.data;
+
+  if (templateId) {
+    const template = await getTemplateById(templateId, member.companyId);
+    if (!template) {
+      return NextResponse.json({ error: "Template not found" }, { status: 404 });
+    }
+  }
 
   if (clientEmail && existing.clientId) {
     await prisma.client.update({
@@ -73,10 +83,11 @@ export async function PATCH(request: Request, context: RouteContext) {
       ...(status !== undefined && { status }),
       ...(notes !== undefined && { notes }),
       ...(dueDate !== undefined && { dueDate: dueDate ? new Date(dueDate) : null }),
+      ...(templateId !== undefined && { templateId }),
       ...(status === "PAID" && { paidAt: new Date() }),
       ...(status === "SENT" && !existing.sentAt && { sentAt: new Date() }),
     },
-    include: { client: true, items: { orderBy: { sortOrder: "asc" } }, company: true },
+    include: { client: true, items: { orderBy: { sortOrder: "asc" } }, company: true, template: true },
   });
 
   return NextResponse.json({ invoice });

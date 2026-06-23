@@ -2,7 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { renderInvoicePdf } from "@/lib/ai-docs";
 import { getCurrentMember } from "@/lib/auth";
-import { invoiceToHtmlData, renderInvoiceHtml } from "@/lib/invoice-html";
+import { renderInvoiceHtmlForInvoice } from "@/lib/invoice-html";
 import { getInvoiceForMember } from "@/lib/invoices";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -26,7 +26,7 @@ export async function GET(_request: Request, context: RouteContext) {
   }
 
   try {
-    const html = renderInvoiceHtml(invoiceToHtmlData(invoice));
+    const html = await renderInvoiceHtmlForInvoice(invoice);
     const pdfBuffer = await renderInvoicePdf(html);
 
     return new NextResponse(new Uint8Array(pdfBuffer), {

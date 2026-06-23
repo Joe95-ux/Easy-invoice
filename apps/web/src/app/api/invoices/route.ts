@@ -3,10 +3,12 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentMember } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { getDefaultTemplateId, getTemplateById } from "@/lib/templates";
 
 const createInvoiceSchema = z.object({
   companyId: z.string(),
   clientId: z.string().optional(),
+  templateId: z.string().optional(),
   clientName: z.string().min(1),
   clientEmail: z.string().email().optional().or(z.literal("")),
   clientPhone: z.string().optional(),
@@ -100,10 +102,21 @@ export async function POST(request: Request) {
         });
   }
 
+  let templateId = parsed.data.templateId;
+  if (templateId) {
+    const template = await getTemplateById(templateId, member.companyId);
+    if (!template) {
+      return NextResponse.json({ error: "Template not found" }, { status: 404 });
+    }
+  } else {
+    templateId = await getDefaultTemplateId(member.companyId);
+  }
+
   const invoice = await prisma.invoice.create({
     data: {
       companyId: member.companyId,
       clientId: client.id,
+      templateId: templateId ?? null,
       number: `INV-${String(count + 1).padStart(4, "0")}`,
       currency: parsed.data.currency,
       subtotal: parsed.data.subtotal,

@@ -119,6 +119,4 @@ All protected endpoints require header: `X-Service-Secret: <your-secret>`.
 ## Next steps
 
 - [ ] Stripe Checkout + plan limits
-- [ ] Invoice templates (picker + seed data)
-- [ ] Company settings / profile edit
 - [ ] Drag-and-drop custom fields

@@ -39,3 +39,9 @@ export const companyOnboardingSchema = z.object({
 });
 
 export type CompanyOnboardingInput = z.infer<typeof companyOnboardingSchema>;
+
+export const companySettingsSchema = companyOnboardingSchema.extend({
+  taxId: z.string().optional(),
+});
+
+export type CompanySettingsInput = z.infer<typeof companySettingsSchema>;

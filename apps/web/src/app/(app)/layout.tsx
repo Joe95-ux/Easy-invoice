@@ -20,6 +20,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <Link href="/clients" className="hover:text-foreground">
                 Clients
               </Link>
+              <Link href="/settings" className="hover:text-foreground">
+                Settings
+              </Link>
             </nav>
           </div>
           <UserButton afterSignOutUrl="/" />

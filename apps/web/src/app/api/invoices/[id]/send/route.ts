@@ -4,7 +4,7 @@ import { z } from "zod";
 import { renderInvoicePdf } from "@/lib/ai-docs";
 import { getCurrentMember } from "@/lib/auth";
 import { sendInvoiceEmail } from "@/lib/email";
-import { invoiceToHtmlData, renderInvoiceHtml } from "@/lib/invoice-html";
+import { renderInvoiceHtmlForInvoice } from "@/lib/invoice-html";
 import { formatMoney, getInvoiceForMember } from "@/lib/invoices";
 import { prisma } from "@/lib/db";
 
@@ -47,7 +47,7 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   try {
-    const html = renderInvoiceHtml(invoiceToHtmlData(invoice));
+    const html = await renderInvoiceHtmlForInvoice(invoice);
     const pdfBuffer = await renderInvoicePdf(html);
 
     await sendInvoiceEmail({

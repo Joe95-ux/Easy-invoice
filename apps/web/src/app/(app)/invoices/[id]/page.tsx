@@ -13,6 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { InvoiceActions } from "@/features/invoices/components/invoice-actions";
+import { TemplatePicker } from "@/features/invoices/components/template-picker";
 import { getCurrentMember } from "@/lib/auth";
 import {
   formatDate,
@@ -21,6 +22,7 @@ import {
   invoiceStatusLabel,
   invoiceStatusVariant,
 } from "@/lib/invoices";
+import { getTemplatesForCompany } from "@/lib/templates";
 
 type PageProps = { params: Promise<{ id: string }> };
 
@@ -29,7 +31,10 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
   if (!member) redirect("/onboarding");
 
   const { id } = await params;
-  const invoice = await getInvoiceForMember(id, member.companyId);
+  const [invoice, templates] = await Promise.all([
+    getInvoiceForMember(id, member.companyId),
+    getTemplatesForCompany(member.companyId),
+  ]);
   if (!invoice) notFound();
 
   return (
@@ -61,6 +66,16 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
           clientEmail={invoice.client?.email}
         />
       </div>
+
+      <Card className="mb-6">
+        <CardContent className="pt-6">
+          <TemplatePicker
+            templates={templates}
+            value={invoice.templateId ?? templates.find((t) => t.isDefault)?.id ?? templates[0]?.id ?? ""}
+            invoiceId={invoice.id}
+          />
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>

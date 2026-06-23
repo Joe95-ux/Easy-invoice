@@ -8,6 +8,7 @@ export async function getInvoiceForMember(invoiceId: string, companyId: string) 
     include: {
       client: true,
       company: true,
+      template: true,
       items: { orderBy: { sortOrder: "asc" } },
     },
   });

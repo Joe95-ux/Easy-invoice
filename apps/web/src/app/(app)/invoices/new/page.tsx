@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { getCurrentMember } from "@/lib/auth";
 import { getClientsForMember } from "@/lib/clients";
+import { getDefaultTemplateId, getTemplatesForCompany } from "@/lib/templates";
 import { InvoiceCreator } from "@/features/invoices/components/invoice-creator";
 
 type PageProps = { searchParams: Promise<{ clientId?: string }> };
@@ -13,7 +13,11 @@ export default async function NewInvoicePage({ searchParams }: PageProps) {
   if (!member) redirect("/onboarding");
 
   const { clientId } = await searchParams;
-  const clients = await getClientsForMember(member.companyId);
+  const [clients, templates, defaultTemplateId] = await Promise.all([
+    getClientsForMember(member.companyId),
+    getTemplatesForCompany(member.companyId),
+    getDefaultTemplateId(member.companyId),
+  ]);
 
   return (
     <div>
@@ -30,7 +34,9 @@ export default async function NewInvoicePage({ searchParams }: PageProps) {
         companyId={member.companyId}
         currency={member.company.currency}
         clients={clients}
+        templates={templates}
         initialClientId={clientId}
+        defaultTemplateId={defaultTemplateId}
       />
     </div>
   );
