@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -10,12 +9,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getCurrentMember } from "@/lib/auth";
+import { requireMember } from "@/lib/auth";
 import { getClientsForMember } from "@/lib/clients";
 
 export default async function ClientsPage() {
-  const member = await getCurrentMember();
-  if (!member) redirect("/onboarding");
+  const member = await requireMember();
 
   const clients = await getClientsForMember(member.companyId);
 

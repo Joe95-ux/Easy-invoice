@@ -1,5 +1,6 @@
+import { redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
-import { prisma, UserRole } from "@/lib/db";
+import { prisma } from "@/lib/db";
 
 export async function getCurrentMember() {
   const { userId } = await auth();
@@ -11,11 +12,9 @@ export async function getCurrentMember() {
   });
 }
 
-export async function requireCurrentMember() {
+export async function requireMember() {
   const member = await getCurrentMember();
-  if (!member) {
-    throw new Error("No company membership found");
-  }
+  if (!member) redirect("/onboarding");
   return member;
 }
 
@@ -41,4 +40,4 @@ export async function createUniqueCompanySlug(name: string): Promise<string> {
   return slug;
 }
 
-export { UserRole };
+export { UserRole } from "@/lib/db";

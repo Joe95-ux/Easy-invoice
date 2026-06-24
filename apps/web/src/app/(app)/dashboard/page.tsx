@@ -1,15 +1,10 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getCurrentMember } from "@/lib/auth";
+import { requireMember } from "@/lib/auth";
 
 export default async function DashboardPage() {
-  const member = await getCurrentMember();
-
-  if (!member) {
-    redirect("/onboarding");
-  }
+  const member = await requireMember();
 
   const { company } = member;
 

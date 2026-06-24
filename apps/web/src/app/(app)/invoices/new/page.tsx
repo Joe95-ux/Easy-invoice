@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { getCurrentMember } from "@/lib/auth";
+import { requireMember } from "@/lib/auth";
 import { getClientsForMember } from "@/lib/clients";
 import { getDefaultTemplateId, getTemplatesForCompany } from "@/lib/templates";
 import { InvoiceCreator } from "@/features/invoices/components/invoice-creator";
@@ -9,8 +8,7 @@ import { InvoiceCreator } from "@/features/invoices/components/invoice-creator";
 type PageProps = { searchParams: Promise<{ clientId?: string }> };
 
 export default async function NewInvoicePage({ searchParams }: PageProps) {
-  const member = await getCurrentMember();
-  if (!member) redirect("/onboarding");
+  const member = await requireMember();
 
   const { clientId } = await searchParams;
   const [clients, templates, defaultTemplateId] = await Promise.all([
@@ -31,7 +29,6 @@ export default async function NewInvoicePage({ searchParams }: PageProps) {
         </p>
       </div>
       <InvoiceCreator
-        companyId={member.companyId}
         currency={member.company.currency}
         clients={clients}
         templates={templates}

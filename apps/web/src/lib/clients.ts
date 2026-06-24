@@ -1,5 +1,16 @@
 import { prisma } from "@/lib/db";
 
+export type ClientListItem = Awaited<ReturnType<typeof getClientsForMember>>[number];
+export type ClientWithInvoices = NonNullable<Awaited<ReturnType<typeof getClientForMember>>>;
+
+type AddressFields = Pick<ClientListItem, "address" | "city" | "state" | "zip" | "country">;
+
+export function formatClientAddress(client: AddressFields): string {
+  return [client.address, client.city, client.state, client.zip, client.country]
+    .filter(Boolean)
+    .join(", ");
+}
+
 export async function getClientForMember(clientId: string, companyId: string) {
   return prisma.client.findFirst({
     where: { id: clientId, companyId },

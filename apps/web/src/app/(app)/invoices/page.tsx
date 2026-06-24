@@ -1,8 +1,10 @@
+import { requireMember } from "@/lib/auth";
+import { getInvoicesForMember } from "@/lib/invoice-service";
+import { formatDate, formatMoney, invoiceStatusLabel, invoiceStatusVariant } from "@/lib/invoices";
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -11,25 +13,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getCurrentMember } from "@/lib/auth";
-import { prisma } from "@/lib/db";
-import {
-  formatDate,
-  formatMoney,
-  invoiceStatusLabel,
-  invoiceStatusVariant,
-} from "@/lib/invoices";
 
 export default async function InvoicesPage() {
-  const member = await getCurrentMember();
-  if (!member) redirect("/onboarding");
-
-  const invoices = await prisma.invoice.findMany({
-    where: { companyId: member.companyId },
-    include: { client: true },
-    orderBy: { createdAt: "desc" },
-    take: 50,
-  });
+  const member = await requireMember();
+  const invoices = await getInvoicesForMember(member.companyId);
 
   return (
     <div>
@@ -44,13 +31,11 @@ export default async function InvoicesPage() {
       </div>
 
       {invoices.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center py-12 text-center">
-            <p className="text-muted-foreground">No invoices yet.</p>
-            <Link href="/invoices/new">
-              <Button className="mt-4">Create your first invoice</Button>
-            </Link>
-          </CardContent>
+        <Card className="flex flex-col items-center py-12 text-center">
+          <p className="text-muted-foreground">No invoices yet.</p>
+          <Link href="/invoices/new">
+            <Button className="mt-4">Create your first invoice</Button>
+          </Link>
         </Card>
       ) : (
         <Card>

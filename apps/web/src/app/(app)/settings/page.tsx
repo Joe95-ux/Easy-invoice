@@ -1,12 +1,10 @@
-import { redirect } from "next/navigation";
 import { CompanySettingsForm } from "@/features/settings/components/company-settings-form";
-import { getCurrentMember } from "@/lib/auth";
+import { requireMember } from "@/lib/auth";
 import { getTemplatesForCompany } from "@/lib/templates";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default async function SettingsPage() {
-  const member = await getCurrentMember();
-  if (!member) redirect("/onboarding");
+  const member = await requireMember();
 
   const templates = await getTemplatesForCompany(member.companyId);
   const { company } = member;

@@ -1,36 +1,19 @@
-import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { z } from "zod";
-import { getCurrentMember } from "@/lib/auth";
+import { requireApiMember, parseJsonBody, validationError } from "@/lib/api/validation";
 import { prisma } from "@/lib/db";
+import { canTransitionInvoiceStatus } from "@/lib/invoice-service";
 import { getInvoiceForMember } from "@/lib/invoices";
-
+import { updateInvoiceSchema } from "@/lib/schemas/invoice";
 import { getTemplateById } from "@/lib/templates";
-
-const updateInvoiceSchema = z.object({
-  status: z.enum(["DRAFT", "SENT", "VIEWED", "PAID", "OVERDUE", "CANCELLED"]).optional(),
-  templateId: z.string().optional().nullable(),
-  notes: z.string().optional(),
-  dueDate: z.string().optional().nullable(),
-  clientEmail: z.string().email().optional(),
-});
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function GET(_request: Request, context: RouteContext) {
-  const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const member = await getCurrentMember();
-  if (!member) {
-    return NextResponse.json({ error: "No company" }, { status: 403 });
-  }
+  const { member, response } = await requireApiMember();
+  if (response) return response;
 
   const { id } = await context.params;
   const invoice = await getInvoiceForMember(id, member.companyId);
-
   if (!invoice) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
@@ -39,15 +22,8 @@ export async function GET(_request: Request, context: RouteContext) {
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
-  const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const member = await getCurrentMember();
-  if (!member) {
-    return NextResponse.json({ error: "No company" }, { status: 403 });
-  }
+  const { member, response } = await requireApiMember();
+  if (response) return response;
 
   const { id } = await context.params;
   const existing = await getInvoiceForMember(id, member.companyId);
@@ -55,13 +31,20 @@ export async function PATCH(request: Request, context: RouteContext) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const body = await request.json();
+  const body = await parseJsonBody<unknown>(request);
+  if (body instanceof NextResponse) return body;
+
   const parsed = updateInvoiceSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid input" }, { status: 400 });
-  }
+  if (!parsed.success) return validationError(parsed.error);
 
   const { status, notes, dueDate, clientEmail, templateId } = parsed.data;
+
+  if (status && !canTransitionInvoiceStatus(existing.status, status)) {
+    return NextResponse.json(
+      { error: `Cannot change status from ${existing.status} to ${status}` },
+      { status: 400 },
+    );
+  }
 
   if (templateId) {
     const template = await getTemplateById(templateId, member.companyId);
@@ -87,22 +70,20 @@ export async function PATCH(request: Request, context: RouteContext) {
       ...(status === "PAID" && { paidAt: new Date() }),
       ...(status === "SENT" && !existing.sentAt && { sentAt: new Date() }),
     },
-    include: { client: true, items: { orderBy: { sortOrder: "asc" } }, company: true, template: true },
+    include: {
+      client: true,
+      items: { orderBy: { sortOrder: "asc" } },
+      company: true,
+      template: true,
+    },
   });
 
   return NextResponse.json({ invoice });
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
-  const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const member = await getCurrentMember();
-  if (!member) {
-    return NextResponse.json({ error: "No company" }, { status: 403 });
-  }
+  const { member, response } = await requireApiMember();
+  if (response) return response;
 
   const { id } = await context.params;
   const existing = await getInvoiceForMember(id, member.companyId);
@@ -111,6 +92,5 @@ export async function DELETE(_request: Request, context: RouteContext) {
   }
 
   await prisma.invoice.delete({ where: { id } });
-
   return NextResponse.json({ success: true });
 }

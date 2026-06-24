@@ -1,13 +1,12 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { ClientDetail } from "@/features/clients/components/client-detail";
-import { getCurrentMember } from "@/lib/auth";
+import { requireMember } from "@/lib/auth";
 import { getClientForMember } from "@/lib/clients";
 
 type PageProps = { params: Promise<{ id: string }> };
 
 export default async function ClientPage({ params }: PageProps) {
-  const member = await getCurrentMember();
-  if (!member) redirect("/onboarding");
+  const member = await requireMember();
 
   const { id } = await params;
   const client = await getClientForMember(id, member.companyId);

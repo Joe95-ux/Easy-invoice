@@ -1,39 +1,24 @@
-import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { getCurrentMember } from "@/lib/auth";
+import { requireApiMember, parseJsonBody, validationError } from "@/lib/api/validation";
 import { prisma } from "@/lib/db";
-import { companySettingsSchema } from "@/lib/schemas/invoice";
+import { companySettingsSchema } from "@/lib/schemas/company";
 
 export async function GET() {
-  const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const member = await getCurrentMember();
-  if (!member) {
-    return NextResponse.json({ error: "No company" }, { status: 403 });
-  }
+  const { member, response } = await requireApiMember();
+  if (response) return response;
 
   return NextResponse.json({ company: member.company });
 }
 
 export async function PATCH(request: Request) {
-  const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { member, response } = await requireApiMember();
+  if (response) return response;
 
-  const member = await getCurrentMember();
-  if (!member) {
-    return NextResponse.json({ error: "No company" }, { status: 403 });
-  }
+  const body = await parseJsonBody<unknown>(request);
+  if (body instanceof NextResponse) return body;
 
-  const body = await request.json();
   const parsed = companySettingsSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid input" }, { status: 400 });
-  }
+  if (!parsed.success) return validationError(parsed.error);
 
   const company = await prisma.company.update({
     where: { id: member.companyId },

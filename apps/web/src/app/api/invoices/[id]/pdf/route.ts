@@ -1,38 +1,25 @@
-import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { renderInvoicePdf } from "@/lib/ai-docs";
-import { getCurrentMember } from "@/lib/auth";
-import { renderInvoiceHtmlForInvoice } from "@/lib/invoice-html";
-import { getInvoiceForMember } from "@/lib/invoices";
+import { requireApiMember } from "@/lib/api/validation";
+import { generateInvoicePdfBuffer } from "@/lib/invoice-service";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function GET(_request: Request, context: RouteContext) {
-  const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const member = await getCurrentMember();
-  if (!member) {
-    return NextResponse.json({ error: "No company" }, { status: 403 });
-  }
+  const { member, response } = await requireApiMember();
+  if (response) return response;
 
   const { id } = await context.params;
-  const invoice = await getInvoiceForMember(id, member.companyId);
-
-  if (!invoice) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
 
   try {
-    const html = await renderInvoiceHtmlForInvoice(invoice);
-    const pdfBuffer = await renderInvoicePdf(html);
+    const result = await generateInvoicePdfBuffer(id, member.companyId);
+    if (!result) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
 
-    return new NextResponse(new Uint8Array(pdfBuffer), {
+    return new NextResponse(new Uint8Array(result.pdfBuffer), {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${invoice.number}.pdf"`,
+        "Content-Disposition": `attachment; filename="${result.invoice.number}.pdf"`,
       },
     });
   } catch (error) {

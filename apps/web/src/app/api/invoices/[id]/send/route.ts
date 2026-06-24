@@ -1,12 +1,10 @@
-import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { z } from "zod";
-import { renderInvoicePdf } from "@/lib/ai-docs";
-import { getCurrentMember } from "@/lib/auth";
+import { requireApiMember, parseJsonBody, validationError } from "@/lib/api/validation";
 import { sendInvoiceEmail } from "@/lib/email";
-import { renderInvoiceHtmlForInvoice } from "@/lib/invoice-html";
-import { formatMoney, getInvoiceForMember } from "@/lib/invoices";
+import { generateInvoicePdfBuffer } from "@/lib/invoice-service";
+import { formatMoney } from "@/lib/invoices";
 import { prisma } from "@/lib/db";
+import { z } from "zod";
 
 const sendSchema = z.object({
   email: z.string().email().optional(),
@@ -15,40 +13,30 @@ const sendSchema = z.object({
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function POST(request: Request, context: RouteContext) {
-  const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const member = await getCurrentMember();
-  if (!member) {
-    return NextResponse.json({ error: "No company" }, { status: 403 });
-  }
+  const { member, response } = await requireApiMember();
+  if (response) return response;
 
   const { id } = await context.params;
-  const invoice = await getInvoiceForMember(id, member.companyId);
+  const body = await parseJsonBody<unknown>(request);
+  if (body instanceof NextResponse) return body;
 
-  if (!invoice) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
-
-  const body = await request.json().catch(() => ({}));
   const parsed = sendSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid input" }, { status: 400 });
-  }
-
-  const recipientEmail = parsed.data.email ?? invoice.client?.email;
-  if (!recipientEmail) {
-    return NextResponse.json(
-      { error: "Client email is required to send the invoice" },
-      { status: 400 },
-    );
-  }
+  if (!parsed.success) return validationError(parsed.error);
 
   try {
-    const html = await renderInvoiceHtmlForInvoice(invoice);
-    const pdfBuffer = await renderInvoicePdf(html);
+    const result = await generateInvoicePdfBuffer(id, member.companyId);
+    if (!result) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    const { invoice, pdfBuffer } = result;
+    const recipientEmail = parsed.data.email ?? invoice.client?.email;
+    if (!recipientEmail) {
+      return NextResponse.json(
+        { error: "Client email is required to send the invoice" },
+        { status: 400 },
+      );
+    }
 
     await sendInvoiceEmail({
       to: recipientEmail,
@@ -71,7 +59,12 @@ export async function POST(request: Request, context: RouteContext) {
         status: invoice.status === "DRAFT" ? "SENT" : invoice.status,
         sentAt: invoice.sentAt ?? new Date(),
       },
-      include: { client: true, items: { orderBy: { sortOrder: "asc" } }, company: true },
+      include: {
+        client: true,
+        items: { orderBy: { sortOrder: "asc" } },
+        company: true,
+        template: true,
+      },
     });
 
     return NextResponse.json({ invoice: updated });

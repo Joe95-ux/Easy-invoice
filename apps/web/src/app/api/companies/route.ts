@@ -1,8 +1,9 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { parseJsonBody, validationError } from "@/lib/api/validation";
 import { createUniqueCompanySlug } from "@/lib/auth";
 import { prisma, UserRole } from "@/lib/db";
-import { companyOnboardingSchema } from "@/lib/schemas/invoice";
+import { companyOnboardingSchema } from "@/lib/schemas/company";
 
 export async function POST(request: Request) {
   const { userId } = await auth();
@@ -17,14 +18,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Company already exists" }, { status: 409 });
   }
 
-  const body = await request.json();
+  const body = await parseJsonBody<unknown>(request);
+  if (body instanceof NextResponse) return body;
+
   const parsed = companyOnboardingSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Invalid input", details: parsed.error.flatten() },
-      { status: 400 },
-    );
-  }
+  if (!parsed.success) return validationError(parsed.error);
 
   const user = await currentUser();
   const email = parsed.data.email || user?.emailAddresses[0]?.emailAddress || "";

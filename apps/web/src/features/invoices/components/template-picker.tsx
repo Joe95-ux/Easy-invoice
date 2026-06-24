@@ -8,16 +8,10 @@ import {
   NativeSelect,
   NativeSelectOption,
 } from "@/components/ui/native-select";
-
-type TemplateOption = {
-  id: string;
-  name: string;
-  slug: string;
-  isSystem: boolean;
-};
+import type { TemplateSummary } from "@/lib/templates";
 
 type TemplatePickerProps = {
-  templates: TemplateOption[];
+  templates: TemplateSummary[];
   value: string;
   onChange?: (templateId: string) => void;
   invoiceId?: string;

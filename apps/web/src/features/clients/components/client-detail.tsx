@@ -28,38 +28,15 @@ import {
 } from "@/components/ui/table";
 import { ClientForm } from "@/features/clients/components/client-form";
 import {
-  formatDate,
   formatMoney,
   invoiceStatusLabel,
   invoiceStatusVariant,
 } from "@/lib/invoices";
+import type { ClientWithInvoices } from "@/lib/clients";
 import type { ClientInput } from "@/lib/schemas/client";
-import type { InvoiceStatus } from "@easy-invoice/db";
-
-type ClientInvoice = {
-  id: string;
-  number: string;
-  status: InvoiceStatus;
-  total: { toString(): string };
-  currency: string;
-  createdAt: Date;
-};
 
 type ClientDetailProps = {
-  client: {
-    id: string;
-    name: string;
-    email: string | null;
-    phone: string | null;
-    address: string | null;
-    city: string | null;
-    state: string | null;
-    zip: string | null;
-    country: string | null;
-    notes: string | null;
-    _count: { invoices: number };
-    invoices: ClientInvoice[];
-  };
+  client: ClientWithInvoices;
 };
 
 export function ClientDetail({ client }: ClientDetailProps) {

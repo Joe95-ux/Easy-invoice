@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/table";
 import { InvoiceActions } from "@/features/invoices/components/invoice-actions";
 import { TemplatePicker } from "@/features/invoices/components/template-picker";
-import { getCurrentMember } from "@/lib/auth";
+import { requireMember } from "@/lib/auth";
 import {
   formatDate,
   formatMoney,
@@ -27,8 +27,7 @@ import { getTemplatesForCompany } from "@/lib/templates";
 type PageProps = { params: Promise<{ id: string }> };
 
 export default async function InvoiceDetailPage({ params }: PageProps) {
-  const member = await getCurrentMember();
-  if (!member) redirect("/onboarding");
+  const member = await requireMember();
 
   const { id } = await params;
   const [invoice, templates] = await Promise.all([

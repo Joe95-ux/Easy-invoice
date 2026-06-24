@@ -25,23 +25,48 @@ export const invoiceDraftSchema = z.object({
 
 export type InvoiceDraft = z.infer<typeof invoiceDraftSchema>;
 
-export const companyOnboardingSchema = z.object({
-  name: z.string().min(2, "Company name is required"),
-  email: z.string().email().optional().or(z.literal("")),
-  phone: z.string().optional(),
-  address: z.string().optional(),
-  city: z.string().optional(),
-  state: z.string().optional(),
-  zip: z.string().optional(),
-  country: z.string().min(2).default("US"),
-  currency: z.string().length(3).default("USD"),
-  locale: z.string().default("en"),
+const invoiceLineItemInputSchema = z.object({
+  description: z.string().min(1),
+  quantity: z.number().positive(),
+  unitPrice: z.number().nonnegative(),
+  sortOrder: z.number().int().nonnegative(),
 });
 
-export type CompanyOnboardingInput = z.infer<typeof companyOnboardingSchema>;
-
-export const companySettingsSchema = companyOnboardingSchema.extend({
-  taxId: z.string().optional(),
+export const createInvoiceSchema = z.object({
+  clientId: z.string().optional(),
+  templateId: z.string().optional(),
+  clientName: z.string().min(1),
+  clientEmail: z.string().email().optional().or(z.literal("")),
+  clientPhone: z.string().optional(),
+  clientAddress: z.string().optional(),
+  notes: z.string().optional(),
+  currency: z.string().length(3),
+  taxRate: z.number().min(0).max(1),
+  discount: z.number().min(0),
+  issueDate: z.string().optional(),
+  dueDate: z.string().optional(),
+  lineItems: z.array(invoiceLineItemInputSchema).min(1, "At least one line item is required"),
 });
 
-export type CompanySettingsInput = z.infer<typeof companySettingsSchema>;
+export type CreateInvoiceInput = z.infer<typeof createInvoiceSchema>;
+
+export const updateInvoiceSchema = z.object({
+  status: z.enum(["DRAFT", "SENT", "VIEWED", "PAID", "OVERDUE", "CANCELLED"]).optional(),
+  templateId: z.string().optional().nullable(),
+  notes: z.string().optional(),
+  dueDate: z.string().optional().nullable(),
+  clientEmail: z.string().email().optional(),
+});
+
+export const parseInvoiceRequestSchema = z.object({
+  text: z.string().min(10),
+  localeHint: z.string().optional(),
+});
+
+// Re-export company schemas for backwards compatibility
+export {
+  companyOnboardingSchema,
+  companySettingsSchema,
+  type CompanyOnboardingInput,
+  type CompanySettingsInput,
+} from "@/lib/schemas/company";

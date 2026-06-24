@@ -61,9 +61,3 @@ export async function renderInvoiceHtmlForInvoice(
   const classic = SYSTEM_TEMPLATES.find((t) => t.slug === "classic")!;
   return renderFromTemplate(classic.html, classic.css, data);
 }
-
-// Backwards-compatible sync helper using classic template
-export function renderInvoiceHtml(data: InvoiceHtmlData): string {
-  const classic = SYSTEM_TEMPLATES.find((t) => t.slug === "classic")!;
-  return renderFromTemplate(classic.html, classic.css, data);
-}

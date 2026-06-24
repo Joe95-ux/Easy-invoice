@@ -2,7 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { companyOnboardingSchema, type CompanyOnboardingInput } from "@/lib/schemas/invoice";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { CompanyProfileFields } from "@/components/forms/company-profile-fields";
+import { zodFieldErrors } from "@/lib/validation/zod";
+import {
+  companyOnboardingSchema,
+  type CompanyOnboardingInput,
+} from "@/lib/schemas/company";
 
 const defaultValues: CompanyOnboardingInput = {
   name: "",
@@ -22,7 +29,6 @@ export default function OnboardingPage() {
   const [form, setForm] = useState<CompanyOnboardingInput>(defaultValues);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
-  const [serverError, setServerError] = useState<string | null>(null);
 
   function updateField<K extends keyof CompanyOnboardingInput>(
     key: K,
@@ -33,16 +39,10 @@ export default function OnboardingPage() {
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    setServerError(null);
 
     const parsed = companyOnboardingSchema.safeParse(form);
     if (!parsed.success) {
-      const fieldErrors: Record<string, string> = {};
-      for (const issue of parsed.error.issues) {
-        const key = issue.path[0];
-        if (typeof key === "string") fieldErrors[key] = issue.message;
-      }
-      setErrors(fieldErrors);
+      setErrors(zodFieldErrors(parsed.error));
       return;
     }
 
@@ -64,7 +64,7 @@ export default function OnboardingPage() {
       router.push("/dashboard");
       router.refresh();
     } catch (error) {
-      setServerError(error instanceof Error ? error.message : "Something went wrong");
+      toast.error(error instanceof Error ? error.message : "Something went wrong");
     } finally {
       setSubmitting(false);
     }
@@ -77,95 +77,13 @@ export default function OnboardingPage() {
         Tell us about your company so we can personalize your invoices.
       </p>
 
-      <form onSubmit={handleSubmit} className="mt-8 space-y-5">
-        <Field
-          label="Company name"
-          value={form.name}
-          onChange={(v) => updateField("name", v)}
-          error={errors.name}
-          required
-        />
-        <Field
-          label="Business email"
-          type="email"
-          value={form.email ?? ""}
-          onChange={(v) => updateField("email", v)}
-          error={errors.email}
-        />
-        <Field
-          label="Phone"
-          value={form.phone ?? ""}
-          onChange={(v) => updateField("phone", v)}
-        />
-        <Field
-          label="Address"
-          value={form.address ?? ""}
-          onChange={(v) => updateField("address", v)}
-        />
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Field label="City" value={form.city ?? ""} onChange={(v) => updateField("city", v)} />
-          <Field label="State" value={form.state ?? ""} onChange={(v) => updateField("state", v)} />
-          <Field label="ZIP" value={form.zip ?? ""} onChange={(v) => updateField("zip", v)} />
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field
-            label="Country"
-            value={form.country}
-            onChange={(v) => updateField("country", v)}
-          />
-          <Field
-            label="Currency"
-            value={form.currency}
-            onChange={(v) => updateField("currency", v.toUpperCase())}
-          />
-        </div>
+      <form onSubmit={handleSubmit} className="mt-8 space-y-6">
+        <CompanyProfileFields values={form} errors={errors} onChange={updateField} />
 
-        {serverError && (
-          <p className="text-sm text-red-600" role="alert">
-            {serverError}
-          </p>
-        )}
-
-        <button
-          type="submit"
-          disabled={submitting}
-          className="w-full rounded-lg bg-primary px-4 py-3 text-sm font-medium text-primary-foreground disabled:opacity-60"
-        >
+        <Button type="submit" disabled={submitting} className="w-full">
           {submitting ? "Creating..." : "Continue to dashboard"}
-        </button>
+        </Button>
       </form>
     </div>
-  );
-}
-
-function Field({
-  label,
-  value,
-  onChange,
-  error,
-  type = "text",
-  required,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  error?: string;
-  type?: string;
-  required?: boolean;
-}) {
-  return (
-    <label className="block">
-      <span className="text-sm font-medium">{label}</span>
-      <input
-        type={type}
-        value={value}
-        required={required}
-        onChange={(e) => onChange(e.target.value)}
-        className="mt-1.5 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary"
-      />
-      {error && (
-        <span className="mt-1 block text-xs text-red-600">{error}</span>
-      )}
-    </label>
   );
 }

@@ -3,9 +3,10 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { FormField } from "@/components/forms/form-field";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { zodFieldErrors } from "@/lib/validation/zod";
 import { clientSchema, type ClientInput } from "@/lib/schemas/client";
 
 const emptyValues: ClientInput = {
@@ -44,12 +45,7 @@ export function ClientForm({
 
     const parsed = clientSchema.safeParse(form);
     if (!parsed.success) {
-      const fieldErrors: Record<string, string> = {};
-      for (const issue of parsed.error.issues) {
-        const key = issue.path[0];
-        if (typeof key === "string") fieldErrors[key] = issue.message;
-      }
-      setErrors(fieldErrors);
+      setErrors(zodFieldErrors(parsed.error));
       return;
     }
 
@@ -67,7 +63,7 @@ export function ClientForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field
+        <FormField
           label="Name"
           id="name"
           value={form.name}
@@ -75,7 +71,7 @@ export function ClientForm({
           error={errors.name}
           required
         />
-        <Field
+        <FormField
           label="Email"
           id="email"
           type="email"
@@ -83,13 +79,13 @@ export function ClientForm({
           onChange={(v) => updateField("email", v)}
           error={errors.email}
         />
-        <Field
+        <FormField
           label="Phone"
           id="phone"
           value={form.phone ?? ""}
           onChange={(v) => updateField("phone", v)}
         />
-        <Field
+        <FormField
           label="Country"
           id="country"
           value={form.country ?? ""}
@@ -97,7 +93,7 @@ export function ClientForm({
         />
       </div>
 
-      <Field
+      <FormField
         label="Address"
         id="address"
         value={form.address ?? ""}
@@ -105,9 +101,9 @@ export function ClientForm({
       />
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <Field label="City" id="city" value={form.city ?? ""} onChange={(v) => updateField("city", v)} />
-        <Field label="State" id="state" value={form.state ?? ""} onChange={(v) => updateField("state", v)} />
-        <Field label="ZIP" id="zip" value={form.zip ?? ""} onChange={(v) => updateField("zip", v)} />
+        <FormField label="City" id="city" value={form.city ?? ""} onChange={(v) => updateField("city", v)} />
+        <FormField label="State" id="state" value={form.state ?? ""} onChange={(v) => updateField("state", v)} />
+        <FormField label="ZIP" id="zip" value={form.zip ?? ""} onChange={(v) => updateField("zip", v)} />
       </div>
 
       <div className="space-y-2">
@@ -124,37 +120,5 @@ export function ClientForm({
         {submitting ? "Saving..." : submitLabel}
       </Button>
     </form>
-  );
-}
-
-function Field({
-  label,
-  id,
-  value,
-  onChange,
-  error,
-  type = "text",
-  required,
-}: {
-  label: string;
-  id: string;
-  value: string;
-  onChange: (value: string) => void;
-  error?: string;
-  type?: string;
-  required?: boolean;
-}) {
-  return (
-    <div className="space-y-2">
-      <Label htmlFor={id}>{label}</Label>
-      <Input
-        id={id}
-        type={type}
-        value={value}
-        required={required}
-        onChange={(e) => onChange(e.target.value)}
-      />
-      {error && <p className="text-xs text-destructive">{error}</p>}
-    </div>
   );
 }

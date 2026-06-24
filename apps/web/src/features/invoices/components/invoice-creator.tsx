@@ -11,61 +11,36 @@ import {
   NativeSelect,
   NativeSelectOption,
 } from "@/components/ui/native-select";
-import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { AiInvoiceTab } from "@/features/invoices/components/ai-invoice-tab";
+import {
+  InvoiceLineItems,
+  type LineItemInput,
+} from "@/features/invoices/components/invoice-line-items";
+import { InvoiceTotalsSummary } from "@/features/invoices/components/invoice-totals-summary";
 import { TemplatePicker } from "@/features/invoices/components/template-picker";
-import { calculateInvoiceTotals, lineItemAmount } from "@/lib/calculator";
+import { calculateInvoiceTotals } from "@/lib/calculator";
+import type { ClientListItem } from "@/lib/clients";
+import { formatClientAddress } from "@/lib/clients";
 import type { InvoiceDraft } from "@/lib/schemas/invoice";
+import type { TemplateSummary } from "@/lib/templates";
 
-type LineItem = {
-  description: string;
-  quantity: number;
-  unitPrice: number;
-};
-
-type ClientOption = {
-  id: string;
-  name: string;
-  email: string | null;
-  phone: string | null;
-  address: string | null;
-  city: string | null;
-  state: string | null;
-  zip: string | null;
-  country: string | null;
-};
-
-const emptyLineItem = (): LineItem => ({
+const emptyLineItem = (): LineItemInput => ({
   description: "",
   quantity: 1,
   unitPrice: 0,
 });
 
-function formatClientAddress(client: ClientOption): string {
-  return [client.address, client.city, client.state, client.zip, client.country]
-    .filter(Boolean)
-    .join(", ");
-}
-
-type TemplateOption = {
-  id: string;
-  name: string;
-  slug: string;
-  isSystem: boolean;
-};
-
 type InvoiceCreatorProps = {
-  companyId: string;
   currency: string;
-  clients?: ClientOption[];
-  templates?: TemplateOption[];
+  clients?: ClientListItem[];
+  templates?: TemplateSummary[];
   initialClientId?: string;
   defaultTemplateId?: string;
 };
 
 export function InvoiceCreator({
-  companyId,
   currency: defaultCurrency,
   clients = [],
   templates = [],
@@ -85,9 +60,7 @@ export function InvoiceCreator({
   const [dueDate, setDueDate] = useState("");
   const [taxRate, setTaxRate] = useState(0);
   const [discount, setDiscount] = useState(0);
-  const [lineItems, setLineItems] = useState<LineItem[]>([emptyLineItem()]);
-  const [aiText, setAiText] = useState("");
-  const [parsing, setParsing] = useState(false);
+  const [lineItems, setLineItems] = useState<LineItemInput[]>([emptyLineItem()]);
   const [saving, setSaving] = useState(false);
 
   const totals = calculateInvoiceTotals({
@@ -99,13 +72,13 @@ export function InvoiceCreator({
     discount,
   });
 
-  function updateLineItem(index: number, patch: Partial<LineItem>) {
+  function updateLineItem(index: number, patch: Partial<LineItemInput>) {
     setLineItems((items) =>
       items.map((item, i) => (i === index ? { ...item, ...patch } : item)),
     );
   }
 
-  function applyClient(client: ClientOption) {
+  function applyClient(client: ClientListItem) {
     setClientName(client.name);
     setClientEmail(client.email ?? "");
     setClientPhone(client.phone ?? "");
@@ -148,25 +121,6 @@ export function InvoiceCreator({
         unitPrice: item.unit_price,
       })),
     );
-    toast.success("AI draft applied — review before saving.");
-  }
-
-  async function handleParse() {
-    setParsing(true);
-    try {
-      const response = await fetch("/api/ai/parse-invoice", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: aiText }),
-      });
-      if (!response.ok) throw new Error("Failed to parse invoice text");
-      const draft = (await response.json()) as InvoiceDraft;
-      applyDraft(draft);
-    } catch {
-      toast.error("Could not parse that description. Try again or use the form.");
-    } finally {
-      setParsing(false);
-    }
   }
 
   async function handleSave() {
@@ -176,7 +130,6 @@ export function InvoiceCreator({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          companyId,
           clientId: selectedClientId || undefined,
           templateId: templateId || undefined,
           clientName,
@@ -193,10 +146,8 @@ export function InvoiceCreator({
             description: item.description,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
-            amount: lineItemAmount(item.quantity, item.unitPrice),
             sortOrder: index,
           })),
-          ...totals,
         }),
       });
       const data = await response.json();
@@ -220,22 +171,7 @@ export function InvoiceCreator({
       </TabsList>
 
       <TabsContent value="ai">
-        <Card>
-          <CardHeader>
-            <CardTitle>Describe the job</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Textarea
-              value={aiText}
-              onChange={(e) => setAiText(e.target.value)}
-              rows={6}
-              placeholder="Example: Fixed Maria's kitchen sink, 2 hours at $85/hr, parts $45, due in 14 days..."
-            />
-            <Button onClick={handleParse} disabled={parsing || !aiText.trim()}>
-              {parsing ? "Parsing..." : "Parse with AI"}
-            </Button>
-          </CardContent>
-        </Card>
+        <AiInvoiceTab onDraft={applyDraft} />
       </TabsContent>
 
       <TabsContent value="form">
@@ -345,51 +281,11 @@ export function InvoiceCreator({
               />
             </div>
 
-            <div>
-              <div className="mb-3 flex items-center justify-between">
-                <Label>Line items</Label>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setLineItems((items) => [...items, emptyLineItem()])}
-                >
-                  + Add line
-                </Button>
-              </div>
-              <div className="space-y-3">
-                {lineItems.map((item, index) => (
-                  <div key={index} className="grid gap-2 sm:grid-cols-4">
-                    <Input
-                      placeholder="Description"
-                      value={item.description}
-                      onChange={(e) => updateLineItem(index, { description: e.target.value })}
-                      className="sm:col-span-2"
-                    />
-                    <Input
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      placeholder="Qty"
-                      value={item.quantity}
-                      onChange={(e) =>
-                        updateLineItem(index, { quantity: Number(e.target.value) })
-                      }
-                    />
-                    <Input
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      placeholder="Rate"
-                      value={item.unitPrice}
-                      onChange={(e) =>
-                        updateLineItem(index, { unitPrice: Number(e.target.value) })
-                      }
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
+            <InvoiceLineItems
+              items={lineItems}
+              onChange={updateLineItem}
+              onAdd={() => setLineItems((items) => [...items, emptyLineItem()])}
+            />
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
@@ -416,28 +312,7 @@ export function InvoiceCreator({
               </div>
             </div>
 
-            <Separator />
-
-            <div className="ml-auto max-w-xs space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Subtotal</span>
-                <span>
-                  {currency} {totals.subtotal.toFixed(2)}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Tax</span>
-                <span>
-                  {currency} {totals.taxAmount.toFixed(2)}
-                </span>
-              </div>
-              <div className="flex justify-between border-t pt-2 font-semibold">
-                <span>Total</span>
-                <span>
-                  {currency} {totals.total.toFixed(2)}
-                </span>
-              </div>
-            </div>
+            <InvoiceTotalsSummary currency={currency} totals={totals} />
 
             <Button onClick={handleSave} disabled={saving || !clientName.trim()}>
               {saving ? "Saving..." : "Save draft"}

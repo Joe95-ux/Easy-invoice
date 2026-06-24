@@ -1,6 +1,5 @@
-import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { getCurrentMember } from "@/lib/auth";
+import { requireApiMember, parseJsonBody, validationError } from "@/lib/api/validation";
 import { getClientForMember } from "@/lib/clients";
 import { prisma } from "@/lib/db";
 import { clientSchema } from "@/lib/schemas/client";
@@ -8,15 +7,8 @@ import { clientSchema } from "@/lib/schemas/client";
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function GET(_request: Request, context: RouteContext) {
-  const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const member = await getCurrentMember();
-  if (!member) {
-    return NextResponse.json({ error: "No company" }, { status: 403 });
-  }
+  const { member, response } = await requireApiMember();
+  if (response) return response;
 
   const { id } = await context.params;
   const client = await getClientForMember(id, member.companyId);
@@ -29,15 +21,8 @@ export async function GET(_request: Request, context: RouteContext) {
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
-  const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const member = await getCurrentMember();
-  if (!member) {
-    return NextResponse.json({ error: "No company" }, { status: 403 });
-  }
+  const { member, response } = await requireApiMember();
+  if (response) return response;
 
   const { id } = await context.params;
   const existing = await getClientForMember(id, member.companyId);
@@ -45,11 +30,11 @@ export async function PATCH(request: Request, context: RouteContext) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const body = await request.json();
+  const body = await parseJsonBody<unknown>(request);
+  if (body instanceof NextResponse) return body;
+
   const parsed = clientSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid input" }, { status: 400 });
-  }
+  if (!parsed.success) return validationError(parsed.error);
 
   const client = await prisma.client.update({
     where: { id },
@@ -70,15 +55,8 @@ export async function PATCH(request: Request, context: RouteContext) {
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
-  const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const member = await getCurrentMember();
-  if (!member) {
-    return NextResponse.json({ error: "No company" }, { status: 403 });
-  }
+  const { member, response } = await requireApiMember();
+  if (response) return response;
 
   const { id } = await context.params;
   const existing = await getClientForMember(id, member.companyId);
@@ -87,6 +65,5 @@ export async function DELETE(_request: Request, context: RouteContext) {
   }
 
   await prisma.client.delete({ where: { id } });
-
   return NextResponse.json({ success: true });
 }

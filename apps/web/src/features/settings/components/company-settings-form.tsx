@@ -5,32 +5,20 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { CompanyProfileFields } from "@/components/forms/company-profile-fields";
+import { zodFieldErrors } from "@/lib/validation/zod";
 import {
   companySettingsSchema,
   type CompanySettingsInput,
-} from "@/lib/schemas/invoice";
+} from "@/lib/schemas/company";
 
 type CompanySettingsFormProps = {
-  initialValues: CompanySettingsInput & { taxId?: string | null };
+  initialValues: CompanySettingsInput;
 };
 
 export function CompanySettingsForm({ initialValues }: CompanySettingsFormProps) {
   const router = useRouter();
-  const [form, setForm] = useState<CompanySettingsInput>({
-    name: initialValues.name,
-    email: initialValues.email ?? "",
-    phone: initialValues.phone ?? "",
-    address: initialValues.address ?? "",
-    city: initialValues.city ?? "",
-    state: initialValues.state ?? "",
-    zip: initialValues.zip ?? "",
-    country: initialValues.country,
-    currency: initialValues.currency,
-    locale: initialValues.locale,
-    taxId: initialValues.taxId ?? "",
-  });
+  const [form, setForm] = useState<CompanySettingsInput>(initialValues);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
@@ -46,12 +34,7 @@ export function CompanySettingsForm({ initialValues }: CompanySettingsFormProps)
 
     const parsed = companySettingsSchema.safeParse(form);
     if (!parsed.success) {
-      const fieldErrors: Record<string, string> = {};
-      for (const issue of parsed.error.issues) {
-        const key = issue.path[0];
-        if (typeof key === "string") fieldErrors[key] = issue.message;
-      }
-      setErrors(fieldErrors);
+      setErrors(zodFieldErrors(parsed.error));
       return;
     }
 
@@ -82,60 +65,15 @@ export function CompanySettingsForm({ initialValues }: CompanySettingsFormProps)
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field
-              label="Company name"
-              id="name"
-              value={form.name}
-              onChange={(v) => updateField("name", v)}
-              error={errors.name}
-              required
-            />
-            <Field
-              label="Business email"
-              id="email"
-              type="email"
-              value={form.email ?? ""}
-              onChange={(v) => updateField("email", v)}
-              error={errors.email}
-            />
-            <Field
-              label="Phone"
-              id="phone"
-              value={form.phone ?? ""}
-              onChange={(v) => updateField("phone", v)}
-            />
-            <Field
-              label="Tax ID"
-              id="taxId"
-              value={form.taxId ?? ""}
-              onChange={(v) => updateField("taxId", v)}
-            />
-          </div>
-
-          <Field
-            label="Address"
-            id="address"
-            value={form.address ?? ""}
-            onChange={(v) => updateField("address", v)}
+          <CompanyProfileFields
+            values={form}
+            errors={errors}
+            onChange={updateField}
+            showTaxId
+            taxId={form.taxId ?? ""}
+            onTaxIdChange={(v) => updateField("taxId", v)}
+            taxIdError={errors.taxId}
           />
-
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Field label="City" id="city" value={form.city ?? ""} onChange={(v) => updateField("city", v)} />
-            <Field label="State" id="state" value={form.state ?? ""} onChange={(v) => updateField("state", v)} />
-            <Field label="ZIP" id="zip" value={form.zip ?? ""} onChange={(v) => updateField("zip", v)} />
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Field label="Country" id="country" value={form.country} onChange={(v) => updateField("country", v)} />
-            <Field
-              label="Currency"
-              id="currency"
-              value={form.currency}
-              onChange={(v) => updateField("currency", v.toUpperCase())}
-            />
-            <Field label="Locale" id="locale" value={form.locale} onChange={(v) => updateField("locale", v)} />
-          </div>
 
           <Button type="submit" disabled={submitting}>
             {submitting ? "Saving..." : "Save changes"}
@@ -143,37 +81,5 @@ export function CompanySettingsForm({ initialValues }: CompanySettingsFormProps)
         </form>
       </CardContent>
     </Card>
-  );
-}
-
-function Field({
-  label,
-  id,
-  value,
-  onChange,
-  error,
-  type = "text",
-  required,
-}: {
-  label: string;
-  id: string;
-  value: string;
-  onChange: (value: string) => void;
-  error?: string;
-  type?: string;
-  required?: boolean;
-}) {
-  return (
-    <div className="space-y-2">
-      <Label htmlFor={id}>{label}</Label>
-      <Input
-        id={id}
-        type={type}
-        value={value}
-        required={required}
-        onChange={(e) => onChange(e.target.value)}
-      />
-      {error && <p className="text-xs text-destructive">{error}</p>}
-    </div>
   );
 }
