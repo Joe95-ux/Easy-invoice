@@ -86,8 +86,13 @@ function buildSections(data: InvoiceHtmlData) {
     ? `<div class="notes"><div class="notes-label">Notes</div><div>${escapeHtml(invoice.notes)}</div></div>`
     : "";
 
+  const companyLogo = company.logoUrl
+    ? `<img src="${escapeHtml(company.logoUrl)}" alt="${escapeHtml(company.name)}" class="company-logo" />`
+    : "";
+
   return {
     company_name: escapeHtml(company.name),
+    company_logo: companyLogo,
     company_details: companyDetails,
     invoice_number: escapeHtml(invoice.number),
     invoice_meta: invoiceMeta,

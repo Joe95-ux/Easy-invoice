@@ -1,6 +1,7 @@
 export type InvoiceHtmlData = {
   company: {
     name: string;
+    logoUrl?: string | null;
     email?: string | null;
     phone?: string | null;
     address?: string | null;

@@ -14,6 +14,8 @@ function baseStyles(accent: string): string {
     body { font-family: Helvetica, Arial, sans-serif; font-size: 12px; color: #111; padding: 40px; }
     .header { display: flex; justify-content: space-between; margin-bottom: 40px; }
     .company-name { font-size: 22px; font-weight: bold; margin-bottom: 6px; }
+    .company-block { display: flex; align-items: flex-start; gap: 16px; }
+    .company-logo { max-height: 56px; max-width: 140px; object-fit: contain; }
     .invoice-title { font-size: 28px; font-weight: bold; color: ${accent}; text-align: right; }
     .invoice-meta { text-align: right; margin-top: 8px; color: #555; line-height: 1.6; }
     .parties { display: flex; gap: 40px; margin-bottom: 32px; }
@@ -34,9 +36,12 @@ function baseStyles(accent: string): string {
 
 const sharedBody = `
   <div class="header">
-    <div>
-      <div class="company-name">{{company_name}}</div>
-      {{company_details}}
+    <div class="company-block">
+      {{company_logo}}
+      <div>
+        <div class="company-name">{{company_name}}</div>
+        {{company_details}}
+      </div>
     </div>
     <div>
       <div class="invoice-title">INVOICE</div>
@@ -80,12 +85,14 @@ export const SYSTEM_TEMPLATES: SystemTemplateDefinition[] = [
       ${baseStyles("#0f172a")}
       body { padding: 0; }
       .header { background: #0f172a; color: #fff; padding: 32px 40px; margin: 0 0 32px; }
+      .company-block { display: flex; align-items: flex-start; gap: 16px; }
+      .company-logo { max-height: 56px; max-width: 140px; object-fit: contain; background: #fff; border-radius: 4px; padding: 4px; }
       .company-name, .invoice-title { color: #fff; }
       .invoice-meta, .party-detail { color: #cbd5e1; }
       .content { padding: 0 40px 40px; }
       th { background: #f1f5f9; }
     `,
-    html: `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8" /><title>Invoice {{invoice_number}}</title><style>{{styles}}</style></head><body><div class="header"><div><div class="company-name">{{company_name}}</div>{{company_details}}</div><div><div class="invoice-title">INVOICE</div><div class="invoice-meta">{{invoice_meta}}</div></div></div><div class="content"><div class="parties"><div class="party"><div class="party-label">Bill to</div>{{client_section}}</div></div><table><thead><tr><th>Description</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th></tr></thead><tbody>{{line_items}}</tbody></table><div class="totals">{{totals}}</div>{{notes}}</div></body></html>`,
+    html: `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8" /><title>Invoice {{invoice_number}}</title><style>{{styles}}</style></head><body><div class="header"><div class="company-block">{{company_logo}}<div><div class="company-name">{{company_name}}</div>{{company_details}}</div></div><div><div class="invoice-title">INVOICE</div><div class="invoice-meta">{{invoice_meta}}</div></div></div><div class="content"><div class="parties"><div class="party"><div class="party-label">Bill to</div>{{client_section}}</div></div><table><thead><tr><th>Description</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th></tr></thead><tbody>{{line_items}}</tbody></table><div class="totals">{{totals}}</div>{{notes}}</div></body></html>`,
   },
   {
     name: "Minimal",
@@ -95,6 +102,8 @@ export const SYSTEM_TEMPLATES: SystemTemplateDefinition[] = [
       * { box-sizing: border-box; margin: 0; padding: 0; }
       body { font-family: Georgia, serif; font-size: 13px; color: #111; padding: 48px; }
       .header { border-bottom: 1px solid #111; padding-bottom: 24px; margin-bottom: 32px; }
+      .company-block { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 8px; }
+      .company-logo { max-height: 48px; max-width: 120px; object-fit: contain; }
       .company-name { font-size: 18px; letter-spacing: 0.02em; margin-bottom: 8px; }
       .invoice-title { font-size: 14px; text-transform: uppercase; letter-spacing: 0.15em; margin-top: 16px; }
       .invoice-meta { margin-top: 12px; line-height: 1.8; }
@@ -111,6 +120,6 @@ export const SYSTEM_TEMPLATES: SystemTemplateDefinition[] = [
       .notes { margin-top: 40px; padding-top: 24px; border-top: 1px solid #ddd; }
       .notes-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
     `,
-    html: `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8" /><title>Invoice {{invoice_number}}</title><style>{{styles}}</style></head><body><div class="header"><div class="company-name">{{company_name}}</div>{{company_details}}<div class="invoice-title">Invoice {{invoice_number}}</div><div class="invoice-meta">{{invoice_meta}}</div></div><div class="party-label">Bill to</div>{{client_section}}<table><thead><tr><th>Description</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th></tr></thead><tbody>{{line_items}}</tbody></table><div class="totals">{{totals}}</div>{{notes}}</body></html>`,
+    html: `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8" /><title>Invoice {{invoice_number}}</title><style>{{styles}}</style></head><body><div class="header"><div class="company-block">{{company_logo}}<div><div class="company-name">{{company_name}}</div>{{company_details}}</div></div><div class="invoice-title">Invoice {{invoice_number}}</div><div class="invoice-meta">{{invoice_meta}}</div></div><div class="party-label">Bill to</div>{{client_section}}<table><thead><tr><th>Description</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th></tr></thead><tbody>{{line_items}}</tbody></table><div class="totals">{{totals}}</div>{{notes}}</body></html>`,
   },
 ];

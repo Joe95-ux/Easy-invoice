@@ -4,12 +4,6 @@ import { SYSTEM_TEMPLATES } from "@/lib/invoice-templates/definitions";
 export type TemplateSummary = Awaited<ReturnType<typeof getTemplatesForCompany>>[number];
 
 export async function ensureSystemTemplates() {
-  const existingCount = await prisma.invoiceTemplate.count({
-    where: { isSystem: true, companyId: null },
-  });
-
-  if (existingCount >= SYSTEM_TEMPLATES.length) return;
-
   for (const template of SYSTEM_TEMPLATES) {
     const existing = await prisma.invoiceTemplate.findFirst({
       where: { slug: template.slug, isSystem: true, companyId: null },

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CompanyProfileFields } from "@/components/forms/company-profile-fields";
+import { CompanyLogoUpload } from "@/components/forms/company-logo-upload";
 import { zodFieldErrors } from "@/lib/validation/zod";
 import {
   companySettingsSchema,
@@ -14,11 +15,16 @@ import {
 
 type CompanySettingsFormProps = {
   initialValues: CompanySettingsInput;
+  initialLogoUrl?: string | null;
 };
 
-export function CompanySettingsForm({ initialValues }: CompanySettingsFormProps) {
+export function CompanySettingsForm({
+  initialValues,
+  initialLogoUrl = null,
+}: CompanySettingsFormProps) {
   const router = useRouter();
   const [form, setForm] = useState<CompanySettingsInput>(initialValues);
+  const [logoUrl, setLogoUrl] = useState<string | null>(initialLogoUrl);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
@@ -65,6 +71,8 @@ export function CompanySettingsForm({ initialValues }: CompanySettingsFormProps)
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
+          <CompanyLogoUpload logoUrl={logoUrl} onLogoChange={setLogoUrl} />
+
           <CompanyProfileFields
             values={form}
             errors={errors}
