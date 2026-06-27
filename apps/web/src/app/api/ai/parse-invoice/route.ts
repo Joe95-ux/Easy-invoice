@@ -14,10 +14,13 @@ export async function POST(request: Request) {
   if (!parsed.success) return validationError(parsed.error);
 
   try {
-    const draft = await parseInvoiceFromText(
-      parsed.data.text,
-      parsed.data.localeHint ?? member.company.locale,
-    );
+    const draft = await parseInvoiceFromText(parsed.data.text, {
+      localeHint: parsed.data.localeHint ?? member.company.locale,
+      companyName: member.company.name,
+      companyCurrency: member.company.currency,
+      outputLanguage: "en",
+      referenceDate: new Date().toISOString().slice(0, 10),
+    });
     return NextResponse.json(draft);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Parse failed";

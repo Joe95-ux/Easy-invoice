@@ -1,5 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
+import { ArrowLeftIcon } from "lucide-react";
+import { PageScroll } from "@/components/app-shell/app-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,7 +16,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { InvoiceActions } from "@/features/invoices/components/invoice-actions";
-import { TemplatePicker } from "@/features/invoices/components/template-picker";
+import { InvoiceAutoDownload } from "@/features/invoices/components/invoice-auto-download";
+import { DocumentTemplateManager } from "@/features/invoices/components/document-template-manager";
 import { requireMember } from "@/lib/auth";
 import {
   formatDate,
@@ -37,17 +41,22 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
   if (!invoice) notFound();
 
   return (
-    <div>
+    <PageScroll>
+      <Suspense>
+        <InvoiceAutoDownload invoiceId={invoice.id} invoiceNumber={invoice.number} />
+      </Suspense>
+
       <div className="mb-6">
-        <Link href="/invoices">
-          <Button variant="ghost" size="sm">← Back to invoices</Button>
-        </Link>
+        <Button variant="ghost" size="sm" render={<Link href="/invoices" />}>
+          <ArrowLeftIcon className="size-4" />
+          Back to invoices
+        </Button>
       </div>
 
       <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight">{invoice.number}</h1>
+            <h1 className="font-heading text-2xl font-semibold tracking-tight">{invoice.number}</h1>
             <Badge variant={invoiceStatusVariant(invoice.status)}>
               {invoiceStatusLabel(invoice.status)}
             </Badge>
@@ -68,10 +77,47 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
 
       <Card className="mb-6">
         <CardContent className="pt-6">
-          <TemplatePicker
+          <DocumentTemplateManager
+            kind="invoice"
             templates={templates}
             value={invoice.templateId ?? templates.find((t) => t.isDefault)?.id ?? templates[0]?.id ?? ""}
             invoiceId={invoice.id}
+            company={{
+              name: invoice.company.name,
+              logoUrl: invoice.company.logoUrl,
+              email: invoice.company.email,
+              phone: invoice.company.phone,
+              address: invoice.company.address,
+              city: invoice.company.city,
+              state: invoice.company.state,
+              zip: invoice.company.zip,
+              country: invoice.company.country,
+            }}
+            preview={{
+              number: invoice.number,
+              client: {
+                name: invoice.client?.name ?? "",
+                email: invoice.client?.email,
+                phone: invoice.client?.phone,
+                address: invoice.client?.address,
+              },
+              issueDate: invoice.issueDate.toISOString(),
+              expiryDate: invoice.dueDate?.toISOString(),
+              currency: invoice.currency,
+              notes: invoice.notes ?? undefined,
+              items: invoice.items.map((item) => ({
+                description: item.description,
+                quantity: Number(item.quantity),
+                unitPrice: Number(item.unitPrice),
+              })),
+              totals: {
+                subtotal: Number(invoice.subtotal),
+                taxAmount: Number(invoice.taxAmount),
+                total: Number(invoice.total),
+              },
+              taxRate: Number(invoice.taxRate) * 100,
+              discount: Number(invoice.discount),
+            }}
           />
         </CardContent>
       </Card>
@@ -82,6 +128,13 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
             <CardTitle className="text-sm font-medium text-muted-foreground">From</CardTitle>
           </CardHeader>
           <CardContent className="space-y-1 text-sm">
+            {invoice.company.logoUrl && (
+              <img
+                src={invoice.company.logoUrl}
+                alt={`${invoice.company.name} logo`}
+                className="mb-3 h-12 w-auto max-w-[160px] object-contain"
+              />
+            )}
             <p className="font-semibold">{invoice.company.name}</p>
             {invoice.company.email && <p>{invoice.company.email}</p>}
             {invoice.company.phone && <p>{invoice.company.phone}</p>}
@@ -168,13 +221,13 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
       {invoice.notes && (
         <Card className="mt-6">
           <CardHeader>
-            <CardTitle className="text-sm font-medium text-muted-foreground">Notes</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Terms &amp; notes</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-sm whitespace-pre-wrap">{invoice.notes}</p>
           </CardContent>
         </Card>
       )}
-    </div>
+    </PageScroll>
   );
 }

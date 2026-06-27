@@ -1,0 +1,106 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { DocumentPreviewDrawer } from "@/components/document-preview-drawer";
+import { TemplateCarousel } from "@/features/invoices/components/template-carousel";
+import type { PreviewCompany } from "@/lib/invoice-templates/preview-html";
+import type { TemplateSummary } from "@/lib/templates";
+
+type SettingsDefaultTemplateSectionProps = {
+  templates: TemplateSummary[];
+  defaultTemplateId: string;
+  company: PreviewCompany;
+  currency: string;
+};
+
+export function SettingsDefaultTemplateSection({
+  templates,
+  defaultTemplateId,
+  company,
+  currency,
+}: SettingsDefaultTemplateSectionProps) {
+  const router = useRouter();
+  const [selected, setSelected] = useState(defaultTemplateId);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewTemplateId, setPreviewTemplateId] = useState<string | null>(null);
+
+  const activePreviewTemplateId = previewTemplateId ?? selected;
+  const previewTemplate = templates.find(
+    (template) => template.id === activePreviewTemplateId,
+  );
+
+  async function save(templateId: string) {
+    if (templateId === selected) return;
+    const previous = selected;
+    setSelected(templateId);
+    try {
+      const response = await fetch("/api/company/default-template", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ templateId }),
+      });
+      if (!response.ok) throw new Error("Failed to update default template");
+      toast.success("Default template updated");
+      router.refresh();
+    } catch {
+      setSelected(previous);
+      toast.error("Could not update default template");
+    }
+  }
+
+  if (templates.length === 0) return null;
+
+  return (
+    <>
+      <TemplateCarousel
+        templates={templates}
+        value={selected}
+        onChange={save}
+        onPreview={(id) => {
+          setPreviewTemplateId(id);
+          setPreviewOpen(true);
+        }}
+        kind="invoice"
+        company={company}
+        currency={currency}
+        label="Default template"
+      />
+      <p className="mt-3 text-sm text-muted-foreground">
+        This template is pre-selected when you create new invoices and estimates.
+      </p>
+
+      <DocumentPreviewDrawer
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        kind="invoice"
+        company={company}
+        templateSlug={previewTemplate?.slug}
+        templateName={previewTemplate?.name}
+        isSelected={previewTemplate?.id === selected}
+        onUseTemplate={() => {
+          if (previewTemplate) save(previewTemplate.id);
+          setPreviewTemplateId(null);
+        }}
+        number="0001"
+        client={{
+          name: "Acme Studios",
+          email: "billing@acme.co",
+          address: "120 Market St, San Francisco, CA",
+        }}
+        issueDate={new Date().toISOString().slice(0, 10)}
+        expiryDate={new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10)}
+        currency={currency}
+        notes="Thank you for your business."
+        items={[
+          { description: "Design & discovery", quantity: 1, unitPrice: 1200 },
+          { description: "Development", quantity: 12, unitPrice: 90 },
+        ]}
+        totals={{ subtotal: 2280, taxAmount: 171, total: 2451 }}
+        taxRate={7.5}
+        discount={0}
+      />
+    </>
+  );
+}

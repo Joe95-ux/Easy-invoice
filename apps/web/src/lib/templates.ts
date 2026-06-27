@@ -53,6 +53,12 @@ export async function getTemplatesForCompany(companyId: string) {
 }
 
 export async function getDefaultTemplateId(companyId: string) {
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { defaultTemplateId: true },
+  });
+  if (company?.defaultTemplateId) return company.defaultTemplateId;
+
   const templates = await getTemplatesForCompany(companyId);
   return (
     templates.find((t) => t.isDefault)?.id ??
@@ -61,7 +67,19 @@ export async function getDefaultTemplateId(companyId: string) {
   );
 }
 
+export async function setCompanyDefaultTemplate(companyId: string, templateId: string) {
+  const template = await getTemplateById(templateId, companyId);
+  if (!template) throw new Error("Template not found");
+
+  await prisma.company.update({
+    where: { id: companyId },
+    data: { defaultTemplateId: templateId },
+  });
+}
+
 export async function getTemplateById(templateId: string, companyId: string) {
+  await ensureSystemTemplates();
+
   return prisma.invoiceTemplate.findFirst({
     where: {
       id: templateId,

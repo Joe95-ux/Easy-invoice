@@ -71,6 +71,22 @@ export async function uploadCompanyLogo(
   return result.secure_url;
 }
 
+export async function uploadCompanyLogoFromUrl(
+  companyId: string,
+  sourceUrl: string,
+): Promise<string> {
+  const cld = configureCloudinary();
+
+  const result = await cld.uploader.upload(sourceUrl, {
+    folder: `easy-invoice/logos/${companyId}`,
+    public_id: "logo",
+    overwrite: true,
+    resource_type: "image",
+  });
+
+  return result.secure_url;
+}
+
 export function publicIdFromCloudinaryUrl(url: string): string | null {
   try {
     const pathname = new URL(url).pathname;

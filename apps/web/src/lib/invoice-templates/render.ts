@@ -1,4 +1,4 @@
-import type { InvoiceHtmlData } from "@/lib/invoice-templates/types";
+import type { DocumentKind, InvoiceHtmlData } from "@/lib/invoice-templates/types";
 
 function escapeHtml(value: string): string {
   return value
@@ -16,8 +16,42 @@ function formatAddress(parts: Array<string | null | undefined>): string {
   return parts.filter(Boolean).join(", ");
 }
 
+function formatDate(date: Date): string {
+  return date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}
+
+function documentLabels(kind: DocumentKind) {
+  if (kind === "estimate") {
+    return {
+      title: "ESTIMATE",
+      pageTitle: "Estimate",
+      dateLabel: "Estimate Date",
+      numberLabel: "Estimate #",
+      expiryLabel: "Valid Until",
+      totalLabel: "Total estimate",
+      footerPrefix: "Thank you for considering",
+    };
+  }
+
+  return {
+    title: "INVOICE",
+    pageTitle: "Invoice",
+    dateLabel: "Invoice Date",
+    numberLabel: "Invoice #",
+    expiryLabel: "Due Date",
+    totalLabel: "Total due",
+    footerPrefix: "Thank you for choosing",
+  };
+}
+
 function buildSections(data: InvoiceHtmlData) {
   const { company, client, invoice, items } = data;
+  const kind = data.documentKind ?? "invoice";
+  const labels = documentLabels(kind);
 
   const companyAddress = formatAddress([
     company.address,
@@ -36,12 +70,9 @@ function buildSections(data: InvoiceHtmlData) {
     .join("");
 
   const invoiceMeta = [
-    `<div><strong>${escapeHtml(invoice.number)}</strong></div>`,
-    `<div>Issue date: ${invoice.issueDate.toLocaleDateString("en-US")}</div>`,
-    invoice.dueDate
-      ? `<div>Due date: ${invoice.dueDate.toLocaleDateString("en-US")}</div>`
-      : "",
-    `<div>Status: ${escapeHtml(invoice.status)}</div>`,
+    `<div>${labels.dateLabel}: ${formatDate(invoice.issueDate)}</div>`,
+    `<div>${labels.numberLabel}: ${escapeHtml(invoice.number)}</div>`,
+    invoice.dueDate ? `<div>${labels.expiryLabel}: ${formatDate(invoice.dueDate)}</div>` : "",
   ]
     .filter(Boolean)
     .join("");
@@ -59,8 +90,8 @@ function buildSections(data: InvoiceHtmlData) {
 
   const lineItems = items
     .map(
-      (item) => `
-      <tr>
+      (item, index) => `
+      <tr class="${index % 2 === 0 ? "band-odd" : "band-even"}">
         <td>${escapeHtml(item.description)}</td>
         <td class="num">${item.quantity}</td>
         <td class="num">${formatMoney(item.unitPrice, invoice.currency)}</td>
@@ -77,29 +108,34 @@ function buildSections(data: InvoiceHtmlData) {
     invoice.taxAmount > 0
       ? `<div class="totals-row"><span>Tax (${(invoice.taxRate * 100).toFixed(1)}%)</span><span>${formatMoney(invoice.taxAmount, invoice.currency)}</span></div>`
       : "",
-    `<div class="totals-row total"><span>Total</span><span>${formatMoney(invoice.total, invoice.currency)}</span></div>`,
+    `<div class="totals-row total"><span>${labels.totalLabel}</span><span>${formatMoney(invoice.total, invoice.currency)}</span></div>`,
   ]
     .filter(Boolean)
     .join("");
 
-  const notes = invoice.notes
-    ? `<div class="notes"><div class="notes-label">Notes</div><div>${escapeHtml(invoice.notes)}</div></div>`
+  const termsNotes = invoice.notes
+    ? `<div class="terms-notes"><div class="terms-notes-label">Terms &amp; Notes</div><div>${escapeHtml(invoice.notes)}</div></div>`
     : "";
 
-  const companyLogo = company.logoUrl
-    ? `<img src="${escapeHtml(company.logoUrl)}" alt="${escapeHtml(company.name)}" class="company-logo" />`
+  const watermark = company.logoUrl
+    ? `<div class="watermark"><img src="${escapeHtml(company.logoUrl)}" alt="" /></div>`
     : "";
+
+  const invoiceFooter = `<div class="invoice-footer">${labels.footerPrefix} ${escapeHtml(company.name)}</div>`;
 
   return {
+    document_title: labels.title,
+    page_title: labels.pageTitle,
     company_name: escapeHtml(company.name),
-    company_logo: companyLogo,
     company_details: companyDetails,
     invoice_number: escapeHtml(invoice.number),
     invoice_meta: invoiceMeta,
     client_section: clientSection,
     line_items: lineItems,
     totals,
-    notes,
+    terms_notes: termsNotes,
+    watermark,
+    invoice_footer: invoiceFooter,
   };
 }
 

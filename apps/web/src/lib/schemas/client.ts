@@ -8,7 +8,7 @@ export const clientSchema = z.object({
   city: z.string().optional(),
   state: z.string().optional(),
   zip: z.string().optional(),
-  country: z.string().optional(),
+  country: z.string().min(2).default("US"),
   notes: z.string().optional(),
 });
 

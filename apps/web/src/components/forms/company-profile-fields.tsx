@@ -1,6 +1,12 @@
 "use client";
 
+import { AddressFields } from "@/components/forms/address-fields";
+import { CountrySelect, defaultCurrencyForCountry } from "@/components/forms/country-select";
+import { CurrencySelect } from "@/components/forms/currency-select";
 import { FormField } from "@/components/forms/form-field";
+import { FormSection } from "@/components/forms/form-section";
+import { LocaleSelect } from "@/components/forms/locale-select";
+import { PhoneInput } from "@/components/forms/phone-input";
 import type { CompanyProfileInput } from "@/lib/schemas/company";
 
 type CompanyProfileFieldsProps = {
@@ -22,65 +28,99 @@ export function CompanyProfileFields({
   onTaxIdChange,
   taxIdError,
 }: CompanyProfileFieldsProps) {
+  function handleCountryChange(code: string) {
+    onChange("country", code);
+    onChange("currency", defaultCurrencyForCountry(code));
+  }
+
   return (
-    <>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <FormField
-          label="Company name"
-          id="name"
-          value={values.name}
-          onChange={(v) => onChange("name", v)}
-          error={errors.name}
-          required
-        />
-        <FormField
-          label="Business email"
-          id="email"
-          type="email"
-          value={values.email ?? ""}
-          onChange={(v) => onChange("email", v)}
-          error={errors.email}
-        />
-        <FormField
-          label="Phone"
-          id="phone"
-          value={values.phone ?? ""}
-          onChange={(v) => onChange("phone", v)}
-        />
-        {showTaxId && onTaxIdChange && (
+    <div className="space-y-6">
+      <FormSection
+        title="Business details"
+        description="Core information that appears on your invoices."
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
           <FormField
-            label="Tax ID"
-            id="taxId"
-            value={taxId ?? ""}
-            onChange={onTaxIdChange}
-            error={taxIdError}
+            label="Company name"
+            id="name"
+            value={values.name}
+            onChange={(value) => onChange("name", value)}
+            error={errors.name}
+            required
+            placeholder="Acme Plumbing LLC"
+            autoComplete="organization"
           />
-        )}
-      </div>
+          <FormField
+            label="Business email"
+            id="email"
+            type="email"
+            value={values.email ?? ""}
+            onChange={(value) => onChange("email", value)}
+            error={errors.email}
+            placeholder="hello@company.com"
+            autoComplete="email"
+          />
+          <PhoneInput
+            value={values.phone ?? ""}
+            country={values.country}
+            onChange={(value) => onChange("phone", value)}
+            error={errors.phone}
+          />
+          {showTaxId && onTaxIdChange && (
+            <FormField
+              label="Tax ID"
+              id="taxId"
+              value={taxId ?? ""}
+              onChange={onTaxIdChange}
+              error={taxIdError}
+              placeholder="EIN / VAT number"
+            />
+          )}
+        </div>
+      </FormSection>
 
-      <FormField
-        label="Address"
-        id="address"
-        value={values.address ?? ""}
-        onChange={(v) => onChange("address", v)}
-      />
-
-      <div className="grid gap-4 sm:grid-cols-3">
-        <FormField label="City" id="city" value={values.city ?? ""} onChange={(v) => onChange("city", v)} />
-        <FormField label="State" id="state" value={values.state ?? ""} onChange={(v) => onChange("state", v)} />
-        <FormField label="ZIP" id="zip" value={values.zip ?? ""} onChange={(v) => onChange("zip", v)} />
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-3">
-        <FormField label="Country" id="country" value={values.country} onChange={(v) => onChange("country", v)} />
-        <FormField
-          label="Currency"
-          id="currency"
-          value={values.currency}
-          onChange={(v) => onChange("currency", v.toUpperCase())}
+      <FormSection
+        title="Business address"
+        description="Search your address to auto-fill the remaining fields."
+      >
+        <AddressFields
+          values={values}
+          defaultCountry={values.country}
+          onChange={(patch) => {
+            for (const [key, value] of Object.entries(patch) as Array<
+              [keyof CompanyProfileInput, string]
+            >) {
+              onChange(key, value);
+            }
+          }}
+          errors={{
+            zip: errors.zip,
+          }}
         />
-        <FormField label="Locale" id="locale" value={values.locale} onChange={(v) => onChange("locale", v)} />
-      </div>
-    </>
+        <CountrySelect
+          value={values.country}
+          onChange={handleCountryChange}
+          error={errors.country}
+        />
+      </FormSection>
+
+      <FormSection
+        title="Regional preferences"
+        description="Defaults for currency, language, and invoice formatting."
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <CurrencySelect
+            value={values.currency}
+            onChange={(value) => onChange("currency", value)}
+            error={errors.currency}
+          />
+          <LocaleSelect
+            value={values.locale}
+            onChange={(value) => onChange("locale", value)}
+            error={errors.locale}
+          />
+        </div>
+      </FormSection>
+    </div>
   );
 }

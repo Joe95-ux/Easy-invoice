@@ -2,14 +2,37 @@ import type { InvoiceHtmlData } from "@/lib/invoice-templates/types";
 import { SYSTEM_TEMPLATES } from "@/lib/invoice-templates/definitions";
 import { renderFromTemplate } from "@/lib/invoice-templates/render";
 import { getInvoiceForMember } from "@/lib/invoices";
-import { getDefaultTemplateId, getTemplateById } from "@/lib/templates";
+import { ensureSystemTemplates, getDefaultTemplateId, getTemplateById } from "@/lib/templates";
 
 export type { InvoiceHtmlData };
+
+async function inlineCompanyLogo(data: InvoiceHtmlData): Promise<InvoiceHtmlData> {
+  const logoUrl = data.company.logoUrl;
+  if (!logoUrl || logoUrl.startsWith("data:")) return data;
+
+  try {
+    const response = await fetch(logoUrl);
+    if (!response.ok) return data;
+
+    const contentType = response.headers.get("content-type") ?? "image/png";
+    const base64 = Buffer.from(await response.arrayBuffer()).toString("base64");
+    return {
+      ...data,
+      company: {
+        ...data.company,
+        logoUrl: `data:${contentType};base64,${base64}`,
+      },
+    };
+  } catch {
+    return data;
+  }
+}
 
 export function invoiceToHtmlData(
   invoice: NonNullable<Awaited<ReturnType<typeof getInvoiceForMember>>>,
 ): InvoiceHtmlData {
   return {
+    documentKind: "invoice",
     company: invoice.company,
     client: invoice.client,
     invoice: {
@@ -37,7 +60,8 @@ export function invoiceToHtmlData(
 export async function renderInvoiceHtmlForInvoice(
   invoice: NonNullable<Awaited<ReturnType<typeof getInvoiceForMember>>>,
 ): Promise<string> {
-  const data = invoiceToHtmlData(invoice);
+  await ensureSystemTemplates();
+  const data = await inlineCompanyLogo(invoiceToHtmlData(invoice));
 
   if (invoice.template) {
     return renderFromTemplate(invoice.template.html, invoice.template.css, data);

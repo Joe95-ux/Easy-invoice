@@ -1,20 +1,37 @@
 import { CompanySettingsForm } from "@/features/settings/components/company-settings-form";
+import { SettingsDefaultTemplateSection } from "@/features/settings/components/settings-default-template-section";
 import { requireMember } from "@/lib/auth";
-import { getTemplatesForCompany } from "@/lib/templates";
+import { getDefaultTemplateId, getTemplatesForCompany } from "@/lib/templates";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageScroll } from "@/components/app-shell/app-shell";
 
 export default async function SettingsPage() {
   const member = await requireMember();
 
-  const templates = await getTemplatesForCompany(member.companyId);
+  const [templates, defaultTemplateId] = await Promise.all([
+    getTemplatesForCompany(member.companyId),
+    getDefaultTemplateId(member.companyId),
+  ]);
   const { company } = member;
 
+  const companyPreview = {
+    name: company.name,
+    logoUrl: company.logoUrl,
+    email: company.email,
+    phone: company.phone,
+    address: company.address,
+    city: company.city,
+    state: company.state,
+    zip: company.zip,
+    country: company.country,
+  };
+
   return (
-    <div>
+    <PageScroll>
       <div className="mb-8">
-        <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
+        <h1 className="font-heading text-2xl font-semibold tracking-tight">Settings</h1>
         <p className="mt-1 text-muted-foreground">
-          Manage your company profile and invoice preferences
+          Manage your company profile and invoice preferences.
         </p>
       </div>
 
@@ -41,27 +58,15 @@ export default async function SettingsPage() {
             <CardTitle>Invoice templates</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="mb-4 text-sm text-muted-foreground">
-              Choose a template when creating an invoice. Built-in templates are available
-              to all companies.
-            </p>
-            <ul className="space-y-2 text-sm">
-              {templates.map((template) => (
-                <li
-                  key={template.id}
-                  className="flex items-center justify-between rounded-lg border border-border px-4 py-3"
-                >
-                  <span className="font-medium">{template.name}</span>
-                  <span className="text-muted-foreground">
-                    {template.isSystem ? "Built-in" : "Custom"}
-                    {template.isDefault ? " · Default" : ""}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            <SettingsDefaultTemplateSection
+              templates={templates}
+              defaultTemplateId={defaultTemplateId ?? templates[0]?.id ?? ""}
+              company={companyPreview}
+              currency={company.currency}
+            />
           </CardContent>
         </Card>
       </div>
-    </div>
+    </PageScroll>
   );
 }

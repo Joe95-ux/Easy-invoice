@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { ArrowLeftIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PageScroll } from "@/components/app-shell/app-shell";
 import { requireMember } from "@/lib/auth";
 import { getClientsForMember } from "@/lib/clients";
 import { getDefaultTemplateId, getTemplatesForCompany } from "@/lib/templates";
@@ -18,23 +20,31 @@ export default async function NewInvoicePage({ searchParams }: PageProps) {
   ]);
 
   return (
-    <div>
-      <div className="mb-8">
-        <Link href="/invoices">
-          <Button variant="ghost" size="sm">← Back to invoices</Button>
-        </Link>
-        <h1 className="mt-2 text-2xl font-bold tracking-tight">New invoice</h1>
-        <p className="mt-1 text-muted-foreground">
-          Use the form or describe the job in your own words.
-        </p>
+    <PageScroll>
+      <div className="mb-6">
+        <Button variant="ghost" size="sm" className="-ml-2.5" render={<Link href="/invoices" />}>
+          <ArrowLeftIcon className="size-4" />
+          Back to invoices
+        </Button>
       </div>
       <InvoiceCreator
         currency={member.company.currency}
+        company={{
+          name: member.company.name,
+          logoUrl: member.company.logoUrl,
+          email: member.company.email,
+          phone: member.company.phone,
+          address: member.company.address,
+          city: member.company.city,
+          state: member.company.state,
+          zip: member.company.zip,
+          country: member.company.country,
+        }}
         clients={clients}
         templates={templates}
         initialClientId={clientId}
         defaultTemplateId={defaultTemplateId}
       />
-    </div>
+    </PageScroll>
   );
 }

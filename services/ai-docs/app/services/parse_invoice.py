@@ -3,11 +3,11 @@ import json
 from openai import OpenAI
 
 from app.config import settings
-from app.schemas import InvoiceDraft, ParseInvoiceRequest
+from app.schemas import InvoiceDraft, LineItem, ParseInvoiceRequest
 
-SYSTEM_PROMPT = """You extract structured invoice data from free-form text.
-The user may write in any language. Detect the language and still output JSON field values
-in a clear business form (client names stay as given; descriptions can stay in source language).
+SYSTEM_PROMPT = """You are an expert invoice assistant for contractors and small businesses.
+
+Your job is to turn messy, multilingual, informal job notes into a polished invoice a company can send to their customer.
 
 Return ONLY valid JSON matching this schema:
 {
@@ -15,24 +15,91 @@ Return ONLY valid JSON matching this schema:
   "client_email": string | null,
   "client_phone": string | null,
   "client_address": string | null,
-  "currency": string (3-letter ISO code, default USD),
+  "currency": string (3-letter ISO code),
   "issue_date": string | null (ISO date YYYY-MM-DD),
   "due_date": string | null (ISO date YYYY-MM-DD),
   "notes": string | null,
   "tax_rate": number (decimal, e.g. 0.08 for 8%),
-  "discount": number,
+  "discount": number (flat currency amount, NOT a percentage),
   "line_items": [{ "description": string, "quantity": number, "unit_price": number, "amount": number }],
   "detected_language": string | null,
   "confidence": number (0-1)
 }
 
-Rules:
+OUTPUT LANGUAGE (critical):
+- Write every line item description and the notes field in clear, professional business English unless the user explicitly asks for another output language.
+- Translate French, typos, slang, and shorthand into standard invoice wording a US customer would understand.
+- Never copy source-language phrasing verbatim into descriptions.
+- Example: "enleve les vieux caro sur les deux douche" -> "Remove old shower tile (per shower)" with quantity 2, unit_price 300.
+
+SENDER vs CLIENT:
+- The invoice sender (the user's company) may be provided in context. Never put the sender in client_name.
+- client_name is the bill-to customer receiving the invoice.
+- If the end customer is not named, use "Client".
+
+LINE ITEMS:
+- Parse pricing like "$300 x 2", "300 x 2", "$100 × 3" as unit_price and quantity respectively.
+- amount must equal quantity * unit_price for each line.
+- Use concise professional descriptions. Add location/scope when useful (e.g. master bathroom, second bathroom).
 - Always include at least one line item.
-- amount = quantity * unit_price for each line item.
-- If tax is mentioned as a percent, convert to decimal tax_rate.
-- If due date is relative (e.g. "in 14 days"), compute an ISO date from today.
-- If information is missing, use reasonable defaults; never invent a client email.
+
+DISCOUNTS:
+- discount is a dollar/currency amount subtracted from the subtotal, not a percentage.
+- If the user offers a percentage discount (e.g. 7.5%), compute discount = round(subtotal * rate / 100, 2).
+- Summarize discount terms in notes (e.g. "7.5% discount applied").
+
+DATES:
+- reference_date in context is today's date for resolving relative dates ("due in 14 days").
+- If the user states a specific invoice/issue date, use it. Infer the year from reference_date when omitted.
+
+NOTES:
+- Include timeline, materials, payment terms, and other conditions as professional English prose.
+- Do not repeat every line item in notes.
+
+OTHER:
+- If tax is mentioned as a percent, set tax_rate as a decimal.
+- Use reasonable defaults for missing fields; never invent client email or phone.
+- Set detected_language to the primary language of the input text.
 """
+
+
+def _build_user_message(payload: ParseInvoiceRequest) -> str:
+    parts: list[str] = []
+
+    if payload.company_name:
+        parts.append(f"Company sending this invoice: {payload.company_name}")
+    if payload.company_currency:
+        parts.append(f"Default currency: {payload.company_currency}")
+    if payload.output_language:
+        parts.append(f"Output language: {payload.output_language}")
+    if payload.reference_date:
+        parts.append(f"Reference date (today): {payload.reference_date}")
+    if payload.locale_hint:
+        parts.append(f"Locale hint: {payload.locale_hint}")
+
+    parts.append("")
+    parts.append("Job description from the user:")
+    parts.append(payload.text)
+
+    return "\n".join(parts)
+
+
+def _normalize_draft(draft: InvoiceDraft) -> InvoiceDraft:
+    line_items: list[LineItem] = []
+    for item in draft.line_items:
+        amount = round(item.quantity * item.unit_price, 2)
+        line_items.append(
+            item.model_copy(update={"amount": amount}),
+        )
+
+    subtotal = round(sum(item.amount for item in line_items), 2)
+    discount = draft.discount
+
+    # When the model returns a decimal rate (e.g. 0.075 for 7.5%) instead of dollars.
+    if subtotal > 0 and 0 < discount < 1:
+        discount = round(subtotal * discount, 2)
+
+    return draft.model_copy(update={"line_items": line_items, "discount": discount})
 
 
 def parse_invoice_text(payload: ParseInvoiceRequest) -> InvoiceDraft:
@@ -40,13 +107,11 @@ def parse_invoice_text(payload: ParseInvoiceRequest) -> InvoiceDraft:
         raise RuntimeError("OPENAI_API_KEY is not configured")
 
     client = OpenAI(api_key=settings.openai_api_key)
-    user_content = payload.text
-    if payload.locale_hint:
-        user_content = f"Locale hint: {payload.locale_hint}\n\n{payload.text}"
+    user_content = _build_user_message(payload)
 
     response = client.chat.completions.create(
         model=settings.openai_model,
-        temperature=0.1,
+        temperature=0.2,
         response_format={"type": "json_object"},
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
@@ -59,4 +124,5 @@ def parse_invoice_text(payload: ParseInvoiceRequest) -> InvoiceDraft:
         raise RuntimeError("Empty response from OpenAI")
 
     data = json.loads(content)
-    return InvoiceDraft.model_validate(data)
+    draft = InvoiceDraft.model_validate(data)
+    return _normalize_draft(draft)

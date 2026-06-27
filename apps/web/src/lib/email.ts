@@ -44,3 +44,40 @@ export async function sendInvoiceEmail(input: SendInvoiceEmailInput) {
 
   return data;
 }
+
+type SendEstimateEmailInput = {
+  to: string;
+  companyName: string;
+  estimateNumber: string;
+  total: string;
+  pdfBuffer: Buffer;
+};
+
+export async function sendEstimateEmail(input: SendEstimateEmailInput) {
+  const from = process.env.RESEND_FROM_EMAIL ?? "Easy Invoice <onboarding@resend.dev>";
+  const resend = getResend();
+
+  const { data, error } = await resend.emails.send({
+    from,
+    to: input.to,
+    subject: `Estimate ${input.estimateNumber} from ${input.companyName}`,
+    html: `
+      <p>Hello,</p>
+      <p>Please find attached estimate <strong>${input.estimateNumber}</strong> from <strong>${input.companyName}</strong>.</p>
+      <p>Total estimate: <strong>${input.total}</strong></p>
+      <p>We look forward to working with you.</p>
+    `,
+    attachments: [
+      {
+        filename: `${input.estimateNumber}.pdf`,
+        content: input.pdfBuffer,
+      },
+    ],
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}

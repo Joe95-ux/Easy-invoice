@@ -30,6 +30,10 @@ class InvoiceDraft(BaseModel):
 class ParseInvoiceRequest(BaseModel):
     text: str = Field(min_length=10)
     locale_hint: Optional[str] = None
+    company_name: Optional[str] = None
+    company_currency: Optional[str] = None
+    output_language: Optional[str] = "en"
+    reference_date: Optional[str] = None
 
 
 class RenderPdfRequest(BaseModel):

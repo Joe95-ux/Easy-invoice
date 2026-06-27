@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { ArrowLeftIcon } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -18,6 +19,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageScroll } from "@/components/app-shell/app-shell";
+import { FormCard } from "@/components/forms/form-card";
 import {
   Table,
   TableBody,
@@ -72,30 +75,33 @@ export function ClientDetail({ client }: ClientDetailProps) {
   }
 
   return (
-    <div>
+    <PageScroll>
       <div className="mb-6">
-        <Link href="/clients">
-          <Button variant="ghost" size="sm">← Back to clients</Button>
-        </Link>
+        <Button variant="ghost" size="sm" className="-ml-2.5" render={<Link href="/clients" />}>
+          <ArrowLeftIcon className="size-4" />
+          Back to clients
+        </Button>
       </div>
 
       <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{client.name}</h1>
+          <h1 className="font-heading text-2xl font-semibold tracking-tight">{client.name}</h1>
           <p className="mt-1 text-muted-foreground">
             {client._count.invoices} invoice{client._count.invoices === 1 ? "" : "s"}
           </p>
         </div>
         <div className="flex gap-2">
-          <Link href={`/invoices/new?clientId=${client.id}`}>
-            <Button>Create invoice</Button>
-          </Link>
+          <Button render={<Link href={`/invoices/new?clientId=${client.id}`} />}>
+            Create invoice
+          </Button>
           <AlertDialog>
-            <AlertDialogTrigger>
-              <Button variant="destructive" disabled={deleting}>
-                Delete
-              </Button>
-            </AlertDialogTrigger>
+            <AlertDialogTrigger
+              render={
+                <Button variant="destructive" disabled={deleting}>
+                  Delete
+                </Button>
+              }
+            />
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Delete client?</AlertDialogTitle>
@@ -116,28 +122,32 @@ export function ClientDetail({ client }: ClientDetailProps) {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Edit client</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ClientForm
-              initialValues={{
-                name: client.name,
-                email: client.email ?? "",
-                phone: client.phone ?? "",
-                address: client.address ?? "",
-                city: client.city ?? "",
-                state: client.state ?? "",
-                zip: client.zip ?? "",
-                country: client.country ?? "",
-                notes: client.notes ?? "",
-              }}
-              submitLabel="Save changes"
-              onSubmit={handleUpdate}
-            />
-          </CardContent>
-        </Card>
+        <FormCard
+          title="Edit client"
+          footer={
+            <Button type="submit" form="edit-client-form">
+              Save changes
+            </Button>
+          }
+        >
+          <ClientForm
+            formId="edit-client-form"
+            showSubmit={false}
+            initialValues={{
+              name: client.name,
+              email: client.email ?? "",
+              phone: client.phone ?? "",
+              address: client.address ?? "",
+              city: client.city ?? "",
+              state: client.state ?? "",
+              zip: client.zip ?? "",
+              country: client.country ?? "",
+              notes: client.notes ?? "",
+            }}
+            submitLabel="Save changes"
+            onSubmit={handleUpdate}
+          />
+        </FormCard>
 
         <Card>
           <CardHeader>
@@ -182,6 +192,6 @@ export function ClientDetail({ client }: ClientDetailProps) {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </PageScroll>
   );
 }

@@ -42,13 +42,13 @@ export function invoiceStatusLabel(status: InvoiceStatus): string {
 
 export function invoiceStatusVariant(
   status: InvoiceStatus,
-): "default" | "secondary" | "destructive" | "outline" {
+): "secondary" | "destructive" | "outline" | "success" | "info" {
   switch (status) {
     case "PAID":
-      return "default";
+      return "success";
     case "SENT":
     case "VIEWED":
-      return "secondary";
+      return "info";
     case "OVERDUE":
       return "destructive";
     default:

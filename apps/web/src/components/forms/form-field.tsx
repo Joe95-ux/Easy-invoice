@@ -1,7 +1,13 @@
 "use client";
 
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldError,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
 type FormFieldProps = {
   label: string;
@@ -9,8 +15,12 @@ type FormFieldProps = {
   value: string;
   onChange: (value: string) => void;
   error?: string;
+  description?: string;
   type?: string;
   required?: boolean;
+  placeholder?: string;
+  autoComplete?: string;
+  className?: string;
 };
 
 export function FormField({
@@ -19,20 +29,32 @@ export function FormField({
   value,
   onChange,
   error,
+  description,
   type = "text",
   required,
+  placeholder,
+  autoComplete,
+  className,
 }: FormFieldProps) {
   return (
-    <div className="space-y-2">
-      <Label htmlFor={id}>{label}</Label>
-      <Input
-        id={id}
-        type={type}
-        value={value}
-        required={required}
-        onChange={(e) => onChange(e.target.value)}
-      />
-      {error && <p className="text-xs text-destructive">{error}</p>}
-    </div>
+    <Field data-invalid={!!error} className={className}>
+      <FieldLabel htmlFor={id}>
+        {label}
+        {required && <span className="text-destructive"> *</span>}
+      </FieldLabel>
+      <FieldContent>
+        <Input
+          id={id}
+          type={type}
+          value={value}
+          required={required}
+          placeholder={placeholder}
+          autoComplete={autoComplete}
+          onChange={(event) => onChange(event.target.value)}
+        />
+        {description && <FieldDescription>{description}</FieldDescription>}
+        {error && <FieldError>{error}</FieldError>}
+      </FieldContent>
+    </Field>
   );
 }

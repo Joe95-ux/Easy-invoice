@@ -1,36 +1,70 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { ImageIcon, UploadIcon, UserRoundIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldLabel,
+} from "@/components/ui/field";
+import {
+  importCompanyLogoFromUrl,
+  uploadCompanyLogoFile,
+} from "@/lib/company-logo-client";
+import { cn } from "@/lib/utils";
 
 type CompanyLogoUploadProps = {
   logoUrl: string | null;
   onLogoChange: (url: string | null) => void;
+  mode?: "immediate" | "deferred";
+  onPendingFileChange?: (file: File | null) => void;
+  onSuggestedLogoSelect?: (selected: boolean) => void;
+  suggestedImageUrl?: string | null;
+  className?: string;
 };
 
-export function CompanyLogoUpload({ logoUrl, onLogoChange }: CompanyLogoUploadProps) {
+export function CompanyLogoUpload({
+  logoUrl,
+  onLogoChange,
+  mode = "immediate",
+  onPendingFileChange,
+  onSuggestedLogoSelect,
+  suggestedImageUrl,
+  className,
+}: CompanyLogoUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(logoUrl);
+  const [usingSuggested, setUsingSuggested] = useState(false);
 
-  async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  useEffect(() => {
+    setPreviewUrl(logoUrl);
+  }, [logoUrl]);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl?.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
+  async function applyFile(file: File) {
+    if (mode === "deferred") {
+      onPendingFileChange?.(file);
+      onSuggestedLogoSelect?.(false);
+      setUsingSuggested(false);
+      const objectUrl = URL.createObjectURL(file);
+      setPreviewUrl(objectUrl);
+      return;
+    }
 
     setUploading(true);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const response = await fetch("/api/company/logo", {
-        method: "POST",
-        body: formData,
-      });
-      const body = await response.json();
-      if (!response.ok) throw new Error(body.error ?? "Upload failed");
-
-      onLogoChange(body.logoUrl);
+      const url = await uploadCompanyLogoFile(file);
+      onLogoChange(url);
+      setPreviewUrl(url);
       toast.success("Logo uploaded");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not upload logo");
@@ -40,7 +74,41 @@ export function CompanyLogoUpload({ logoUrl, onLogoChange }: CompanyLogoUploadPr
     }
   }
 
+  async function handleUseSuggested() {
+    if (!suggestedImageUrl) return;
+
+    if (mode === "deferred") {
+      onPendingFileChange?.(null);
+      onSuggestedLogoSelect?.(true);
+      setUsingSuggested(true);
+      setPreviewUrl(suggestedImageUrl);
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const url = await importCompanyLogoFromUrl(suggestedImageUrl);
+      onLogoChange(url);
+      setPreviewUrl(url);
+      setUsingSuggested(true);
+      toast.success("Profile photo added as logo");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not import logo");
+    } finally {
+      setUploading(false);
+    }
+  }
+
   async function handleRemove() {
+    if (mode === "deferred") {
+      onPendingFileChange?.(null);
+      onSuggestedLogoSelect?.(false);
+      setUsingSuggested(false);
+      setPreviewUrl(null);
+      onLogoChange(null);
+      return;
+    }
+
     setUploading(true);
     try {
       const response = await fetch("/api/company/logo", { method: "DELETE" });
@@ -48,6 +116,8 @@ export function CompanyLogoUpload({ logoUrl, onLogoChange }: CompanyLogoUploadPr
       if (!response.ok) throw new Error(body.error ?? "Failed to remove logo");
 
       onLogoChange(body.logoUrl);
+      setPreviewUrl(null);
+      setUsingSuggested(false);
       toast.success("Logo removed");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not remove logo");
@@ -57,55 +127,84 @@ export function CompanyLogoUpload({ logoUrl, onLogoChange }: CompanyLogoUploadPr
   }
 
   return (
-    <div className="space-y-3">
-      <Label>Company logo</Label>
-
-      {logoUrl ? (
-        <img
-          src={logoUrl}
-          alt="Company logo"
-          className="h-16 w-auto max-w-[200px] rounded-md border border-border object-contain p-1"
-        />
-      ) : (
-        <div className="flex h-16 w-32 items-center justify-center rounded-md border border-dashed border-border text-xs text-muted-foreground">
-          No logo
-        </div>
-      )}
-
-      <div className="flex flex-wrap gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={uploading}
-          onClick={() => inputRef.current?.click()}
-        >
-          {uploading ? "Uploading..." : logoUrl ? "Replace logo" : "Upload logo"}
-        </Button>
-        {logoUrl && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            disabled={uploading}
-            onClick={handleRemove}
+    <Field className={className}>
+      <FieldLabel>Company logo</FieldLabel>
+      <FieldContent>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+          <div
+            className={cn(
+              "flex size-24 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-dashed border-border/80 bg-muted/30",
+              previewUrl && "border-solid bg-background",
+            )}
           >
-            Remove
-          </Button>
-        )}
-      </div>
+            {previewUrl ? (
+              <img
+                src={previewUrl}
+                alt="Company logo preview"
+                className="size-full object-contain p-2"
+              />
+            ) : (
+              <ImageIcon className="size-8 text-muted-foreground/70" />
+            )}
+          </div>
 
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/jpeg,image/png,image/webp,image/gif"
-        className="hidden"
-        onChange={handleFileChange}
-      />
+          <div className="flex flex-1 flex-col gap-2">
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={uploading}
+                onClick={() => inputRef.current?.click()}
+              >
+                <UploadIcon className="size-4" />
+                {uploading ? "Uploading..." : previewUrl ? "Replace logo" : "Upload logo"}
+              </Button>
 
-      <p className="text-xs text-muted-foreground">
-        PNG, JPG, WebP, or GIF up to 2 MB. Appears on invoice PDFs.
-      </p>
-    </div>
+              {suggestedImageUrl && !usingSuggested && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={uploading}
+                  onClick={handleUseSuggested}
+                >
+                  <UserRoundIcon className="size-4" />
+                  Use profile photo
+                </Button>
+              )}
+
+              {previewUrl && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={uploading}
+                  onClick={handleRemove}
+                >
+                  Remove
+                </Button>
+              )}
+            </div>
+
+            <FieldDescription>
+              PNG, JPG, WebP, or GIF up to 2 MB. Shown on invoices and PDFs.
+              {mode === "deferred" && " Logo is saved when you finish setup."}
+            </FieldDescription>
+          </div>
+        </div>
+
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif"
+          className="hidden"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file) void applyFile(file);
+          }}
+        />
+      </FieldContent>
+    </Field>
   );
 }

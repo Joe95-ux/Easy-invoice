@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PlusIcon, UsersRoundIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -9,6 +10,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { PageScroll } from "@/components/app-shell/app-shell";
+import { EmptyState, PageHeader } from "@/components/app-shell/page-header";
 import { requireMember } from "@/lib/auth";
 import { getClientsForMember } from "@/lib/clients";
 
@@ -18,28 +21,32 @@ export default async function ClientsPage() {
   const clients = await getClientsForMember(member.companyId);
 
   return (
-    <div>
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Clients</h1>
-          <p className="mt-1 text-muted-foreground">
-            Manage the people and businesses you invoice
-          </p>
-        </div>
-        <Link href="/clients/new">
-          <Button>Add client</Button>
-        </Link>
-      </div>
+    <PageScroll>
+      <PageHeader
+        title="Clients"
+        description="Manage the people and businesses you invoice."
+        actions={
+          <Button render={<Link href="/clients/new" />}>
+            <PlusIcon className="size-4" />
+            Add client
+          </Button>
+        }
+      />
 
       {clients.length === 0 ? (
-        <Card className="flex flex-col items-center py-12 text-center">
-          <p className="text-muted-foreground">No clients yet.</p>
-          <Link href="/clients/new">
-            <Button className="mt-4">Add your first client</Button>
-          </Link>
-        </Card>
+        <EmptyState
+          icon={UsersRoundIcon}
+          title="No clients yet"
+          description="Add a client once and reuse their details on every invoice."
+          action={
+            <Button render={<Link href="/clients/new" />}>
+              <PlusIcon className="size-4" />
+              Add your first client
+            </Button>
+          }
+        />
       ) : (
-        <Card>
+        <Card className="overflow-hidden py-0">
           <Table>
             <TableHeader>
               <TableRow>
@@ -70,6 +77,6 @@ export default async function ClientsPage() {
           </Table>
         </Card>
       )}
-    </div>
+    </PageScroll>
   );
 }

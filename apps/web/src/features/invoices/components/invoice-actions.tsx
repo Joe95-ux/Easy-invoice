@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { downloadInvoicePdf } from "@/lib/invoice-pdf-client";
 import type { InvoiceStatus } from "@easy-invoice/db";
 
 type InvoiceActionsProps = {
@@ -48,16 +49,7 @@ export function InvoiceActions({
   async function handleDownloadPdf() {
     setLoading("pdf");
     try {
-      const response = await fetch(`/api/invoices/${invoiceId}/pdf`);
-      if (!response.ok) throw new Error("Failed to generate PDF");
-
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `${invoiceNumber}.pdf`;
-      link.click();
-      URL.revokeObjectURL(url);
+      await downloadInvoicePdf(invoiceId, invoiceNumber);
       toast.success("PDF downloaded");
     } catch {
       toast.error("Could not generate PDF. Is the ai-docs service running?");

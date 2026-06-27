@@ -23,6 +23,16 @@ enum InvoiceStatus {
   CANCELLED
 }
 
+enum EstimateStatus {
+  DRAFT
+  SENT
+  VIEWED
+  ACCEPTED
+  DECLINED
+  EXPIRED
+  CANCELLED
+}
+
 enum UserRole {
   OWNER
   ADMIN
@@ -45,6 +55,7 @@ model Company {
   currency  String   @default("USD")
   locale    String   @default("en")
   plan      Plan     @default(FREE)
+  defaultTemplateId String?
   stripeCustomerId     String? @unique
   stripeSubscriptionId String? @unique
   createdAt DateTime @default(now())
@@ -53,7 +64,9 @@ model Company {
   members   CompanyMember[]
   clients   Client[]
   invoices  Invoice[]
+  estimates Estimate[]
   templates InvoiceTemplate[]
+  defaultTemplate InvoiceTemplate? @relation("CompanyDefaultTemplate", fields: [defaultTemplateId], references: [id], onDelete: SetNull)
 
   @@index([slug])
 }
@@ -90,6 +103,7 @@ model Client {
 
   company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   invoices Invoice[]
+  estimates Estimate[]
 
   @@index([companyId])
 }
@@ -139,6 +153,51 @@ model InvoiceLineItem {
   @@index([invoiceId])
 }
 
+model Estimate {
+  id            String         @id @default(cuid())
+  companyId     String
+  clientId      String?
+  number        String
+  status        EstimateStatus @default(DRAFT)
+  issueDate     DateTime       @default(now())
+  validUntil    DateTime?
+  currency      String         @default("USD")
+  subtotal      Decimal        @default(0) @db.Decimal(12, 2)
+  taxRate       Decimal        @default(0) @db.Decimal(5, 4)
+  taxAmount     Decimal        @default(0) @db.Decimal(12, 2)
+  discount      Decimal        @default(0) @db.Decimal(12, 2)
+  total         Decimal        @default(0) @db.Decimal(12, 2)
+  notes         String?
+  customFields  Json?
+  templateId    String?
+  sentAt        DateTime?
+  acceptedAt    DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  company  Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  client   Client?          @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  template InvoiceTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  items    EstimateLineItem[]
+
+  @@unique([companyId, number])
+  @@index([companyId, status])
+}
+
+model EstimateLineItem {
+  id          String  @id @default(cuid())
+  estimateId  String
+  description String
+  quantity    Decimal @default(1) @db.Decimal(12, 4)
+  unitPrice   Decimal @default(0) @db.Decimal(12, 2)
+  amount      Decimal @default(0) @db.Decimal(12, 2)
+  sortOrder   Int     @default(0)
+
+  estimate Estimate @relation(fields: [estimateId], references: [id], onDelete: Cascade)
+
+  @@index([estimateId])
+}
+
 model InvoiceTemplate {
   id        String   @id @default(cuid())
   companyId String?
@@ -152,7 +211,9 @@ model InvoiceTemplate {
   updatedAt DateTime @updatedAt
 
   company  Company?  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  defaultForCompanies Company[] @relation("CompanyDefaultTemplate")
   invoices Invoice[]
+  estimates Estimate[]
 
   @@unique([companyId, slug])
 }

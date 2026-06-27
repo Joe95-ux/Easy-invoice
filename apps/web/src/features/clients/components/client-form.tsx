@@ -3,9 +3,17 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { AddressFields } from "@/components/forms/address-fields";
+import { CountrySelect } from "@/components/forms/country-select";
 import { FormField } from "@/components/forms/form-field";
+import { FormSection } from "@/components/forms/form-section";
+import { PhoneInput } from "@/components/forms/phone-input";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
+import {
+  Field,
+  FieldContent,
+  FieldLabel,
+} from "@/components/ui/field";
 import { zodFieldErrors } from "@/lib/validation/zod";
 import { clientSchema, type ClientInput } from "@/lib/schemas/client";
 
@@ -17,19 +25,23 @@ const emptyValues: ClientInput = {
   city: "",
   state: "",
   zip: "",
-  country: "",
+  country: "US",
   notes: "",
 };
 
 type ClientFormProps = {
   initialValues?: Partial<ClientInput>;
   submitLabel?: string;
+  formId?: string;
+  showSubmit?: boolean;
   onSubmit: (data: ClientInput) => Promise<void>;
 };
 
 export function ClientForm({
   initialValues,
   submitLabel = "Save client",
+  formId = "client-form",
+  showSubmit = true,
   onSubmit,
 }: ClientFormProps) {
   const [form, setForm] = useState<ClientInput>({ ...emptyValues, ...initialValues });
@@ -61,64 +73,83 @@ export function ClientForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <FormField
-          label="Name"
-          id="name"
-          value={form.name}
-          onChange={(v) => updateField("name", v)}
-          error={errors.name}
-          required
-        />
-        <FormField
-          label="Email"
-          id="email"
-          type="email"
-          value={form.email ?? ""}
-          onChange={(v) => updateField("email", v)}
-          error={errors.email}
-        />
-        <FormField
-          label="Phone"
-          id="phone"
-          value={form.phone ?? ""}
-          onChange={(v) => updateField("phone", v)}
-        />
-        <FormField
-          label="Country"
-          id="country"
-          value={form.country ?? ""}
-          onChange={(v) => updateField("country", v)}
-        />
-      </div>
+    <form id={formId} onSubmit={handleSubmit} className="space-y-6">
+      <FormSection
+        title="Contact details"
+        description="Who you're billing and how to reach them."
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField
+            label="Name"
+            id="name"
+            value={form.name}
+            onChange={(value) => updateField("name", value)}
+            error={errors.name}
+            required
+            placeholder="Client or company name"
+          />
+          <FormField
+            label="Email"
+            id="email"
+            type="email"
+            value={form.email ?? ""}
+            onChange={(value) => updateField("email", value)}
+            error={errors.email}
+            placeholder="client@example.com"
+          />
+          <div className="sm:col-span-2">
+            <PhoneInput
+              value={form.phone ?? ""}
+              country={form.country || "US"}
+              onChange={(value) => updateField("phone", value)}
+              error={errors.phone}
+            />
+          </div>
+        </div>
+      </FormSection>
 
-      <FormField
-        label="Address"
-        id="address"
-        value={form.address ?? ""}
-        onChange={(v) => updateField("address", v)}
-      />
-
-      <div className="grid gap-4 sm:grid-cols-3">
-        <FormField label="City" id="city" value={form.city ?? ""} onChange={(v) => updateField("city", v)} />
-        <FormField label="State" id="state" value={form.state ?? ""} onChange={(v) => updateField("state", v)} />
-        <FormField label="ZIP" id="zip" value={form.zip ?? ""} onChange={(v) => updateField("zip", v)} />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="notes">Notes</Label>
-        <Textarea
-          id="notes"
-          value={form.notes ?? ""}
-          onChange={(e) => updateField("notes", e.target.value)}
-          rows={3}
+      <FormSection
+        title="Billing address"
+        description="Search an address or enter it manually."
+      >
+        <AddressFields
+          values={form}
+          defaultCountry={form.country || "US"}
+          onChange={(patch) => {
+            for (const [key, value] of Object.entries(patch) as Array<
+              [keyof ClientInput, string]
+            >) {
+              updateField(key, value);
+            }
+          }}
         />
-      </div>
+        <CountrySelect
+          value={form.country || "US"}
+          onChange={(value) => updateField("country", value)}
+          error={errors.country}
+        />
+      </FormSection>
 
-      <Button type="submit" disabled={submitting}>
-        {submitting ? "Saving..." : submitLabel}
-      </Button>
+      <FormSection title="Notes" description="Optional context for this client.">
+        <Field>
+          <FieldLabel htmlFor="notes">Internal notes</FieldLabel>
+          <FieldContent>
+            <Textarea
+              id="notes"
+              value={form.notes ?? ""}
+              onChange={(event) => updateField("notes", event.target.value)}
+              rows={3}
+              placeholder="Preferred payment method, job history, etc."
+            />
+          </FieldContent>
+        </Field>
+      </FormSection>
+
+      {showSubmit && (
+        <Button type="submit" disabled={submitting} className="w-full sm:w-auto">
+          {submitting ? "Saving..." : submitLabel}
+        </Button>
+      )}
     </form>
   );
 }

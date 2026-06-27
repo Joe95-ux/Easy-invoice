@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ArrowLeftIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageScroll } from "@/components/app-shell/app-shell";
+import { FormCard } from "@/components/forms/form-card";
 import { ClientForm } from "@/features/clients/components/client-form";
 import type { ClientInput } from "@/lib/schemas/client";
 
@@ -26,28 +28,36 @@ export default function NewClientPage() {
   }
 
   return (
-    <div>
+    <PageScroll className="max-w-3xl">
       <div className="mb-6">
-        <Link href="/clients">
-          <Button variant="ghost" size="sm">← Back to clients</Button>
-        </Link>
+        <Button variant="ghost" size="sm" className="-ml-2.5" render={<Link href="/clients" />}>
+          <ArrowLeftIcon className="size-4" />
+          Back to clients
+        </Button>
       </div>
 
       <div className="mb-8">
-        <h1 className="text-2xl font-bold tracking-tight">Add client</h1>
+        <h1 className="font-heading text-2xl font-semibold tracking-tight">Add client</h1>
         <p className="mt-1 text-muted-foreground">
-          Save client details for faster invoicing
+          Save client details for faster invoicing.
         </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Client details</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ClientForm submitLabel="Create client" onSubmit={handleSubmit} />
-        </CardContent>
-      </Card>
-    </div>
+      <FormCard
+        title="Client details"
+        footer={
+          <Button type="submit" form="new-client-form" className="w-full sm:w-auto">
+            Create client
+          </Button>
+        }
+      >
+        <ClientForm
+          formId="new-client-form"
+          showSubmit={false}
+          submitLabel="Create client"
+          onSubmit={handleSubmit}
+        />
+      </FormCard>
+    </PageScroll>
   );
 }

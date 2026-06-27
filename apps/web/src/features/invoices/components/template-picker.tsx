@@ -1,13 +1,16 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 import {
-  NativeSelect,
-  NativeSelectOption,
-} from "@/components/ui/native-select";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { TemplateSummary } from "@/lib/templates";
 
 type TemplatePickerProps = {
@@ -15,30 +18,51 @@ type TemplatePickerProps = {
   value: string;
   onChange?: (templateId: string) => void;
   invoiceId?: string;
+  estimateId?: string;
+  label?: string;
   disabled?: boolean;
 };
+
+function templateLabel(template: TemplateSummary) {
+  return `${template.name}${template.isSystem ? " (built-in)" : ""}`;
+}
 
 export function TemplatePicker({
   templates,
   value,
   onChange,
   invoiceId,
+  estimateId,
+  label = "Invoice template",
   disabled,
 }: TemplatePickerProps) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
 
-  async function handleChange(templateId: string) {
+  const items = useMemo(
+    () =>
+      templates.map((template) => ({
+        value: template.id,
+        label: templateLabel(template),
+      })),
+    [templates],
+  );
+
+  async function handleChange(templateId: string | null) {
+    if (!templateId) return;
     onChange?.(templateId);
 
-    if (!invoiceId) return;
+    if (!invoiceId && !estimateId) return;
 
     setSaving(true);
     try {
-      const response = await fetch(`/api/invoices/${invoiceId}`, {
+      const url = invoiceId
+        ? `/api/invoices/${invoiceId}`
+        : `/api/estimates/${estimateId}`;
+      const response = await fetch(url, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ templateId: templateId || null }),
+        body: JSON.stringify({ templateId }),
       });
       if (!response.ok) throw new Error("Failed to update template");
 
@@ -53,21 +77,24 @@ export function TemplatePicker({
 
   return (
     <div className="space-y-2">
-      <Label htmlFor="invoice-template">Invoice template</Label>
-      <NativeSelect
-        id="invoice-template"
-        className="w-full max-w-xs"
+      <Label htmlFor="document-template">{label}</Label>
+      <Select
+        items={items}
         value={value}
         disabled={disabled || saving}
-        onChange={(e) => handleChange(e.target.value)}
+        onValueChange={(next) => handleChange(next)}
       >
-        {templates.map((template) => (
-          <NativeSelectOption key={template.id} value={template.id}>
-            {template.name}
-            {template.isSystem ? " (built-in)" : ""}
-          </NativeSelectOption>
-        ))}
-      </NativeSelect>
+        <SelectTrigger id="document-template" className="w-full">
+          <SelectValue placeholder="Select template" />
+        </SelectTrigger>
+        <SelectContent className="max-h-72" alignItemWithTrigger={false}>
+          {templates.map((template) => (
+            <SelectItem key={template.id} value={template.id}>
+              {templateLabel(template)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }

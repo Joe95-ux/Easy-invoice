@@ -1,4 +1,7 @@
+export type DocumentKind = "invoice" | "estimate";
+
 export type InvoiceHtmlData = {
+  documentKind?: DocumentKind;
   company: {
     name: string;
     logoUrl?: string | null;
