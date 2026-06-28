@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ArrowLeftIcon } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -19,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageScroll } from "@/components/app-shell/app-shell";
+import { PageBackLink, PageHeader, pageHeaderActionClass } from "@/components/app-shell/page-header";
 import { FormCard } from "@/components/forms/form-card";
 import { ClientForm } from "@/features/clients/components/client-form";
 import { ClientInvoicesTable } from "@/features/clients/components/client-invoices-table";
@@ -63,32 +63,27 @@ export function ClientDetail({ client }: ClientDetailProps) {
 
   return (
     <PageScroll fullWidth>
-      <div className="mb-6">
-        <Button variant="ghost" size="sm" className="-ml-2.5" render={<Link href="/clients" />}>
-          <ArrowLeftIcon className="size-4" />
-          Back to clients
-        </Button>
-      </div>
+      <PageBackLink href="/clients">Back to clients</PageBackLink>
 
-      <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="font-heading text-2xl font-semibold tracking-tight">{client.name}</h1>
-          <p className="mt-1 text-muted-foreground">
-            {client._count.invoices} invoice{client._count.invoices === 1 ? "" : "s"}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button render={<Link href={`/invoices/new?clientId=${client.id}`} />}>
-            Create invoice
-          </Button>
-          <AlertDialog>
-            <AlertDialogTrigger
-              render={
-                <Button variant="destructive" disabled={deleting}>
-                  Delete
-                </Button>
-              }
-            />
+      <PageHeader
+        title={client.name}
+        description={`${client._count.invoices} invoice${client._count.invoices === 1 ? "" : "s"}`}
+        actions={
+          <>
+            <Button
+              className={pageHeaderActionClass}
+              render={<Link href={`/invoices/new?clientId=${client.id}`} />}
+            >
+              Create invoice
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger
+                render={
+                  <Button variant="destructive" className={pageHeaderActionClass} disabled={deleting}>
+                    Delete
+                  </Button>
+                }
+              />
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Delete client?</AlertDialogTitle>
@@ -105,8 +100,9 @@ export function ClientDetail({ client }: ClientDetailProps) {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-        </div>
-      </div>
+        </>
+        }
+      />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <FormCard

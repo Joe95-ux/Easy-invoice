@@ -6,7 +6,7 @@ import { ClipboardListIcon, PlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { PageScroll } from "@/components/app-shell/app-shell";
-import { EmptyState, PageHeader } from "@/components/app-shell/page-header";
+import { EmptyState, PageHeader, pageHeaderActionClass } from "@/components/app-shell/page-header";
 
 export default async function EstimatesPage() {
   const member = await requireMember();
@@ -28,7 +28,7 @@ export default async function EstimatesPage() {
         title="Estimates"
         description="Send quotes and turn them into invoices once accepted."
         actions={
-          <Button render={<Link href="/estimates/new" />}>
+          <Button className={pageHeaderActionClass} render={<Link href="/estimates/new" />}>
             <PlusIcon className="size-4" />
             New estimate
           </Button>

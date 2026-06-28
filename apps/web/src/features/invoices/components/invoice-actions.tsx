@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DocumentShareButton } from "@/components/document-share-button";
 import { downloadInvoicePdf } from "@/lib/invoice-pdf-client";
 import type { InvoiceStatus } from "@easy-invoice/db";
 
@@ -115,6 +116,8 @@ export function InvoiceActions({
 
   return (
     <div className="flex flex-wrap gap-2">
+      <DocumentShareButton kind="invoice" documentId={invoiceId} />
+
       <Button
         variant="outline"
         onClick={handleDownloadPdf}

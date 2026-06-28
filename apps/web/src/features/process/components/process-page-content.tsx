@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageScroll } from "@/components/app-shell/app-shell";
+import { PageHeader } from "@/components/app-shell/page-header";
 import { InvoiceFlowMockup } from "@/features/process/components/invoice-flow-mockup";
 import { cn } from "@/lib/utils";
 
@@ -188,16 +189,11 @@ function ExploreFeatureCard({
 export function ProcessPageContent() {
   return (
     <PageScroll fullWidth className="space-y-16 pb-8 md:space-y-20">
-      <section className="space-y-3">
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Process</p>
-        <h1 className="max-w-2xl font-heading text-2xl font-semibold tracking-tight md:text-3xl">
-          From rough notes to a paid invoice
-        </h1>
-        <p className="max-w-2xl text-sm text-muted-foreground md:text-base">
-          Invoice Desk is built around a simple path — client, work, preview, template, send.
-          Follow the flow below to see how each step connects.
-        </p>
-      </section>
+      <PageHeader
+        eyebrow="Process"
+        title="From rough notes to a paid invoice"
+        description="Invoice Desk is built around a simple path — client, work, preview, template, send. Follow the flow below to see how each step connects."
+      />
 
       <section className="rounded-[20px] border border-border bg-card/50 p-6 shadow-sm sm:p-8 md:p-10">
         <FlowTimeline />

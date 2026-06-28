@@ -4,6 +4,7 @@ import { requireMember } from "@/lib/auth";
 import { getDefaultTemplateId, getTemplatesForCompany } from "@/lib/templates";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageScroll } from "@/components/app-shell/app-shell";
+import { PageHeader } from "@/components/app-shell/page-header";
 
 export default async function SettingsPage() {
   const member = await requireMember();
@@ -28,12 +29,10 @@ export default async function SettingsPage() {
 
   return (
     <PageScroll>
-      <div className="mb-8">
-        <h1 className="font-heading text-2xl font-semibold tracking-tight">Settings</h1>
-        <p className="mt-1 text-muted-foreground">
-          Manage your company profile and invoice preferences.
-        </p>
-      </div>
+      <PageHeader
+        title="Settings"
+        description="Manage your company profile and invoice preferences."
+      />
 
       <div className="space-y-6">
         <CompanySettingsForm

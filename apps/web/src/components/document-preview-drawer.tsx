@@ -16,6 +16,7 @@ import {
   type BuildDocumentHtmlOptions,
   type PreviewCompany,
 } from "@/lib/invoice-templates/preview-html";
+import { previewSheetContentClass } from "@/components/preview-sheet-styles";
 import type { DocumentKind } from "@/lib/invoice-templates/types";
 
 export type { PreviewCompany };
@@ -114,7 +115,7 @@ export function DocumentPreviewDrawer(props: DocumentPreviewDrawerProps) {
       <SheetContent
         side="right"
         showCloseButton={false}
-        className="w-full gap-0 p-0 sm:!max-w-2xl lg:!max-w-3xl"
+        className={previewSheetContentClass}
       >
         <div className="flex h-full min-h-0 flex-col">
           <header className="flex items-center justify-between gap-3 border-b px-4 py-3">

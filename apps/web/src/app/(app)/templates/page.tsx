@@ -1,4 +1,6 @@
 import { PageScroll } from "@/components/app-shell/app-shell";
+import { PageHeader } from "@/components/app-shell/page-header";
+import { CreateDocumentMenu } from "@/components/create-document-menu";
 import { TemplatesExplorer } from "@/features/templates/components/templates-explorer";
 import { requireMember } from "@/lib/auth";
 import { getDefaultTemplateId, getTemplatesForCompany } from "@/lib/templates";
@@ -26,13 +28,11 @@ export default async function TemplatesPage() {
 
   return (
     <PageScroll fullWidth>
-      <div className="mb-8">
-        <h1 className="font-heading text-2xl font-semibold tracking-tight">Templates</h1>
-        <p className="mt-1 max-w-2xl text-muted-foreground">
-          Browse every layout available for your invoices and estimates. Preview with sample
-          data, select a favorite, and it becomes your default for new documents.
-        </p>
-      </div>
+      <PageHeader
+        title="Templates"
+        description="Browse every layout available for your invoices and estimates. Preview with sample data, select a favorite, and it becomes your default for new documents."
+        actions={<CreateDocumentMenu />}
+      />
 
       <TemplatesExplorer
         templates={templates}

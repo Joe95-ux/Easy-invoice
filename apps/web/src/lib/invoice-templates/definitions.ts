@@ -195,6 +195,51 @@ const onyxBody = `
   </div>
 `;
 
+const telegraphBody = `
+  {{watermark}}
+  <div class="page-content">
+    <div class="segment-rule" aria-hidden="true"><span></span><span></span><span></span></div>
+    <div class="header">
+      <div class="header-main">
+        <div class="company-name">{{company_name}}</div>
+        <div class="company-meta">{{company_details}}</div>
+      </div>
+      <div class="header-doc">
+        <div class="doc-title">{{document_title}}</div>
+        <div class="doc-number">#{{invoice_number}}</div>
+      </div>
+    </div>
+    <div class="segment-rule" aria-hidden="true"><span></span><span></span></div>
+    <div class="meta-row">
+      <div class="meta-block">
+        <div class="block-label">[ bill_to ]</div>
+        {{client_section}}
+      </div>
+      <div class="meta-block meta-dates">
+        <div class="block-label">[ details ]</div>
+        {{invoice_meta}}
+      </div>
+    </div>
+    <div class="segment-rule short" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+    <table class="line-items">
+      <thead>
+        <tr>
+          <th>Description</th>
+          <th class="num">Qty</th>
+          <th class="num">Unit price</th>
+          <th class="num">Amount</th>
+        </tr>
+      </thead>
+      <tbody>{{line_items}}</tbody>
+    </table>
+    <div class="segment-rule" aria-hidden="true"><span></span><span></span></div>
+    <div class="totals-wrap"><div class="totals">{{totals}}</div></div>
+    {{terms_notes}}
+    <div class="segment-rule footer-rule" aria-hidden="true"><span></span></div>
+    {{invoice_footer}}
+  </div>
+`;
+
 export type SystemTemplateDefinition = {
   name: string;
   slug: string;
@@ -378,5 +423,164 @@ export const SYSTEM_TEMPLATES: SystemTemplateDefinition[] = [
       .invoice-footer { border-top-color: #e7e5e4; color: #a8a29e; font-style: italic; }
     `,
     html: `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8" /><title>{{page_title}} {{invoice_number}}</title><style>{{styles}}</style></head><body class="page">${onyxBody}</body></html>`,
+  },
+  {
+    name: "Telegraph",
+    slug: "telegraph",
+    isDefault: false,
+    css: `
+      ${watermarkStyles}
+      @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        font-family: 'IBM Plex Mono', 'Courier New', Courier, monospace;
+        font-size: 11px;
+        color: #141414;
+        background: #f7f6f3;
+        letter-spacing: -0.01em;
+      }
+      .page-content { padding: 40px 44px 48px; }
+      .segment-rule {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 22px 0;
+      }
+      .segment-rule.short { margin: 18px 0; }
+      .segment-rule.footer-rule { margin: 28px 0 20px; }
+      .segment-rule span {
+        display: block;
+        height: 1px;
+        background: #141414;
+      }
+      .segment-rule span:nth-child(1) { flex: 3; }
+      .segment-rule span:nth-child(2) { flex: 1.2; opacity: 0.35; }
+      .segment-rule span:nth-child(3) { flex: 2; opacity: 0.55; }
+      .segment-rule span:nth-child(4) { flex: 0.8; opacity: 0.25; }
+      .segment-rule.short span:nth-child(1) { flex: 1.5; }
+      .segment-rule.short span:nth-child(2) { flex: 2.5; }
+      .segment-rule.short span:nth-child(3) { flex: 0.6; opacity: 0.3; }
+      .segment-rule.short span:nth-child(4) { flex: 1.8; opacity: 0.5; }
+      .segment-rule.footer-rule span { flex: 1; opacity: 0.4; }
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 32px;
+      }
+      .header-main { max-width: 58%; }
+      .company-name {
+        font-size: 17px;
+        font-weight: 600;
+        letter-spacing: -0.03em;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+      }
+      .company-meta .party-detail { color: #525252; line-height: 1.75; font-size: 11px; }
+      .header-doc { text-align: right; flex-shrink: 0; }
+      .doc-title {
+        font-size: 22px;
+        font-weight: 600;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+      }
+      .doc-number {
+        margin-top: 8px;
+        font-size: 11px;
+        color: #525252;
+        letter-spacing: 0.06em;
+      }
+      .meta-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 36px;
+      }
+      .meta-block { flex: 1; }
+      .meta-dates { text-align: right; max-width: 42%; }
+      .block-label {
+        font-size: 10px;
+        font-weight: 500;
+        letter-spacing: 0.12em;
+        color: #737373;
+        margin-bottom: 10px;
+        text-transform: lowercase;
+      }
+      .party-name { font-weight: 600; font-size: 13px; margin-bottom: 6px; }
+      .party-detail { color: #525252; line-height: 1.75; font-size: 11px; }
+      .meta-dates { color: #404040; line-height: 1.85; font-size: 11px; }
+      table.line-items { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
+      table.line-items tbody tr.band-odd { background: transparent; }
+      table.line-items tbody tr.band-even { background: rgba(20, 20, 20, 0.03); }
+      th {
+        text-align: left;
+        padding: 10px 8px;
+        font-size: 9px;
+        font-weight: 600;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #525252;
+        border-top: 1px dashed #a3a3a3;
+        border-bottom: 1px dashed #141414;
+      }
+      th.num { text-align: right; }
+      td {
+        padding: 11px 8px;
+        border-bottom: 1px dashed #d4d4d4;
+        vertical-align: top;
+        font-size: 11px;
+      }
+      table.line-items tbody tr:last-child td { border-bottom: 1px dashed #737373; }
+      .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+      .totals-wrap { display: flex; justify-content: flex-end; margin-top: 6px; }
+      .totals {
+        width: 300px;
+        border: 1px dashed #a3a3a3;
+        padding: 14px 16px;
+        background: rgba(255, 255, 255, 0.45);
+      }
+      .totals-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 5px 0;
+        color: #404040;
+        font-size: 11px;
+        font-variant-numeric: tabular-nums;
+      }
+      .totals-row.total {
+        font-weight: 600;
+        font-size: 13px;
+        color: #141414;
+        border-top: 1px dashed #141414;
+        margin-top: 8px;
+        padding-top: 10px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .terms-notes {
+        margin-top: 28px;
+        padding: 14px 0 0;
+        border-top: 1px dashed #d4d4d4;
+      }
+      .terms-notes-label {
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.12em;
+        text-transform: lowercase;
+        color: #737373;
+        margin-bottom: 8px;
+      }
+      .terms-notes div:last-child { color: #404040; line-height: 1.75; }
+      .invoice-footer {
+        border-top: none;
+        margin-top: 0;
+        padding-top: 0;
+        text-align: left;
+        font-size: 10px;
+        color: #737373;
+        letter-spacing: 0.04em;
+      }
+    `,
+    html: `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8" /><title>{{page_title}} {{invoice_number}}</title><style>{{styles}}</style></head><body class="page">${telegraphBody}</body></html>`,
   },
 ];

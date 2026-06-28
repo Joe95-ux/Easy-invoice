@@ -6,7 +6,7 @@ import { FileTextIcon, PlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { PageScroll } from "@/components/app-shell/app-shell";
-import { EmptyState, PageHeader } from "@/components/app-shell/page-header";
+import { EmptyState, PageHeader, pageHeaderActionClass } from "@/components/app-shell/page-header";
 
 export default async function InvoicesPage() {
   const member = await requireMember();
@@ -28,7 +28,7 @@ export default async function InvoicesPage() {
         title="Invoices"
         description="Track, send, and manage every invoice in one place."
         actions={
-          <Button render={<Link href="/invoices/new" />}>
+          <Button className={pageHeaderActionClass} render={<Link href="/invoices/new" />}>
             <PlusIcon className="size-4" />
             New invoice
           </Button>

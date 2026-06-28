@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { ArrowLeftIcon } from "lucide-react";
 import { PageScroll } from "@/components/app-shell/app-shell";
+import { PageBackLink, PageHeader, pageHeaderActionClass } from "@/components/app-shell/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,39 +46,43 @@ export default async function EstimateDetailPage({ params }: PageProps) {
         <EstimateAutoDownload estimateId={estimate.id} estimateNumber={estimate.number} />
       </Suspense>
 
-      <div className="mb-6">
-        <Button variant="ghost" size="sm" render={<Link href="/estimates" />}>
-          <ArrowLeftIcon className="size-4" />
-          Back to estimates
-        </Button>
-      </div>
+      <PageBackLink href="/estimates">Back to estimates</PageBackLink>
 
-      <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="font-heading text-2xl font-semibold tracking-tight">{estimate.number}</h1>
-            <Badge variant={estimateStatusVariant(estimate.status)}>
-              {estimateStatusLabel(estimate.status)}
-            </Badge>
-          </div>
-          <p className="mt-1 text-muted-foreground">
+      <PageHeader
+        title={estimate.number}
+        titleAddon={
+          <Badge variant={estimateStatusVariant(estimate.status)}>
+            {estimateStatusLabel(estimate.status)}
+          </Badge>
+        }
+        description={
+          <>
             Created {formatDate(estimate.createdAt)}
             {estimate.sentAt && ` · Sent ${formatDate(estimate.sentAt)}`}
+            {estimate.viewedAt && ` · Viewed ${formatDate(estimate.viewedAt)}`}
             {estimate.acceptedAt && ` · Accepted ${formatDate(estimate.acceptedAt)}`}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" render={<Link href={`/estimates/${estimate.id}/edit`} />}>
-            Edit
-          </Button>
-          <EstimateActions
-            estimateId={estimate.id}
-            estimateNumber={estimate.number}
-            status={estimate.status}
-            clientEmail={estimate.client?.email}
-          />
-        </div>
-      </div>
+          </>
+        }
+        actions={
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
+            <Button
+              variant="outline"
+              className={pageHeaderActionClass}
+              render={<Link href={`/estimates/${estimate.id}/edit`} />}
+            >
+              Edit
+            </Button>
+            <EstimateActions
+              estimateId={estimate.id}
+              estimateNumber={estimate.number}
+              status={estimate.status}
+              clientEmail={estimate.client?.email}
+              convertedInvoiceId={estimate.convertedInvoice?.id}
+              convertedInvoiceNumber={estimate.convertedInvoice?.number}
+            />
+          </div>
+        }
+      />
 
       <Card className="mb-6">
         <CardContent className="pt-6">

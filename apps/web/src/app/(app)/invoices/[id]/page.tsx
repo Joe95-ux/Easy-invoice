@@ -1,10 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { ArrowLeftIcon } from "lucide-react";
 import { PageScroll } from "@/components/app-shell/app-shell";
+import { PageBackLink, PageHeader } from "@/components/app-shell/page-header";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -46,34 +45,32 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
         <InvoiceAutoDownload invoiceId={invoice.id} invoiceNumber={invoice.number} />
       </Suspense>
 
-      <div className="mb-6">
-        <Button variant="ghost" size="sm" render={<Link href="/invoices" />}>
-          <ArrowLeftIcon className="size-4" />
-          Back to invoices
-        </Button>
-      </div>
+      <PageBackLink href="/invoices">Back to invoices</PageBackLink>
 
-      <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="font-heading text-2xl font-semibold tracking-tight">{invoice.number}</h1>
-            <Badge variant={invoiceStatusVariant(invoice.status)}>
-              {invoiceStatusLabel(invoice.status)}
-            </Badge>
-          </div>
-          <p className="mt-1 text-muted-foreground">
+      <PageHeader
+        title={invoice.number}
+        titleAddon={
+          <Badge variant={invoiceStatusVariant(invoice.status)}>
+            {invoiceStatusLabel(invoice.status)}
+          </Badge>
+        }
+        description={
+          <>
             Created {formatDate(invoice.createdAt)}
             {invoice.sentAt && ` · Sent ${formatDate(invoice.sentAt)}`}
+            {invoice.viewedAt && ` · Viewed ${formatDate(invoice.viewedAt)}`}
             {invoice.paidAt && ` · Paid ${formatDate(invoice.paidAt)}`}
-          </p>
-        </div>
-        <InvoiceActions
-          invoiceId={invoice.id}
-          invoiceNumber={invoice.number}
-          status={invoice.status}
-          clientEmail={invoice.client?.email}
-        />
-      </div>
+          </>
+        }
+        actions={
+          <InvoiceActions
+            invoiceId={invoice.id}
+            invoiceNumber={invoice.number}
+            status={invoice.status}
+            clientEmail={invoice.client?.email}
+          />
+        }
+      />
 
       <Card id="invoice-template" className="mb-6 scroll-mt-20">
         <CardContent className="pt-6">

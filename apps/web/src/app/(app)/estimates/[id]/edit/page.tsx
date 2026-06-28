@@ -1,8 +1,6 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeftIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { PageScroll } from "@/components/app-shell/app-shell";
+import { PageBackLink, PageHeader } from "@/components/app-shell/page-header";
 import { EstimateCreator } from "@/features/estimates/components/estimate-creator";
 import { requireMember } from "@/lib/auth";
 import { getClientsForMember } from "@/lib/clients";
@@ -25,16 +23,13 @@ export default async function EditEstimatePage({ params }: PageProps) {
 
   return (
     <PageScroll>
-      <div className="mb-8">
-        <Button variant="ghost" size="sm" className="-ml-2.5" render={<Link href={`/estimates/${estimate.id}`} />}>
-          <ArrowLeftIcon className="size-4" />
-          Back to estimate
-        </Button>
-        <h1 className="mt-2 font-heading text-2xl font-semibold tracking-tight">Edit {estimate.number}</h1>
-        <p className="mt-1 text-muted-foreground">
-          Update the estimate details below.
-        </p>
-      </div>
+      <PageBackLink href={`/estimates/${estimate.id}`}>Back to estimate</PageBackLink>
+
+      <PageHeader
+        title={`Edit ${estimate.number}`}
+        description="Update the estimate details below."
+      />
+
       <EstimateCreator
         currency={member.company.currency}
         company={{

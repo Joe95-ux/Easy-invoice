@@ -20,6 +20,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { InvoiceSendDialog } from "@/features/invoices/components/invoice-send-dialog";
+import { previewSheetContentClass } from "@/components/preview-sheet-styles";
 import { invoiceStatusLabel, invoiceStatusVariant } from "@/lib/invoices";
 import type { InvoiceStatus } from "@easy-invoice/db";
 
@@ -120,7 +121,7 @@ export function InvoicePreviewSheet({
         <SheetContent
           side="right"
           showCloseButton={false}
-          className="w-full gap-0 p-0 sm:!max-w-2xl lg:!max-w-3xl"
+          className={previewSheetContentClass}
         >
           <div className="flex h-full min-h-0 flex-col">
             <header className="flex items-center justify-between gap-3 border-b px-4 py-3">

@@ -1,10 +1,18 @@
+import Link from "next/link";
+import type { ReactNode } from "react";
+import { ArrowLeftIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
+/** Apply to primary header actions so they span full width on mobile. */
+export const pageHeaderActionClass = "w-full sm:w-auto";
+
 type PageHeaderProps = {
-  title: string;
-  description?: string;
+  title: ReactNode;
+  description?: ReactNode;
   eyebrow?: string;
-  actions?: React.ReactNode;
+  titleAddon?: ReactNode;
+  actions?: ReactNode;
   className?: string;
 };
 
@@ -12,6 +20,7 @@ export function PageHeader({
   title,
   description,
   eyebrow,
+  titleAddon,
   actions,
   className,
 }: PageHeaderProps) {
@@ -22,20 +31,44 @@ export function PageHeader({
         className,
       )}
     >
-      <div className="min-w-0 space-y-1.5">
+      <div className="min-w-0 flex-1 space-y-1.5">
         {eyebrow && (
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">
             {eyebrow}
           </p>
         )}
-        <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground md:text-[1.75rem]">
-          {title}
-        </h1>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground md:text-[1.75rem]">
+            {title}
+          </h1>
+          {titleAddon}
+        </div>
         {description && (
           <p className="max-w-2xl text-sm text-muted-foreground">{description}</p>
         )}
       </div>
-      {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
+      {actions && (
+        <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+          {actions}
+        </div>
+      )}
+    </div>
+  );
+}
+
+type PageBackLinkProps = {
+  href: string;
+  children: ReactNode;
+  className?: string;
+};
+
+export function PageBackLink({ href, children, className }: PageBackLinkProps) {
+  return (
+    <div className={cn("mb-6", className)}>
+      <Button variant="ghost" size="sm" className="-ml-2.5" render={<Link href={href} />}>
+        <ArrowLeftIcon className="size-4" />
+        {children}
+      </Button>
     </div>
   );
 }
@@ -44,7 +77,7 @@ type EmptyStateProps = {
   icon?: React.ComponentType<{ className?: string }>;
   title: string;
   description?: string;
-  action?: React.ReactNode;
+  action?: ReactNode;
   className?: string;
 };
 

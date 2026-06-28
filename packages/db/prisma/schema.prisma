@@ -127,12 +127,16 @@ model Invoice {
   templateId    String?
   sentAt        DateTime?
   paidAt        DateTime?
+  viewedAt      DateTime?
+  publicToken   String?       @unique
+  sourceEstimateId String?    @unique
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
   company  Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
   client   Client?          @relation(fields: [clientId], references: [id], onDelete: SetNull)
   template InvoiceTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  sourceEstimate Estimate?  @relation("EstimateToInvoice", fields: [sourceEstimateId], references: [id], onDelete: SetNull)
   items    InvoiceLineItem[]
 
   @@unique([companyId, number])
@@ -172,12 +176,15 @@ model Estimate {
   templateId    String?
   sentAt        DateTime?
   acceptedAt    DateTime?
+  viewedAt      DateTime?
+  publicToken   String?        @unique
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 
   company  Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
   client   Client?          @relation(fields: [clientId], references: [id], onDelete: SetNull)
   template InvoiceTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  convertedInvoice Invoice? @relation("EstimateToInvoice")
   items    EstimateLineItem[]
 
   @@unique([companyId, number])

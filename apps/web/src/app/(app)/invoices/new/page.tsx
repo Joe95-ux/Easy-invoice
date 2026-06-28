@@ -1,7 +1,5 @@
-import Link from "next/link";
-import { ArrowLeftIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { PageScroll } from "@/components/app-shell/app-shell";
+import { PageBackLink } from "@/components/app-shell/page-header";
 import { requireMember } from "@/lib/auth";
 import { getClientsForMember } from "@/lib/clients";
 import { getDefaultTemplateId, getTemplatesForCompany } from "@/lib/templates";
@@ -21,12 +19,7 @@ export default async function NewInvoicePage({ searchParams }: PageProps) {
 
   return (
     <PageScroll>
-      <div className="mb-6">
-        <Button variant="ghost" size="sm" className="-ml-2.5" render={<Link href="/invoices" />}>
-          <ArrowLeftIcon className="size-4" />
-          Back to invoices
-        </Button>
-      </div>
+      <PageBackLink href="/invoices">Back to invoices</PageBackLink>
       <InvoiceCreator
         currency={member.company.currency}
         company={{

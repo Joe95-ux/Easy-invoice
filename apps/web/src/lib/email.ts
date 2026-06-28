@@ -14,11 +14,16 @@ type SendInvoiceEmailInput = {
   invoiceNumber: string;
   total: string;
   pdfBuffer: Buffer;
+  viewUrl?: string;
 };
 
 export async function sendInvoiceEmail(input: SendInvoiceEmailInput) {
   const from = process.env.RESEND_FROM_EMAIL ?? "Easy Invoice <onboarding@resend.dev>";
   const resend = getResend();
+
+  const viewLink = input.viewUrl
+    ? `<p><a href="${input.viewUrl}">View invoice online</a></p>`
+    : "";
 
   const { data, error } = await resend.emails.send({
     from,
@@ -28,6 +33,7 @@ export async function sendInvoiceEmail(input: SendInvoiceEmailInput) {
       <p>Hello,</p>
       <p>Please find attached invoice <strong>${input.invoiceNumber}</strong> from <strong>${input.companyName}</strong>.</p>
       <p>Total due: <strong>${input.total}</strong></p>
+      ${viewLink}
       <p>Thank you for your business.</p>
     `,
     attachments: [
@@ -51,11 +57,16 @@ type SendEstimateEmailInput = {
   estimateNumber: string;
   total: string;
   pdfBuffer: Buffer;
+  viewUrl?: string;
 };
 
 export async function sendEstimateEmail(input: SendEstimateEmailInput) {
   const from = process.env.RESEND_FROM_EMAIL ?? "Easy Invoice <onboarding@resend.dev>";
   const resend = getResend();
+
+  const viewLink = input.viewUrl
+    ? `<p><a href="${input.viewUrl}">View estimate online</a></p>`
+    : "";
 
   const { data, error } = await resend.emails.send({
     from,
@@ -65,6 +76,7 @@ export async function sendEstimateEmail(input: SendEstimateEmailInput) {
       <p>Hello,</p>
       <p>Please find attached estimate <strong>${input.estimateNumber}</strong> from <strong>${input.companyName}</strong>.</p>
       <p>Total estimate: <strong>${input.total}</strong></p>
+      ${viewLink}
       <p>We look forward to working with you.</p>
     `,
     attachments: [

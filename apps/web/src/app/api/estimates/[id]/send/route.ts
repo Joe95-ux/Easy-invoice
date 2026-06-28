@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { requireApiMember, parseJsonBody, validationError } from "@/lib/api/validation";
+import { getAppOrigin } from "@/lib/app-url";
+import { publicDocumentUrl } from "@/lib/document-tokens";
 import { sendEstimateEmail } from "@/lib/email";
 import { generateEstimatePdfBuffer } from "@/lib/estimate-service";
 import { formatMoney } from "@/lib/estimates";
+import { ensureEstimatePublicToken } from "@/lib/public-documents";
 import { prisma } from "@/lib/db";
 import { z } from "zod";
 
@@ -44,6 +47,11 @@ export async function POST(request: Request, context: RouteContext) {
       estimateNumber: estimate.number,
       total: formatMoney(estimate.total, estimate.currency),
       pdfBuffer,
+      viewUrl: publicDocumentUrl(
+        await getAppOrigin(),
+        "estimate",
+        (await ensureEstimatePublicToken(id, member.companyId))!,
+      ),
     });
 
     if (parsed.data.email && estimate.clientId) {

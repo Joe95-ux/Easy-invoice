@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageScroll } from "@/components/app-shell/app-shell";
-import { EmptyState } from "@/components/app-shell/page-header";
+import { EmptyState, PageHeader, pageHeaderActionClass } from "@/components/app-shell/page-header";
 import { requireMember } from "@/lib/auth";
 import { getDashboardStats } from "@/lib/dashboard";
 import {
@@ -36,29 +36,27 @@ export default async function DashboardPage() {
 
   return (
     <PageScroll fullWidth className="space-y-8">
-      <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div className="space-y-1.5">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">
-            {getGreeting()}
-          </p>
-          <h1 className="font-heading text-2xl font-semibold tracking-tight md:text-[1.75rem]">
-            {company.name}
-          </h1>
-          <p className="max-w-xl text-sm text-muted-foreground">
-            A clear view of your billing — create, send, and get paid faster.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button render={<Link href="/invoices/new" />}>
-            <PlusIcon className="size-4" />
-            New invoice
-          </Button>
-          <Button variant="outline" render={<Link href="/clients/new" />}>
-            <UsersRoundIcon className="size-4" />
-            Add client
-          </Button>
-        </div>
-      </section>
+      <PageHeader
+        eyebrow={getGreeting()}
+        title={company.name}
+        description="A clear view of your billing — create, send, and get paid faster."
+        actions={
+          <>
+            <Button className={pageHeaderActionClass} render={<Link href="/invoices/new" />}>
+              <PlusIcon className="size-4" />
+              New invoice
+            </Button>
+            <Button
+              variant="outline"
+              className={pageHeaderActionClass}
+              render={<Link href="/clients/new" />}
+            >
+              <UsersRoundIcon className="size-4" />
+              Add client
+            </Button>
+          </>
+        }
+      />
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard

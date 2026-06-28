@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { requireApiMember, parseJsonBody, validationError } from "@/lib/api/validation";
+import { getAppOrigin } from "@/lib/app-url";
+import { publicDocumentUrl } from "@/lib/document-tokens";
 import { sendInvoiceEmail } from "@/lib/email";
 import { generateInvoicePdfBuffer } from "@/lib/invoice-service";
 import { formatMoney } from "@/lib/invoices";
+import { ensureInvoicePublicToken } from "@/lib/public-documents";
 import { prisma } from "@/lib/db";
 import { z } from "zod";
 
@@ -44,6 +47,11 @@ export async function POST(request: Request, context: RouteContext) {
       invoiceNumber: invoice.number,
       total: formatMoney(invoice.total, invoice.currency),
       pdfBuffer,
+      viewUrl: publicDocumentUrl(
+        await getAppOrigin(),
+        "invoice",
+        (await ensureInvoicePublicToken(id, member.companyId))!,
+      ),
     });
 
     if (parsed.data.email && invoice.clientId) {

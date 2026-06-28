@@ -1,16 +1,27 @@
 import type { EstimateStatus } from "@easy-invoice/db";
+import { Prisma } from "@easy-invoice/db";
 import type { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/db";
 
-export async function getEstimateForMember(estimateId: string, companyId: string) {
+export const estimateDetailInclude = {
+  client: true,
+  company: true,
+  template: true,
+  items: { orderBy: { sortOrder: "asc" as const } },
+  convertedInvoice: { select: { id: true, number: true } },
+} satisfies Prisma.EstimateInclude;
+
+export type EstimateForMember = Prisma.EstimateGetPayload<{
+  include: typeof estimateDetailInclude;
+}>;
+
+export async function getEstimateForMember(
+  estimateId: string,
+  companyId: string,
+): Promise<EstimateForMember | null> {
   return prisma.estimate.findFirst({
     where: { id: estimateId, companyId },
-    include: {
-      client: true,
-      company: true,
-      template: true,
-      items: { orderBy: { sortOrder: "asc" } },
-    },
+    include: estimateDetailInclude,
   });
 }
 

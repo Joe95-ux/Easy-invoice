@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { FileTextIcon } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -25,6 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DocumentShareButton } from "@/components/document-share-button";
 import { downloadEstimatePdf } from "@/lib/estimate-pdf-client";
 import type { EstimateStatus } from "@easy-invoice/db";
 
@@ -33,6 +36,8 @@ type EstimateActionsProps = {
   estimateNumber: string;
   status: EstimateStatus;
   clientEmail?: string | null;
+  convertedInvoiceId?: string | null;
+  convertedInvoiceNumber?: string | null;
 };
 
 const TERMINAL_STATUSES: EstimateStatus[] = ["ACCEPTED", "DECLINED", "CANCELLED"];
@@ -42,6 +47,8 @@ export function EstimateActions({
   estimateNumber,
   status,
   clientEmail,
+  convertedInvoiceId,
+  convertedInvoiceNumber,
 }: EstimateActionsProps) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
@@ -115,10 +122,53 @@ export function EstimateActions({
     }
   }
 
+  async function handleConvertToInvoice() {
+    setLoading("convert");
+    try {
+      const response = await fetch(`/api/estimates/${estimateId}/convert-to-invoice`, {
+        method: "POST",
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Failed to convert");
+
+      toast.success(
+        data.created
+          ? "Invoice created from estimate"
+          : `Opening existing invoice ${data.invoice.number}`,
+      );
+      router.push(`/invoices/${data.invoice.id}`);
+      router.refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not convert estimate");
+    } finally {
+      setLoading(null);
+    }
+  }
+
   const isTerminal = TERMINAL_STATUSES.includes(status);
+  const canConvert =
+    !convertedInvoiceId && status !== "DECLINED" && status !== "CANCELLED";
 
   return (
     <div className="flex flex-wrap gap-2">
+      <DocumentShareButton kind="estimate" documentId={estimateId} />
+
+      {convertedInvoiceId ? (
+        <Button
+          variant="secondary"
+          render={<Link href={`/invoices/${convertedInvoiceId}`} />}
+        >
+          <FileTextIcon className="size-4" />
+          View invoice{convertedInvoiceNumber ? ` (${convertedInvoiceNumber})` : ""}
+        </Button>
+      ) : (
+        canConvert && (
+          <Button onClick={handleConvertToInvoice} disabled={loading !== null}>
+            {loading === "convert" ? "Converting..." : "Convert to invoice"}
+          </Button>
+        )
+      )}
+
       <Button
         variant="outline"
         onClick={handleDownloadPdf}

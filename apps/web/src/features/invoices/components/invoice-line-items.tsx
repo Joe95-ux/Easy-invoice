@@ -62,11 +62,17 @@ export function InvoiceLineItems({
         <span className="sr-only">Remove</span>
       </div>
 
-      {items.map((item, index) => (
+      {items.map((item, index) => {
+        const isLast = index === items.length - 1;
+
+        return (
         <div
           key={index}
           className={cn(
             "rounded-xl border border-border/70 bg-muted/15 p-3",
+            "sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0 sm:pb-2.5",
+            !isLast && "sm:border-b sm:border-border/50",
+            isLast && "sm:pb-0",
             desktopGrid,
           )}
         >
@@ -135,7 +141,8 @@ export function InvoiceLineItems({
             <Trash2Icon className="size-4" />
           </Button>
         </div>
-      ))}
+        );
+      })}
 
       {onAdd && (
         <>

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { EyeIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/app-shell/page-header";
 import {
   DocumentPreviewDrawer,
   type PreviewCompany,
@@ -251,16 +252,16 @@ export function InvoiceCreator({
 
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab}>
-      <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="min-w-0">
-          <h1 className="font-heading text-2xl font-semibold tracking-tight">{title}</h1>
-          <p className="mt-1 text-muted-foreground">{description}</p>
-        </div>
-        <TabsList className="shrink-0 self-start">
-          <TabsTrigger value="form">Form</TabsTrigger>
-          <TabsTrigger value="ai">Describe with AI</TabsTrigger>
-        </TabsList>
-      </div>
+      <PageHeader
+        title={title}
+        description={description}
+        actions={
+          <TabsList className="w-full sm:w-auto">
+            <TabsTrigger value="form">Form</TabsTrigger>
+            <TabsTrigger value="ai">Describe with AI</TabsTrigger>
+          </TabsList>
+        }
+      />
 
       <TabsContent value="ai">
         <FormCard>
