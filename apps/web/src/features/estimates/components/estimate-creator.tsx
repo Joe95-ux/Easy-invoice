@@ -2,13 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { EyeIcon, PlusIcon } from "lucide-react";
+import { EyeIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   DocumentPreviewDrawer,
   type PreviewCompany,
 } from "@/components/document-preview-drawer";
+import { DiscountField } from "@/components/forms/discount-field";
 import { DatePicker } from "@/components/forms/date-picker";
 import { FormCard } from "@/components/forms/form-card";
 import { FormField } from "@/components/forms/form-field";
@@ -22,23 +23,24 @@ import { Textarea } from "@/components/ui/textarea";
 import { AiDocumentParseTab } from "@/features/invoices/components/ai-document-parse-tab";
 import {
   InvoiceLineItems,
+  createDefaultLineItems,
+  createEmptyLineItem,
   type LineItemInput,
 } from "@/features/invoices/components/invoice-line-items";
 import { InvoiceTotalsSummary } from "@/features/invoices/components/invoice-totals-summary";
 import { TemplateCarousel } from "@/features/invoices/components/template-carousel";
-import { calculateInvoiceTotals } from "@/lib/calculator";
+import {
+  calculateInvoiceTotals,
+  calculateLineSubtotal,
+  resolveDiscountAmount,
+  type DiscountMode,
+} from "@/lib/calculator";
 import { downloadEstimatePdf } from "@/lib/estimate-pdf-client";
 import type { ClientListItem } from "@/lib/clients";
 import { formatClientAddress } from "@/lib/clients";
 import { CURRENCY_OPTIONS } from "@/lib/geo/countries";
 import type { InvoiceDraft } from "@/lib/schemas/invoice";
 import type { TemplateSummary } from "@/lib/templates";
-
-const emptyLineItem = (): LineItemInput => ({
-  description: "",
-  quantity: 1,
-  unitPrice: 0,
-});
 
 const BASE_STEPS: FormStep[] = [
   { id: "template", title: "Template", description: "Pick a design for this estimate." },
@@ -116,9 +118,10 @@ export function EstimateCreator({
   const [taxRate, setTaxRate] = useState(
     initialValues?.taxRate !== undefined ? initialValues.taxRate * 100 : 0,
   );
-  const [discount, setDiscount] = useState(initialValues?.discount ?? 0);
+  const [discountMode, setDiscountMode] = useState<DiscountMode>("amount");
+  const [discountValue, setDiscountValue] = useState(initialValues?.discount ?? 0);
   const [lineItems, setLineItems] = useState<LineItemInput[]>(
-    initialValues?.lineItems?.length ? initialValues.lineItems : [emptyLineItem()],
+    initialValues?.lineItems?.length ? initialValues.lineItems : createDefaultLineItems(),
   );
   const [activeTab, setActiveTab] = useState("form");
   const [step, setStep] = useState(0);
@@ -131,13 +134,16 @@ export function EstimateCreator({
   const currentStepId = steps[step]?.id;
   const isLastStep = step === steps.length - 1;
 
+  const lineItemsForTotals = lineItems.map((item) => ({
+    quantity: item.quantity,
+    unitPrice: item.unitPrice,
+  }));
+  const subtotal = calculateLineSubtotal(lineItemsForTotals);
+  const discountAmount = resolveDiscountAmount(subtotal, discountMode, discountValue);
   const totals = calculateInvoiceTotals({
-    lineItems: lineItems.map((item) => ({
-      quantity: item.quantity,
-      unitPrice: item.unitPrice,
-    })),
+    lineItems: lineItemsForTotals,
     taxRate: taxRate / 100,
-    discount,
+    discount: discountAmount,
   });
 
   const clientItems = useMemo(
@@ -213,7 +219,8 @@ export function EstimateCreator({
     setNotes(draft.notes ?? "");
     setCurrency(draft.currency ?? defaultCurrency);
     setTaxRate((draft.tax_rate ?? 0) * 100);
-    setDiscount(draft.discount ?? 0);
+    setDiscountMode("amount");
+    setDiscountValue(draft.discount ?? 0);
     if (draft.issue_date) setIssueDate(draft.issue_date.slice(0, 10));
     if (draft.due_date) setValidUntil(draft.due_date.slice(0, 10));
     setLineItems(
@@ -240,7 +247,7 @@ export function EstimateCreator({
       issueDate: issueDate ? new Date(issueDate).toISOString() : undefined,
       validUntil: validUntil ? new Date(validUntil).toISOString() : undefined,
       taxRate: taxRate / 100,
-      discount,
+      discount: discountAmount,
       lineItems: lineItems.map((item, index) => ({
         description: item.description,
         quantity: item.quantity,
@@ -392,29 +399,19 @@ export function EstimateCreator({
 
       {currentStepId === "items" && (
         <div className="space-y-4">
-          <FormSection
-            title="Line items"
-            action={
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setLineItems((items) => [...items, emptyLineItem()])}
-              >
-                <PlusIcon className="size-4" />
-                Add line
-              </Button>
-            }
-          >
+          <FormSection title="Line items">
             <InvoiceLineItems
               items={lineItems}
               onChange={updateLineItem}
               onRemove={removeLineItem}
+              onAdd={() => setLineItems((items) => [...items, createEmptyLineItem()])}
             />
           </FormSection>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field>
-              <FieldLabel htmlFor="tax-rate">Tax rate (%)</FieldLabel>
+              <FieldLabel htmlFor="tax-rate" className="h-[26px] items-center">
+                Tax rate (%)
+              </FieldLabel>
               <FieldContent>
                 <Input
                   id="tax-rate"
@@ -426,21 +423,15 @@ export function EstimateCreator({
                 />
               </FieldContent>
             </Field>
-            <Field>
-              <FieldLabel htmlFor="discount">Discount</FieldLabel>
-              <FieldContent>
-                <Input
-                  id="discount"
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={discount}
-                  onChange={(e) => setDiscount(Number(e.target.value))}
-                />
-              </FieldContent>
-            </Field>
+            <DiscountField
+              mode={discountMode}
+              value={discountValue}
+              currency={currency}
+              onModeChange={setDiscountMode}
+              onValueChange={setDiscountValue}
+            />
           </div>
-          <InvoiceTotalsSummary currency={currency} totals={totals} />
+          <InvoiceTotalsSummary currency={currency} totals={totals} discount={discountAmount} />
         </div>
       )}
 
@@ -541,7 +532,7 @@ export function EstimateCreator({
       items={lineItems}
       totals={totals}
       taxRate={taxRate}
-      discount={discount}
+      discount={discountAmount}
     />
   );
 

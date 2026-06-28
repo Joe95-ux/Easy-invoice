@@ -24,7 +24,7 @@ const headingFont = Bricolage_Grotesque({
 });
 
 export const metadata: Metadata = {
-  title: "Easy Invoice",
+  title: "Invoice Desk",
   description: "Simple invoicing for small businesses — in any language.",
   icons: { icon: "/favicon.svg" },
 };

@@ -24,6 +24,33 @@ function formatDate(date: Date): string {
   });
 }
 
+/** WeasyPrint repeats @page backgrounds on every page; position:fixed often only paints once. */
+function buildWatermarkPageCss(logoUrl: string | null | undefined): string {
+  if (!logoUrl) return "";
+
+  const safeHref = logoUrl
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;");
+
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="300" height="300" viewBox="0 0 300 300">` +
+    `<image xlink:href="${safeHref}" href="${safeHref}" width="300" height="300" preserveAspectRatio="xMidYMid meet" opacity="0.07"/>` +
+    `</svg>`;
+
+  const svgDataUrl = `data:image/svg+xml,${encodeURIComponent(svg)}`;
+  const cssUrl = `url("${svgDataUrl.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}")`;
+
+  return `
+@page {
+  background-image: ${cssUrl};
+  background-position: center center;
+  background-repeat: no-repeat;
+  background-size: 300px auto;
+}
+`.trim();
+}
+
 function documentLabels(kind: DocumentKind) {
   if (kind === "estimate") {
     return {
@@ -151,7 +178,10 @@ export function renderFromTemplate(
     html = html.replaceAll(`{{${key}}}`, value);
   }
 
-  html = html.replace("{{styles}}", templateCss ?? "");
+  html = html.replace(
+    "{{styles}}",
+    `${templateCss ?? ""}\n${buildWatermarkPageCss(data.company.logoUrl)}`,
+  );
 
   return html;
 }

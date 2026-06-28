@@ -11,7 +11,7 @@ async function inlineCompanyLogo(data: InvoiceHtmlData): Promise<InvoiceHtmlData
   if (!logoUrl || logoUrl.startsWith("data:")) return data;
 
   try {
-    const response = await fetch(logoUrl);
+    const response = await fetch(logoUrl, { signal: AbortSignal.timeout(8_000) });
     if (!response.ok) return data;
 
     const contentType = response.headers.get("content-type") ?? "image/png";

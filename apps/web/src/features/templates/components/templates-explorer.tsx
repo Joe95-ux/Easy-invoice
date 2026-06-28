@@ -8,19 +8,19 @@ import { TemplateCarousel } from "@/features/invoices/components/template-carous
 import type { PreviewCompany } from "@/lib/invoice-templates/preview-html";
 import type { TemplateSummary } from "@/lib/templates";
 
-type SettingsDefaultTemplateSectionProps = {
+type TemplatesExplorerProps = {
   templates: TemplateSummary[];
   defaultTemplateId: string;
   company: PreviewCompany;
   currency: string;
 };
 
-export function SettingsDefaultTemplateSection({
+export function TemplatesExplorer({
   templates,
   defaultTemplateId,
   company,
   currency,
-}: SettingsDefaultTemplateSectionProps) {
+}: TemplatesExplorerProps) {
   const router = useRouter();
   const [selected, setSelected] = useState(defaultTemplateId);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -31,7 +31,7 @@ export function SettingsDefaultTemplateSection({
     (template) => template.id === activePreviewTemplateId,
   );
 
-  async function save(templateId: string) {
+  async function selectTemplate(templateId: string) {
     if (templateId === selected) return;
     const previous = selected;
     setSelected(templateId);
@@ -50,14 +50,20 @@ export function SettingsDefaultTemplateSection({
     }
   }
 
-  if (templates.length === 0) return null;
+  if (templates.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        No templates available yet. Check back soon.
+      </p>
+    );
+  }
 
   return (
     <>
       <TemplateCarousel
         templates={templates}
         value={selected}
-        onChange={save}
+        onChange={selectTemplate}
         onPreview={(id) => {
           setPreviewTemplateId(id);
           setPreviewOpen(true);
@@ -65,12 +71,8 @@ export function SettingsDefaultTemplateSection({
         kind="invoice"
         company={company}
         currency={currency}
-        label="Default template"
-        selectLabel="Set"
+        label="All templates"
       />
-      <p className="mt-3 text-sm text-muted-foreground">
-        This template is pre-selected when you create new invoices and estimates.
-      </p>
 
       <DocumentPreviewDrawer
         open={previewOpen}
@@ -81,7 +83,7 @@ export function SettingsDefaultTemplateSection({
         templateName={previewTemplate?.name}
         isSelected={previewTemplate?.id === selected}
         onUseTemplate={() => {
-          if (previewTemplate) save(previewTemplate.id);
+          if (previewTemplate) selectTemplate(previewTemplate.id);
           setPreviewTemplateId(null);
         }}
         number="0001"

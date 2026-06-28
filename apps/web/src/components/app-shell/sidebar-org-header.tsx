@@ -65,7 +65,7 @@ export function SidebarOrgHeader({ companyName, logoUrl }: SidebarOrgHeaderProps
           <div className="grid min-w-0 flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
             <span className="truncate font-heading font-semibold">{companyName}</span>
             <span className="truncate text-xs text-sidebar-foreground/70">
-              Easy Invoice
+              Invoice Desk
             </span>
           </div>
         </SidebarMenuButton>

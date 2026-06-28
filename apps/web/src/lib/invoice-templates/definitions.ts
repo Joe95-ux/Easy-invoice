@@ -1,13 +1,18 @@
 export const watermarkStyles = `
-  .page { position: relative; min-height: 100vh; }
-  .watermark {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    opacity: 0.07;
-    z-index: 0;
-    pointer-events: none;
+  .page { min-height: 100vh; }
+  @media screen {
+    .watermark {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      opacity: 0.07;
+      z-index: 0;
+      pointer-events: none;
+    }
+  }
+  @media print {
+    .watermark { display: none !important; }
   }
   .watermark img { width: 300px; max-width: 70vw; height: auto; object-fit: contain; }
   .page-content { position: relative; z-index: 1; }

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
+import { SignedIn, SignedOut } from "@clerk/nextjs";
 import {
   ArrowRightIcon,
   CheckIcon,
@@ -16,15 +16,9 @@ import {
   ZapIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AppLogo } from "@/components/app-logo";
+import { PublicNavbarLoader } from "@/components/public-navbar-loader";
 import { Reveal } from "@/components/landing/reveal";
-import { ThemeToggle } from "@/components/theme-toggle";
-
-const navLinks = [
-  { href: "#features", label: "Features" },
-  { href: "#how", label: "How it works" },
-  { href: "#pricing", label: "Pricing" },
-  { href: "#faq", label: "FAQ" },
-];
 
 const stats = [
   { value: "30 sec", label: "to a finished invoice" },
@@ -157,49 +151,7 @@ const faqs = [
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-40 border-b border-border/70 bg-background/80 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3.5">
-          <span className="flex items-center gap-2 font-heading text-lg font-semibold tracking-tight">
-            <span className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <FileTextIcon className="size-4" />
-            </span>
-            Easy Invoice
-          </span>
-          <nav className="hidden items-center gap-1 md:flex">
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
-          <nav className="flex items-center gap-2">
-            <ThemeToggle />
-            <SignedOut>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="hidden sm:inline-flex"
-                render={<Link href="/sign-in" />}
-              >
-                Sign in
-              </Button>
-              <Button size="sm" render={<Link href="/sign-up" />}>
-                Get started
-              </Button>
-            </SignedOut>
-            <SignedIn>
-              <Button variant="ghost" size="sm" render={<Link href="/dashboard" />}>
-                Dashboard
-              </Button>
-              <UserButton afterSignOutUrl="/" />
-            </SignedIn>
-          </nav>
-        </div>
-      </header>
+      <PublicNavbarLoader />
 
       <main>
         {/* Hero */}
@@ -478,14 +430,9 @@ export default function HomePage() {
 
       <footer className="border-t border-border/70">
         <div className="mx-auto flex max-w-6xl flex-col gap-4 px-6 py-10 sm:flex-row sm:items-center sm:justify-between">
-          <span className="flex items-center gap-2 font-heading font-semibold tracking-tight">
-            <span className="flex size-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
-              <FileTextIcon className="size-3.5" />
-            </span>
-            Easy Invoice
-          </span>
+          <AppLogo iconClassName="size-6" />
           <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} Easy Invoice. Simple invoicing for small businesses.
+            © {new Date().getFullYear()} Invoice Desk. Simple invoicing for small businesses.
           </p>
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
             <SignedOut>

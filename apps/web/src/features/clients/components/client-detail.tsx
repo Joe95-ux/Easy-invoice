@@ -16,30 +16,17 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageScroll } from "@/components/app-shell/app-shell";
 import { FormCard } from "@/components/forms/form-card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { ClientForm } from "@/features/clients/components/client-form";
-import {
-  formatMoney,
-  invoiceStatusLabel,
-  invoiceStatusVariant,
-} from "@/lib/invoices";
-import type { ClientWithInvoices } from "@/lib/clients";
+import { ClientInvoicesTable } from "@/features/clients/components/client-invoices-table";
+import type { ClientDetailData } from "@/lib/clients";
 import type { ClientInput } from "@/lib/schemas/client";
 
 type ClientDetailProps = {
-  client: ClientWithInvoices;
+  client: ClientDetailData;
 };
 
 export function ClientDetail({ client }: ClientDetailProps) {
@@ -75,7 +62,7 @@ export function ClientDetail({ client }: ClientDetailProps) {
   }
 
   return (
-    <PageScroll>
+    <PageScroll fullWidth>
       <div className="mb-6">
         <Button variant="ghost" size="sm" className="-ml-2.5" render={<Link href="/clients" />}>
           <ArrowLeftIcon className="size-4" />
@@ -157,37 +144,10 @@ export function ClientDetail({ client }: ClientDetailProps) {
             {client.invoices.length === 0 ? (
               <p className="text-sm text-muted-foreground">No invoices yet.</p>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Number</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Total</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {client.invoices.map((invoice) => (
-                    <TableRow key={invoice.id}>
-                      <TableCell>
-                        <Link
-                          href={`/invoices/${invoice.id}`}
-                          className="font-medium hover:underline"
-                        >
-                          {invoice.number}
-                        </Link>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={invoiceStatusVariant(invoice.status)}>
-                          {invoiceStatusLabel(invoice.status)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {formatMoney(invoice.total, invoice.currency)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <ClientInvoicesTable
+                invoices={client.invoices}
+                clientEmail={client.email}
+              />
             )}
           </CardContent>
         </Card>

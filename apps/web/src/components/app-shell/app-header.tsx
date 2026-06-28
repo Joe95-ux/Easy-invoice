@@ -1,8 +1,9 @@
 "use client";
 
-import { UserButton } from "@clerk/nextjs";
+import Link from "next/link";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { Button } from "@/components/ui/button";
+import { HelpSheet } from "@/components/app-shell/help-sheet";
 
 type AppHeaderProps = {
   title?: string;
@@ -25,11 +26,11 @@ export function AppHeader({ title, description }: AppHeaderProps) {
           </p>
         )}
       </div>
-      <div className="flex items-center gap-2">
-        <div className="md:hidden">
-          <ThemeToggle />
-        </div>
-        <UserButton afterSignOutUrl="/" />
+      <div className="flex items-center gap-1 sm:gap-2">
+        <Button variant="ghost" size="sm" render={<Link href="/#pricing" />}>
+          Pricing
+        </Button>
+        <HelpSheet />
       </div>
     </header>
   );

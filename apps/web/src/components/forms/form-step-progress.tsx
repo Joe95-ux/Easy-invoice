@@ -40,7 +40,7 @@ export function FormStepProgress({ steps, step, onStepChange }: FormStepProgress
             type="button"
             onClick={() => onStepChange(index)}
             className={cn(
-              "rounded-full border px-2.5 py-1 text-xs transition-colors",
+              "cursor-pointer rounded-full border px-2.5 py-1 text-xs transition-colors",
               index === step
                 ? "border-primary bg-primary/10 text-primary"
                 : index < step

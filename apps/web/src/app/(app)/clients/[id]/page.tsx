@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { ClientDetail } from "@/features/clients/components/client-detail";
 import { requireMember } from "@/lib/auth";
-import { getClientForMember } from "@/lib/clients";
+import { getClientForMember, serializeClientForDetail } from "@/lib/clients";
 
 type PageProps = { params: Promise<{ id: string }> };
 
@@ -12,5 +12,5 @@ export default async function ClientPage({ params }: PageProps) {
   const client = await getClientForMember(id, member.companyId);
   if (!client) notFound();
 
-  return <ClientDetail client={client} />;
+  return <ClientDetail client={serializeClientForDetail(client)} />;
 }

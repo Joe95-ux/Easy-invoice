@@ -20,12 +20,31 @@ function roundMoney(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
+export type DiscountMode = "amount" | "percent";
+
+export function resolveDiscountAmount(
+  subtotal: number,
+  mode: DiscountMode,
+  value: number,
+): number {
+  if (value <= 0 || subtotal <= 0) return 0;
+  const amount =
+    mode === "percent"
+      ? roundMoney(subtotal * (Math.min(value, 100) / 100))
+      : roundMoney(value);
+  return Math.min(amount, subtotal);
+}
+
+export function calculateLineSubtotal(lineItems: LineItemInput[]): number {
+  return roundMoney(
+    lineItems.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0),
+  );
+}
+
 export function calculateInvoiceTotals(input: InvoiceTotalsInput): InvoiceTotals {
   const { lineItems, taxRate, discount, taxInclusive = false } = input;
 
-  const subtotal = roundMoney(
-    lineItems.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0),
-  );
+  const subtotal = calculateLineSubtotal(lineItems);
 
   let taxAmount: number;
   let total: number;

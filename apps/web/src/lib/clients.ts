@@ -1,7 +1,32 @@
 import { prisma } from "@/lib/db";
+import type { InvoiceStatus } from "@easy-invoice/db";
 
 export type ClientListItem = Awaited<ReturnType<typeof getClientsForMember>>[number];
-export type ClientWithInvoices = NonNullable<Awaited<ReturnType<typeof getClientForMember>>>;
+
+type ClientForMember = NonNullable<Awaited<ReturnType<typeof getClientForMember>>>;
+
+export type ClientInvoiceSummary = {
+  id: string;
+  number: string;
+  status: InvoiceStatus;
+  total: number;
+  currency: string;
+  createdAt: Date;
+};
+
+export type ClientDetailData = Omit<ClientForMember, "invoices"> & {
+  invoices: ClientInvoiceSummary[];
+};
+
+export function serializeClientForDetail(client: ClientForMember): ClientDetailData {
+  return {
+    ...client,
+    invoices: client.invoices.map((invoice) => ({
+      ...invoice,
+      total: Number(invoice.total),
+    })),
+  };
+}
 
 type AddressFields = Pick<ClientListItem, "address" | "city" | "state" | "zip" | "country">;
 

@@ -6,9 +6,10 @@ import type { InvoiceTotals } from "@/lib/calculator";
 type InvoiceTotalsSummaryProps = {
   currency: string;
   totals: InvoiceTotals;
+  discount?: number;
 };
 
-export function InvoiceTotalsSummary({ currency, totals }: InvoiceTotalsSummaryProps) {
+export function InvoiceTotalsSummary({ currency, totals, discount = 0 }: InvoiceTotalsSummaryProps) {
   return (
     <>
       <Separator />
@@ -19,6 +20,14 @@ export function InvoiceTotalsSummary({ currency, totals }: InvoiceTotalsSummaryP
             {currency} {totals.subtotal.toFixed(2)}
           </span>
         </div>
+        {discount > 0 && (
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Discount</span>
+            <span>
+              -{currency} {discount.toFixed(2)}
+            </span>
+          </div>
+        )}
         <div className="flex justify-between">
           <span className="text-muted-foreground">Tax</span>
           <span>

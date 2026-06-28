@@ -75,7 +75,7 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
         />
       </div>
 
-      <Card className="mb-6">
+      <Card id="invoice-template" className="mb-6 scroll-mt-20">
         <CardContent className="pt-6">
           <DocumentTemplateManager
             kind="invoice"
