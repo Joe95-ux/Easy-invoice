@@ -26,7 +26,7 @@ function CompanyMark({
       <img
         src={logoUrl}
         alt=""
-        className="size-8 shrink-0 rounded-md object-contain"
+        className="size-8 shrink-0 rounded-md bg-white object-contain p-0.5 ring-1 ring-black/10 dark:ring-white/15"
       />
     );
   }
@@ -55,7 +55,7 @@ export function SidebarOrgHeader({ companyName, logoUrl }: SidebarOrgHeaderProps
           size="lg"
           type="button"
           className={cn(
-            "hover:bg-sidebar-accent/60",
+            "cursor-pointer hover:bg-sidebar-accent/60",
             logoUrl && "group-data-[collapsible=icon]:!p-1.5",
           )}
           tooltip={companyName}

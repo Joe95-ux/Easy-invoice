@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PageScroll } from "@/components/app-shell/app-shell";
@@ -11,6 +12,7 @@ import type { ClientInput } from "@/lib/schemas/client";
 
 export default function NewClientPage() {
   const router = useRouter();
+  const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(data: ClientInput) {
     const response = await fetch("/api/clients", {
@@ -38,8 +40,8 @@ export default function NewClientPage() {
       <FormCard
         title="Client details"
         footer={
-          <Button type="submit" form="new-client-form" className="w-full sm:w-auto">
-            Create client
+          <Button type="submit" form="new-client-form" className="w-full sm:w-auto" disabled={submitting}>
+            {submitting ? "Creating..." : "Create client"}
           </Button>
         }
       >
@@ -47,6 +49,7 @@ export default function NewClientPage() {
           formId="new-client-form"
           showSubmit={false}
           submitLabel="Create client"
+          onSubmittingChange={setSubmitting}
           onSubmit={handleSubmit}
         />
       </FormCard>

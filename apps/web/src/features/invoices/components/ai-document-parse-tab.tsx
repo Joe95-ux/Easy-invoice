@@ -196,7 +196,7 @@ export function AiDocumentParseTab({
             className={cn(
               "ml-auto inline-flex size-9 shrink-0 items-center justify-center rounded-full transition-colors",
               canSubmit
-                ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                ? "cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90"
                 : "cursor-not-allowed bg-muted text-muted-foreground",
             )}
           >

@@ -1,30 +1,9 @@
 import type { InvoiceHtmlData } from "@/lib/invoice-templates/types";
 import { SYSTEM_TEMPLATES } from "@/lib/invoice-templates/definitions";
 import { renderFromTemplate } from "@/lib/invoice-templates/render";
+import { inlineCompanyLogo } from "@/lib/inline-company-logo";
 import { getEstimateForMember } from "@/lib/estimates";
 import { ensureSystemTemplates, getDefaultTemplateId, getTemplateById } from "@/lib/templates";
-
-async function inlineCompanyLogo(data: InvoiceHtmlData): Promise<InvoiceHtmlData> {
-  const logoUrl = data.company.logoUrl;
-  if (!logoUrl || logoUrl.startsWith("data:")) return data;
-
-  try {
-    const response = await fetch(logoUrl);
-    if (!response.ok) return data;
-
-    const contentType = response.headers.get("content-type") ?? "image/png";
-    const base64 = Buffer.from(await response.arrayBuffer()).toString("base64");
-    return {
-      ...data,
-      company: {
-        ...data.company,
-        logoUrl: `data:${contentType};base64,${base64}`,
-      },
-    };
-  } catch {
-    return data;
-  }
-}
 
 export function estimateToHtmlData(
   estimate: NonNullable<Awaited<ReturnType<typeof getEstimateForMember>>>,

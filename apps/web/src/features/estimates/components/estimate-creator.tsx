@@ -40,6 +40,7 @@ import { downloadEstimatePdf } from "@/lib/estimate-pdf-client";
 import type { ClientListItem } from "@/lib/clients";
 import { formatClientAddress } from "@/lib/clients";
 import { CURRENCY_OPTIONS } from "@/lib/geo/countries";
+import { normalizeDraftDate } from "@/lib/draft-dates";
 import type { InvoiceDraft } from "@/lib/schemas/invoice";
 import type { TemplateSummary } from "@/lib/templates";
 
@@ -222,8 +223,14 @@ export function EstimateCreator({
     setTaxRate((draft.tax_rate ?? 0) * 100);
     setDiscountMode("amount");
     setDiscountValue(draft.discount ?? 0);
-    if (draft.issue_date) setIssueDate(draft.issue_date.slice(0, 10));
-    if (draft.due_date) setValidUntil(draft.due_date.slice(0, 10));
+    if (draft.issue_date) {
+      const issue = normalizeDraftDate(draft.issue_date);
+      if (issue) setIssueDate(issue);
+    }
+    if (draft.due_date) {
+      const due = normalizeDraftDate(draft.due_date);
+      if (due) setValidUntil(due);
+    }
     setLineItems(
       draft.line_items.map((item) => ({
         description: item.description,
@@ -276,16 +283,13 @@ export function EstimateCreator({
         toast.success("Estimate updated");
         router.push(`/estimates/${id}`);
       } else {
-        toast.success(
-          downloadAfter ? "Estimate created — downloading PDF..." : "Estimate created",
-        );
+        toast.success("Estimate created");
 
         if (downloadAfter) {
           try {
             await downloadEstimatePdf(id, data.estimate.number);
-            toast.success("PDF downloaded");
           } catch {
-            toast.error("Could not generate PDF. Is the ai-docs service running?");
+            // Toast handled in downloadEstimatePdf
           }
         }
 

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Bricolage_Grotesque, Geist, Geist_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
+import { AppTopLoader } from "@/components/app-top-loader";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -40,6 +41,7 @@ export default function RootLayout({
         <body
           className={`${geistSans.variable} ${geistMono.variable} ${headingFont.variable} antialiased`}
         >
+          <AppTopLoader />
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
             <QueryProvider>
               <TooltipProvider>{children}</TooltipProvider>

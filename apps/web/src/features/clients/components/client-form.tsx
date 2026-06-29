@@ -34,6 +34,7 @@ type ClientFormProps = {
   submitLabel?: string;
   formId?: string;
   showSubmit?: boolean;
+  onSubmittingChange?: (submitting: boolean) => void;
   onSubmit: (data: ClientInput) => Promise<void>;
 };
 
@@ -42,6 +43,7 @@ export function ClientForm({
   submitLabel = "Save client",
   formId = "client-form",
   showSubmit = true,
+  onSubmittingChange,
   onSubmit,
 }: ClientFormProps) {
   const [form, setForm] = useState<ClientInput>({ ...emptyValues, ...initialValues });
@@ -63,12 +65,14 @@ export function ClientForm({
 
     setErrors({});
     setSubmitting(true);
+    onSubmittingChange?.(true);
     try {
       await onSubmit(parsed.data);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Something went wrong");
     } finally {
       setSubmitting(false);
+      onSubmittingChange?.(false);
     }
   }
 

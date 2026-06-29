@@ -9,6 +9,7 @@ import {
   ExternalLinkIcon,
   EyeIcon,
   MoreHorizontalIcon,
+  PencilIcon,
   SendIcon,
   Trash2Icon,
 } from "lucide-react";
@@ -67,9 +68,8 @@ export function ClientInvoicesTable({ invoices, clientEmail }: ClientInvoicesTab
     setLoadingId(invoice.id);
     try {
       await downloadInvoicePdf(invoice.id, invoice.number);
-      toast.success("PDF downloaded");
     } catch {
-      toast.error("Could not generate PDF");
+      // Toast handled in downloadInvoicePdf
     } finally {
       setLoadingId(null);
     }
@@ -144,6 +144,13 @@ export function ClientInvoicesTable({ invoices, clientEmail }: ClientInvoicesTab
                     >
                       <ExternalLinkIcon className="size-4" />
                       View details
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      render={<Link href={`/invoices/${invoice.id}/edit`} />}
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <PencilIcon className="size-4" />
+                      Edit
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={(event) => {

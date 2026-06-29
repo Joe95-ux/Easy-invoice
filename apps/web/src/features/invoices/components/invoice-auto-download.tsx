@@ -2,7 +2,6 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef } from "react";
-import { toast } from "sonner";
 import { downloadInvoicePdf } from "@/lib/invoice-pdf-client";
 
 type InvoiceAutoDownloadProps = {
@@ -20,10 +19,9 @@ export function InvoiceAutoDownload({ invoiceId, invoiceNumber }: InvoiceAutoDow
     started.current = true;
 
     downloadInvoicePdf(invoiceId, invoiceNumber)
-      .then(() => toast.success("PDF downloaded"))
-      .catch(() =>
-        toast.error("Could not generate PDF. Is the ai-docs service running?"),
-      )
+      .catch(() => {
+        // Toast handled in downloadInvoicePdf
+      })
       .finally(() => {
         router.replace(`/invoices/${invoiceId}`, { scroll: false });
       });

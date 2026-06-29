@@ -2,8 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { PageScroll } from "@/components/app-shell/app-shell";
-import { PageBackLink, PageHeader } from "@/components/app-shell/page-header";
+import { PageBackLink, PageHeader, pageHeaderActionClass } from "@/components/app-shell/page-header";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -63,12 +64,21 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
           </>
         }
         actions={
-          <InvoiceActions
-            invoiceId={invoice.id}
-            invoiceNumber={invoice.number}
-            status={invoice.status}
-            clientEmail={invoice.client?.email}
-          />
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
+            <Button
+              variant="outline"
+              className={pageHeaderActionClass}
+              render={<Link href={`/invoices/${invoice.id}/edit`} />}
+            >
+              Edit
+            </Button>
+            <InvoiceActions
+              invoiceId={invoice.id}
+              invoiceNumber={invoice.number}
+              status={invoice.status}
+              clientEmail={invoice.client?.email}
+            />
+          </div>
         }
       />
 

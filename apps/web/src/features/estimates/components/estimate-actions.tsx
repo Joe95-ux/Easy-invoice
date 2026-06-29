@@ -59,9 +59,8 @@ export function EstimateActions({
     setLoading("pdf");
     try {
       await downloadEstimatePdf(estimateId, estimateNumber);
-      toast.success("PDF downloaded");
     } catch {
-      toast.error("Could not generate PDF. Is the ai-docs service running?");
+      // Toast handled in downloadEstimatePdf
     } finally {
       setLoading(null);
     }
@@ -124,6 +123,7 @@ export function EstimateActions({
 
   async function handleConvertToInvoice() {
     setLoading("convert");
+    const toastId = toast.loading("Converting to invoice…");
     try {
       const response = await fetch(`/api/estimates/${estimateId}/convert-to-invoice`, {
         method: "POST",
@@ -135,11 +135,14 @@ export function EstimateActions({
         data.created
           ? "Invoice created from estimate"
           : `Opening existing invoice ${data.invoice.number}`,
+        { id: toastId },
       );
       router.push(`/invoices/${data.invoice.id}`);
       router.refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not convert estimate");
+      toast.error(error instanceof Error ? error.message : "Could not convert estimate", {
+        id: toastId,
+      });
     } finally {
       setLoading(null);
     }

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normalizeDraftDate } from "@/lib/draft-dates";
 
 const lineItemSchema = z.object({
   description: z.string().min(1),
@@ -7,14 +8,19 @@ const lineItemSchema = z.object({
   amount: z.number().nonnegative(),
 });
 
+const draftDateSchema = z.preprocess(
+  normalizeDraftDate,
+  z.string().optional().nullable(),
+);
+
 export const invoiceDraftSchema = z.object({
   client_name: z.string().min(1),
   client_email: z.string().email().optional().nullable(),
   client_phone: z.string().optional().nullable(),
   client_address: z.string().optional().nullable(),
   currency: z.string().length(3).default("USD"),
-  issue_date: z.string().optional().nullable(),
-  due_date: z.string().optional().nullable(),
+  issue_date: draftDateSchema,
+  due_date: draftDateSchema,
   notes: z.string().optional().nullable(),
   tax_rate: z.number().min(0).max(1).default(0),
   discount: z.number().min(0).default(0),
@@ -50,13 +56,14 @@ export const createInvoiceSchema = z.object({
 
 export type CreateInvoiceInput = z.infer<typeof createInvoiceSchema>;
 
-export const updateInvoiceSchema = z.object({
+export const updateInvoiceSchema = createInvoiceSchema.partial().extend({
   status: z.enum(["DRAFT", "SENT", "VIEWED", "PAID", "OVERDUE", "CANCELLED"]).optional(),
   templateId: z.string().optional().nullable(),
-  notes: z.string().optional(),
-  dueDate: z.string().optional().nullable(),
   clientEmail: z.string().email().optional(),
+  dueDate: z.string().optional().nullable(),
 });
+
+export type UpdateInvoiceInput = z.infer<typeof updateInvoiceSchema>;
 
 export const parseInvoiceRequestSchema = z.object({
   text: z.string().min(10),

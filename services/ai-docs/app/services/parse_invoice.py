@@ -49,8 +49,10 @@ DISCOUNTS:
 - Summarize discount terms in notes (e.g. "7.5% discount applied").
 
 DATES:
-- reference_date in context is today's date for resolving relative dates ("due in 14 days").
+- reference_date in context is today's date for resolving relative dates ("due in 14 days", "valid for 30 days").
+- due_date is always an ISO date (YYYY-MM-DD): for invoices it is the payment due date; for estimates/quotes it is the valid-until date.
 - If the user states a specific invoice/issue date, use it. Infer the year from reference_date when omitted.
+- Never return natural-language dates — only YYYY-MM-DD or null.
 
 NOTES:
 - Include timeline, materials, payment terms, and other conditions as professional English prose.

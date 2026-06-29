@@ -8,6 +8,7 @@ import {
   DownloadIcon,
   EyeIcon,
   MoreHorizontalIcon,
+  PencilIcon,
   SendIcon,
   Trash2Icon,
 } from "lucide-react";
@@ -58,9 +59,8 @@ export function EstimatesTable({ estimates }: EstimatesTableProps) {
     setLoadingId(estimate.id);
     try {
       await downloadEstimatePdf(estimate.id, estimate.number);
-      toast.success("PDF downloaded");
     } catch {
-      toast.error("Could not generate PDF");
+      // Toast handled in downloadEstimatePdf
     } finally {
       setLoadingId(null);
     }
@@ -127,6 +127,10 @@ export function EstimatesTable({ estimates }: EstimatesTableProps) {
                   <DropdownMenuItem render={<Link href={`/estimates/${estimate.id}`} />}>
                     <EyeIcon className="size-4" />
                     View
+                  </DropdownMenuItem>
+                  <DropdownMenuItem render={<Link href={`/estimates/${estimate.id}/edit`} />}>
+                    <PencilIcon className="size-4" />
+                    Edit
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => handleDownload(estimate)}

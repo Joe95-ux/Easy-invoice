@@ -2,7 +2,6 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef } from "react";
-import { toast } from "sonner";
 import { downloadEstimatePdf } from "@/lib/estimate-pdf-client";
 
 type EstimateAutoDownloadProps = {
@@ -20,10 +19,9 @@ export function EstimateAutoDownload({ estimateId, estimateNumber }: EstimateAut
     started.current = true;
 
     downloadEstimatePdf(estimateId, estimateNumber)
-      .then(() => toast.success("PDF downloaded"))
-      .catch(() =>
-        toast.error("Could not generate PDF. Is the ai-docs service running?"),
-      )
+      .catch(() => {
+        // Toast handled in downloadEstimatePdf
+      })
       .finally(() => {
         router.replace(`/estimates/${estimateId}`, { scroll: false });
       });

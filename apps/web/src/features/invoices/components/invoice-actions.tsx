@@ -51,9 +51,8 @@ export function InvoiceActions({
     setLoading("pdf");
     try {
       await downloadInvoicePdf(invoiceId, invoiceNumber);
-      toast.success("PDF downloaded");
     } catch {
-      toast.error("Could not generate PDF. Is the ai-docs service running?");
+      // Toast handled in downloadInvoicePdf
     } finally {
       setLoading(null);
     }

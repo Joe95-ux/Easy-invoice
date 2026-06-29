@@ -98,7 +98,7 @@ export async function convertEstimateToInvoice(estimateId: string, companyId: st
         total: estimate.total,
         notes: estimate.notes,
         issueDate: new Date(),
-        dueDate: null,
+        dueDate: estimate.validUntil,
         publicToken: generatePublicToken(),
         items: { create: lineItems },
       },

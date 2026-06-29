@@ -32,6 +32,7 @@ type ClientDetailProps = {
 export function ClientDetail({ client }: ClientDetailProps) {
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   async function handleUpdate(data: ClientInput) {
     const response = await fetch(`/api/clients/${client.id}`, {
@@ -108,14 +109,15 @@ export function ClientDetail({ client }: ClientDetailProps) {
         <FormCard
           title="Edit client"
           footer={
-            <Button type="submit" form="edit-client-form">
-              Save changes
+            <Button type="submit" form="edit-client-form" disabled={saving}>
+              {saving ? "Saving..." : "Save changes"}
             </Button>
           }
         >
           <ClientForm
             formId="edit-client-form"
             showSubmit={false}
+            onSubmittingChange={setSaving}
             initialValues={{
               name: client.name,
               email: client.email ?? "",

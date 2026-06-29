@@ -133,8 +133,10 @@ export function CompanyLogoUpload({
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <div
             className={cn(
-              "flex size-24 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-dashed border-border/80 bg-muted/30",
-              previewUrl && "border-solid bg-background",
+              "flex size-24 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white ring-1 ring-black/5 dark:ring-white/10",
+              previewUrl
+                ? "border border-border/60"
+                : "border border-dashed border-border/80",
             )}
           >
             {previewUrl ? (

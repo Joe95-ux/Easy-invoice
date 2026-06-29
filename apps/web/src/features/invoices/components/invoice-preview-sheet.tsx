@@ -174,7 +174,7 @@ export function InvoicePreviewSheet({
                 <Button
                   size="sm"
                   variant="outline"
-                  render={<Link href={`/invoices/${invoice.id}#invoice-template`} />}
+                  render={<Link href={`/invoices/${invoice.id}/edit`} />}
                   onClick={() => onOpenChange(false)}
                 >
                   <PencilIcon className="size-4" />

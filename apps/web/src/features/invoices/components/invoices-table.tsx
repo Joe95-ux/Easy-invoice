@@ -8,6 +8,7 @@ import {
   DownloadIcon,
   EyeIcon,
   MoreHorizontalIcon,
+  PencilIcon,
   SendIcon,
   Trash2Icon,
 } from "lucide-react";
@@ -58,9 +59,8 @@ export function InvoicesTable({ invoices }: InvoicesTableProps) {
     setLoadingId(invoice.id);
     try {
       await downloadInvoicePdf(invoice.id, invoice.number);
-      toast.success("PDF downloaded");
     } catch {
-      toast.error("Could not generate PDF");
+      // Toast handled in downloadInvoicePdf
     } finally {
       setLoadingId(null);
     }
@@ -127,6 +127,10 @@ export function InvoicesTable({ invoices }: InvoicesTableProps) {
                   <DropdownMenuItem render={<Link href={`/invoices/${invoice.id}`} />}>
                     <EyeIcon className="size-4" />
                     View
+                  </DropdownMenuItem>
+                  <DropdownMenuItem render={<Link href={`/invoices/${invoice.id}/edit`} />}>
+                    <PencilIcon className="size-4" />
+                    Edit
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => handleDownload(invoice)}

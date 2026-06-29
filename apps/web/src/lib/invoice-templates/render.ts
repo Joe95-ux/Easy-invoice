@@ -16,17 +16,72 @@ function formatAddress(parts: Array<string | null | undefined>): string {
   return parts.filter(Boolean).join(", ");
 }
 
-function formatDate(date: Date): string {
-  return date.toLocaleDateString("en-US", {
+function formatDate(date: Date | string): string {
+  const value = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(value.getTime())) return "—";
+
+  return value.toLocaleDateString("en-US", {
     year: "numeric",
     month: "long",
     day: "numeric",
   });
 }
 
-/** WeasyPrint repeats @page backgrounds on every page; position:fixed often only paints once. */
-function buildWatermarkPageCss(logoUrl: string | null | undefined): string {
-  if (!logoUrl) return "";
+const basePdfStyles = `
+@page {
+  size: A4;
+  margin: 0;
+}
+html, body {
+  margin: 0;
+  padding: 0;
+}
+`.trim();
+
+const IMPORT_RULE_RE = /@import(?:\s+url\([^)]+\)|\s+"[^"]+")[^;]*;/gi;
+const PAGE_BACKGROUND_COLOR_RE = /@page\s*\{\s*background-color:\s*([^;]+);?\s*\}/i;
+
+function extractImportRules(css: string): { imports: string; rest: string } {
+  const imports: string[] = [];
+  const rest = css.replace(IMPORT_RULE_RE, (match) => {
+    imports.push(match);
+    return "";
+  });
+  return { imports: imports.join("\n"), rest: rest.trim() };
+}
+
+function extractPageBackgroundColor(css: string): { pageBg: string | null; rest: string } {
+  const match = css.match(PAGE_BACKGROUND_COLOR_RE);
+  if (!match) return { pageBg: null, rest: css };
+  return {
+    pageBg: match[1].trim(),
+    rest: css.replace(match[0], "").trim(),
+  };
+}
+
+function assembleDocumentStyles(
+  templateCss: string | null,
+  logoUrl: string | null | undefined,
+): string {
+  const { imports, rest: cssWithoutImports } = extractImportRules(templateCss ?? "");
+  const { pageBg, rest: templateRules } = extractPageBackgroundColor(cssWithoutImports);
+  const watermarkPageCss = buildWatermarkPageCss(logoUrl, pageBg);
+
+  return [imports, basePdfStyles, templateRules, watermarkPageCss].filter(Boolean).join("\n\n");
+}
+
+/** WeasyPrint repeats @page backgrounds on every page; fixed watermarks are unreliable in some templates. */
+function buildWatermarkPageCss(
+  logoUrl: string | null | undefined,
+  pageBackgroundColor?: string | null,
+): string {
+  const pageBgRule = pageBackgroundColor
+    ? `background-color: ${pageBackgroundColor};`
+    : "";
+
+  if (!logoUrl?.startsWith("data:")) {
+    return pageBgRule ? `@page {\n  ${pageBgRule}\n}`.trim() : "";
+  }
 
   const safeHref = logoUrl
     .replace(/&/g, "&amp;")
@@ -43,6 +98,7 @@ function buildWatermarkPageCss(logoUrl: string | null | undefined): string {
 
   return `
 @page {
+  ${pageBgRule}
   background-image: ${cssUrl};
   background-position: center center;
   background-repeat: no-repeat;
@@ -178,10 +234,7 @@ export function renderFromTemplate(
     html = html.replaceAll(`{{${key}}}`, value);
   }
 
-  html = html.replace(
-    "{{styles}}",
-    `${templateCss ?? ""}\n${buildWatermarkPageCss(data.company.logoUrl)}`,
-  );
+  html = html.replace("{{styles}}", assembleDocumentStyles(templateCss, data.company.logoUrl));
 
   return html;
 }

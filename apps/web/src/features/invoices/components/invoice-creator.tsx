@@ -40,6 +40,7 @@ import type { ClientListItem } from "@/lib/clients";
 import { formatClientAddress } from "@/lib/clients";
 import { CURRENCY_OPTIONS } from "@/lib/geo/countries";
 import { downloadInvoicePdf } from "@/lib/invoice-pdf-client";
+import { normalizeDraftDate } from "@/lib/draft-dates";
 import type { InvoiceDraft } from "@/lib/schemas/invoice";
 import type { TemplateSummary } from "@/lib/templates";
 
@@ -51,6 +52,22 @@ const BASE_STEPS: FormStep[] = [
   { id: "notes", title: "Notes", description: "Payment terms or anything else to include." },
 ];
 
+export type InvoiceInitialValues = {
+  clientId?: string | null;
+  templateId?: string | null;
+  clientName?: string;
+  clientEmail?: string | null;
+  clientPhone?: string | null;
+  clientAddress?: string | null;
+  notes?: string | null;
+  currency?: string;
+  issueDate?: string;
+  dueDate?: string | null;
+  taxRate?: number;
+  discount?: number;
+  lineItems?: LineItemInput[];
+};
+
 type InvoiceCreatorProps = {
   title?: string;
   description?: string;
@@ -60,6 +77,9 @@ type InvoiceCreatorProps = {
   templates?: TemplateSummary[];
   initialClientId?: string;
   defaultTemplateId?: string;
+  invoiceId?: string;
+  invoiceNumber?: string;
+  initialValues?: InvoiceInitialValues;
 };
 
 export function InvoiceCreator({
@@ -71,24 +91,38 @@ export function InvoiceCreator({
   templates = [],
   initialClientId,
   defaultTemplateId,
+  invoiceId,
+  invoiceNumber,
+  initialValues,
 }: InvoiceCreatorProps) {
   const router = useRouter();
-  const [selectedClientId, setSelectedClientId] = useState(initialClientId ?? "");
-  const [templateId, setTemplateId] = useState(defaultTemplateId ?? templates[0]?.id ?? "");
+  const isEditing = Boolean(invoiceId);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewTemplateId, setPreviewTemplateId] = useState<string | null>(null);
-  const [clientName, setClientName] = useState("");
-  const [clientEmail, setClientEmail] = useState("");
-  const [clientPhone, setClientPhone] = useState("");
-  const [clientAddress, setClientAddress] = useState("");
-  const [notes, setNotes] = useState("");
-  const [currency, setCurrency] = useState(defaultCurrency);
-  const [issueDate, setIssueDate] = useState(new Date().toISOString().slice(0, 10));
-  const [dueDate, setDueDate] = useState("");
-  const [taxRate, setTaxRate] = useState(0);
+  const [selectedClientId, setSelectedClientId] = useState(
+    initialValues?.clientId ?? initialClientId ?? "",
+  );
+  const [templateId, setTemplateId] = useState(
+    initialValues?.templateId ?? defaultTemplateId ?? templates[0]?.id ?? "",
+  );
+  const [clientName, setClientName] = useState(initialValues?.clientName ?? "");
+  const [clientEmail, setClientEmail] = useState(initialValues?.clientEmail ?? "");
+  const [clientPhone, setClientPhone] = useState(initialValues?.clientPhone ?? "");
+  const [clientAddress, setClientAddress] = useState(initialValues?.clientAddress ?? "");
+  const [notes, setNotes] = useState(initialValues?.notes ?? "");
+  const [currency, setCurrency] = useState(initialValues?.currency ?? defaultCurrency);
+  const [issueDate, setIssueDate] = useState(
+    initialValues?.issueDate?.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
+  );
+  const [dueDate, setDueDate] = useState(initialValues?.dueDate?.slice(0, 10) ?? "");
+  const [taxRate, setTaxRate] = useState(
+    initialValues?.taxRate !== undefined ? initialValues.taxRate * 100 : 0,
+  );
   const [discountMode, setDiscountMode] = useState<DiscountMode>("amount");
-  const [discountValue, setDiscountValue] = useState(0);
-  const [lineItems, setLineItems] = useState<LineItemInput[]>(createDefaultLineItems());
+  const [discountValue, setDiscountValue] = useState(initialValues?.discount ?? 0);
+  const [lineItems, setLineItems] = useState<LineItemInput[]>(
+    initialValues?.lineItems?.length ? initialValues.lineItems : createDefaultLineItems(),
+  );
   const [activeTab, setActiveTab] = useState("form");
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -162,13 +196,14 @@ export function InvoiceCreator({
   }
 
   useEffect(() => {
+    if (initialValues || isEditing) return;
     if (!initialClientId) return;
     const client = clients.find((c) => c.id === initialClientId);
     if (client) {
       setSelectedClientId(client.id);
       applyClient(client);
     }
-  }, [initialClientId, clients]);
+  }, [initialClientId, clients, initialValues, isEditing]);
 
   function applyDraft(draft: InvoiceDraft) {
     setSelectedClientId("");
@@ -181,8 +216,14 @@ export function InvoiceCreator({
     setTaxRate((draft.tax_rate ?? 0) * 100);
     setDiscountMode("amount");
     setDiscountValue(draft.discount ?? 0);
-    if (draft.issue_date) setIssueDate(draft.issue_date.slice(0, 10));
-    if (draft.due_date) setDueDate(draft.due_date.slice(0, 10));
+    if (draft.issue_date) {
+      const issue = normalizeDraftDate(draft.issue_date);
+      if (issue) setIssueDate(issue);
+    }
+    if (draft.due_date) {
+      const due = normalizeDraftDate(draft.due_date);
+      if (due) setDueDate(due);
+    }
     setLineItems(
       draft.line_items.map((item) => ({
         description: item.description,
@@ -200,54 +241,309 @@ export function InvoiceCreator({
     );
   }
 
+  function buildPayload() {
+    return {
+      clientId: selectedClientId || undefined,
+      templateId: templateId || undefined,
+      clientName,
+      clientEmail: clientEmail || undefined,
+      clientPhone: clientPhone || undefined,
+      clientAddress: clientAddress || undefined,
+      notes,
+      currency,
+      issueDate: issueDate ? new Date(issueDate).toISOString() : undefined,
+      dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
+      taxRate: taxRate / 100,
+      discount: discountAmount,
+      lineItems: lineItems.map((item, index) => ({
+        description: item.description,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        sortOrder: index,
+      })),
+    };
+  }
+
   async function handleSave(downloadAfter = false) {
     setSaving(true);
     try {
-      const response = await fetch("/api/invoices", {
-        method: "POST",
+      const url = isEditing ? `/api/invoices/${invoiceId}` : "/api/invoices";
+      const response = await fetch(url, {
+        method: isEditing ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          clientId: selectedClientId || undefined,
-          templateId: templateId || undefined,
-          clientName,
-          clientEmail: clientEmail || undefined,
-          clientPhone: clientPhone || undefined,
-          clientAddress: clientAddress || undefined,
-          notes,
-          currency,
-          issueDate: issueDate ? new Date(issueDate).toISOString() : undefined,
-          dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
-          taxRate: taxRate / 100,
-          discount: discountAmount,
-          lineItems: lineItems.map((item, index) => ({
-            description: item.description,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            sortOrder: index,
-          })),
-        }),
+        body: JSON.stringify(buildPayload()),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Failed to save invoice");
 
-      toast.success(downloadAfter ? "Invoice created — downloading PDF..." : "Invoice created");
+      const id = isEditing ? invoiceId! : data.invoice.id;
 
-      if (downloadAfter) {
-        try {
-          await downloadInvoicePdf(data.invoice.id, data.invoice.number);
-          toast.success("PDF downloaded");
-        } catch {
-          toast.error("Could not generate PDF. Is the ai-docs service running?");
+      if (isEditing) {
+        toast.success("Invoice updated");
+        router.push(`/invoices/${id}`);
+      } else {
+        toast.success("Invoice created");
+
+        if (downloadAfter) {
+          try {
+            await downloadInvoicePdf(id, data.invoice.number);
+          } catch {
+            // Toast handled in downloadInvoicePdf
+          }
         }
-      }
 
-      router.push(`/invoices/${data.invoice.id}`);
+        router.push(`/invoices/${id}`);
+      }
       router.refresh();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not save invoice.");
     } finally {
       setSaving(false);
     }
+  }
+
+  const formBody = (
+    <div className="space-y-6">
+      <FormStepProgress steps={steps} step={step} onStepChange={setStep} />
+
+      {currentStepId === "template" && (
+        <TemplateCarousel
+          templates={templates}
+          value={templateId}
+          onChange={setTemplateId}
+          onPreview={openTemplatePreview}
+          kind="invoice"
+          company={company}
+          currency={currency}
+        />
+      )}
+
+      {currentStepId === "client" && (
+        <div className="space-y-4">
+          {clients.length > 0 && (
+            <SearchableSelect
+              id="existing-client"
+              label="Existing client"
+              value={selectedClientId || "__manual__"}
+              options={clientItems}
+              onChange={(value) => handleClientSelect(value === "__manual__" ? "" : value)}
+              placeholder="Select a saved client"
+              description="Pick a saved client to auto-fill their details, or enter them manually below."
+            />
+          )}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField
+              label="Client name"
+              id="client-name"
+              value={clientName}
+              onChange={setClientName}
+              required
+              placeholder="Client or company name"
+            />
+            <FormField
+              label="Client email"
+              id="client-email"
+              type="email"
+              value={clientEmail}
+              onChange={setClientEmail}
+              placeholder="client@example.com"
+            />
+            <FormField
+              label="Client phone"
+              id="client-phone"
+              value={clientPhone}
+              onChange={setClientPhone}
+              placeholder="Phone number"
+            />
+            <FormField
+              label="Client address"
+              id="client-address"
+              value={clientAddress}
+              onChange={setClientAddress}
+              placeholder="Billing address"
+            />
+          </div>
+        </div>
+      )}
+
+      {currentStepId === "details" && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field>
+            <FieldLabel htmlFor="issue-date">Issue date</FieldLabel>
+            <FieldContent>
+              <DatePicker
+                id="issue-date"
+                value={issueDate}
+                onChange={setIssueDate}
+                placeholder="Select issue date"
+              />
+            </FieldContent>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="due-date">Due date</FieldLabel>
+            <FieldContent>
+              <DatePicker
+                id="due-date"
+                value={dueDate}
+                onChange={setDueDate}
+                placeholder="Select due date"
+              />
+            </FieldContent>
+          </Field>
+          <SearchableSelect
+            id="currency"
+            label="Currency"
+            value={currency}
+            options={currencyItems}
+            onChange={(value) => value && setCurrency(value)}
+            placeholder="Select currency"
+          />
+        </div>
+      )}
+
+      {currentStepId === "items" && (
+        <div className="space-y-4">
+          <FormSection title="Line items">
+            <InvoiceLineItems
+              items={lineItems}
+              onChange={updateLineItem}
+              onRemove={removeLineItem}
+              onAdd={() => setLineItems((items) => [...items, createEmptyLineItem()])}
+            />
+          </FormSection>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field>
+              <FieldLabel htmlFor="tax-rate" className="h-[26px] items-center">
+                Tax rate (%)
+              </FieldLabel>
+              <FieldContent>
+                <Input
+                  id="tax-rate"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={taxRate}
+                  onChange={(e) => setTaxRate(Number(e.target.value))}
+                />
+              </FieldContent>
+            </Field>
+            <DiscountField
+              mode={discountMode}
+              value={discountValue}
+              currency={currency}
+              onModeChange={setDiscountMode}
+              onValueChange={setDiscountValue}
+            />
+          </div>
+          <InvoiceTotalsSummary currency={currency} totals={totals} discount={discountAmount} />
+        </div>
+      )}
+
+      {currentStepId === "notes" && (
+        <Field>
+          <FieldLabel htmlFor="notes">Terms &amp; notes</FieldLabel>
+          <FieldContent>
+            <Textarea
+              id="notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={5}
+              placeholder="Payment terms, project details, or additional notes..."
+            />
+          </FieldContent>
+        </Field>
+      )}
+    </div>
+  );
+
+  const formFooter = (
+    <div className="flex w-full flex-wrap items-center justify-between gap-2">
+      <div className="flex gap-2">
+        {step > 0 && (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={saving}
+            onClick={() => setStep((value) => value - 1)}
+          >
+            Back
+          </Button>
+        )}
+        {!isLastStep && (
+          <Button type="button" disabled={saving} onClick={() => setStep((value) => value + 1)}>
+            Continue
+          </Button>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {isLastStep && (
+          <>
+            <Button type="button" variant="outline" onClick={openOwnPreview}>
+              <EyeIcon className="size-4" />
+              Preview
+            </Button>
+            <Button onClick={() => handleSave(false)} disabled={saving || !clientName.trim()}>
+              {saving
+                ? isEditing
+                  ? "Saving..."
+                  : "Creating..."
+                : isEditing
+                  ? "Save changes"
+                  : "Create invoice"}
+            </Button>
+            {!isEditing && (
+              <Button
+                variant="outline"
+                onClick={() => handleSave(true)}
+                disabled={saving || !clientName.trim()}
+              >
+                {saving ? "Creating..." : "Create & download PDF"}
+              </Button>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+
+  const previewDrawer = (
+    <DocumentPreviewDrawer
+      open={previewOpen}
+      onOpenChange={setPreviewOpen}
+      kind="invoice"
+      company={company}
+      templateSlug={previewTemplate?.slug}
+      templateName={previewTemplate?.name}
+      isSelected={previewTemplate?.id === templateId}
+      onUseTemplate={() => {
+        if (previewTemplate) setTemplateId(previewTemplate.id);
+        setPreviewTemplateId(null);
+      }}
+      number={invoiceNumber ?? "DRAFT"}
+      client={{
+        name: clientName,
+        email: clientEmail,
+        phone: clientPhone,
+        address: clientAddress,
+      }}
+      issueDate={issueDate}
+      expiryDate={dueDate}
+      currency={currency}
+      notes={notes}
+      items={lineItems}
+      totals={totals}
+      taxRate={taxRate}
+      discount={discountAmount}
+    />
+  );
+
+  if (isEditing) {
+    return (
+      <>
+        <FormCard footer={formFooter}>{formBody}</FormCard>
+        {previewDrawer}
+      </>
+    );
   }
 
   return (
@@ -270,236 +566,10 @@ export function InvoiceCreator({
       </TabsContent>
 
       <TabsContent value="form">
-        <FormCard
-          footer={
-            <div className="flex w-full flex-wrap items-center justify-between gap-2">
-              <div className="flex gap-2">
-                {step > 0 && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={saving}
-                    onClick={() => setStep((value) => value - 1)}
-                  >
-                    Back
-                  </Button>
-                )}
-                {!isLastStep && (
-                  <Button type="button" disabled={saving} onClick={() => setStep((value) => value + 1)}>
-                    Continue
-                  </Button>
-                )}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {isLastStep && (
-                  <>
-                    <Button type="button" variant="outline" onClick={openOwnPreview}>
-                      <EyeIcon className="size-4" />
-                      Preview
-                    </Button>
-                    <Button
-                      onClick={() => handleSave(false)}
-                      disabled={saving || !clientName.trim()}
-                    >
-                      {saving ? "Creating..." : "Create invoice"}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => handleSave(true)}
-                      disabled={saving || !clientName.trim()}
-                    >
-                      {saving ? "Creating..." : "Create & download PDF"}
-                    </Button>
-                  </>
-                )}
-              </div>
-            </div>
-          }
-        >
-          <div className="space-y-6">
-            <FormStepProgress steps={steps} step={step} onStepChange={setStep} />
-
-            {currentStepId === "template" && (
-              <TemplateCarousel
-                templates={templates}
-                value={templateId}
-                onChange={setTemplateId}
-                onPreview={openTemplatePreview}
-                kind="invoice"
-                company={company}
-                currency={currency}
-              />
-            )}
-
-            {currentStepId === "client" && (
-              <div className="space-y-4">
-                {clients.length > 0 && (
-                  <SearchableSelect
-                    id="existing-client"
-                    label="Existing client"
-                    value={selectedClientId || "__manual__"}
-                    options={clientItems}
-                    onChange={(value) =>
-                      handleClientSelect(value === "__manual__" ? "" : value)
-                    }
-                    placeholder="Select a saved client"
-                    description="Pick a saved client to auto-fill their details, or enter them manually below."
-                  />
-                )}
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <FormField
-                    label="Client name"
-                    id="client-name"
-                    value={clientName}
-                    onChange={setClientName}
-                    required
-                    placeholder="Client or company name"
-                  />
-                  <FormField
-                    label="Client email"
-                    id="client-email"
-                    type="email"
-                    value={clientEmail}
-                    onChange={setClientEmail}
-                    placeholder="client@example.com"
-                  />
-                  <FormField
-                    label="Client phone"
-                    id="client-phone"
-                    value={clientPhone}
-                    onChange={setClientPhone}
-                    placeholder="Phone number"
-                  />
-                  <FormField
-                    label="Client address"
-                    id="client-address"
-                    value={clientAddress}
-                    onChange={setClientAddress}
-                    placeholder="Billing address"
-                  />
-                </div>
-              </div>
-            )}
-
-            {currentStepId === "details" && (
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field>
-                  <FieldLabel htmlFor="issue-date">Issue date</FieldLabel>
-                  <FieldContent>
-                    <DatePicker
-                      id="issue-date"
-                      value={issueDate}
-                      onChange={setIssueDate}
-                      placeholder="Select issue date"
-                    />
-                  </FieldContent>
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="due-date">Due date</FieldLabel>
-                  <FieldContent>
-                    <DatePicker
-                      id="due-date"
-                      value={dueDate}
-                      onChange={setDueDate}
-                      placeholder="Select due date"
-                    />
-                  </FieldContent>
-                </Field>
-                <SearchableSelect
-                  id="currency"
-                  label="Currency"
-                  value={currency}
-                  options={currencyItems}
-                  onChange={(value) => value && setCurrency(value)}
-                  placeholder="Select currency"
-                />
-              </div>
-            )}
-
-            {currentStepId === "items" && (
-              <div className="space-y-4">
-                <FormSection title="Line items">
-                  <InvoiceLineItems
-                    items={lineItems}
-                    onChange={updateLineItem}
-                    onRemove={removeLineItem}
-                    onAdd={() => setLineItems((items) => [...items, createEmptyLineItem()])}
-                  />
-                </FormSection>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Field>
-                    <FieldLabel htmlFor="tax-rate" className="h-[26px] items-center">
-                      Tax rate (%)
-                    </FieldLabel>
-                    <FieldContent>
-                      <Input
-                        id="tax-rate"
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        value={taxRate}
-                        onChange={(e) => setTaxRate(Number(e.target.value))}
-                      />
-                    </FieldContent>
-                  </Field>
-                  <DiscountField
-                    mode={discountMode}
-                    value={discountValue}
-                    currency={currency}
-                    onModeChange={setDiscountMode}
-                    onValueChange={setDiscountValue}
-                  />
-                </div>
-                <InvoiceTotalsSummary currency={currency} totals={totals} discount={discountAmount} />
-              </div>
-            )}
-
-            {currentStepId === "notes" && (
-              <Field>
-                <FieldLabel htmlFor="notes">Terms &amp; notes</FieldLabel>
-                <FieldContent>
-                  <Textarea
-                    id="notes"
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    rows={5}
-                    placeholder="Payment terms, project details, or additional notes..."
-                  />
-                </FieldContent>
-              </Field>
-            )}
-          </div>
-        </FormCard>
+        <FormCard footer={formFooter}>{formBody}</FormCard>
       </TabsContent>
 
-      <DocumentPreviewDrawer
-        open={previewOpen}
-        onOpenChange={setPreviewOpen}
-        kind="invoice"
-        company={company}
-        templateSlug={previewTemplate?.slug}
-        templateName={previewTemplate?.name}
-        isSelected={previewTemplate?.id === templateId}
-        onUseTemplate={() => {
-          if (previewTemplate) setTemplateId(previewTemplate.id);
-          setPreviewTemplateId(null);
-        }}
-        number="DRAFT"
-        client={{
-          name: clientName,
-          email: clientEmail,
-          phone: clientPhone,
-          address: clientAddress,
-        }}
-        issueDate={issueDate}
-        expiryDate={dueDate}
-        currency={currency}
-        notes={notes}
-        items={lineItems}
-        totals={totals}
-        taxRate={taxRate}
-        discount={discountAmount}
-      />
+      {previewDrawer}
     </Tabs>
   );
 }

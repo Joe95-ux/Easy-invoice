@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { requireApiMember, parseJsonBody, validationError } from "@/lib/api/validation";
 import { prisma } from "@/lib/db";
-import { canTransitionInvoiceStatus } from "@/lib/invoice-service";
+import {
+  buildInvoiceTotals,
+  canTransitionInvoiceStatus,
+  resolveClientForInvoice,
+} from "@/lib/invoice-service";
 import { getInvoiceForMember } from "@/lib/invoices";
 import { updateInvoiceSchema } from "@/lib/schemas/invoice";
 import { getTemplateById } from "@/lib/templates";
@@ -37,38 +41,103 @@ export async function PATCH(request: Request, context: RouteContext) {
   const parsed = updateInvoiceSchema.safeParse(body);
   if (!parsed.success) return validationError(parsed.error);
 
-  const { status, notes, dueDate, clientEmail, templateId } = parsed.data;
+  const data = parsed.data;
 
-  if (status && !canTransitionInvoiceStatus(existing.status, status)) {
+  if (data.status && !canTransitionInvoiceStatus(existing.status, data.status)) {
     return NextResponse.json(
-      { error: `Cannot change status from ${existing.status} to ${status}` },
+      { error: `Cannot change status from ${existing.status} to ${data.status}` },
       { status: 400 },
     );
   }
 
-  if (templateId) {
-    const template = await getTemplateById(templateId, member.companyId);
+  if (data.templateId) {
+    const template = await getTemplateById(data.templateId, member.companyId);
     if (!template) {
       return NextResponse.json({ error: "Template not found" }, { status: 404 });
     }
   }
 
-  if (clientEmail && existing.clientId) {
+  let clientId = existing.clientId;
+  if (data.clientName) {
+    const client = await resolveClientForInvoice(member.companyId, {
+      clientId: data.clientId,
+      clientName: data.clientName,
+      clientEmail: data.clientEmail,
+      clientPhone: data.clientPhone,
+      clientAddress: data.clientAddress,
+    });
+    if (!client) {
+      return NextResponse.json({ error: "Client not found" }, { status: 404 });
+    }
+    clientId = client.id;
+    if (data.clientEmail && client.id) {
+      await prisma.client.update({
+        where: { id: client.id },
+        data: { email: data.clientEmail },
+      });
+    }
+  } else if (data.clientEmail && existing.clientId) {
     await prisma.client.update({
       where: { id: existing.clientId },
-      data: { email: clientEmail },
+      data: { email: data.clientEmail },
+    });
+  }
+
+  const hasLineItems = data.lineItems && data.lineItems.length > 0;
+  let totalsUpdate: Record<string, number> = {};
+
+  if (
+    hasLineItems &&
+    data.lineItems &&
+    data.currency &&
+    data.taxRate !== undefined &&
+    data.discount !== undefined
+  ) {
+    const { lineItems, totals } = buildInvoiceTotals({
+      clientName: data.clientName ?? existing.client?.name ?? "Client",
+      currency: data.currency,
+      taxRate: data.taxRate,
+      discount: data.discount,
+      lineItems: data.lineItems,
+    });
+    totalsUpdate = {
+      subtotal: totals.subtotal,
+      taxAmount: totals.taxAmount,
+      total: totals.total,
+    };
+
+    await prisma.invoiceLineItem.deleteMany({ where: { invoiceId: id } });
+    await prisma.invoiceLineItem.createMany({
+      data: lineItems.map((item) => ({
+        invoiceId: id,
+        description: item.description,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        amount: item.amount,
+        sortOrder: item.sortOrder,
+      })),
     });
   }
 
   const invoice = await prisma.invoice.update({
     where: { id },
     data: {
-      ...(status !== undefined && { status }),
-      ...(notes !== undefined && { notes }),
-      ...(dueDate !== undefined && { dueDate: dueDate ? new Date(dueDate) : null }),
-      ...(templateId !== undefined && { templateId }),
-      ...(status === "PAID" && { paidAt: new Date() }),
-      ...(status === "SENT" && !existing.sentAt && { sentAt: new Date() }),
+      ...(data.status !== undefined && { status: data.status }),
+      ...(data.notes !== undefined && { notes: data.notes }),
+      ...(data.dueDate !== undefined && {
+        dueDate: data.dueDate ? new Date(data.dueDate) : null,
+      }),
+      ...(data.templateId !== undefined && { templateId: data.templateId }),
+      ...(data.currency !== undefined && { currency: data.currency }),
+      ...(data.taxRate !== undefined && { taxRate: data.taxRate }),
+      ...(data.discount !== undefined && { discount: data.discount }),
+      ...(data.issueDate !== undefined && {
+        issueDate: data.issueDate ? new Date(data.issueDate) : existing.issueDate,
+      }),
+      ...(clientId !== undefined && { clientId }),
+      ...totalsUpdate,
+      ...(data.status === "PAID" && { paidAt: new Date() }),
+      ...(data.status === "SENT" && !existing.sentAt && { sentAt: new Date() }),
     },
     include: {
       client: true,
