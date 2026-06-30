@@ -13,6 +13,7 @@ import {
 } from "@/components/app-shell/app-sidebar-config";
 import { SidebarFooterPanel } from "@/components/app-shell/sidebar-footer-panel";
 import { SidebarOrgHeader } from "@/components/app-shell/sidebar-org-header";
+import type { CompanySummary } from "@/lib/companies";
 import {
   SidebarContent,
   SidebarFooter,
@@ -34,6 +35,8 @@ export const PUBLIC_SECTION_LINKS = [
 ] as const;
 
 type AppSidebarContentProps = {
+  activeCompanyId?: string;
+  companies?: CompanySummary[];
   companyName?: string;
   logoUrl?: string | null;
   plan?: string;
@@ -69,6 +72,8 @@ function NavMenu({
 }
 
 export function AppSidebarContent({
+  activeCompanyId,
+  companies = [],
   companyName,
   logoUrl = null,
   plan = "FREE",
@@ -76,13 +81,18 @@ export function AppSidebarContent({
   showPublicSections = false,
 }: AppSidebarContentProps) {
   const pathname = usePathname();
-  const hasCompany = Boolean(companyName);
+  const hasCompany = Boolean(companyName && activeCompanyId);
 
   return (
     <>
       <SidebarHeader>
         {hasCompany ? (
-          <SidebarOrgHeader companyName={companyName!} logoUrl={logoUrl} />
+          <SidebarOrgHeader
+            activeCompanyId={activeCompanyId!}
+            companies={companies}
+            companyName={companyName!}
+            logoUrl={logoUrl}
+          />
         ) : (
           <SidebarMenu>
             <SidebarMenuItem>

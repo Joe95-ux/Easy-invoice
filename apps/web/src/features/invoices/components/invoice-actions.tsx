@@ -1,7 +1,25 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import {
+  createLucideIcon,
+  DownloadIcon,
+  LinkIcon,
+  MoreHorizontalIcon,
+  PencilIcon,
+  SendIcon,
+  Trash2Icon,
+} from "lucide-react";
+
+const BanknoteCheckIcon = createLucideIcon("BanknoteCheck", [
+  ["path", { d: "M11.748 18H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4.875" }],
+  ["path", { d: "m16 19 2 2 4-4" }],
+  ["path", { d: "M18 12h.01" }],
+  ["path", { d: "M6 12h.01" }],
+  ["circle", { cx: "12", cy: "12", r: "2" }],
+]);
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -12,9 +30,9 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
 import {
   Dialog,
   DialogContent,
@@ -23,10 +41,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { pageHeaderActionClass } from "@/components/app-shell/page-header";
 import { DocumentShareButton } from "@/components/document-share-button";
 import { downloadInvoicePdf } from "@/lib/invoice-pdf-client";
+import { cn } from "@/lib/utils";
 import type { InvoiceStatus } from "@easy-invoice/db";
 
 type InvoiceActionsProps = {
@@ -45,7 +72,13 @@ export function InvoiceActions({
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
   const [sendOpen, setSendOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [email, setEmail] = useState(clientEmail ?? "");
+
+  const canSend = status !== "CANCELLED" && status !== "PAID";
+  const canMarkPaid = status !== "PAID" && status !== "CANCELLED";
+  const isBusy = loading !== null;
 
   async function handleDownloadPdf() {
     setLoading("pdf");
@@ -114,45 +147,117 @@ export function InvoiceActions({
   }
 
   return (
-    <div className="flex flex-wrap gap-2">
-      <DocumentShareButton kind="invoice" documentId={invoiceId} />
-
-      <Button
-        variant="outline"
-        onClick={handleDownloadPdf}
-        disabled={loading !== null}
-      >
-        {loading === "pdf" ? "Generating..." : "Download PDF"}
-      </Button>
-
-      {status !== "CANCELLED" && status !== "PAID" && (
-        <Button
-          onClick={() => {
-            setEmail(clientEmail ?? "");
-            setSendOpen(true);
-          }}
-          disabled={loading !== null}
-        >
-          Send invoice
-        </Button>
-      )}
-
-      {status !== "PAID" && status !== "CANCELLED" && (
-        <Button
-          variant="secondary"
-          onClick={() => updateStatus("PAID")}
-          disabled={loading !== null}
-        >
-          {loading === "PAID" ? "Updating..." : "Mark as paid"}
-        </Button>
-      )}
-
-      <AlertDialog>
-        <AlertDialogTrigger>
-          <Button variant="destructive" disabled={loading !== null}>
-            Delete
+    <>
+      <div className={cn("flex w-full flex-col gap-2 sm:w-auto sm:flex-row", pageHeaderActionClass)}>
+        <ButtonGroup className="w-full sm:w-auto">
+          <Button
+            variant="outline"
+            className="flex-1 sm:flex-none"
+            render={<Link href={`/invoices/${invoiceId}/edit`} />}
+          >
+            <PencilIcon />
+            Edit
           </Button>
-        </AlertDialogTrigger>
+          {canSend ? (
+            <Button
+              variant="outline"
+              className="flex-1 text-primary hover:text-primary sm:flex-none"
+              onClick={() => {
+                setEmail(clientEmail ?? "");
+                setSendOpen(true);
+              }}
+              disabled={isBusy}
+            >
+              <SendIcon />
+              Send invoice
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              className="flex-1 sm:flex-none"
+              onClick={handleDownloadPdf}
+              disabled={isBusy}
+            >
+              <DownloadIcon />
+              {loading === "pdf" ? "Generating..." : "Download PDF"}
+            </Button>
+          )}
+        </ButtonGroup>
+
+        <ButtonGroup className="w-full sm:w-auto">
+          {canSend ? (
+            <Button
+              variant="outline"
+              className="flex-1 sm:flex-none"
+              onClick={handleDownloadPdf}
+              disabled={isBusy}
+            >
+              <DownloadIcon />
+              {loading === "pdf" ? "Generating..." : "Download PDF"}
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              className="flex-1 sm:flex-none"
+              onClick={() => setShareOpen(true)}
+              disabled={isBusy}
+            >
+              <LinkIcon />
+              Share link
+            </Button>
+          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="shrink-0"
+                  aria-label="More invoice actions"
+                  disabled={isBusy}
+                />
+              }
+            >
+              <MoreHorizontalIcon />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-44 w-48">
+              {canSend && (
+                <DropdownMenuItem onClick={() => setShareOpen(true)}>
+                  <LinkIcon className="size-4" />
+                  Share link
+                </DropdownMenuItem>
+              )}
+              {!canSend && (
+                <DropdownMenuItem onClick={handleDownloadPdf}>
+                  <DownloadIcon className="size-4" />
+                  Download PDF
+                </DropdownMenuItem>
+              )}
+              {canMarkPaid && (
+                <DropdownMenuItem onClick={() => updateStatus("PAID")}>
+                  <BanknoteCheckIcon className="size-4" />
+                  Mark as paid
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem variant="destructive" onClick={() => setDeleteOpen(true)}>
+                <Trash2Icon className="size-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </ButtonGroup>
+      </div>
+
+      <DocumentShareButton
+        kind="invoice"
+        documentId={invoiceId}
+        showTrigger={false}
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+      />
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete invoice?</AlertDialogTitle>
@@ -197,6 +302,6 @@ export function InvoiceActions({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

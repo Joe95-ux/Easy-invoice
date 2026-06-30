@@ -5,6 +5,7 @@ import { AppTopLoader } from "@/components/app-top-loader";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { clerkAppearance } from "@/lib/clerk-appearance";
 import { QueryProvider } from "@/providers/query-provider";
 import "./globals.css";
 
@@ -36,7 +37,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
+    <ClerkProvider appearance={clerkAppearance}>
       <html lang="en" suppressHydrationWarning>
         <body
           className={`${geistSans.variable} ${geistMono.variable} ${headingFont.variable} antialiased`}

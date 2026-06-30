@@ -1,21 +1,32 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { setActiveCompanyCookie } from "@/lib/active-company";
 import { parseJsonBody, validationError } from "@/lib/api/validation";
-import { createUniqueCompanySlug } from "@/lib/auth";
+import {
+  createUniqueCompanySlug,
+  getUserMemberships,
+} from "@/lib/auth";
+import { membershipsToCompanySummaries } from "@/lib/companies";
 import { prisma, UserRole } from "@/lib/db";
 import { companyOnboardingSchema } from "@/lib/schemas/company";
 
-export async function POST(request: Request) {
+export async function GET() {
   const { userId } = await auth();
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const existing = await prisma.companyMember.findFirst({
-    where: { clerkId: userId },
+  const memberships = await getUserMemberships(userId);
+
+  return NextResponse.json({
+    companies: membershipsToCompanySummaries(memberships),
   });
-  if (existing) {
-    return NextResponse.json({ error: "Company already exists" }, { status: 409 });
+}
+
+export async function POST(request: Request) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const body = await parseJsonBody<unknown>(request);
@@ -46,10 +57,13 @@ export async function POST(request: Request) {
           clerkId: userId,
           email,
           role: UserRole.OWNER,
+          lastActiveAt: new Date(),
         },
       },
     },
   });
+
+  await setActiveCompanyCookie(company.id);
 
   return NextResponse.json({ company }, { status: 201 });
 }

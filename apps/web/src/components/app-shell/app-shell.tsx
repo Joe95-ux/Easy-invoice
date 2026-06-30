@@ -6,9 +6,12 @@ import {
 } from "@/components/ui/sidebar";
 import { AppHeader } from "@/components/app-shell/app-header";
 import { AppSidebar } from "@/components/app-shell/app-sidebar";
+import type { CompanySummary } from "@/lib/companies";
 import { cn } from "@/lib/utils";
 
 type AppShellProps = {
+  activeCompanyId: string;
+  companies: CompanySummary[];
   companyName: string;
   logoUrl: string | null;
   plan: string;
@@ -40,6 +43,8 @@ export function PageScroll({
 }
 
 export function AppShell({
+  activeCompanyId,
+  companies,
   companyName,
   logoUrl,
   plan,
@@ -51,7 +56,13 @@ export function AppShell({
       data-app-shell
       className="h-svh overflow-hidden"
     >
-      <AppSidebar companyName={companyName} logoUrl={logoUrl} plan={plan} />
+      <AppSidebar
+        activeCompanyId={activeCompanyId}
+        companies={companies}
+        companyName={companyName}
+        logoUrl={logoUrl}
+        plan={plan}
+      />
       <SidebarInset className="flex h-full min-h-0 flex-col overflow-hidden">
         <AppHeader />
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">

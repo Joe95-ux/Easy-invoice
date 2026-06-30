@@ -17,10 +17,21 @@ import { Input } from "@/components/ui/input";
 type DocumentShareButtonProps = {
   kind: "invoice" | "estimate";
   documentId: string;
+  showTrigger?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 };
 
-export function DocumentShareButton({ kind, documentId }: DocumentShareButtonProps) {
-  const [open, setOpen] = useState(false);
+export function DocumentShareButton({
+  kind,
+  documentId,
+  showTrigger = true,
+  open: controlledOpen,
+  onOpenChange,
+}: DocumentShareButtonProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = onOpenChange ?? setInternalOpen;
   const [url, setUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -71,10 +82,12 @@ export function DocumentShareButton({ kind, documentId }: DocumentShareButtonPro
 
   return (
     <>
-      <Button variant="outline" onClick={() => setOpen(true)}>
-        <LinkIcon className="size-4" />
-        Share link
-      </Button>
+      {showTrigger && (
+        <Button variant="outline" onClick={() => setOpen(true)}>
+          <LinkIcon className="size-4" />
+          Share link
+        </Button>
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>

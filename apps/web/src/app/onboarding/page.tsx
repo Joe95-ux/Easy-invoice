@@ -1,104 +1,10 @@
 "use client";
 
-import { useUser } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
 import { SparklesIcon } from "lucide-react";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { CompanyLogoUpload } from "@/components/forms/company-logo-upload";
-import { CompanyProfileFields } from "@/components/forms/company-profile-fields";
-import { uploadPendingCompanyLogo } from "@/lib/company-logo-client";
-import { zodFieldErrors } from "@/lib/validation/zod";
-import {
-  companyOnboardingSchema,
-  type CompanyOnboardingInput,
-} from "@/lib/schemas/company";
-
-const defaultValues: CompanyOnboardingInput = {
-  name: "",
-  email: "",
-  phone: "",
-  address: "",
-  city: "",
-  state: "",
-  zip: "",
-  country: "US",
-  currency: "USD",
-  locale: "en",
-};
+import { CompanyCreateForm } from "@/features/companies/components/company-create-form";
 
 export default function OnboardingPage() {
-  const router = useRouter();
-  const { user } = useUser();
-  const [form, setForm] = useState<CompanyOnboardingInput>(defaultValues);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [submitting, setSubmitting] = useState(false);
-  const [pendingLogoFile, setPendingLogoFile] = useState<File | null>(null);
-  const [useProfilePhotoAsLogo, setUseProfilePhotoAsLogo] = useState(false);
-  const [logoPreview, setLogoPreview] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!user) return;
-
-    setForm((prev) => ({
-      ...prev,
-      email: prev.email || user.primaryEmailAddress?.emailAddress || "",
-      name: prev.name || user.fullName || "",
-    }));
-  }, [user]);
-
-  function updateField<K extends keyof CompanyOnboardingInput>(
-    key: K,
-    value: CompanyOnboardingInput[K],
-  ) {
-    setForm((prev) => ({ ...prev, [key]: value }));
-  }
-
-  async function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
-
-    const parsed = companyOnboardingSchema.safeParse(form);
-    if (!parsed.success) {
-      setErrors(zodFieldErrors(parsed.error));
-      return;
-    }
-
-    setErrors({});
-    setSubmitting(true);
-
-    try {
-      const response = await fetch("/api/companies", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(parsed.data),
-      });
-
-      if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
-        throw new Error(body.error ?? "Failed to create company");
-      }
-
-      try {
-        await uploadPendingCompanyLogo({
-          file: pendingLogoFile,
-          sourceUrl:
-            useProfilePhotoAsLogo && user?.imageUrl ? user.imageUrl : null,
-        });
-      } catch {
-        toast.message("Company created, but logo upload failed. Add it in Settings.");
-      }
-
-      router.push("/dashboard");
-      router.refresh();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Something went wrong");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
   return (
     <div className="min-h-screen bg-background px-4 py-10">
       <div className="mx-auto grid max-w-6xl items-start gap-8 lg:grid-cols-5">
@@ -132,30 +38,11 @@ export default function OnboardingPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="min-h-0 flex-1 overflow-y-auto overscroll-contain pt-6">
-            <form id="onboarding-form" onSubmit={handleSubmit} className="space-y-6">
-              <CompanyLogoUpload
-                logoUrl={logoPreview}
-                onLogoChange={setLogoPreview}
-                mode="deferred"
-                suggestedImageUrl={user?.imageUrl}
-                onPendingFileChange={setPendingLogoFile}
-                onSuggestedLogoSelect={setUseProfilePhotoAsLogo}
-              />
-
-              <CompanyProfileFields values={form} errors={errors} onChange={updateField} />
-            </form>
+            <CompanyCreateForm
+              submitLabel="Continue to dashboard"
+              submittingLabel="Creating your workspace..."
+            />
           </CardContent>
-          <div className="shrink-0 border-t border-border/60 bg-card px-6 py-4">
-            <Button
-              type="submit"
-              form="onboarding-form"
-              disabled={submitting}
-              className="w-full"
-              size="lg"
-            >
-              {submitting ? "Creating your workspace..." : "Continue to dashboard"}
-            </Button>
-          </div>
         </Card>
       </div>
     </div>

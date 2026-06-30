@@ -72,13 +72,14 @@ model Company {
 }
 
 model CompanyMember {
-  id        String   @id @default(cuid())
-  companyId String
-  clerkId   String
-  email     String
-  role      UserRole @default(MEMBER)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String    @id @default(cuid())
+  companyId    String
+  clerkId      String
+  email        String
+  role         UserRole  @default(MEMBER)
+  lastActiveAt DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 

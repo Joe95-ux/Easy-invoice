@@ -15,13 +15,10 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Sidebar, SidebarProvider } from "@/components/ui/sidebar";
+import type { CompanySummary } from "@/lib/companies";
 
 type PublicMobileNavSheetProps = {
-  company?: {
-    name: string;
-    logoUrl: string | null;
-    plan: string;
-  } | null;
+  company?: (CompanySummary & { companies: CompanySummary[] }) | null;
 };
 
 export function PublicMobileNavSheet({ company }: PublicMobileNavSheetProps) {
@@ -56,6 +53,8 @@ export function PublicMobileNavSheet({ company }: PublicMobileNavSheetProps) {
         <SidebarProvider defaultOpen className="flex min-h-0 flex-1 flex-col">
           <Sidebar collapsible="none" variant="inset" className="h-full min-h-0 flex-1 border-0 bg-transparent">
             <AppSidebarContent
+              activeCompanyId={company?.id}
+              companies={company?.companies}
               companyName={company?.name}
               logoUrl={company?.logoUrl}
               plan={company?.plan}

@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "@clerk/themes/shadcn.css";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
@@ -34,6 +35,9 @@
   --chart-4: oklch(0.62 0.18 12);
   --chart-5: oklch(0.55 0.12 300);
   --radius: 0.625rem;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
   --sidebar: oklch(0.975 0.004 270);
   --sidebar-foreground: oklch(0.27 0.012 270);
   --sidebar-primary: oklch(0.47 0.142 266);
@@ -127,6 +131,7 @@ body {
 }
 
 .dark {
+  color-scheme: dark;
   --background: oklch(0.17 0.012 270);
   --foreground: oklch(0.965 0.004 270);
   --card: oklch(0.214 0.014 270);

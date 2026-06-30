@@ -1,10 +1,8 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { PageScroll } from "@/components/app-shell/app-shell";
-import { PageBackLink, PageHeader, pageHeaderActionClass } from "@/components/app-shell/page-header";
+import { PageBackLink, PageHeader } from "@/components/app-shell/page-header";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -64,23 +62,14 @@ export default async function EstimateDetailPage({ params }: PageProps) {
           </>
         }
         actions={
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
-            <Button
-              variant="outline"
-              className={pageHeaderActionClass}
-              render={<Link href={`/estimates/${estimate.id}/edit`} />}
-            >
-              Edit
-            </Button>
-            <EstimateActions
-              estimateId={estimate.id}
-              estimateNumber={estimate.number}
-              status={estimate.status}
-              clientEmail={estimate.client?.email}
-              convertedInvoiceId={estimate.convertedInvoice?.id}
-              convertedInvoiceNumber={estimate.convertedInvoice?.number}
-            />
-          </div>
+          <EstimateActions
+            estimateId={estimate.id}
+            estimateNumber={estimate.number}
+            status={estimate.status}
+            clientEmail={estimate.client?.email}
+            convertedInvoiceId={estimate.convertedInvoice?.id}
+            convertedInvoiceNumber={estimate.convertedInvoice?.number}
+          />
         }
       />
 

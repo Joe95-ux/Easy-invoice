@@ -17,7 +17,8 @@ export default clerkMiddleware(async (auth, request) => {
 
 export const config = {
   matcher: [
-    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    // Anchor extensions to the path end so `/invoices/foo.js.map` still runs middleware.
+    "/((?!_next|[^?]*\\.(?:html?|css|json?|js|mjs|cjs|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)$).*)",
     "/(api|trpc)(.*)",
   ],
 };

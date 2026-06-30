@@ -1,15 +1,68 @@
 import { redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
+import {
+  getActiveCompanyIdFromCookie,
+  setActiveCompanyCookie,
+} from "@/lib/active-company";
 import { prisma } from "@/lib/db";
+
+const memberInclude = { company: true } as const;
+
+const memberOrderBy = [
+  { lastActiveAt: "desc" as const },
+  { createdAt: "asc" as const },
+];
+
+export async function getUserMemberships(clerkId: string) {
+  return prisma.companyMember.findMany({
+    where: { clerkId },
+    include: memberInclude,
+    orderBy: memberOrderBy,
+  });
+}
 
 export async function getCurrentMember() {
   const { userId } = await auth();
   if (!userId) return null;
 
-  return prisma.companyMember.findFirst({
+  const activeCompanyId = await getActiveCompanyIdFromCookie();
+
+  if (activeCompanyId) {
+    const activeMember = await prisma.companyMember.findFirst({
+      where: { clerkId: userId, companyId: activeCompanyId },
+      include: memberInclude,
+    });
+    if (activeMember) return activeMember;
+  }
+
+  const member = await prisma.companyMember.findFirst({
     where: { clerkId: userId },
-    include: { company: true },
+    include: memberInclude,
+    orderBy: memberOrderBy,
   });
+
+  if (member) {
+    await setActiveCompanyCookie(member.companyId);
+  }
+
+  return member;
+}
+
+export async function switchActiveCompany(clerkId: string, companyId: string) {
+  const member = await prisma.companyMember.findFirst({
+    where: { clerkId, companyId },
+    include: memberInclude,
+  });
+
+  if (!member) return null;
+
+  await setActiveCompanyCookie(companyId);
+  await prisma.companyMember.update({
+    where: { id: member.id },
+    data: { lastActiveAt: new Date() },
+  });
+
+  return member;
 }
 
 export async function requireMember() {

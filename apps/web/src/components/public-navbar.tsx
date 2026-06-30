@@ -5,14 +5,11 @@ import { AppLogo } from "@/components/app-logo";
 import { PUBLIC_SECTION_LINKS } from "@/components/app-shell/app-sidebar-content";
 import { PublicMobileNavSheet } from "@/components/public-mobile-nav-sheet";
 import { PublicNavAuth } from "@/components/public-nav-auth";
+import type { CompanySummary } from "@/lib/companies";
 import { cn } from "@/lib/utils";
 
 type PublicNavbarProps = {
-  company?: {
-    name: string;
-    logoUrl: string | null;
-    plan: string;
-  } | null;
+  company?: (CompanySummary & { companies: CompanySummary[] }) | null;
 };
 
 function NavLink({
