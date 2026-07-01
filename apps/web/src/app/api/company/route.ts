@@ -34,6 +34,9 @@ export async function PATCH(request: Request) {
       currency: parsed.data.currency,
       locale: parsed.data.locale,
       taxId: parsed.data.taxId || null,
+      ...(parsed.data.defaultHourlyRate !== undefined && {
+        defaultHourlyRate: parsed.data.defaultHourlyRate,
+      }),
     },
   });
 

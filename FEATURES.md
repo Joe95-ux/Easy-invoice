@@ -56,13 +56,47 @@ Stripe Checkout link on the client invoice page; webhook marks invoice paid.
 
 ### 4. Automatic overdue + payment reminders
 
-**Status:** Planned
+**Status:** Done
 
-Cron flips `SENT`/`VIEWED` → `OVERDUE` after `dueDate`; scheduled reminder emails.
+Company-level reminder schedule, daily cron, manual remind, per-invoice pause, audit log.
+
+| Piece | Location |
+|-------|----------|
+| Schema | `InvoiceReminder`, company reminder fields, `remindersPaused` |
+| Cron | `GET /api/cron/invoice-reminders` |
+| Settings | `ReminderSettingsSection` |
+| UI | Invoice detail reminders + `InvoiceActions` |
 
 ---
 
-### 5. Saved products / services library
+### 5. Time tracking (v1)
+
+**Status:** Done
+
+Manual time logs, unbilled hours → invoice line items, Toggl/Clockify import, default hourly rate in settings, draft invoice edit support.
+
+| Piece | Location |
+|-------|----------|
+| Schema | `TimeEntry`, `Company.defaultHourlyRate`, `externalSource` / `externalId` |
+| Page | `/time` |
+| Import | `POST /api/time-entries/import` (Toggl, Clockify) |
+| Invoice | `AddUnbilledTimeDialog` on create + draft edit |
+
+#### Time tracking — later phases
+
+| Phase | Scope | Status |
+|-------|--------|--------|
+| **A — Import** | Toggl Track + Clockify one-time import | Done |
+| **B — Live timer** | Start/stop timer in app, background-friendly logging, optional reminders to stop | Planned |
+| **C — Full product** | Projects, budgets, approvals, payroll, expenses, mobile timer widgets | Planned (out of scope for Invoice Desk core) |
+
+**B (live timer)** — build when users ask for “track as I work” without leaving Invoice Desk. Keep lightweight: one active timer per user, client + description, persist on stop.
+
+**C (full product)** — do not build; competes with Toggl/Harvest. Prefer deeper **A** integrations (Harvest, etc.) if import demand appears.
+
+---
+
+### 6. Saved products / services library
 
 **Status:** Planned
 
@@ -70,7 +104,7 @@ Reusable line items for faster repeat invoicing.
 
 ---
 
-### 6. Duplicate invoice / estimate
+### 7. Duplicate invoice / estimate
 
 **Status:** Planned
 
@@ -78,7 +112,7 @@ Clone an existing document in one click.
 
 ---
 
-### 7. Custom fields (UI)
+### 8. Custom fields (UI)
 
 **Status:** Planned
 
@@ -86,7 +120,7 @@ Clone an existing document in one click.
 
 ---
 
-### 8. Recurring invoices
+### 9. Recurring invoices
 
 **Status:** Planned
 
@@ -94,7 +128,7 @@ Schedule invoices (e.g. monthly retainers).
 
 ---
 
-### 9. Simple reports
+### 10. Simple reports
 
 **Status:** Planned
 
@@ -102,11 +136,11 @@ Revenue by month, outstanding aging, top clients.
 
 ---
 
-### 10. Team members
+### 11. Team members
 
-**Status:** Planned
+**Status:** Done
 
-Invite bookkeeper / VA with role-based access (`CompanyMember` model exists).
+App-native invites, roles (Owner / Admin / Member), company switcher.
 
 ---
 

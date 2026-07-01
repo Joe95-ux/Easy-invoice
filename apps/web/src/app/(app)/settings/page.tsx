@@ -1,4 +1,5 @@
 import { CompanySettingsForm } from "@/features/settings/components/company-settings-form";
+import { ReminderSettingsSection } from "@/features/settings/components/reminder-settings-section";
 import { SettingsDefaultTemplateSection } from "@/features/settings/components/settings-default-template-section";
 import { TeamSettingsSection } from "@/features/settings/components/team-settings-section";
 import { requireCompanyAdmin } from "@/lib/auth";
@@ -6,6 +7,7 @@ import { canManageTeam } from "@/lib/team";
 import { getDefaultTemplateId, getTemplatesForCompany } from "@/lib/templates";
 import { prisma } from "@/lib/db";
 import { resolveMemberLoginEmails } from "@/lib/member-email";
+import { reminderSettingsFromCompany } from "@/lib/reminders/settings";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageScroll } from "@/components/app-shell/app-shell";
 import { PageHeader } from "@/components/app-shell/page-header";
@@ -92,6 +94,9 @@ export default async function SettingsPage() {
             currency: company.currency,
             locale: company.locale,
             taxId: company.taxId ?? "",
+            defaultHourlyRate: company.defaultHourlyRate
+              ? Number(company.defaultHourlyRate)
+              : null,
           }}
         />
 
@@ -108,6 +113,10 @@ export default async function SettingsPage() {
             />
           </CardContent>
         </Card>
+
+        <ReminderSettingsSection
+          initialSettings={reminderSettingsFromCompany(company)}
+        />
 
         <TeamSettingsSection initialData={teamData} />
       </div>

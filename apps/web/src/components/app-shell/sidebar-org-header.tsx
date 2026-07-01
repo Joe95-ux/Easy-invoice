@@ -11,6 +11,7 @@ import {
   SettingsIcon,
 } from "lucide-react";
 import type { CompanySummary } from "@/lib/companies";
+import { getCompanyInitials } from "@/lib/companies";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -58,11 +59,11 @@ function CompanyMark({
   return (
     <div
       className={cn(
-        "flex size-8 shrink-0 items-center justify-center rounded-md bg-sidebar-primary/15 text-xs font-semibold text-sidebar-primary",
+        "flex size-8 shrink-0 items-center justify-center rounded-full bg-sidebar-primary/15 text-xs font-semibold text-sidebar-primary",
         className,
       )}
     >
-      {companyName.slice(0, 2).toUpperCase()}
+      {getCompanyInitials(companyName)}
     </div>
   );
 }
@@ -110,7 +111,7 @@ export function SidebarOrgHeader({
                 size="lg"
                 className={cn(
                   "cursor-pointer hover:bg-sidebar-accent/60",
-                  logoUrl && "group-data-[collapsible=icon]:!p-1.5",
+                  "group-data-[collapsible=icon]:!p-0 group-data-[collapsible=icon]:justify-center",
                 )}
                 tooltip={companyName}
                 disabled={switching}

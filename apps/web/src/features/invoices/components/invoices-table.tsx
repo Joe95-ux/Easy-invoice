@@ -83,7 +83,7 @@ export function InvoicesTable({ invoices }: InvoicesTableProps) {
   }
 
   return (
-    <Table>
+    <Table stickyColumnWidths={["5.5rem", "10rem"]}>
       <TableHeader>
         <TableRow>
           <TableHead>Number</TableHead>

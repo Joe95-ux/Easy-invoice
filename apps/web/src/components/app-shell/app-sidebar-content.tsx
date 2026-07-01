@@ -89,7 +89,7 @@ export function AppSidebarContent({
 
   return (
     <>
-      <SidebarHeader>
+      <SidebarHeader className={hasCompany ? "group-data-[collapsible=icon]:p-0" : undefined}>
         {hasCompany ? (
           <SidebarOrgHeader
             activeCompanyId={activeCompanyId!}

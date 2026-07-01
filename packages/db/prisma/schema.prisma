@@ -39,6 +39,18 @@ enum UserRole {
   MEMBER
 }
 
+enum ReminderKind {
+  BEFORE_DUE
+  ON_DUE
+  OVERDUE
+  MANUAL
+}
+
+enum ReminderDeliveryStatus {
+  SENT
+  FAILED
+}
+
 model Company {
   id        String   @id @default(cuid())
   name      String
@@ -58,6 +70,12 @@ model Company {
   defaultTemplateId String?
   stripeCustomerId     String? @unique
   stripeSubscriptionId String? @unique
+  remindersEnabled     Boolean  @default(true)
+  reminderDaysBefore   Int[]    @default([7, 3])
+  reminderOnDueDate    Boolean  @default(true)
+  reminderDaysAfter    Int[]    @default([1, 7, 14])
+  reminderIncludePdf   Boolean  @default(true)
+  defaultHourlyRate    Decimal? @db.Decimal(12, 2)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -68,6 +86,7 @@ model Company {
   estimates Estimate[]
   templates InvoiceTemplate[]
   defaultTemplate InvoiceTemplate? @relation("CompanyDefaultTemplate", fields: [defaultTemplateId], references: [id], onDelete: SetNull)
+  timeEntries TimeEntry[]
 
   @@index([slug])
 }
@@ -84,6 +103,7 @@ model CompanyMember {
 
   company     Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
   sentInvites CompanyInvite[] @relation("SentInvites")
+  timeEntries TimeEntry[]
 
   @@unique([companyId, clerkId])
   @@index([clerkId])
@@ -125,6 +145,7 @@ model Client {
   company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   invoices Invoice[]
   estimates Estimate[]
+  timeEntries TimeEntry[]
 
   @@index([companyId])
 }
@@ -151,17 +172,37 @@ model Invoice {
   viewedAt      DateTime?
   publicToken   String?       @unique
   sourceEstimateId String?    @unique
+  remindersPaused  Boolean      @default(false)
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
-  company  Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  client   Client?          @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  template InvoiceTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
-  sourceEstimate Estimate?  @relation("EstimateToInvoice", fields: [sourceEstimateId], references: [id], onDelete: SetNull)
-  items    InvoiceLineItem[]
+  company   Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  client    Client?           @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  template  InvoiceTemplate?  @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  sourceEstimate Estimate?    @relation("EstimateToInvoice", fields: [sourceEstimateId], references: [id], onDelete: SetNull)
+  items     InvoiceLineItem[]
+  reminders InvoiceReminder[]
+  timeEntries TimeEntry[]
 
   @@unique([companyId, number])
   @@index([companyId, status])
+}
+
+model InvoiceReminder {
+  id           String                 @id @default(cuid())
+  invoiceId    String
+  kind         ReminderKind
+  offsetDays   Int                    @default(0)
+  scheduleDate DateTime               @db.Date
+  toEmail      String
+  status       ReminderDeliveryStatus @default(SENT)
+  error        String?
+  createdAt    DateTime               @default(now())
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@unique([invoiceId, kind, offsetDays, scheduleDate])
+  @@index([invoiceId])
 }
 
 model InvoiceLineItem {
@@ -173,9 +214,40 @@ model InvoiceLineItem {
   amount      Decimal @default(0) @db.Decimal(12, 2)
   sortOrder   Int     @default(0)
 
-  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoice    Invoice     @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  timeEntries TimeEntry[]
 
   @@index([invoiceId])
+}
+
+model TimeEntry {
+  id                String    @id @default(cuid())
+  companyId         String
+  clientId          String?
+  memberId          String?
+  description       String
+  date              DateTime  @db.Date
+  durationMinutes   Int
+  hourlyRate        Decimal   @db.Decimal(12, 2)
+  billable          Boolean   @default(true)
+  invoiceId         String?
+  invoiceLineItemId String?
+  invoicedAt        DateTime?
+  externalSource    String?
+  externalId        String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  company         Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  client          Client?        @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  member          CompanyMember? @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  invoice         Invoice?       @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  invoiceLineItem InvoiceLineItem? @relation(fields: [invoiceLineItemId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, invoicedAt])
+  @@index([companyId, clientId])
+  @@index([invoiceId])
+  @@unique([companyId, externalSource, externalId])
 }
 
 model Estimate {

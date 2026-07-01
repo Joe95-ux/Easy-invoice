@@ -243,7 +243,7 @@ export function TeamSettingsSection({ initialData }: TeamSettingsSectionProps) {
 
         <div className="space-y-3">
           <h3 className="text-sm font-medium">Members</h3>
-          <Table>
+          <Table stickyColumnWidths={["12rem", "7rem"]}>
             <TableHeader>
               <TableRow>
                 <TableHead>Email</TableHead>
@@ -330,7 +330,7 @@ export function TeamSettingsSection({ initialData }: TeamSettingsSectionProps) {
         {data.invites.length > 0 && (
           <div className="space-y-3">
             <h3 className="text-sm font-medium">Pending invites</h3>
-            <Table>
+            <Table stickyColumnWidths={["12rem", "7rem"]}>
               <TableHeader>
                 <TableRow>
                   <TableHead>Email</TableHead>

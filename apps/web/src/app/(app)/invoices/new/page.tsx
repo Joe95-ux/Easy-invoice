@@ -5,12 +5,21 @@ import { getClientsForMember } from "@/lib/clients";
 import { getDefaultTemplateId, getTemplatesForCompany } from "@/lib/templates";
 import { InvoiceCreator } from "@/features/invoices/components/invoice-creator";
 
-type PageProps = { searchParams: Promise<{ clientId?: string }> };
+type PageProps = {
+  searchParams: Promise<{
+    clientId?: string;
+    addTime?: string;
+    timeEntryIds?: string;
+  }>;
+};
 
 export default async function NewInvoicePage({ searchParams }: PageProps) {
   const member = await requireMember();
 
-  const { clientId } = await searchParams;
+  const { clientId, addTime, timeEntryIds } = await searchParams;
+  const preselectedTimeEntryIds = timeEntryIds
+    ? timeEntryIds.split(",").filter(Boolean)
+    : [];
   const [clients, templates, defaultTemplateId] = await Promise.all([
     getClientsForMember(member.companyId),
     getTemplatesForCompany(member.companyId),
@@ -37,6 +46,8 @@ export default async function NewInvoicePage({ searchParams }: PageProps) {
         templates={templates}
         initialClientId={clientId}
         defaultTemplateId={defaultTemplateId}
+        autoOpenTimeDialog={addTime === "1"}
+        preselectedTimeEntryIds={preselectedTimeEntryIds}
       />
     </PageScroll>
   );

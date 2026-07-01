@@ -11,6 +11,7 @@ export type LineItemInput = {
   description: string;
   quantity: number;
   unitPrice: number;
+  timeEntryIds?: string[];
 };
 
 export const DEFAULT_LINE_ITEM_COUNT = 3;

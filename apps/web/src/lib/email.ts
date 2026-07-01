@@ -124,3 +124,41 @@ export async function sendTeamInviteEmail(input: SendTeamInviteEmailInput) {
 
   return data;
 }
+
+type SendFeedbackEmailInput = {
+  fromEmail: string;
+  companyName: string;
+  message: string;
+};
+
+export async function sendFeedbackEmail(input: SendFeedbackEmailInput) {
+  const from = process.env.RESEND_FROM_EMAIL ?? "Easy Invoice <onboarding@resend.dev>";
+  const supportEmail =
+    process.env.SUPPORT_EMAIL ?? process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? "support@easyinvoice.app";
+  const resend = getResend();
+
+  const escapedMessage = input.message
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\n/g, "<br />");
+
+  const { data, error } = await resend.emails.send({
+    from,
+    to: supportEmail,
+    replyTo: input.fromEmail,
+    subject: `Invoice Desk feedback from ${input.fromEmail}`,
+    html: `
+      <p><strong>From:</strong> ${input.fromEmail}</p>
+      <p><strong>Company:</strong> ${input.companyName}</p>
+      <hr />
+      <p>${escapedMessage}</p>
+    `,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}

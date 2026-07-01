@@ -219,6 +219,21 @@ export function CompanySettingsForm({
                 onChange={(value) => updateField("locale", value)}
                 error={errors.locale}
               />
+              <FormField
+                label="Default hourly rate"
+                id="defaultHourlyRate"
+                type="number"
+                value={form.defaultHourlyRate?.toString() ?? ""}
+                onChange={(value) =>
+                  updateField(
+                    "defaultHourlyRate",
+                    value === "" ? null : Number(value),
+                  )
+                }
+                error={errors.defaultHourlyRate}
+                placeholder="e.g. 90"
+                description="Pre-fills new time entries. You can override per entry."
+              />
             </div>
           )}
         </form>

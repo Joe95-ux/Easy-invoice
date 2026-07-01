@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -363,7 +364,7 @@ export function EstimateActions({
               Email {estimateNumber} as a PDF attachment to your client.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2">
+          <DialogBody className="space-y-2">
             <Label htmlFor="client-email">Client email</Label>
             <Input
               id="client-email"
@@ -372,7 +373,7 @@ export function EstimateActions({
               onChange={(e) => setEmail(e.target.value)}
               placeholder="client@example.com"
             />
-          </div>
+          </DialogBody>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSendOpen(false)}>
               Cancel

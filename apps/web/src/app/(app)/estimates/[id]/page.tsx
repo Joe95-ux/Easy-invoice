@@ -162,7 +162,7 @@ export default async function EstimateDetailPage({ params }: PageProps) {
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
+          <Table stickyColumnWidths={["11rem", "4rem"]}>
             <TableHeader>
               <TableRow>
                 <TableHead>Description</TableHead>

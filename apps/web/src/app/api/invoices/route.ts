@@ -7,6 +7,7 @@ import {
   isUniqueConstraintError,
   resolveClientForInvoice,
 } from "@/lib/invoice-service";
+import { linkTimeEntriesToInvoice } from "@/lib/time-tracking/service";
 import { createInvoiceSchema } from "@/lib/schemas/invoice";
 import { getDefaultTemplateId, getTemplateById } from "@/lib/templates";
 
@@ -55,7 +56,19 @@ export async function POST(request: Request) {
         dueDate: parsed.data.dueDate ? new Date(parsed.data.dueDate) : null,
         items: { create: lineItems },
       },
-      include: { items: true, client: true },
+      include: { items: { orderBy: { sortOrder: "asc" } }, client: true },
+    });
+
+    await linkTimeEntriesToInvoice(
+      member.companyId,
+      invoice.id,
+      parsed.data.lineItems.map((item, index) => ({
+        sortOrder: item.sortOrder ?? index,
+        timeEntryIds: item.timeEntryIds,
+      })),
+    ).catch(async (error) => {
+      await prisma.invoice.delete({ where: { id: invoice.id } });
+      throw error;
     });
 
     return NextResponse.json({ invoice }, { status: 201 });

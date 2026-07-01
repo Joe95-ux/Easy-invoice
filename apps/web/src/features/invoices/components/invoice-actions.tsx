@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   createLucideIcon,
+  BellRingIcon,
   DownloadIcon,
   LinkIcon,
   MoreHorizontalIcon,
@@ -35,6 +36,7 @@ import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -61,6 +63,8 @@ type InvoiceActionsProps = {
   invoiceNumber: string;
   status: InvoiceStatus;
   clientEmail?: string | null;
+  dueDate?: string | null;
+  sentAt?: string | null;
 };
 
 export function InvoiceActions({
@@ -68,16 +72,23 @@ export function InvoiceActions({
   invoiceNumber,
   status,
   clientEmail,
+  dueDate,
+  sentAt,
 }: InvoiceActionsProps) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
   const [sendOpen, setSendOpen] = useState(false);
+  const [remindOpen, setRemindOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [email, setEmail] = useState(clientEmail ?? "");
+  const [reminderEmail, setReminderEmail] = useState(clientEmail ?? "");
 
   const canSend = status !== "CANCELLED" && status !== "PAID";
   const canMarkPaid = status !== "PAID" && status !== "CANCELLED";
+  const canRemind =
+    Boolean(sentAt && dueDate) &&
+    (status === "SENT" || status === "VIEWED" || status === "OVERDUE");
   const isBusy = loading !== null;
 
   async function handleDownloadPdf() {
@@ -107,6 +118,27 @@ export function InvoiceActions({
       router.refresh();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to send invoice");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function handleRemind() {
+    setLoading("remind");
+    try {
+      const response = await fetch(`/api/invoices/${invoiceId}/remind`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: reminderEmail || undefined }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Failed to send reminder");
+
+      toast.success(`Reminder sent to ${reminderEmail}`);
+      setRemindOpen(false);
+      router.refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to send reminder");
     } finally {
       setLoading(null);
     }
@@ -239,6 +271,17 @@ export function InvoiceActions({
                   Mark as paid
                 </DropdownMenuItem>
               )}
+              {canRemind && (
+                <DropdownMenuItem
+                  onClick={() => {
+                    setReminderEmail(clientEmail ?? "");
+                    setRemindOpen(true);
+                  }}
+                >
+                  <BellRingIcon className="size-4" />
+                  Send payment reminder
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem variant="destructive" onClick={() => setDeleteOpen(true)}>
                 <Trash2Icon className="size-4" />
@@ -282,7 +325,7 @@ export function InvoiceActions({
               Email {invoiceNumber} as a PDF attachment to your client.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2">
+          <DialogBody className="space-y-2">
             <Label htmlFor="client-email">Client email</Label>
             <Input
               id="client-email"
@@ -291,13 +334,42 @@ export function InvoiceActions({
               onChange={(e) => setEmail(e.target.value)}
               placeholder="client@example.com"
             />
-          </div>
+          </DialogBody>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSendOpen(false)}>
               Cancel
             </Button>
             <Button onClick={handleSend} disabled={!email || loading === "send"}>
               {loading === "send" ? "Sending..." : "Send"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={remindOpen} onOpenChange={setRemindOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Send payment reminder</DialogTitle>
+            <DialogDescription>
+              Email a payment reminder for {invoiceNumber}. You can send one manual reminder per day.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogBody className="space-y-2">
+            <Label htmlFor="reminder-client-email">Client email</Label>
+            <Input
+              id="reminder-client-email"
+              type="email"
+              value={reminderEmail}
+              onChange={(e) => setReminderEmail(e.target.value)}
+              placeholder="client@example.com"
+            />
+          </DialogBody>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRemindOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleRemind} disabled={!reminderEmail || loading === "remind"}>
+              {loading === "remind" ? "Sending..." : "Send reminder"}
             </Button>
           </DialogFooter>
         </DialogContent>

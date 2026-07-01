@@ -7,6 +7,7 @@ import {
   resolveClientForInvoice,
 } from "@/lib/invoice-service";
 import { getInvoiceForMember } from "@/lib/invoices";
+import { releaseTimeEntriesForInvoice, linkTimeEntriesToInvoice } from "@/lib/time-tracking/service";
 import { updateInvoiceSchema } from "@/lib/schemas/invoice";
 import { getTemplateById } from "@/lib/templates";
 
@@ -106,6 +107,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       total: totals.total,
     };
 
+    await releaseTimeEntriesForInvoice(id);
     await prisma.invoiceLineItem.deleteMany({ where: { invoiceId: id } });
     await prisma.invoiceLineItem.createMany({
       data: lineItems.map((item) => ({
@@ -117,6 +119,17 @@ export async function PATCH(request: Request, context: RouteContext) {
         sortOrder: item.sortOrder,
       })),
     });
+
+    if (existing.status === "DRAFT") {
+      await linkTimeEntriesToInvoice(
+        member.companyId,
+        id,
+        data.lineItems.map((item, index) => ({
+          sortOrder: item.sortOrder ?? index,
+          timeEntryIds: item.timeEntryIds,
+        })),
+      );
+    }
   }
 
   const invoice = await prisma.invoice.update({
@@ -138,6 +151,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       ...totalsUpdate,
       ...(data.status === "PAID" && { paidAt: new Date() }),
       ...(data.status === "SENT" && !existing.sentAt && { sentAt: new Date() }),
+      ...(data.remindersPaused !== undefined && { remindersPaused: data.remindersPaused }),
     },
     include: {
       client: true,
@@ -160,6 +174,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
+  await releaseTimeEntriesForInvoice(id);
   await prisma.invoice.delete({ where: { id } });
   return NextResponse.json({ success: true });
 }

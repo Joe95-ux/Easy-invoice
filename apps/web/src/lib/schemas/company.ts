@@ -16,6 +16,10 @@ export const companyProfileSchema = z.object({
 export const companyOnboardingSchema = companyProfileSchema;
 export const companySettingsSchema = companyProfileSchema.extend({
   taxId: z.string().optional(),
+  defaultHourlyRate: z.preprocess(
+    (value) => (value === "" || value === null || value === undefined ? null : Number(value)),
+    z.number().nonnegative().nullable().optional(),
+  ),
 });
 
 export type CompanyProfileInput = z.infer<typeof companyProfileSchema>;

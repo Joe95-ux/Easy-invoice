@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -77,7 +78,7 @@ export function InvoiceSendDialog({
             Email {invoiceNumber} as a PDF attachment to your client.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-2">
+        <DialogBody className="space-y-2">
           <Label htmlFor="invoice-send-email">Client email</Label>
           <Input
             id="invoice-send-email"
@@ -92,7 +93,7 @@ export function InvoiceSendDialog({
               This invoice cannot be sent in its current status.
             </p>
           )}
-        </div>
+        </DialogBody>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel

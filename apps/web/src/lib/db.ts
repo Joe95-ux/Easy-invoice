@@ -1,1 +1,8 @@
-export { prisma, UserRole } from "@easy-invoice/db";
+export {
+  prisma,
+  UserRole,
+  ReminderKind,
+  ReminderDeliveryStatus,
+  InvoiceStatus,
+} from "@easy-invoice/db";
+export type { Company } from "@easy-invoice/db";

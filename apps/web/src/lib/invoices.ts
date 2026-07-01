@@ -14,6 +14,41 @@ export async function getInvoiceForMember(invoiceId: string, companyId: string) 
   });
 }
 
+export async function getInvoiceLineItemsWithTimeEntries(
+  invoiceId: string,
+  companyId: string,
+) {
+  const invoice = await prisma.invoice.findFirst({
+    where: { id: invoiceId, companyId },
+    select: {
+      items: {
+        orderBy: { sortOrder: "asc" },
+        select: {
+          description: true,
+          quantity: true,
+          unitPrice: true,
+          timeEntries: { select: { id: true } },
+        },
+      },
+    },
+  });
+  return invoice?.items ?? [];
+}
+
+export async function getInvoiceRemindersForMember(invoiceId: string, companyId: string) {
+  const invoice = await prisma.invoice.findFirst({
+    where: { id: invoiceId, companyId },
+    select: { id: true },
+  });
+  if (!invoice) return null;
+
+  return prisma.invoiceReminder.findMany({
+    where: { invoiceId },
+    orderBy: { createdAt: "desc" },
+    take: 20,
+  });
+}
+
 type MoneyInput = number | string | Decimal;
 
 function toNumber(amount: MoneyInput): number {

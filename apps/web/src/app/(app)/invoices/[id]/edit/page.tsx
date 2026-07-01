@@ -4,7 +4,7 @@ import { PageBackLink, PageHeader } from "@/components/app-shell/page-header";
 import { InvoiceCreator } from "@/features/invoices/components/invoice-creator";
 import { requireMember } from "@/lib/auth";
 import { getClientsForMember } from "@/lib/clients";
-import { getInvoiceForMember } from "@/lib/invoices";
+import { getInvoiceForMember, getInvoiceLineItemsWithTimeEntries } from "@/lib/invoices";
 import { getDefaultTemplateId, getTemplatesForCompany } from "@/lib/templates";
 
 type PageProps = { params: Promise<{ id: string }> };
@@ -13,11 +13,13 @@ export default async function EditInvoicePage({ params }: PageProps) {
   const member = await requireMember();
 
   const { id } = await params;
-  const [invoice, clients, templates, defaultTemplateId] = await Promise.all([
+  const [invoice, clients, templates, defaultTemplateId, lineItemsWithTime] =
+    await Promise.all([
     getInvoiceForMember(id, member.companyId),
     getClientsForMember(member.companyId),
     getTemplatesForCompany(member.companyId),
     getDefaultTemplateId(member.companyId),
+    getInvoiceLineItemsWithTimeEntries(id, member.companyId),
   ]);
   if (!invoice) notFound();
 
@@ -48,6 +50,7 @@ export default async function EditInvoicePage({ params }: PageProps) {
         defaultTemplateId={defaultTemplateId}
         invoiceId={invoice.id}
         invoiceNumber={invoice.number}
+        invoiceStatus={invoice.status}
         initialValues={{
           clientId: invoice.clientId,
           templateId: invoice.templateId,
@@ -61,10 +64,11 @@ export default async function EditInvoicePage({ params }: PageProps) {
           dueDate: invoice.dueDate?.toISOString() ?? null,
           taxRate: Number(invoice.taxRate),
           discount: Number(invoice.discount),
-          lineItems: invoice.items.map((item) => ({
+          lineItems: lineItemsWithTime.map((item) => ({
             description: item.description,
             quantity: Number(item.quantity),
             unitPrice: Number(item.unitPrice),
+            timeEntryIds: item.timeEntries.map((entry) => entry.id),
           })),
         }}
       />

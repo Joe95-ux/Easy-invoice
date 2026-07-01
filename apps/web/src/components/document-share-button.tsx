@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -98,19 +99,21 @@ export function DocumentShareButton({
               viewed.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex gap-2">
-            <Input readOnly value={loading ? "Loading..." : (url ?? "")} className="font-mono text-xs" />
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              onClick={handleCopy}
-              disabled={!url || loading}
-              aria-label="Copy link"
-            >
-              {copied ? <CheckIcon className="size-4" /> : <CopyIcon className="size-4" />}
-            </Button>
-          </div>
+          <DialogBody>
+            <div className="flex gap-2">
+              <Input readOnly value={loading ? "Loading..." : (url ?? "")} className="font-mono text-xs" />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={handleCopy}
+                disabled={!url || loading}
+                aria-label="Copy link"
+              >
+                {copied ? <CheckIcon className="size-4" /> : <CopyIcon className="size-4" />}
+              </Button>
+            </div>
+          </DialogBody>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>
               Close

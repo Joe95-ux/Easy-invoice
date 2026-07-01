@@ -55,7 +55,7 @@ export function ClientsTable({ clients }: ClientsTableProps) {
   }
 
   return (
-    <Table>
+    <Table stickyColumnWidths={["5.5rem", "10rem"]}>
       <TableHeader>
         <TableRow>
           <TableHead>Name</TableHead>

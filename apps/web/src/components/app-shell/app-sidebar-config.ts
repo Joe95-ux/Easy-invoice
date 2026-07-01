@@ -1,5 +1,6 @@
 import {
   ClipboardListIcon,
+  ClockIcon,
   FileTextIcon,
   LayoutDashboardIcon,
   LayoutTemplateIcon,
@@ -30,6 +31,7 @@ export const APP_WORKSPACE_ITEMS: AppNavItem[] = [
   { href: "/estimates", label: "Estimates", icon: ClipboardListIcon },
   { href: "/templates", label: "Templates", icon: LayoutTemplateIcon },
   { href: "/clients", label: "Clients", icon: UsersRoundIcon },
+  { href: "/time", label: "Time", icon: ClockIcon },
   { href: "/settings", label: "Settings", icon: SettingsIcon },
 ];
 

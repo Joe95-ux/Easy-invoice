@@ -93,7 +93,7 @@ export function ClientInvoicesTable({ invoices, clientEmail }: ClientInvoicesTab
 
   return (
     <>
-      <Table>
+      <Table stickyColumnWidths={["5rem", "6.5rem"]}>
         <TableHeader>
           <TableRow>
             <TableHead>Number</TableHead>

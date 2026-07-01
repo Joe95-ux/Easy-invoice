@@ -1,8 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
-import { EyeIcon } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { EyeIcon, ClockIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/app-shell/page-header";
@@ -22,6 +22,7 @@ import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { AiDocumentParseTab } from "@/features/invoices/components/ai-document-parse-tab";
+import { AddUnbilledTimeDialog } from "@/features/time/components/add-unbilled-time-dialog";
 import {
   InvoiceLineItems,
   createDefaultLineItems,
@@ -41,8 +42,13 @@ import { formatClientAddress } from "@/lib/clients";
 import { CURRENCY_OPTIONS } from "@/lib/geo/countries";
 import { downloadInvoicePdf } from "@/lib/invoice-pdf-client";
 import { normalizeDraftDate } from "@/lib/draft-dates";
+import type { InvoiceStatus } from "@easy-invoice/db";
 import type { InvoiceDraft } from "@/lib/schemas/invoice";
 import type { TemplateSummary } from "@/lib/templates";
+import {
+  fetchUnbilledTimeEntries,
+  timeEntriesToLineItems,
+} from "@/lib/time-tracking/fetch-unbilled";
 
 const BASE_STEPS: FormStep[] = [
   { id: "template", title: "Template", description: "Pick a design for this invoice." },
@@ -79,7 +85,10 @@ type InvoiceCreatorProps = {
   defaultTemplateId?: string;
   invoiceId?: string;
   invoiceNumber?: string;
+  invoiceStatus?: InvoiceStatus;
   initialValues?: InvoiceInitialValues;
+  autoOpenTimeDialog?: boolean;
+  preselectedTimeEntryIds?: string[];
 };
 
 export function InvoiceCreator({
@@ -93,10 +102,16 @@ export function InvoiceCreator({
   defaultTemplateId,
   invoiceId,
   invoiceNumber,
+  invoiceStatus,
   initialValues,
+  autoOpenTimeDialog = false,
+  preselectedTimeEntryIds = [],
 }: InvoiceCreatorProps) {
   const router = useRouter();
   const isEditing = Boolean(invoiceId);
+  const autoAddedTimeRef = useRef(false);
+  const prefillAbortRef = useRef<AbortController | null>(null);
+  const [prefillingTime, setPrefillingTime] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewTemplateId, setPreviewTemplateId] = useState<string | null>(null);
   const [selectedClientId, setSelectedClientId] = useState(
@@ -126,6 +141,10 @@ export function InvoiceCreator({
   const [activeTab, setActiveTab] = useState("form");
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [timeDialogOpen, setTimeDialogOpen] = useState(false);
+
+  const canAddFromTime =
+    Boolean(selectedClientId) && (!isEditing || invoiceStatus === "DRAFT");
 
   const steps = useMemo(
     () => (templates.length > 0 ? BASE_STEPS : BASE_STEPS.filter((s) => s.id !== "template")),
@@ -205,6 +224,65 @@ export function InvoiceCreator({
     }
   }, [initialClientId, clients, initialValues, isEditing]);
 
+  const itemsStepIndex = useMemo(() => steps.findIndex((s) => s.id === "items"), [steps]);
+  const preselectedTimeIdsKey = useMemo(
+    () => preselectedTimeEntryIds.join(","),
+    [preselectedTimeEntryIds],
+  );
+
+  useEffect(() => {
+    if (isEditing || !autoOpenTimeDialog || !selectedClientId || itemsStepIndex < 0) return;
+    setStep(itemsStepIndex);
+    setTimeDialogOpen(true);
+  }, [isEditing, autoOpenTimeDialog, selectedClientId, itemsStepIndex]);
+
+  useEffect(() => {
+    if (isEditing || !preselectedTimeIdsKey || !selectedClientId || itemsStepIndex < 0) return;
+    if (autoAddedTimeRef.current) return;
+
+    setStep(itemsStepIndex);
+    setPrefillingTime(true);
+
+    const controller = new AbortController();
+    prefillAbortRef.current?.abort();
+    prefillAbortRef.current = controller;
+
+    void (async () => {
+      try {
+        const entries = await fetchUnbilledTimeEntries({
+          clientId: selectedClientId,
+          ids: preselectedTimeIdsKey.split(",").filter(Boolean),
+          signal: controller.signal,
+        });
+
+        if (controller.signal.aborted) return;
+
+        if (entries.length === 0) {
+          toast.error("Selected time entries are no longer unbilled.");
+          return;
+        }
+
+        const items = timeEntriesToLineItems(entries);
+        handleAddFromTime(items);
+        autoAddedTimeRef.current = true;
+        toast.success(
+          `Added ${items.length} line item${items.length === 1 ? "" : "s"} from time`,
+        );
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        toast.error(error instanceof Error ? error.message : "Could not add time to invoice");
+      } finally {
+        setPrefillingTime(false);
+      }
+    })();
+
+    return () => {
+      controller.abort();
+      prefillAbortRef.current = null;
+      setPrefillingTime(false);
+    };
+  }, [isEditing, preselectedTimeIdsKey, selectedClientId, itemsStepIndex]);
+
   function applyDraft(draft: InvoiceDraft) {
     setSelectedClientId("");
     setClientName(draft.client_name);
@@ -241,6 +319,28 @@ export function InvoiceCreator({
     );
   }
 
+  function handleAddFromTime(items: LineItemInput[]) {
+    setLineItems((current) => {
+      const usedIds = new Set(current.flatMap((item) => item.timeEntryIds ?? []));
+      const freshItems = items
+        .map((item) => ({
+          ...item,
+          timeEntryIds: item.timeEntryIds?.filter((id) => !usedIds.has(id)),
+        }))
+        .filter((item) => (item.timeEntryIds?.length ?? 0) > 0);
+
+      if (freshItems.length === 0) {
+        toast.error("Those hours are already on this invoice");
+        return current;
+      }
+
+      const hasContent = current.some(
+        (item) => item.description.trim() || item.unitPrice > 0 || item.quantity !== 1,
+      );
+      return hasContent ? [...current, ...freshItems] : freshItems;
+    });
+  }
+
   function buildPayload() {
     return {
       clientId: selectedClientId || undefined,
@@ -260,6 +360,7 @@ export function InvoiceCreator({
         quantity: item.quantity,
         unitPrice: item.unitPrice,
         sortOrder: index,
+        ...(item.timeEntryIds?.length ? { timeEntryIds: item.timeEntryIds } : {}),
       })),
     };
   }
@@ -403,6 +504,22 @@ export function InvoiceCreator({
 
       {currentStepId === "items" && (
         <div className="space-y-4">
+          {canAddFromTime && (
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setTimeDialogOpen(true)}
+                disabled={prefillingTime}
+              >
+                <ClockIcon className="size-4" />
+                Add from unbilled time
+              </Button>
+            </div>
+          )}
+          {prefillingTime && (
+            <p className="text-sm text-muted-foreground">Adding selected time entries...</p>
+          )}
           <FormSection title="Line items">
             <InvoiceLineItems
               items={lineItems}
@@ -537,11 +654,23 @@ export function InvoiceCreator({
     />
   );
 
+  const timeDialog = canAddFromTime ? (
+    <AddUnbilledTimeDialog
+      open={timeDialogOpen}
+      onOpenChange={setTimeDialogOpen}
+      clientId={selectedClientId}
+      clientName={clientName || clients.find((c) => c.id === selectedClientId)?.name || "Client"}
+      currency={currency}
+      onAdd={handleAddFromTime}
+    />
+  ) : null;
+
   if (isEditing) {
     return (
       <>
         <FormCard footer={formFooter}>{formBody}</FormCard>
         {previewDrawer}
+        {timeDialog}
       </>
     );
   }
@@ -570,6 +699,7 @@ export function InvoiceCreator({
       </TabsContent>
 
       {previewDrawer}
+      {timeDialog}
     </Tabs>
   );
 }

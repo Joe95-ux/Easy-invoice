@@ -36,6 +36,7 @@ const invoiceLineItemInputSchema = z.object({
   quantity: z.number().positive(),
   unitPrice: z.number().nonnegative(),
   sortOrder: z.number().int().nonnegative(),
+  timeEntryIds: z.array(z.string()).optional(),
 });
 
 export const createInvoiceSchema = z.object({
@@ -61,6 +62,7 @@ export const updateInvoiceSchema = createInvoiceSchema.partial().extend({
   templateId: z.string().optional().nullable(),
   clientEmail: z.string().email().optional(),
   dueDate: z.string().optional().nullable(),
+  remindersPaused: z.boolean().optional(),
 });
 
 export type UpdateInvoiceInput = z.infer<typeof updateInvoiceSchema>;

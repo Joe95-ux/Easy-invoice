@@ -15,12 +15,14 @@ import {
 } from "@/components/ui/table";
 import { InvoiceActions } from "@/features/invoices/components/invoice-actions";
 import { InvoiceAutoDownload } from "@/features/invoices/components/invoice-auto-download";
+import { InvoiceRemindersSection } from "@/features/invoices/components/invoice-reminders-section";
 import { DocumentTemplateManager } from "@/features/invoices/components/document-template-manager";
 import { requireMember } from "@/lib/auth";
 import {
   formatDate,
   formatMoney,
   getInvoiceForMember,
+  getInvoiceRemindersForMember,
   invoiceStatusLabel,
   invoiceStatusVariant,
 } from "@/lib/invoices";
@@ -32,9 +34,10 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
   const member = await requireMember();
 
   const { id } = await params;
-  const [invoice, templates] = await Promise.all([
+  const [invoice, templates, reminders] = await Promise.all([
     getInvoiceForMember(id, member.companyId),
     getTemplatesForCompany(member.companyId),
+    getInvoiceRemindersForMember(id, member.companyId),
   ]);
   if (!invoice) notFound();
 
@@ -67,6 +70,8 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
             invoiceNumber={invoice.number}
             status={invoice.status}
             clientEmail={invoice.client?.email}
+            dueDate={invoice.dueDate?.toISOString() ?? null}
+            sentAt={invoice.sentAt?.toISOString() ?? null}
           />
         }
       />
@@ -160,7 +165,7 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
+          <Table stickyColumnWidths={["11rem", "4rem"]}>
             <TableHeader>
               <TableRow>
                 <TableHead>Description</TableHead>
@@ -224,6 +229,23 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
           </CardContent>
         </Card>
       )}
+
+      <InvoiceRemindersSection
+        invoiceId={invoice.id}
+        status={invoice.status}
+        clientEmail={invoice.client?.email}
+        dueDate={invoice.dueDate?.toISOString() ?? null}
+        sentAt={invoice.sentAt?.toISOString() ?? null}
+        remindersPaused={invoice.remindersPaused}
+        reminders={(reminders ?? []).map((row) => ({
+          id: row.id,
+          kind: row.kind,
+          status: row.status,
+          toEmail: row.toEmail,
+          createdAt: row.createdAt.toISOString(),
+          error: row.error,
+        }))}
+      />
     </PageScroll>
   );
 }
