@@ -36,14 +36,18 @@ export async function POST(request: Request) {
   if (!parsed.success) return validationError(parsed.error);
 
   const user = await currentUser();
-  const email = parsed.data.email || user?.emailAddresses[0]?.emailAddress || "";
+  const userEmail =
+    user?.primaryEmailAddress?.emailAddress ??
+    user?.emailAddresses[0]?.emailAddress ??
+    "";
+  const companyEmail = parsed.data.email || userEmail || "";
   const slug = await createUniqueCompanySlug(parsed.data.name);
 
   const company = await prisma.company.create({
     data: {
       name: parsed.data.name,
       slug,
-      email: email || null,
+      email: companyEmail || null,
       phone: parsed.data.phone || null,
       address: parsed.data.address || null,
       city: parsed.data.city || null,
@@ -55,7 +59,7 @@ export async function POST(request: Request) {
       members: {
         create: {
           clerkId: userId,
-          email,
+          email: userEmail,
           role: UserRole.OWNER,
           lastActiveAt: new Date(),
         },

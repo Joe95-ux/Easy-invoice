@@ -17,6 +17,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       companyName={company.name}
       logoUrl={company.logoUrl}
       plan={company.plan}
+      userRole={member.role}
     >
       {children}
     </AppShell>

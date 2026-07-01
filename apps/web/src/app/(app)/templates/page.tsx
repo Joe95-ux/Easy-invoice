@@ -2,11 +2,11 @@ import { PageScroll } from "@/components/app-shell/app-shell";
 import { PageHeader } from "@/components/app-shell/page-header";
 import { CreateDocumentMenu } from "@/components/create-document-menu";
 import { TemplatesExplorer } from "@/features/templates/components/templates-explorer";
-import { requireMember } from "@/lib/auth";
+import { requireCompanyAdmin } from "@/lib/auth";
 import { getDefaultTemplateId, getTemplatesForCompany } from "@/lib/templates";
 
 export default async function TemplatesPage() {
-  const member = await requireMember();
+  const member = await requireCompanyAdmin();
   const { company } = member;
 
   const [templates, defaultTemplateId] = await Promise.all([

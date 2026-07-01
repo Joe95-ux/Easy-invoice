@@ -5,6 +5,7 @@ import {
   setActiveCompanyCookie,
 } from "@/lib/active-company";
 import { prisma } from "@/lib/db";
+import { canManageCompanySettings } from "@/lib/team";
 
 const memberInclude = { company: true } as const;
 
@@ -41,10 +42,6 @@ export async function getCurrentMember() {
     orderBy: memberOrderBy,
   });
 
-  if (member) {
-    await setActiveCompanyCookie(member.companyId);
-  }
-
   return member;
 }
 
@@ -68,6 +65,12 @@ export async function switchActiveCompany(clerkId: string, companyId: string) {
 export async function requireMember() {
   const member = await getCurrentMember();
   if (!member) redirect("/onboarding");
+  return member;
+}
+
+export async function requireCompanyAdmin() {
+  const member = await requireMember();
+  if (!canManageCompanySettings(member.role)) redirect("/dashboard");
   return member;
 }
 

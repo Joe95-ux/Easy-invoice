@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireApiMember, parseJsonBody, validationError } from "@/lib/api/validation";
+import { requireApiMember, requireApiCompanyAdmin, parseJsonBody, validationError } from "@/lib/api/validation";
 import { prisma } from "@/lib/db";
 import { companySettingsSchema } from "@/lib/schemas/company";
 
@@ -11,7 +11,7 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiCompanyAdmin();
   if (response) return response;
 
   const body = await parseJsonBody<unknown>(request);

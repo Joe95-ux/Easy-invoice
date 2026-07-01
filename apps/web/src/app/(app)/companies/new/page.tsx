@@ -8,12 +8,12 @@ export default async function NewCompanyPage() {
   await requireMember();
 
   return (
-    <PageScroll>
+    <PageScroll maxWidth="4xl">
       <PageHeader
         title="Create company"
         description="Add another business to your account. Switch between companies anytime from the sidebar."
       />
-      <Card className="max-w-2xl border-border/70">
+      <Card className="border-border/70">
         <CardHeader>
           <CardTitle>Company profile</CardTitle>
           <CardDescription>

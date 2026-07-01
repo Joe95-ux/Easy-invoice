@@ -6,7 +6,7 @@ import { HelpCircleIcon, SparklesIcon, WalletIcon, WorkflowIcon } from "lucide-r
 import { AppLogo } from "@/components/app-logo";
 import {
   APP_QUICK_ACTIONS,
-  APP_WORKSPACE_ITEMS,
+  getAppWorkspaceItemsForRole,
   isAppQuickActionActive,
   isAppWorkspaceItemActive,
   type AppNavItem,
@@ -14,6 +14,7 @@ import {
 import { SidebarFooterPanel } from "@/components/app-shell/sidebar-footer-panel";
 import { SidebarOrgHeader } from "@/components/app-shell/sidebar-org-header";
 import type { CompanySummary } from "@/lib/companies";
+import type { UserRole } from "@/lib/db";
 import {
   SidebarContent,
   SidebarFooter,
@@ -40,6 +41,7 @@ type AppSidebarContentProps = {
   companyName?: string;
   logoUrl?: string | null;
   plan?: string;
+  userRole?: UserRole;
   onNavigate?: () => void;
   showPublicSections?: boolean;
 };
@@ -77,11 +79,13 @@ export function AppSidebarContent({
   companyName,
   logoUrl = null,
   plan = "FREE",
+  userRole = "MEMBER",
   onNavigate,
   showPublicSections = false,
 }: AppSidebarContentProps) {
   const pathname = usePathname();
   const hasCompany = Boolean(companyName && activeCompanyId);
+  const workspaceItems = getAppWorkspaceItemsForRole(userRole);
 
   return (
     <>
@@ -92,6 +96,7 @@ export function AppSidebarContent({
             companies={companies}
             companyName={companyName!}
             logoUrl={logoUrl}
+            showCompanySettings={userRole === "OWNER" || userRole === "ADMIN"}
           />
         ) : (
           <SidebarMenu>
@@ -130,7 +135,7 @@ export function AppSidebarContent({
           <SidebarGroupLabel>Workspace</SidebarGroupLabel>
           <SidebarGroupContent>
             <NavMenu
-              items={APP_WORKSPACE_ITEMS}
+              items={workspaceItems}
               isActive={(href) => isAppWorkspaceItemActive(pathname, href)}
               onNavigate={onNavigate}
             />

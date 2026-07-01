@@ -62,6 +62,7 @@ model Company {
   updatedAt DateTime @updatedAt
 
   members   CompanyMember[]
+  invites   CompanyInvite[]
   clients   Client[]
   invoices  Invoice[]
   estimates Estimate[]
@@ -81,10 +82,29 @@ model CompanyMember {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company     Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  sentInvites CompanyInvite[] @relation("SentInvites")
 
   @@unique([companyId, clerkId])
   @@index([clerkId])
+}
+
+model CompanyInvite {
+  id          String    @id @default(cuid())
+  companyId   String
+  email       String
+  role        UserRole  @default(MEMBER)
+  token       String    @unique
+  invitedById String
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  company   Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invitedBy CompanyMember @relation("SentInvites", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([email])
 }
 
 model Client {

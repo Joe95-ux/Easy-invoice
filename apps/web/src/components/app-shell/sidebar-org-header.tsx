@@ -30,6 +30,7 @@ type SidebarOrgHeaderProps = {
   companies: CompanySummary[];
   companyName: string;
   logoUrl: string | null;
+  showCompanySettings?: boolean;
 };
 
 function CompanyMark({
@@ -71,6 +72,7 @@ export function SidebarOrgHeader({
   companies,
   companyName,
   logoUrl,
+  showCompanySettings = true,
 }: SidebarOrgHeaderProps) {
   const router = useRouter();
   const [switching, setSwitching] = useState(false);
@@ -149,10 +151,12 @@ export function SidebarOrgHeader({
               <PlusIcon className="size-4" />
               Create company
             </DropdownMenuItem>
-            <DropdownMenuItem render={<Link href="/settings" />}>
-              <SettingsIcon className="size-4" />
-              Company settings
-            </DropdownMenuItem>
+            {showCompanySettings && (
+              <DropdownMenuItem render={<Link href="/settings" />}>
+                <SettingsIcon className="size-4" />
+                Company settings
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>

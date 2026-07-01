@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireApiMember, parseJsonBody } from "@/lib/api/validation";
+import { requireApiCompanyAdmin, parseJsonBody } from "@/lib/api/validation";
 import {
   deleteCloudinaryAsset,
   isCloudinaryConfigured,
@@ -15,7 +15,7 @@ const importLogoSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiCompanyAdmin();
   if (response) return response;
 
   if (!isCloudinaryConfigured()) {
@@ -72,7 +72,7 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE() {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiCompanyAdmin();
   if (response) return response;
 
   const existingUrl = member.company.logoUrl;

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireApiMember, parseJsonBody, validationError } from "@/lib/api/validation";
+import { requireApiCompanyAdmin, parseJsonBody, validationError } from "@/lib/api/validation";
 import { setCompanyDefaultTemplate } from "@/lib/templates";
 
 const bodySchema = z.object({
@@ -8,7 +8,7 @@ const bodySchema = z.object({
 });
 
 export async function PATCH(request: Request) {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiCompanyAdmin();
   if (response) return response;
 
   const body = await parseJsonBody<unknown>(request);

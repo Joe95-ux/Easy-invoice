@@ -2,6 +2,17 @@ import { SYSTEM_TEMPLATES } from "@/lib/invoice-templates/definitions";
 import { renderFromTemplate } from "@/lib/invoice-templates/render";
 import type { DocumentKind, InvoiceHtmlData } from "@/lib/invoice-templates/types";
 
+/** Sample Terms & Notes shown in template previews — illustrates payment info users can add. */
+export const SAMPLE_PAYMENT_NOTES = `Payment due within 14 days.
+
+PayPal: billing@yourcompany.com
+Zelle: (555) 123-4567
+Cash App: $YourBusiness
+
+Bank transfer — Chase Bank
+Routing: 021000021 · Account: ****4821
+Account name: Your Company LLC`;
+
 export type PreviewCompany = {
   name: string;
   logoUrl?: string | null;
@@ -141,7 +152,7 @@ export function buildSampleDocumentHtml(
     issueDate: new Date().toISOString().slice(0, 10),
     expiryDate: new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10),
     currency,
-    notes: "Thank you for your business.",
+    notes: SAMPLE_PAYMENT_NOTES,
     items,
     totals: { subtotal, taxAmount, total: subtotal + taxAmount },
     taxRate: 7.5,

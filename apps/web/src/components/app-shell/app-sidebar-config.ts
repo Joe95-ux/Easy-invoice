@@ -9,6 +9,8 @@ import {
   UsersRoundIcon,
   type LucideIcon,
 } from "lucide-react";
+import type { UserRole } from "@/lib/db";
+import { canManageCompanySettings } from "@/lib/team";
 
 export type AppNavItem = {
   href: string;
@@ -42,4 +44,13 @@ export function isAppWorkspaceItemActive(pathname: string, href: string) {
   if (pathname === href) return true;
   if (!pathname.startsWith(`${href}/`)) return false;
   return !APP_QUICK_ACTION_PATHS.has(pathname);
+}
+
+export function getAppWorkspaceItemsForRole(role: UserRole): AppNavItem[] {
+  return APP_WORKSPACE_ITEMS.filter((item) => {
+    if (item.href === "/settings" || item.href === "/templates") {
+      return canManageCompanySettings(role);
+    }
+    return true;
+  });
 }

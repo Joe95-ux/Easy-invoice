@@ -93,3 +93,34 @@ export async function sendEstimateEmail(input: SendEstimateEmailInput) {
 
   return data;
 }
+
+type SendTeamInviteEmailInput = {
+  to: string;
+  companyName: string;
+  role: string;
+  inviteUrl: string;
+  inviterEmail: string;
+};
+
+export async function sendTeamInviteEmail(input: SendTeamInviteEmailInput) {
+  const from = process.env.RESEND_FROM_EMAIL ?? "Easy Invoice <onboarding@resend.dev>";
+  const resend = getResend();
+
+  const { data, error } = await resend.emails.send({
+    from,
+    to: input.to,
+    subject: `You're invited to join ${input.companyName} on Invoice Desk`,
+    html: `
+      <p>Hello,</p>
+      <p><strong>${input.inviterEmail}</strong> invited you to join <strong>${input.companyName}</strong> on Invoice Desk as a <strong>${input.role.toLowerCase()}</strong>.</p>
+      <p><a href="${input.inviteUrl}">Accept invitation</a></p>
+      <p>This link expires in 7 days. If you don't have an account yet, you'll be asked to sign up first.</p>
+    `,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}
