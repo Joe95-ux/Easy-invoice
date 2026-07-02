@@ -54,13 +54,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { pageHeaderActionClass } from "@/components/app-shell/page-header";
 import { DocumentShareButton } from "@/components/document-share-button";
-import { downloadInvoicePdf } from "@/lib/invoice-pdf-client";
+import { usePdfDownload } from "@/hooks/use-pdf-download";
 import { cn } from "@/lib/utils";
 import type { InvoiceStatus } from "@easy-invoice/db";
 
 type InvoiceActionsProps = {
   invoiceId: string;
   invoiceNumber: string;
+  companyName: string;
   status: InvoiceStatus;
   clientEmail?: string | null;
   dueDate?: string | null;
@@ -70,12 +71,14 @@ type InvoiceActionsProps = {
 export function InvoiceActions({
   invoiceId,
   invoiceNumber,
+  companyName,
   status,
   clientEmail,
   dueDate,
   sentAt,
 }: InvoiceActionsProps) {
   const router = useRouter();
+  const { openPdfDownload, pdfDownloadDialog } = usePdfDownload();
   const [loading, setLoading] = useState<string | null>(null);
   const [sendOpen, setSendOpen] = useState(false);
   const [remindOpen, setRemindOpen] = useState(false);
@@ -91,15 +94,13 @@ export function InvoiceActions({
     (status === "SENT" || status === "VIEWED" || status === "OVERDUE");
   const isBusy = loading !== null;
 
-  async function handleDownloadPdf() {
-    setLoading("pdf");
-    try {
-      await downloadInvoicePdf(invoiceId, invoiceNumber);
-    } catch {
-      // Toast handled in downloadInvoicePdf
-    } finally {
-      setLoading(null);
-    }
+  function handleDownloadPdf() {
+    openPdfDownload({
+      kind: "invoice",
+      documentId: invoiceId,
+      documentNumber: invoiceNumber,
+      companyName,
+    });
   }
 
   async function handleSend() {
@@ -211,7 +212,7 @@ export function InvoiceActions({
               disabled={isBusy}
             >
               <DownloadIcon />
-              {loading === "pdf" ? "Generating..." : "Download PDF"}
+              Download PDF
             </Button>
           )}
         </ButtonGroup>
@@ -225,7 +226,7 @@ export function InvoiceActions({
               disabled={isBusy}
             >
               <DownloadIcon />
-              {loading === "pdf" ? "Generating..." : "Download PDF"}
+              Download PDF
             </Button>
           ) : (
             <Button
@@ -374,6 +375,8 @@ export function InvoiceActions({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {pdfDownloadDialog}
     </>
   );
 }

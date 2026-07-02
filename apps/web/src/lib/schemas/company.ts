@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const logoBgSchema = z.enum(["white", "dark"]);
+export const logoBgSchema = z.enum(["white", "dark", "none"]);
 export const logoPlacementSchema = z.enum(["watermark", "header"]);
 export const brandColorSchema = z
   .string()

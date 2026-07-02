@@ -1,9 +1,12 @@
+import { sanitizePdfFilename } from "@/lib/pdf-filename";
 import { runWithLoadingToast } from "@/lib/run-with-loading-toast";
 
 export async function downloadEstimatePdf(
   estimateId: string,
-  estimateNumber: string,
+  filename: string,
 ): Promise<void> {
+  const safeName = sanitizePdfFilename(filename);
+
   await runWithLoadingToast(
     {
       loading: "Generating estimate PDF…",
@@ -18,7 +21,7 @@ export async function downloadEstimatePdf(
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `${estimateNumber}.pdf`;
+      link.download = `${safeName}.pdf`;
       link.click();
       URL.revokeObjectURL(url);
     },

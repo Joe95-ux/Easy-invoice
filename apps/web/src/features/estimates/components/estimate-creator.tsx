@@ -36,7 +36,6 @@ import {
   resolveDiscountAmount,
   type DiscountMode,
 } from "@/lib/calculator";
-import { downloadEstimatePdf } from "@/lib/estimate-pdf-client";
 import type { ClientListItem } from "@/lib/clients";
 import { formatClientAddress } from "@/lib/clients";
 import { CURRENCY_OPTIONS } from "@/lib/geo/countries";
@@ -286,11 +285,8 @@ export function EstimateCreator({
         toast.success("Estimate created");
 
         if (downloadAfter) {
-          try {
-            await downloadEstimatePdf(id, data.estimate.number);
-          } catch {
-            // Toast handled in downloadEstimatePdf
-          }
+          router.push(`/estimates/${id}?download=pdf`);
+          return;
         }
 
         router.push(`/estimates/${id}`);

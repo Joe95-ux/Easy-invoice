@@ -21,7 +21,7 @@ export function toCompanySummary(company: {
     id: company.id,
     name: company.name,
     logoUrl: company.logoUrl,
-    logoBg: company.logoBg === "dark" ? "dark" : "white",
+    logoBg: company.logoBg === "dark" ? "dark" : company.logoBg === "none" ? "none" : "white",
     plan: company.plan,
   };
 }

@@ -104,7 +104,7 @@ export function SidebarOrgHeader({
         throw new Error("Failed to switch company");
       }
 
-      router.refresh();
+      router.replace("/dashboard");
       toast.dismiss(toastId);
     } catch {
       toast.error("Could not switch company. Please try again.", { id: toastId });

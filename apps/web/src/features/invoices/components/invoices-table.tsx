@@ -32,7 +32,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useListTable } from "@/hooks/use-list-table";
-import { downloadInvoicePdf } from "@/lib/invoice-pdf-client";
+import { usePdfDownload } from "@/hooks/use-pdf-download";
 import {
   formatDate,
   formatMoney,
@@ -63,10 +63,12 @@ const STATUS_FILTER_OPTIONS = [
 
 type InvoicesTableProps = {
   invoices: InvoiceRow[];
+  companyName: string;
 };
 
-export function InvoicesTable({ invoices }: InvoicesTableProps) {
+export function InvoicesTable({ invoices, companyName }: InvoicesTableProps) {
   const router = useRouter();
+  const { openPdfDownload, pdfDownloadDialog } = usePdfDownload();
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
   const table = useListTable<InvoiceRow>({
@@ -88,15 +90,13 @@ export function InvoicesTable({ invoices }: InvoicesTableProps) {
     },
   });
 
-  async function handleDownload(invoice: InvoiceRow) {
-    setLoadingId(invoice.id);
-    try {
-      await downloadInvoicePdf(invoice.id, invoice.number);
-    } catch {
-      // Toast handled in downloadInvoicePdf
-    } finally {
-      setLoadingId(null);
-    }
+  function handleDownload(invoice: InvoiceRow) {
+    openPdfDownload({
+      kind: "invoice",
+      documentId: invoice.id,
+      documentNumber: invoice.number,
+      companyName,
+    });
   }
 
   async function handleDelete(invoice: InvoiceRow) {
@@ -251,6 +251,7 @@ export function InvoicesTable({ invoices }: InvoicesTableProps) {
         onPageChange={table.setPage}
         onPageSizeChange={table.setPageSize}
       />
+      {pdfDownloadDialog}
     </div>
   );
 }

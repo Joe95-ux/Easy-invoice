@@ -45,13 +45,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { pageHeaderActionClass } from "@/components/app-shell/page-header";
 import { DocumentShareButton } from "@/components/document-share-button";
-import { downloadEstimatePdf } from "@/lib/estimate-pdf-client";
+import { usePdfDownload } from "@/hooks/use-pdf-download";
 import { cn } from "@/lib/utils";
 import type { EstimateStatus } from "@easy-invoice/db";
 
 type EstimateActionsProps = {
   estimateId: string;
   estimateNumber: string;
+  companyName: string;
   status: EstimateStatus;
   clientEmail?: string | null;
   convertedInvoiceId?: string | null;
@@ -63,12 +64,14 @@ const TERMINAL_STATUSES: EstimateStatus[] = ["ACCEPTED", "DECLINED", "CANCELLED"
 export function EstimateActions({
   estimateId,
   estimateNumber,
+  companyName,
   status,
   clientEmail,
   convertedInvoiceId,
   convertedInvoiceNumber,
 }: EstimateActionsProps) {
   const router = useRouter();
+  const { openPdfDownload, pdfDownloadDialog } = usePdfDownload();
   const [loading, setLoading] = useState<string | null>(null);
   const [sendOpen, setSendOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
@@ -81,15 +84,13 @@ export function EstimateActions({
     !convertedInvoiceId && status !== "DECLINED" && status !== "CANCELLED";
   const isBusy = loading !== null;
 
-  async function handleDownloadPdf() {
-    setLoading("pdf");
-    try {
-      await downloadEstimatePdf(estimateId, estimateNumber);
-    } catch {
-      // Toast handled in downloadEstimatePdf
-    } finally {
-      setLoading(null);
-    }
+  function handleDownloadPdf() {
+    openPdfDownload({
+      kind: "estimate",
+      documentId: estimateId,
+      documentNumber: estimateNumber,
+      companyName,
+    });
   }
 
   async function handleSend() {
@@ -209,7 +210,7 @@ export function EstimateActions({
         disabled={isBusy}
       >
         <DownloadIcon />
-        {loading === "pdf" ? "Generating..." : "Download PDF"}
+        Download PDF
       </Button>
     );
   }
@@ -246,7 +247,7 @@ export function EstimateActions({
               disabled={isBusy}
             >
               <DownloadIcon />
-              {loading === "pdf" ? "Generating..." : "Download PDF"}
+              Download PDF
             </Button>
           )}
         </ButtonGroup>
@@ -384,6 +385,8 @@ export function EstimateActions({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {pdfDownloadDialog}
     </>
   );
 }

@@ -45,7 +45,11 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
   return (
     <PageScroll>
       <Suspense>
-        <InvoiceAutoDownload invoiceId={invoice.id} invoiceNumber={invoice.number} />
+        <InvoiceAutoDownload
+          invoiceId={invoice.id}
+          invoiceNumber={invoice.number}
+          companyName={invoice.company.name}
+        />
       </Suspense>
 
       <PageBackLink href="/invoices">Back to invoices</PageBackLink>
@@ -69,6 +73,7 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
           <InvoiceActions
             invoiceId={invoice.id}
             invoiceNumber={invoice.number}
+            companyName={invoice.company.name}
             status={invoice.status}
             clientEmail={invoice.client?.email}
             dueDate={invoice.dueDate?.toISOString() ?? null}

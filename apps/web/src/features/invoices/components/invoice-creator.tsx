@@ -40,7 +40,6 @@ import {
 import type { ClientListItem } from "@/lib/clients";
 import { formatClientAddress } from "@/lib/clients";
 import { CURRENCY_OPTIONS } from "@/lib/geo/countries";
-import { downloadInvoicePdf } from "@/lib/invoice-pdf-client";
 import { normalizeDraftDate } from "@/lib/draft-dates";
 import type { InvoiceStatus } from "@easy-invoice/db";
 import type { InvoiceDraft } from "@/lib/schemas/invoice";
@@ -342,11 +341,8 @@ export function InvoiceCreator({
         toast.success("Invoice created");
 
         if (downloadAfter) {
-          try {
-            await downloadInvoicePdf(id, data.invoice.number);
-          } catch {
-            // Toast handled in downloadInvoicePdf
-          }
+          router.push(`/invoices/${id}?download=pdf`);
+          return;
         }
 
         router.push(`/invoices/${id}`);

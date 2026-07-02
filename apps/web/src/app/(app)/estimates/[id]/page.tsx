@@ -42,7 +42,11 @@ export default async function EstimateDetailPage({ params }: PageProps) {
   return (
     <PageScroll>
       <Suspense>
-        <EstimateAutoDownload estimateId={estimate.id} estimateNumber={estimate.number} />
+        <EstimateAutoDownload
+          estimateId={estimate.id}
+          estimateNumber={estimate.number}
+          companyName={estimate.company.name}
+        />
       </Suspense>
 
       <PageBackLink href="/estimates">Back to estimates</PageBackLink>
@@ -66,6 +70,7 @@ export default async function EstimateDetailPage({ params }: PageProps) {
           <EstimateActions
             estimateId={estimate.id}
             estimateNumber={estimate.number}
+            companyName={estimate.company.name}
             status={estimate.status}
             clientEmail={estimate.client?.email}
             convertedInvoiceId={estimate.convertedInvoice?.id}

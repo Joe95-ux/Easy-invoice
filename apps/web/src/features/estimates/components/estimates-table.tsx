@@ -32,7 +32,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useListTable } from "@/hooks/use-list-table";
-import { downloadEstimatePdf } from "@/lib/estimate-pdf-client";
+import { usePdfDownload } from "@/hooks/use-pdf-download";
 import {
   formatDate,
   formatMoney,
@@ -63,10 +63,12 @@ const STATUS_FILTER_OPTIONS = [
 
 type EstimatesTableProps = {
   estimates: EstimateRow[];
+  companyName: string;
 };
 
-export function EstimatesTable({ estimates }: EstimatesTableProps) {
+export function EstimatesTable({ estimates, companyName }: EstimatesTableProps) {
   const router = useRouter();
+  const { openPdfDownload, pdfDownloadDialog } = usePdfDownload();
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
   const table = useListTable<EstimateRow>({
@@ -88,15 +90,13 @@ export function EstimatesTable({ estimates }: EstimatesTableProps) {
     },
   });
 
-  async function handleDownload(estimate: EstimateRow) {
-    setLoadingId(estimate.id);
-    try {
-      await downloadEstimatePdf(estimate.id, estimate.number);
-    } catch {
-      // Toast handled in downloadEstimatePdf
-    } finally {
-      setLoadingId(null);
-    }
+  function handleDownload(estimate: EstimateRow) {
+    openPdfDownload({
+      kind: "estimate",
+      documentId: estimate.id,
+      documentNumber: estimate.number,
+      companyName,
+    });
   }
 
   async function handleDelete(estimate: EstimateRow) {
@@ -251,6 +251,7 @@ export function EstimatesTable({ estimates }: EstimatesTableProps) {
         onPageChange={table.setPage}
         onPageSizeChange={table.setPageSize}
       />
+      {pdfDownloadDialog}
     </div>
   );
 }

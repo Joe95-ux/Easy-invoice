@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/table";
 import { InvoicePreviewSheet } from "@/features/invoices/components/invoice-preview-sheet";
 import { InvoiceSendDialog } from "@/features/invoices/components/invoice-send-dialog";
-import { downloadInvoicePdf } from "@/lib/invoice-pdf-client";
+import { usePdfDownload } from "@/hooks/use-pdf-download";
 import {
   formatMoney,
   invoiceStatusLabel,
@@ -49,11 +49,17 @@ export type ClientInvoiceRow = {
 
 type ClientInvoicesTableProps = {
   invoices: ClientInvoiceRow[];
+  companyName: string;
   clientEmail?: string | null;
 };
 
-export function ClientInvoicesTable({ invoices, clientEmail }: ClientInvoicesTableProps) {
+export function ClientInvoicesTable({
+  invoices,
+  companyName,
+  clientEmail,
+}: ClientInvoicesTableProps) {
   const router = useRouter();
+  const { openPdfDownload, pdfDownloadDialog } = usePdfDownload();
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -64,15 +70,13 @@ export function ClientInvoicesTable({ invoices, clientEmail }: ClientInvoicesTab
     setPreviewOpen(true);
   }
 
-  async function handleDownload(invoice: ClientInvoiceRow) {
-    setLoadingId(invoice.id);
-    try {
-      await downloadInvoicePdf(invoice.id, invoice.number);
-    } catch {
-      // Toast handled in downloadInvoicePdf
-    } finally {
-      setLoadingId(null);
-    }
+  function handleDownload(invoice: ClientInvoiceRow) {
+    openPdfDownload({
+      kind: "invoice",
+      documentId: invoice.id,
+      documentNumber: invoice.number,
+      companyName,
+    });
   }
 
   async function handleDelete(invoice: ClientInvoiceRow) {
@@ -213,6 +217,8 @@ export function ClientInvoicesTable({ invoices, clientEmail }: ClientInvoicesTab
           clientEmail={clientEmail}
         />
       )}
+
+      {pdfDownloadDialog}
     </>
   );
 }

@@ -27,9 +27,10 @@ import type { ClientInput } from "@/lib/schemas/client";
 
 type ClientDetailProps = {
   client: ClientDetailData;
+  companyName: string;
 };
 
-export function ClientDetail({ client }: ClientDetailProps) {
+export function ClientDetail({ client, companyName }: ClientDetailProps) {
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -144,6 +145,7 @@ export function ClientDetail({ client }: ClientDetailProps) {
             ) : (
               <ClientInvoicesTable
                 invoices={client.invoices}
+                companyName={companyName}
                 clientEmail={client.email}
               />
             )}

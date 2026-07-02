@@ -34,6 +34,9 @@ export const watermarkStyles = `
     padding: 8px 10px;
     border-radius: 8px;
   }
+  .company-logo--none {
+    display: inline-block;
+  }
   .page-content { position: relative; z-index: 1; }
   .invoice-footer {
     margin-top: 40px;

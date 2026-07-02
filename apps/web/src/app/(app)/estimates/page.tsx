@@ -49,7 +49,7 @@ export default async function EstimatesPage() {
         />
       ) : (
         <Card className="overflow-hidden py-0">
-          <EstimatesTable estimates={rows} />
+          <EstimatesTable estimates={rows} companyName={member.company.name} />
         </Card>
       )}
     </PageScroll>

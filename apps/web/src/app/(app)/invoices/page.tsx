@@ -49,7 +49,7 @@ export default async function InvoicesPage() {
         />
       ) : (
         <Card className="overflow-hidden py-0">
-          <InvoicesTable invoices={rows} />
+          <InvoicesTable invoices={rows} companyName={member.company.name} />
         </Card>
       )}
     </PageScroll>

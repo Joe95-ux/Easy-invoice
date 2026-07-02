@@ -12,5 +12,5 @@ export default async function ClientPage({ params }: PageProps) {
   const client = await getClientForMember(id, member.companyId);
   if (!client) notFound();
 
-  return <ClientDetail client={serializeClientForDetail(client)} />;
+  return <ClientDetail client={serializeClientForDetail(client)} companyName={member.company.name} />;
 }

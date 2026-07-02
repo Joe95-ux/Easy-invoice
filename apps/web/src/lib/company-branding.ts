@@ -1,9 +1,10 @@
-export type LogoBg = "white" | "dark";
+export type LogoBg = "white" | "dark" | "none";
 export type LogoPlacement = "watermark" | "header";
 
 export const LOGO_BG_OPTIONS = [
   { value: "white" as const, label: "White" },
   { value: "dark" as const, label: "Dark" },
+  { value: "none" as const, label: "None" },
 ];
 
 export const LOGO_PLACEMENT_OPTIONS = [
@@ -22,7 +23,9 @@ export const LOGO_PLACEMENT_OPTIONS = [
 export const DEFAULT_BRAND_COLOR = "#4338ca";
 
 export function normalizeLogoBg(value: string | null | undefined): LogoBg {
-  return value === "dark" ? "dark" : "white";
+  if (value === "dark") return "dark";
+  if (value === "none") return "none";
+  return "white";
 }
 
 export function normalizeLogoPlacement(value: string | null | undefined): LogoPlacement {
@@ -30,13 +33,15 @@ export function normalizeLogoPlacement(value: string | null | undefined): LogoPl
 }
 
 export function logoPreviewClassName(logoBg: LogoBg): string {
-  return logoBg === "dark"
-    ? "bg-slate-900 ring-white/10"
-    : "bg-white ring-black/5 dark:ring-white/10";
+  if (logoBg === "dark") return "bg-slate-900 ring-white/10";
+  if (logoBg === "none") return "bg-transparent ring-border/70";
+  return "bg-white ring-black/5 dark:ring-white/10";
 }
 
 export function logoPdfWrapClass(logoBg: LogoBg): string {
-  return logoBg === "dark" ? "company-logo--dark" : "company-logo--white";
+  if (logoBg === "dark") return "company-logo--dark";
+  if (logoBg === "none") return "company-logo--none";
+  return "company-logo--white";
 }
 
 function hexToRgba(hex: string, alpha: number): string {

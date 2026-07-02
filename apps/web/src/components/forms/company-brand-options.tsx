@@ -59,7 +59,8 @@ export function CompanyBrandOptions({
             ))}
           </div>
           <FieldDescription>
-            Background behind your logo in the app and on PDF headers.
+            Background behind your logo in the app and on PDF headers. Choose none for a
+            transparent logo.
           </FieldDescription>
         </FieldContent>
       </Field>
