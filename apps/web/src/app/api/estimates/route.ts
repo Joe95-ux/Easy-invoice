@@ -9,6 +9,10 @@ import {
 } from "@/lib/estimate-service";
 import { createEstimateSchema } from "@/lib/schemas/estimate";
 import { getDefaultTemplateId, getTemplateById } from "@/lib/templates";
+import {
+  loadEstimateSnapshot,
+  recordDocumentRevision,
+} from "@/lib/document-revisions/service";
 
 export async function POST(request: Request) {
   const { member, response } = await requireApiMember();
@@ -57,6 +61,19 @@ export async function POST(request: Request) {
       },
       include: { items: true, client: true },
     });
+
+    const snapshot = await loadEstimateSnapshot(member.companyId, estimate.id);
+    if (snapshot) {
+      await recordDocumentRevision({
+        companyId: member.companyId,
+        documentType: "ESTIMATE",
+        documentId: estimate.id,
+        memberId: member.id,
+        source: "CREATE",
+        snapshot,
+        summary: "Document created",
+      });
+    }
 
     return NextResponse.json({ estimate }, { status: 201 });
   } catch (error) {

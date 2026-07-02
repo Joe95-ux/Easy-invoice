@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/table";
 import { EstimateActions } from "@/features/estimates/components/estimate-actions";
 import { EstimateAutoDownload } from "@/features/estimates/components/estimate-auto-download";
+import { DocumentHistorySection } from "@/components/document-history-section";
 import { DocumentTemplateManager } from "@/features/invoices/components/document-template-manager";
 import { requireMember } from "@/lib/auth";
 import { companyBrandingFields } from "@/lib/company-branding";
@@ -233,6 +234,30 @@ export default async function EstimateDetailPage({ params }: PageProps) {
           </CardContent>
         </Card>
       )}
+
+      <DocumentHistorySection
+        kind="estimate"
+        documentId={estimate.id}
+        company={{
+          name: estimate.company.name,
+          logoUrl: estimate.company.logoUrl,
+          ...companyBrandingFields(estimate.company),
+          email: estimate.company.email,
+          phone: estimate.company.phone,
+          address: estimate.company.address,
+          city: estimate.company.city,
+          state: estimate.company.state,
+          zip: estimate.company.zip,
+          country: estimate.company.country,
+        }}
+        client={{
+          name: estimate.client?.name ?? "",
+          email: estimate.client?.email,
+          phone: estimate.client?.phone,
+          address: estimate.client?.address,
+        }}
+        templates={templates}
+      />
     </PageScroll>
   );
 }

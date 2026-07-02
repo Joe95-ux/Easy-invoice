@@ -10,6 +10,10 @@ import {
 import { linkTimeEntriesToInvoice } from "@/lib/time-tracking/service";
 import { createInvoiceSchema } from "@/lib/schemas/invoice";
 import { getDefaultTemplateId, getTemplateById } from "@/lib/templates";
+import {
+  loadInvoiceSnapshot,
+  recordDocumentRevision,
+} from "@/lib/document-revisions/service";
 
 export async function POST(request: Request) {
   const { member, response } = await requireApiMember();
@@ -70,6 +74,19 @@ export async function POST(request: Request) {
       await prisma.invoice.delete({ where: { id: invoice.id } });
       throw error;
     });
+
+    const snapshot = await loadInvoiceSnapshot(member.companyId, invoice.id);
+    if (snapshot) {
+      await recordDocumentRevision({
+        companyId: member.companyId,
+        documentType: "INVOICE",
+        documentId: invoice.id,
+        memberId: member.id,
+        source: "CREATE",
+        snapshot,
+        summary: "Document created",
+      });
+    }
 
     return NextResponse.json({ invoice }, { status: 201 });
   } catch (error) {

@@ -6,6 +6,7 @@ import { sendEstimateEmail } from "@/lib/email";
 import { generateEstimatePdfBuffer } from "@/lib/estimate-service";
 import { formatMoney } from "@/lib/estimates";
 import { ensureEstimatePublicToken } from "@/lib/public-documents";
+import { recordDocumentRevision } from "@/lib/document-revisions/service";
 import { prisma } from "@/lib/db";
 import { z } from "zod";
 
@@ -73,6 +74,16 @@ export async function POST(request: Request, context: RouteContext) {
         company: true,
         template: true,
       },
+    });
+
+    await recordDocumentRevision({
+      companyId: member.companyId,
+      documentType: "ESTIMATE",
+      documentId: id,
+      memberId: member.id,
+      source: "SEND",
+      summary: `Sent to ${recipientEmail}`,
+      metadata: { email: recipientEmail },
     });
 
     return NextResponse.json({ estimate: updated });

@@ -9,6 +9,10 @@ import {
 import { getEstimateForMember } from "@/lib/estimates";
 import { updateEstimateSchema } from "@/lib/schemas/estimate";
 import { getTemplateById } from "@/lib/templates";
+import {
+  loadEstimateSnapshot,
+  recordEstimateContentRevision,
+} from "@/lib/document-revisions/service";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -42,6 +46,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   if (!parsed.success) return validationError(parsed.error);
 
   const data = parsed.data;
+  const beforeSnapshot = await loadEstimateSnapshot(member.companyId, id);
 
   if (data.status && !canTransitionEstimateStatus(existing.status, data.status)) {
     return NextResponse.json(
@@ -147,6 +152,17 @@ export async function PATCH(request: Request, context: RouteContext) {
       template: true,
     },
   });
+
+  const afterSnapshot = await loadEstimateSnapshot(member.companyId, id);
+  if (afterSnapshot) {
+    await recordEstimateContentRevision(
+      member.companyId,
+      id,
+      member.id,
+      beforeSnapshot,
+      afterSnapshot,
+    );
+  }
 
   return NextResponse.json({ estimate });
 }

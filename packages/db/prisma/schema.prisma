@@ -51,6 +51,19 @@ enum ReminderDeliveryStatus {
   FAILED
 }
 
+enum DocumentType {
+  INVOICE
+  ESTIMATE
+}
+
+enum DocumentRevisionSource {
+  CREATE
+  EDIT
+  RESTORE
+  STATUS
+  SEND
+}
+
 model Company {
   id        String   @id @default(cuid())
   name      String
@@ -90,6 +103,7 @@ model Company {
   templates InvoiceTemplate[]
   defaultTemplate InvoiceTemplate? @relation("CompanyDefaultTemplate", fields: [defaultTemplateId], references: [id], onDelete: SetNull)
   timeEntries TimeEntry[]
+  documentRevisions DocumentRevision[]
 
   @@index([slug])
 }
@@ -107,6 +121,7 @@ model CompanyMember {
   company     Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
   sentInvites CompanyInvite[] @relation("SentInvites")
   timeEntries TimeEntry[]
+  documentRevisions DocumentRevision[]
 
   @@unique([companyId, clerkId])
   @@index([clerkId])
@@ -319,4 +334,25 @@ model InvoiceTemplate {
   estimates Estimate[]
 
   @@unique([companyId, slug])
+}
+
+model DocumentRevision {
+  id             String                 @id @default(cuid())
+  companyId      String
+  documentType   DocumentType
+  documentId     String
+  revisionNumber Int
+  snapshot       Json?
+  summary        String
+  source         DocumentRevisionSource
+  memberId       String?
+  metadata       Json?
+  createdAt      DateTime               @default(now())
+
+  company Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  member  CompanyMember? @relation(fields: [memberId], references: [id], onDelete: SetNull)
+
+  @@unique([documentType, documentId, revisionNumber])
+  @@index([companyId, documentType, documentId])
+  @@index([documentId])
 }

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
   CheckIcon,
@@ -83,9 +83,26 @@ export function SidebarOrgHeader({
 }: SidebarOrgHeaderProps) {
   const router = useRouter();
   const [switching, setSwitching] = useState(false);
+  const [activeOverride, setActiveOverride] = useState<{
+    id: string;
+    name: string;
+    logoUrl: string | null;
+    logoBg?: LogoBg;
+  } | null>(null);
+
+  const resolvedActiveId = activeOverride?.id ?? activeCompanyId;
+  const resolvedName = activeOverride?.name ?? companyName;
+  const resolvedLogoUrl = activeOverride?.logoUrl ?? logoUrl;
+  const resolvedLogoBg = activeOverride?.logoBg ?? logoBg;
+
+  useEffect(() => {
+    if (activeOverride && activeOverride.id === activeCompanyId) {
+      setActiveOverride(null);
+    }
+  }, [activeCompanyId, activeOverride]);
 
   async function handleSwitch(companyId: string) {
-    if (companyId === activeCompanyId || switching) return;
+    if (companyId === resolvedActiveId || switching) return;
 
     const targetCompany = companies.find((company) => company.id === companyId);
     const toastId = toast.loading(
@@ -104,7 +121,17 @@ export function SidebarOrgHeader({
         throw new Error("Failed to switch company");
       }
 
+      if (targetCompany) {
+        setActiveOverride({
+          id: targetCompany.id,
+          name: targetCompany.name,
+          logoUrl: targetCompany.logoUrl,
+          logoBg: targetCompany.logoBg,
+        });
+      }
+
       router.replace("/dashboard");
+      router.refresh();
       toast.dismiss(toastId);
     } catch {
       toast.error("Could not switch company. Please try again.", { id: toastId });
@@ -126,19 +153,19 @@ export function SidebarOrgHeader({
                   "group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!h-8 group-data-[collapsible=icon]:!min-h-8",
                   "group-data-[collapsible=icon]:!p-0 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0",
                 )}
-                tooltip={companyName}
+                tooltip={resolvedName}
                 disabled={switching}
               />
             }
           >
             <CompanyMark
-              companyName={companyName}
-              logoUrl={logoUrl}
-              logoBg={logoBg}
+              companyName={resolvedName}
+              logoUrl={resolvedLogoUrl}
+              logoBg={resolvedLogoBg}
               className="group-data-[collapsible=icon]:mx-auto"
             />
             <div className="grid min-w-0 flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
-              <span className="truncate font-heading font-semibold">{companyName}</span>
+              <span className="truncate font-heading font-semibold">{resolvedName}</span>
               <span className="truncate text-xs text-sidebar-foreground/70">
                 Invoice Desk
               </span>
@@ -147,7 +174,7 @@ export function SidebarOrgHeader({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" side="bottom" className="min-w-56">
             {companies.map((company) => {
-              const isActive = company.id === activeCompanyId;
+              const isActive = company.id === resolvedActiveId;
 
               return (
                 <DropdownMenuItem

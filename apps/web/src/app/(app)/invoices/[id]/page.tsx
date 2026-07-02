@@ -16,6 +16,7 @@ import {
 import { InvoiceActions } from "@/features/invoices/components/invoice-actions";
 import { InvoiceAutoDownload } from "@/features/invoices/components/invoice-auto-download";
 import { InvoiceRemindersSection } from "@/features/invoices/components/invoice-reminders-section";
+import { DocumentHistorySection } from "@/components/document-history-section";
 import { DocumentTemplateManager } from "@/features/invoices/components/document-template-manager";
 import { requireMember } from "@/lib/auth";
 import { companyBrandingFields } from "@/lib/company-branding";
@@ -252,6 +253,30 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
           createdAt: row.createdAt.toISOString(),
           error: row.error,
         }))}
+      />
+
+      <DocumentHistorySection
+        kind="invoice"
+        documentId={invoice.id}
+        company={{
+          name: invoice.company.name,
+          logoUrl: invoice.company.logoUrl,
+          ...companyBrandingFields(invoice.company),
+          email: invoice.company.email,
+          phone: invoice.company.phone,
+          address: invoice.company.address,
+          city: invoice.company.city,
+          state: invoice.company.state,
+          zip: invoice.company.zip,
+          country: invoice.company.country,
+        }}
+        client={{
+          name: invoice.client?.name ?? "",
+          email: invoice.client?.email,
+          phone: invoice.client?.phone,
+          address: invoice.client?.address,
+        }}
+        templates={templates}
       />
     </PageScroll>
   );

@@ -6,6 +6,7 @@ import { sendInvoiceEmail } from "@/lib/email";
 import { generateInvoicePdfBuffer } from "@/lib/invoice-service";
 import { formatMoney } from "@/lib/invoices";
 import { ensureInvoicePublicToken } from "@/lib/public-documents";
+import { recordDocumentRevision } from "@/lib/document-revisions/service";
 import { prisma } from "@/lib/db";
 import { z } from "zod";
 
@@ -73,6 +74,16 @@ export async function POST(request: Request, context: RouteContext) {
         company: true,
         template: true,
       },
+    });
+
+    await recordDocumentRevision({
+      companyId: member.companyId,
+      documentType: "INVOICE",
+      documentId: id,
+      memberId: member.id,
+      source: "SEND",
+      summary: `Sent to ${recipientEmail}`,
+      metadata: { email: recipientEmail },
     });
 
     return NextResponse.json({ invoice: updated });

@@ -10,6 +10,10 @@ import { getInvoiceForMember } from "@/lib/invoices";
 import { releaseTimeEntriesForInvoice, linkTimeEntriesToInvoice } from "@/lib/time-tracking/service";
 import { updateInvoiceSchema } from "@/lib/schemas/invoice";
 import { getTemplateById } from "@/lib/templates";
+import {
+  loadInvoiceSnapshot,
+  recordInvoiceContentRevision,
+} from "@/lib/document-revisions/service";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -43,6 +47,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   if (!parsed.success) return validationError(parsed.error);
 
   const data = parsed.data;
+  const beforeSnapshot = await loadInvoiceSnapshot(member.companyId, id);
 
   if (data.status && !canTransitionInvoiceStatus(existing.status, data.status)) {
     return NextResponse.json(
@@ -160,6 +165,17 @@ export async function PATCH(request: Request, context: RouteContext) {
       template: true,
     },
   });
+
+  const afterSnapshot = await loadInvoiceSnapshot(member.companyId, id);
+  if (afterSnapshot) {
+    await recordInvoiceContentRevision(
+      member.companyId,
+      id,
+      member.id,
+      beforeSnapshot,
+      afterSnapshot,
+    );
+  }
 
   return NextResponse.json({ invoice });
 }
