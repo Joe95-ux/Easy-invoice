@@ -16,6 +16,9 @@ Account name: Your Company LLC`;
 export type PreviewCompany = {
   name: string;
   logoUrl?: string | null;
+  logoBg?: "white" | "dark" | null;
+  logoPlacement?: "watermark" | "header" | null;
+  brandColor?: string | null;
   email?: string | null;
   phone?: string | null;
   address?: string | null;

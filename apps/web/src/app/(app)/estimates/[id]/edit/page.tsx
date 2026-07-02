@@ -5,6 +5,7 @@ import { EstimateCreator } from "@/features/estimates/components/estimate-creato
 import { requireMember } from "@/lib/auth";
 import { getClientsForMember } from "@/lib/clients";
 import { getEstimateForMember } from "@/lib/estimates";
+import { companyBrandingFields } from "@/lib/company-branding";
 import { getDefaultTemplateId, getTemplatesForCompany } from "@/lib/templates";
 
 type PageProps = { params: Promise<{ id: string }> };
@@ -35,6 +36,7 @@ export default async function EditEstimatePage({ params }: PageProps) {
         company={{
           name: member.company.name,
           logoUrl: member.company.logoUrl,
+          ...companyBrandingFields(member.company),
           email: member.company.email,
           phone: member.company.phone,
           address: member.company.address,

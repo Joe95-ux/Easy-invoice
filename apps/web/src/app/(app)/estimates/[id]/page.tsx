@@ -17,6 +17,7 @@ import { EstimateActions } from "@/features/estimates/components/estimate-action
 import { EstimateAutoDownload } from "@/features/estimates/components/estimate-auto-download";
 import { DocumentTemplateManager } from "@/features/invoices/components/document-template-manager";
 import { requireMember } from "@/lib/auth";
+import { companyBrandingFields } from "@/lib/company-branding";
 import {
   formatDate,
   formatMoney,
@@ -83,6 +84,7 @@ export default async function EstimateDetailPage({ params }: PageProps) {
             company={{
               name: estimate.company.name,
               logoUrl: estimate.company.logoUrl,
+              ...companyBrandingFields(estimate.company),
               email: estimate.company.email,
               phone: estimate.company.phone,
               address: estimate.company.address,

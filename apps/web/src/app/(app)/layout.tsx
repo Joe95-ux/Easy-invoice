@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentMember, getUserMemberships } from "@/lib/auth";
 import { membershipsToCompanySummaries } from "@/lib/companies";
+import { normalizeLogoBg } from "@/lib/company-branding";
 import { AppShell } from "@/components/app-shell/app-shell";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -16,6 +17,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       companies={membershipsToCompanySummaries(memberships)}
       companyName={company.name}
       logoUrl={company.logoUrl}
+      logoBg={normalizeLogoBg(company.logoBg)}
       plan={company.plan}
       userRole={member.role}
     >

@@ -2,6 +2,7 @@ import type { InvoiceHtmlData } from "@/lib/invoice-templates/types";
 import { SYSTEM_TEMPLATES } from "@/lib/invoice-templates/definitions";
 import { renderFromTemplate } from "@/lib/invoice-templates/render";
 import { inlineCompanyLogo } from "@/lib/inline-company-logo";
+import { companyBrandingFields } from "@/lib/company-branding";
 import { getInvoiceForMember } from "@/lib/invoices";
 import { ensureSystemTemplates, getDefaultTemplateId, getTemplateById } from "@/lib/templates";
 
@@ -12,7 +13,18 @@ export function invoiceToHtmlData(
 ): InvoiceHtmlData {
   return {
     documentKind: "invoice",
-    company: invoice.company,
+    company: {
+      name: invoice.company.name,
+      logoUrl: invoice.company.logoUrl,
+      email: invoice.company.email,
+      phone: invoice.company.phone,
+      address: invoice.company.address,
+      city: invoice.company.city,
+      state: invoice.company.state,
+      zip: invoice.company.zip,
+      country: invoice.company.country,
+      ...companyBrandingFields(invoice.company),
+    },
     client: invoice.client,
     invoice: {
       number: invoice.number,

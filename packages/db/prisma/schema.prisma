@@ -63,7 +63,10 @@ model Company {
   zip       String?
   country   String   @default("US")
   taxId     String?
-  logoUrl   String?
+  logoUrl        String?
+  logoBg         String   @default("white")
+  logoPlacement  String   @default("watermark")
+  brandColor     String?
   currency  String   @default("USD")
   locale    String   @default("en")
   plan      Plan     @default(FREE)

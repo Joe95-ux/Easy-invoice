@@ -14,11 +14,17 @@ import {
   importCompanyLogoFromUrl,
   uploadCompanyLogoFile,
 } from "@/lib/company-logo-client";
+import {
+  logoPreviewClassName,
+  normalizeLogoBg,
+  type LogoBg,
+} from "@/lib/company-branding";
 import { cn } from "@/lib/utils";
 
 type CompanyLogoUploadProps = {
   logoUrl: string | null;
   onLogoChange: (url: string | null) => void;
+  logoBg?: LogoBg;
   mode?: "immediate" | "deferred";
   onPendingFileChange?: (file: File | null) => void;
   onSuggestedLogoSelect?: (selected: boolean) => void;
@@ -29,6 +35,7 @@ type CompanyLogoUploadProps = {
 export function CompanyLogoUpload({
   logoUrl,
   onLogoChange,
+  logoBg = "white",
   mode = "immediate",
   onPendingFileChange,
   onSuggestedLogoSelect,
@@ -126,6 +133,8 @@ export function CompanyLogoUpload({
     }
   }
 
+  const previewBackground = logoPreviewClassName(normalizeLogoBg(logoBg));
+
   return (
     <Field className={className}>
       <FieldLabel>Company logo</FieldLabel>
@@ -133,7 +142,8 @@ export function CompanyLogoUpload({
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <div
             className={cn(
-              "flex size-24 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white ring-1 ring-black/5 dark:ring-white/10",
+              "flex size-24 shrink-0 items-center justify-center overflow-hidden rounded-xl ring-1",
+              previewBackground,
               previewUrl
                 ? "border border-border/60"
                 : "border border-dashed border-border/80",

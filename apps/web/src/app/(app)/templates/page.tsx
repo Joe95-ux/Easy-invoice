@@ -4,6 +4,7 @@ import { CreateDocumentMenu } from "@/components/create-document-menu";
 import { TemplatesExplorer } from "@/features/templates/components/templates-explorer";
 import { requireCompanyAdmin } from "@/lib/auth";
 import { getDefaultTemplateId, getTemplatesForCompany } from "@/lib/templates";
+import { normalizeLogoBg, normalizeLogoPlacement } from "@/lib/company-branding";
 
 export default async function TemplatesPage() {
   const member = await requireCompanyAdmin();
@@ -17,6 +18,9 @@ export default async function TemplatesPage() {
   const companyPreview = {
     name: company.name,
     logoUrl: company.logoUrl,
+    logoBg: normalizeLogoBg(company.logoBg),
+    logoPlacement: normalizeLogoPlacement(company.logoPlacement),
+    brandColor: company.brandColor,
     email: company.email,
     phone: company.phone,
     address: company.address,

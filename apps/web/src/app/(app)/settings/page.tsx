@@ -7,6 +7,7 @@ import { canManageTeam } from "@/lib/team";
 import { getDefaultTemplateId, getTemplatesForCompany } from "@/lib/templates";
 import { prisma } from "@/lib/db";
 import { resolveMemberLoginEmails } from "@/lib/member-email";
+import { normalizeLogoBg, normalizeLogoPlacement } from "@/lib/company-branding";
 import { reminderSettingsFromCompany } from "@/lib/reminders/settings";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageScroll } from "@/components/app-shell/app-shell";
@@ -63,6 +64,9 @@ export default async function SettingsPage() {
   const companyPreview = {
     name: company.name,
     logoUrl: company.logoUrl,
+    logoBg: normalizeLogoBg(company.logoBg),
+    logoPlacement: normalizeLogoPlacement(company.logoPlacement),
+    brandColor: company.brandColor,
     email: company.email,
     phone: company.phone,
     address: company.address,
@@ -97,6 +101,9 @@ export default async function SettingsPage() {
             defaultHourlyRate: company.defaultHourlyRate
               ? Number(company.defaultHourlyRate)
               : null,
+            logoBg: normalizeLogoBg(company.logoBg),
+            logoPlacement: normalizeLogoPlacement(company.logoPlacement),
+            brandColor: company.brandColor,
           }}
         />
 

@@ -8,6 +8,7 @@ import { AppHeader } from "@/components/app-shell/app-header";
 import { ActiveCompanySync } from "@/components/app-shell/active-company-sync";
 import { AppSidebar } from "@/components/app-shell/app-sidebar";
 import type { CompanySummary } from "@/lib/companies";
+import type { LogoBg } from "@/lib/company-branding";
 import type { UserRole } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +17,7 @@ type AppShellProps = {
   companies: CompanySummary[];
   companyName: string;
   logoUrl: string | null;
+  logoBg?: LogoBg;
   plan: string;
   userRole: UserRole;
   children: React.ReactNode;
@@ -52,6 +54,7 @@ export function AppShell({
   companies,
   companyName,
   logoUrl,
+  logoBg = "white",
   plan,
   userRole,
   children,
@@ -68,6 +71,7 @@ export function AppShell({
         companies={companies}
         companyName={companyName}
         logoUrl={logoUrl}
+        logoBg={logoBg}
         plan={plan}
         userRole={userRole}
       />

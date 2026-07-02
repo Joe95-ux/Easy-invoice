@@ -34,6 +34,13 @@ export async function PATCH(request: Request) {
       currency: parsed.data.currency,
       locale: parsed.data.locale,
       taxId: parsed.data.taxId || null,
+      ...(parsed.data.logoBg !== undefined && { logoBg: parsed.data.logoBg }),
+      ...(parsed.data.logoPlacement !== undefined && {
+        logoPlacement: parsed.data.logoPlacement,
+      }),
+      ...(parsed.data.brandColor !== undefined && {
+        brandColor: parsed.data.brandColor,
+      }),
       ...(parsed.data.defaultHourlyRate !== undefined && {
         defaultHourlyRate: parsed.data.defaultHourlyRate,
       }),

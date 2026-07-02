@@ -1,4 +1,10 @@
 import type { DocumentKind, InvoiceHtmlData } from "@/lib/invoice-templates/types";
+import {
+  buildBrandColorCss,
+  logoPdfWrapClass,
+  normalizeLogoBg,
+  normalizeLogoPlacement,
+} from "@/lib/company-branding";
 
 function escapeHtml(value: string): string {
   return value
@@ -61,13 +67,19 @@ function extractPageBackgroundColor(css: string): { pageBg: string | null; rest:
 
 function assembleDocumentStyles(
   templateCss: string | null,
-  logoUrl: string | null | undefined,
+  company: InvoiceHtmlData["company"],
 ): string {
   const { imports, rest: cssWithoutImports } = extractImportRules(templateCss ?? "");
   const { pageBg, rest: templateRules } = extractPageBackgroundColor(cssWithoutImports);
-  const watermarkPageCss = buildWatermarkPageCss(logoUrl, pageBg);
+  const placement = normalizeLogoPlacement(company.logoPlacement);
+  const watermarkLogo =
+    placement === "watermark" ? company.logoUrl : null;
+  const watermarkPageCss = buildWatermarkPageCss(watermarkLogo, pageBg);
+  const brandCss = buildBrandColorCss(company.brandColor);
 
-  return [imports, basePdfStyles, templateRules, watermarkPageCss].filter(Boolean).join("\n\n");
+  return [imports, basePdfStyles, templateRules, watermarkPageCss, brandCss]
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 /** WeasyPrint repeats @page backgrounds on every page; fixed watermarks are unreliable in some templates. */
@@ -131,10 +143,20 @@ function documentLabels(kind: DocumentKind) {
   };
 }
 
+function buildCompanyLogo(company: InvoiceHtmlData["company"]): string {
+  const placement = normalizeLogoPlacement(company.logoPlacement);
+  if (placement !== "header" || !company.logoUrl) return "";
+
+  const wrapClass = logoPdfWrapClass(normalizeLogoBg(company.logoBg));
+  return `<div class="company-logo ${wrapClass}"><img src="${escapeHtml(company.logoUrl)}" alt="" /></div>`;
+}
+
 function buildSections(data: InvoiceHtmlData) {
   const { company, client, invoice, items } = data;
   const kind = data.documentKind ?? "invoice";
   const labels = documentLabels(kind);
+  const placement = normalizeLogoPlacement(company.logoPlacement);
+  const showCompanyName = !(placement === "header" && company.logoUrl);
 
   const companyAddress = formatAddress([
     company.address,
@@ -200,16 +222,18 @@ function buildSections(data: InvoiceHtmlData) {
     ? `<div class="terms-notes"><div class="terms-notes-label">Terms &amp; Notes</div><div>${escapeHtml(invoice.notes)}</div></div>`
     : "";
 
-  const watermark = company.logoUrl
-    ? `<div class="watermark"><img src="${escapeHtml(company.logoUrl)}" alt="" /></div>`
-    : "";
+  const watermark =
+    placement === "watermark" && company.logoUrl
+      ? `<div class="watermark"><img src="${escapeHtml(company.logoUrl)}" alt="" /></div>`
+      : "";
 
   const invoiceFooter = `<div class="invoice-footer">${labels.footerPrefix} ${escapeHtml(company.name)}</div>`;
 
   return {
     document_title: labels.title,
     page_title: labels.pageTitle,
-    company_name: escapeHtml(company.name),
+    company_logo: buildCompanyLogo(company),
+    company_name: showCompanyName ? escapeHtml(company.name) : "",
     company_details: companyDetails,
     invoice_number: escapeHtml(invoice.number),
     invoice_meta: invoiceMeta,
@@ -234,7 +258,7 @@ export function renderFromTemplate(
     html = html.replaceAll(`{{${key}}}`, value);
   }
 
-  html = html.replace("{{styles}}", assembleDocumentStyles(templateCss, data.company.logoUrl));
+  html = html.replace("{{styles}}", assembleDocumentStyles(templateCss, data.company));
 
   return html;
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { EyeIcon, ClockIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -45,10 +45,6 @@ import { normalizeDraftDate } from "@/lib/draft-dates";
 import type { InvoiceStatus } from "@easy-invoice/db";
 import type { InvoiceDraft } from "@/lib/schemas/invoice";
 import type { TemplateSummary } from "@/lib/templates";
-import {
-  fetchUnbilledTimeEntries,
-  timeEntriesToLineItems,
-} from "@/lib/time-tracking/fetch-unbilled";
 
 const BASE_STEPS: FormStep[] = [
   { id: "template", title: "Template", description: "Pick a design for this invoice." },
@@ -109,9 +105,6 @@ export function InvoiceCreator({
 }: InvoiceCreatorProps) {
   const router = useRouter();
   const isEditing = Boolean(invoiceId);
-  const autoAddedTimeRef = useRef(false);
-  const prefillAbortRef = useRef<AbortController | null>(null);
-  const [prefillingTime, setPrefillingTime] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewTemplateId, setPreviewTemplateId] = useState<string | null>(null);
   const [selectedClientId, setSelectedClientId] = useState(
@@ -238,49 +231,7 @@ export function InvoiceCreator({
 
   useEffect(() => {
     if (isEditing || !preselectedTimeIdsKey || !selectedClientId || itemsStepIndex < 0) return;
-    if (autoAddedTimeRef.current) return;
-
     setStep(itemsStepIndex);
-    setPrefillingTime(true);
-
-    const controller = new AbortController();
-    prefillAbortRef.current?.abort();
-    prefillAbortRef.current = controller;
-
-    void (async () => {
-      try {
-        const entries = await fetchUnbilledTimeEntries({
-          clientId: selectedClientId,
-          ids: preselectedTimeIdsKey.split(",").filter(Boolean),
-          signal: controller.signal,
-        });
-
-        if (controller.signal.aborted) return;
-
-        if (entries.length === 0) {
-          toast.error("Selected time entries are no longer unbilled.");
-          return;
-        }
-
-        const items = timeEntriesToLineItems(entries);
-        handleAddFromTime(items);
-        autoAddedTimeRef.current = true;
-        toast.success(
-          `Added ${items.length} line item${items.length === 1 ? "" : "s"} from time`,
-        );
-      } catch (error) {
-        if (controller.signal.aborted) return;
-        toast.error(error instanceof Error ? error.message : "Could not add time to invoice");
-      } finally {
-        setPrefillingTime(false);
-      }
-    })();
-
-    return () => {
-      controller.abort();
-      prefillAbortRef.current = null;
-      setPrefillingTime(false);
-    };
   }, [isEditing, preselectedTimeIdsKey, selectedClientId, itemsStepIndex]);
 
   function applyDraft(draft: InvoiceDraft) {
@@ -319,7 +270,9 @@ export function InvoiceCreator({
     );
   }
 
-  function handleAddFromTime(items: LineItemInput[]) {
+  function handleAddFromTime(items: LineItemInput[]): boolean {
+    let added = false;
+
     setLineItems((current) => {
       const usedIds = new Set(current.flatMap((item) => item.timeEntryIds ?? []));
       const freshItems = items
@@ -334,11 +287,14 @@ export function InvoiceCreator({
         return current;
       }
 
+      added = true;
       const hasContent = current.some(
         (item) => item.description.trim() || item.unitPrice > 0 || item.quantity !== 1,
       );
       return hasContent ? [...current, ...freshItems] : freshItems;
     });
+
+    return added;
   }
 
   function buildPayload() {
@@ -510,15 +466,11 @@ export function InvoiceCreator({
                 type="button"
                 variant="outline"
                 onClick={() => setTimeDialogOpen(true)}
-                disabled={prefillingTime}
               >
                 <ClockIcon className="size-4" />
                 Add from unbilled time
               </Button>
             </div>
-          )}
-          {prefillingTime && (
-            <p className="text-sm text-muted-foreground">Adding selected time entries...</p>
           )}
           <FormSection title="Line items">
             <InvoiceLineItems
@@ -662,6 +614,9 @@ export function InvoiceCreator({
       clientName={clientName || clients.find((c) => c.id === selectedClientId)?.name || "Client"}
       currency={currency}
       onAdd={handleAddFromTime}
+      initialSelectedIds={
+        preselectedTimeEntryIds.length > 0 ? preselectedTimeEntryIds : undefined
+      }
     />
   ) : null;
 

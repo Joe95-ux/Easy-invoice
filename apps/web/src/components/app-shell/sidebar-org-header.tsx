@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import type { CompanySummary } from "@/lib/companies";
 import { getCompanyInitials } from "@/lib/companies";
+import { logoPreviewClassName, normalizeLogoBg, type LogoBg } from "@/lib/company-branding";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,16 +32,19 @@ type SidebarOrgHeaderProps = {
   companies: CompanySummary[];
   companyName: string;
   logoUrl: string | null;
+  logoBg?: LogoBg;
   showCompanySettings?: boolean;
 };
 
 function CompanyMark({
   companyName,
   logoUrl,
+  logoBg = "white",
   className,
 }: {
   companyName: string;
   logoUrl: string | null;
+  logoBg?: LogoBg;
   className?: string;
 }) {
   if (logoUrl) {
@@ -49,7 +53,8 @@ function CompanyMark({
         src={logoUrl}
         alt=""
         className={cn(
-          "size-8 shrink-0 rounded-md bg-white object-contain p-0.5 ring-1 ring-black/10 dark:ring-white/15",
+          "size-8 shrink-0 rounded-md object-contain p-0.5 ring-1 ring-black/10 dark:ring-white/15",
+          logoPreviewClassName(normalizeLogoBg(logoBg)),
           className,
         )}
       />
@@ -73,6 +78,7 @@ export function SidebarOrgHeader({
   companies,
   companyName,
   logoUrl,
+  logoBg = "white",
   showCompanySettings = true,
 }: SidebarOrgHeaderProps) {
   const router = useRouter();
@@ -80,6 +86,11 @@ export function SidebarOrgHeader({
 
   async function handleSwitch(companyId: string) {
     if (companyId === activeCompanyId || switching) return;
+
+    const targetCompany = companies.find((company) => company.id === companyId);
+    const toastId = toast.loading(
+      `Switching to ${targetCompany?.name ?? "company"}…`,
+    );
 
     setSwitching(true);
     try {
@@ -94,16 +105,17 @@ export function SidebarOrgHeader({
       }
 
       router.refresh();
+      toast.dismiss(toastId);
     } catch {
-      toast.error("Could not switch company. Please try again.");
+      toast.error("Could not switch company. Please try again.", { id: toastId });
     } finally {
       setSwitching(false);
     }
   }
 
   return (
-    <SidebarMenu>
-      <SidebarMenuItem>
+    <SidebarMenu className="group-data-[collapsible=icon]:items-center">
+      <SidebarMenuItem className="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
@@ -111,14 +123,20 @@ export function SidebarOrgHeader({
                 size="lg"
                 className={cn(
                   "cursor-pointer hover:bg-sidebar-accent/60",
-                  "group-data-[collapsible=icon]:!p-0 group-data-[collapsible=icon]:justify-center",
+                  "group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!h-8 group-data-[collapsible=icon]:!min-h-8",
+                  "group-data-[collapsible=icon]:!p-0 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0",
                 )}
                 tooltip={companyName}
                 disabled={switching}
               />
             }
           >
-            <CompanyMark companyName={companyName} logoUrl={logoUrl} />
+            <CompanyMark
+              companyName={companyName}
+              logoUrl={logoUrl}
+              logoBg={logoBg}
+              className="group-data-[collapsible=icon]:mx-auto"
+            />
             <div className="grid min-w-0 flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
               <span className="truncate font-heading font-semibold">{companyName}</span>
               <span className="truncate text-xs text-sidebar-foreground/70">
@@ -140,6 +158,7 @@ export function SidebarOrgHeader({
                   <CompanyMark
                     companyName={company.name}
                     logoUrl={company.logoUrl}
+                    logoBg={company.logoBg}
                     className="size-6 text-[10px]"
                   />
                   <span className="truncate">{company.name}</span>

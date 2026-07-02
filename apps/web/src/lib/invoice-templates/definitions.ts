@@ -12,6 +12,28 @@ export const watermarkStyles = `
     .page { min-height: 100vh; }
   }
   .watermark img { width: 300px; max-width: 70vw; height: auto; object-fit: contain; }
+  .company-logo { margin-bottom: 10px; }
+  .company-logo img {
+    display: block;
+    max-height: 52px;
+    max-width: 200px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+  }
+  .company-logo--white {
+    display: inline-block;
+    background: #ffffff;
+    padding: 8px 10px;
+    border-radius: 8px;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.06);
+  }
+  .company-logo--dark {
+    display: inline-block;
+    background: #0f172a;
+    padding: 8px 10px;
+    border-radius: 8px;
+  }
   .page-content { position: relative; z-index: 1; }
   .invoice-footer {
     margin-top: 40px;
@@ -44,6 +66,7 @@ const sharedBody = `
   <div class="page-content">
     <div class="header">
       <div class="company-info">
+        {{company_logo}}
         <div class="company-name">{{company_name}}</div>
         {{company_details}}
       </div>
@@ -78,8 +101,9 @@ const sharedBody = `
 const modernBody = `
   {{watermark}}
   <div class="page-content">
-    <div class="header">
+    <div class="header header-dark">
       <div class="brand">
+        {{company_logo}}
         <div class="company-name">{{company_name}}</div>
         <div class="company-meta">{{company_details}}</div>
       </div>
@@ -120,6 +144,7 @@ const auroraBody = `
   <div class="page-content">
     <div class="header">
       <div class="brand">
+        {{company_logo}}
         <div class="company-name">{{company_name}}</div>
         <div class="company-meta">{{company_details}}</div>
       </div>
@@ -156,6 +181,7 @@ const onyxBody = `
   {{watermark}}
   <div class="page-content">
     <div class="masthead">
+      {{company_logo}}
       <div class="company-name">{{company_name}}</div>
       <div class="doc-title">{{document_title}}</div>
     </div>
@@ -198,6 +224,7 @@ const telegraphBody = `
     <div class="segment-rule" aria-hidden="true"><span></span><span></span><span></span></div>
     <div class="header">
       <div class="header-main">
+        {{company_logo}}
         <div class="company-name">{{company_name}}</div>
         <div class="company-meta">{{company_details}}</div>
       </div>

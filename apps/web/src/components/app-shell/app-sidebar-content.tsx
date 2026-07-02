@@ -14,6 +14,7 @@ import {
 import { SidebarFooterPanel } from "@/components/app-shell/sidebar-footer-panel";
 import { SidebarOrgHeader } from "@/components/app-shell/sidebar-org-header";
 import type { CompanySummary } from "@/lib/companies";
+import type { LogoBg } from "@/lib/company-branding";
 import type { UserRole } from "@/lib/db";
 import {
   SidebarContent,
@@ -40,6 +41,7 @@ type AppSidebarContentProps = {
   companies?: CompanySummary[];
   companyName?: string;
   logoUrl?: string | null;
+  logoBg?: LogoBg;
   plan?: string;
   userRole?: UserRole;
   onNavigate?: () => void;
@@ -78,6 +80,7 @@ export function AppSidebarContent({
   companies = [],
   companyName,
   logoUrl = null,
+  logoBg = "white",
   plan = "FREE",
   userRole = "MEMBER",
   onNavigate,
@@ -89,13 +92,20 @@ export function AppSidebarContent({
 
   return (
     <>
-      <SidebarHeader className={hasCompany ? "group-data-[collapsible=icon]:p-0" : undefined}>
+      <SidebarHeader
+        className={
+          hasCompany
+            ? "group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0"
+            : undefined
+        }
+      >
         {hasCompany ? (
           <SidebarOrgHeader
             activeCompanyId={activeCompanyId!}
             companies={companies}
             companyName={companyName!}
             logoUrl={logoUrl}
+            logoBg={logoBg}
             showCompanySettings={userRole === "OWNER" || userRole === "ADMIN"}
           />
         ) : (

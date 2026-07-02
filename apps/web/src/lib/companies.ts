@@ -1,9 +1,12 @@
 import type { Plan } from "@prisma/client";
 
+import type { LogoBg } from "@/lib/company-branding";
+
 export type CompanySummary = {
   id: string;
   name: string;
   logoUrl: string | null;
+  logoBg?: LogoBg;
   plan: Plan;
 };
 
@@ -11,18 +14,28 @@ export function toCompanySummary(company: {
   id: string;
   name: string;
   logoUrl: string | null;
+  logoBg?: string | null;
   plan: Plan;
 }): CompanySummary {
   return {
     id: company.id,
     name: company.name,
     logoUrl: company.logoUrl,
+    logoBg: company.logoBg === "dark" ? "dark" : "white",
     plan: company.plan,
   };
 }
 
 export function membershipsToCompanySummaries(
-  memberships: Array<{ company: { id: string; name: string; logoUrl: string | null; plan: Plan } }>,
+  memberships: Array<{
+    company: {
+      id: string;
+      name: string;
+      logoUrl: string | null;
+      logoBg?: string | null;
+      plan: Plan;
+    };
+  }>,
 ): CompanySummary[] {
   return memberships.map((membership) => toCompanySummary(membership.company));
 }

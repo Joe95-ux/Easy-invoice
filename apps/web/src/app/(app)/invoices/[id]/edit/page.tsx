@@ -5,6 +5,7 @@ import { InvoiceCreator } from "@/features/invoices/components/invoice-creator";
 import { requireMember } from "@/lib/auth";
 import { getClientsForMember } from "@/lib/clients";
 import { getInvoiceForMember, getInvoiceLineItemsWithTimeEntries } from "@/lib/invoices";
+import { companyBrandingFields } from "@/lib/company-branding";
 import { getDefaultTemplateId, getTemplatesForCompany } from "@/lib/templates";
 
 type PageProps = { params: Promise<{ id: string }> };
@@ -37,6 +38,7 @@ export default async function EditInvoicePage({ params }: PageProps) {
         company={{
           name: member.company.name,
           logoUrl: member.company.logoUrl,
+          ...companyBrandingFields(member.company),
           email: member.company.email,
           phone: member.company.phone,
           address: member.company.address,

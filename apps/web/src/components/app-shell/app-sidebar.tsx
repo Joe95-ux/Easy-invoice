@@ -3,6 +3,7 @@
 import { AppSidebarContent } from "@/components/app-shell/app-sidebar-content";
 import { Sidebar, SidebarRail } from "@/components/ui/sidebar";
 import type { CompanySummary } from "@/lib/companies";
+import type { LogoBg } from "@/lib/company-branding";
 import type { UserRole } from "@/lib/db";
 
 type AppSidebarProps = {
@@ -10,6 +11,7 @@ type AppSidebarProps = {
   companies: CompanySummary[];
   companyName: string;
   logoUrl: string | null;
+  logoBg?: LogoBg;
   plan: string;
   userRole: UserRole;
 };
@@ -19,6 +21,7 @@ export function AppSidebar({
   companies,
   companyName,
   logoUrl,
+  logoBg = "white",
   plan,
   userRole,
 }: AppSidebarProps) {
@@ -29,6 +32,7 @@ export function AppSidebar({
         companies={companies}
         companyName={companyName}
         logoUrl={logoUrl}
+        logoBg={logoBg}
         plan={plan}
         userRole={userRole}
       />

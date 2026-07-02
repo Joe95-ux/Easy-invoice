@@ -14,6 +14,7 @@
     "@clerk/themes": "^2.4.57",
     "@easy-invoice/db": "*",
     "@tanstack/react-query": "^5.80.7",
+    "@uiw/react-color": "^2.10.3",
     "class-variance-authority": "^0.7.1",
     "cloudinary": "^2.10.0",
     "clsx": "^2.1.1",

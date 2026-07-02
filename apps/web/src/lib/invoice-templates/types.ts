@@ -1,3 +1,5 @@
+import type { LogoBg, LogoPlacement } from "@/lib/company-branding";
+
 export type DocumentKind = "invoice" | "estimate";
 
 export type InvoiceHtmlData = {
@@ -5,6 +7,9 @@ export type InvoiceHtmlData = {
   company: {
     name: string;
     logoUrl?: string | null;
+    logoBg?: LogoBg | null;
+    logoPlacement?: LogoPlacement | null;
+    brandColor?: string | null;
     email?: string | null;
     phone?: string | null;
     address?: string | null;

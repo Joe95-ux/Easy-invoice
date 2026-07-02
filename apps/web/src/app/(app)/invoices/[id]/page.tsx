@@ -18,6 +18,7 @@ import { InvoiceAutoDownload } from "@/features/invoices/components/invoice-auto
 import { InvoiceRemindersSection } from "@/features/invoices/components/invoice-reminders-section";
 import { DocumentTemplateManager } from "@/features/invoices/components/document-template-manager";
 import { requireMember } from "@/lib/auth";
+import { companyBrandingFields } from "@/lib/company-branding";
 import {
   formatDate,
   formatMoney,
@@ -86,6 +87,7 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
             company={{
               name: invoice.company.name,
               logoUrl: invoice.company.logoUrl,
+              ...companyBrandingFields(invoice.company),
               email: invoice.company.email,
               phone: invoice.company.phone,
               address: invoice.company.address,

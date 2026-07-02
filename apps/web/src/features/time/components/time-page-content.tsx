@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition, useEffect } from "react";
 import {
   ClockIcon,
   DownloadIcon,
   FileTextIcon,
+  InfoIcon,
   Loader2Icon,
   PencilIcon,
   PlusIcon,
@@ -37,8 +38,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { EmptyState, PageHeader, pageHeaderActionClass } from "@/components/app-shell/page-header";
+import { SortableTableHead } from "@/components/data-table/sortable-table-head";
+import { TablePagination } from "@/components/data-table/table-pagination";
+import { TableToolbar } from "@/components/data-table/table-toolbar";
 import { LogTimeDialog } from "@/features/time/components/log-time-dialog";
 import { ImportTimeDialog } from "@/features/time/components/import-time-dialog";
+import { useListTable } from "@/hooks/use-list-table";
+import { useIsMobile } from "@/hooks/use-mobile";
 import type { ClientListItem } from "@/lib/clients";
 import { formatDate, formatMoney } from "@/lib/invoices";
 import { formatDuration } from "@/lib/time-tracking/format";
@@ -78,7 +84,9 @@ export function TimePageContent({
   defaultHourlyRate,
 }: TimePageContentProps) {
   const router = useRouter();
+  const isMobile = useIsMobile();
   const [isInvoicing, startInvoicing] = useTransition();
+  const invoicingToastRef = useRef<string | number | null>(null);
   const [filter, setFilter] = useState<"all" | "unbilled">("all");
   const [logOpen, setLogOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -94,6 +102,20 @@ export function TimePageContent({
     }
     return initialEntries;
   }, [filter, initialEntries]);
+
+  const table = useListTable<SerializedTimeEntry>({
+    tableId: "time",
+    data: entries,
+    searchKeys: ["clientName", "description", "invoiceNumber"],
+    defaultSortKey: "date",
+    defaultSortDirection: "desc",
+    getSortValue: (row, key) => {
+      if (key === "durationMinutes") return row.durationMinutes;
+      if (key === "hourlyRate") return row.hourlyRate;
+      if (key === "amount") return row.hours * row.hourlyRate;
+      return row[key as keyof SerializedTimeEntry];
+    },
+  });
 
   const invoiceableEntries = useMemo(
     () => entries.filter(isInvoiceable),
@@ -117,6 +139,28 @@ export function TimePageContent({
   const allInvoiceableSelected =
     invoiceableEntries.length > 0 &&
     invoiceableEntries.every((entry) => selectedIds.has(entry.id));
+
+  useEffect(() => {
+    if (isInvoicing) {
+      if (!invoicingToastRef.current) {
+        invoicingToastRef.current = toast.loading("Opening invoice…");
+      }
+      return;
+    }
+
+    if (invoicingToastRef.current) {
+      toast.dismiss(invoicingToastRef.current);
+      invoicingToastRef.current = null;
+    }
+  }, [isInvoicing]);
+
+  function handleInvoiceFromTime(clientId: string, timeEntryIds: string[]) {
+    if (isInvoicing) return;
+
+    startInvoicing(() => {
+      router.push(invoiceFromTimeUrl({ clientId, timeEntryIds }));
+    });
+  }
 
   function toggleEntry(id: string, checked: boolean) {
     setSelectedIds((current) => {
@@ -169,14 +213,10 @@ export function TimePageContent({
     const clientId = selectedEntries[0]?.clientId;
     if (!clientId) return;
 
-    startInvoicing(() => {
-      router.push(
-        invoiceFromTimeUrl({
-          clientId,
-          timeEntryIds: selectedEntries.map((entry) => entry.id),
-        }),
-      );
-    });
+    handleInvoiceFromTime(
+      clientId,
+      selectedEntries.map((entry) => entry.id),
+    );
   }
 
   return (
@@ -229,42 +269,55 @@ export function TimePageContent({
       )}
 
       {selectedEntries.length > 0 && (
-        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2">
-          <p className="text-sm font-medium">
-            {selectedEntries.length} selected
-          </p>
-          <Button
-            size="sm"
-            onClick={handleBulkInvoice}
-            disabled={selectedClientIds.size !== 1 || isInvoicing}
-          >
-            {isInvoicing ? (
-              <Loader2Icon className="size-4 animate-spin" />
-            ) : (
-              <FileTextIcon className="size-4" />
-            )}
-            {isInvoicing ? "Creating invoice..." : "Create invoice"}
-          </Button>
-          {selectedClientIds.size > 1 && (
-            <p className="text-xs text-muted-foreground">
-              Select entries for one client to invoice together.
-            </p>
+        <div className="mb-4">
+          {!isMobile && selectedClientIds.size > 1 && (
+            <div className="mb-2 inline-flex w-fit max-w-md items-start gap-2 rounded-lg border border-warning/50 bg-muted/60 px-3 py-2 text-sm text-foreground shadow-sm">
+              <InfoIcon className="mt-0.5 size-4 shrink-0 text-warning" />
+              <p>Select entries for one client to invoice together.</p>
+            </div>
           )}
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setBulkDeleteOpen(true)}
+
+          <div
+            className={cn(
+              "flex flex-wrap items-center gap-2",
+              isMobile && "rounded-lg border bg-muted/40 px-3 py-2",
+            )}
           >
-            <Trash2Icon className="size-4" />
-            Delete
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => setSelectedIds(new Set())}
-          >
-            Clear
-          </Button>
+            <p className="text-sm font-medium">{selectedEntries.length} selected</p>
+            <Button
+              size="sm"
+              onClick={handleBulkInvoice}
+              disabled={selectedClientIds.size !== 1 || isInvoicing}
+            >
+              {isInvoicing ? (
+                <Loader2Icon className="size-4 animate-spin" />
+              ) : (
+                <FileTextIcon className="size-4" />
+              )}
+              {isInvoicing ? "Creating invoice..." : "Create invoice"}
+            </Button>
+            {isMobile && selectedClientIds.size > 1 && (
+              <p className="flex w-full items-start gap-1.5 text-xs text-muted-foreground">
+                <InfoIcon className="mt-0.5 size-3.5 shrink-0 text-warning" />
+                Select entries for one client to invoice together.
+              </p>
+            )}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setBulkDeleteOpen(true)}
+            >
+              <Trash2Icon className="size-4" />
+              Delete
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setSelectedIds(new Set())}
+            >
+              Clear
+            </Button>
+          </div>
         </div>
       )}
 
@@ -293,6 +346,12 @@ export function TimePageContent({
         />
       ) : (
         <Card className="overflow-hidden py-0">
+          <TableToolbar
+            search={table.searchQuery}
+            onSearchChange={table.setSearchQuery}
+            searchPlaceholder="Search time entries..."
+          />
+
           <Table stickyColumnWidths={["3.25rem", "6.5rem"]}>
             <TableHeader>
               <TableRow>
@@ -305,18 +364,66 @@ export function TimePageContent({
                     />
                   )}
                 </TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Client</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead className="text-right">Duration</TableHead>
-                <TableHead className="text-right">Rate</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
+                <SortableTableHead
+                  label="Date"
+                  column="date"
+                  sortKey={table.sortKey}
+                  sortDirection={table.sortDirection}
+                  onSort={table.toggleSort}
+                />
+                <SortableTableHead
+                  label="Client"
+                  column="clientName"
+                  sortKey={table.sortKey}
+                  sortDirection={table.sortDirection}
+                  onSort={table.toggleSort}
+                />
+                <SortableTableHead
+                  label="Description"
+                  column="description"
+                  sortKey={table.sortKey}
+                  sortDirection={table.sortDirection}
+                  onSort={table.toggleSort}
+                />
+                <SortableTableHead
+                  label="Duration"
+                  column="durationMinutes"
+                  sortKey={table.sortKey}
+                  sortDirection={table.sortDirection}
+                  onSort={table.toggleSort}
+                  className="text-right [&_button]:ml-auto"
+                />
+                <SortableTableHead
+                  label="Rate"
+                  column="hourlyRate"
+                  sortKey={table.sortKey}
+                  sortDirection={table.sortDirection}
+                  onSort={table.toggleSort}
+                  className="text-right [&_button]:ml-auto"
+                />
+                <SortableTableHead
+                  label="Amount"
+                  column="amount"
+                  sortKey={table.sortKey}
+                  sortDirection={table.sortDirection}
+                  onSort={table.toggleSort}
+                  className="text-right [&_button]:ml-auto"
+                />
                 <TableHead>Status</TableHead>
                 <TableHead className="w-24" />
               </TableRow>
             </TableHeader>
             <TableBody>
-              {entries.map((entry) => {
+              {table.pageRows.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
+                    {table.hasActiveFilters
+                      ? "No time entries match your search."
+                      : "No time entries."}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                table.pageRows.map((entry) => {
                 const amount = entry.hours * entry.hourlyRate;
                 const isBilled = Boolean(entry.invoicedAt);
                 const canInvoice = isInvoiceable(entry);
@@ -361,16 +468,17 @@ export function TimePageContent({
                     <TableCell>
                       <div className="flex justify-end gap-1">
                         {canInvoice && (
-                          <Link
-                            href={invoiceFromTimeUrl({
-                              clientId: entry.clientId!,
-                              timeEntryIds: [entry.id],
-                            })}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleInvoiceFromTime(entry.clientId!, [entry.id])
+                            }
+                            disabled={isInvoicing}
                             className={cn(buttonVariants({ variant: "ghost", size: "icon-sm" }))}
                             aria-label="Create invoice from time entry"
                           >
                             <FileTextIcon className="size-4" />
-                          </Link>
+                          </button>
                         )}
                         {!isBilled && (
                           <>
@@ -399,9 +507,22 @@ export function TimePageContent({
                     </TableCell>
                   </TableRow>
                 );
-              })}
+              })
+              )}
             </TableBody>
           </Table>
+
+          <TablePagination
+            page={table.page}
+            pageCount={table.pageCount}
+            pageSize={table.pageSize}
+            pageSizeOptions={table.pageSizeOptions}
+            totalCount={table.totalCount}
+            rangeStart={table.rangeStart}
+            rangeEnd={table.rangeEnd}
+            onPageChange={table.setPage}
+            onPageSizeChange={table.setPageSize}
+          />
         </Card>
       )}
 

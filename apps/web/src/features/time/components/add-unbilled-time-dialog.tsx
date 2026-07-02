@@ -34,13 +34,19 @@ import {
 import { formatDuration } from "@/lib/time-tracking/format";
 import { groupTimeEntries } from "@/lib/time-tracking/grouping";
 
+const GROUP_BY_OPTIONS = [
+  { value: "per_task", label: "By task / description" },
+  { value: "per_day", label: "By day" },
+  { value: "per_entry", label: "One line per entry" },
+] as const;
+
 type AddUnbilledTimeDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   clientId: string;
   clientName: string;
   currency: string;
-  onAdd: (items: LineItemInput[]) => void;
+  onAdd: (items: LineItemInput[]) => boolean;
   initialSelectedIds?: string[];
 };
 
@@ -137,7 +143,9 @@ export function AddUnbilledTimeDialog({
       return;
     }
 
-    onAdd(timeEntriesToLineItems(selectedEntries, groupBy));
+    const added = onAdd(timeEntriesToLineItems(selectedEntries, groupBy));
+    if (!added) return;
+
     onOpenChange(false);
     toast.success(`Added ${previewLines.length} line item${previewLines.length === 1 ? "" : "s"} from time`);
   }
@@ -169,6 +177,7 @@ export function AddUnbilledTimeDialog({
               <Select
                 value={groupBy}
                 onValueChange={(value) => value && setGroupBy(value as TimeGroupMode)}
+                items={[...GROUP_BY_OPTIONS]}
               >
                 <SelectTrigger className="mb-0 w-full">
                   <SelectValue />

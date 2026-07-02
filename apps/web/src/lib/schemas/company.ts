@@ -1,5 +1,13 @@
 import { z } from "zod";
 
+export const logoBgSchema = z.enum(["white", "dark"]);
+export const logoPlacementSchema = z.enum(["watermark", "header"]);
+export const brandColorSchema = z
+  .string()
+  .regex(/^#[0-9A-Fa-f]{6}$/, "Use a valid hex color")
+  .nullable()
+  .optional();
+
 export const companyProfileSchema = z.object({
   name: z.string().min(2, "Company name is required"),
   email: z.string().email().optional().or(z.literal("")),
@@ -16,6 +24,9 @@ export const companyProfileSchema = z.object({
 export const companyOnboardingSchema = companyProfileSchema;
 export const companySettingsSchema = companyProfileSchema.extend({
   taxId: z.string().optional(),
+  logoBg: logoBgSchema.optional(),
+  logoPlacement: logoPlacementSchema.optional(),
+  brandColor: brandColorSchema,
   defaultHourlyRate: z.preprocess(
     (value) => (value === "" || value === null || value === undefined ? null : Number(value)),
     z.number().nonnegative().nullable().optional(),

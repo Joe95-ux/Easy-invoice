@@ -2,6 +2,7 @@ import { PageScroll } from "@/components/app-shell/app-shell";
 import { PageBackLink } from "@/components/app-shell/page-header";
 import { requireMember } from "@/lib/auth";
 import { getClientsForMember } from "@/lib/clients";
+import { companyBrandingFields } from "@/lib/company-branding";
 import { getDefaultTemplateId, getTemplatesForCompany } from "@/lib/templates";
 import { InvoiceCreator } from "@/features/invoices/components/invoice-creator";
 
@@ -34,6 +35,7 @@ export default async function NewInvoicePage({ searchParams }: PageProps) {
         company={{
           name: member.company.name,
           logoUrl: member.company.logoUrl,
+          ...companyBrandingFields(member.company),
           email: member.company.email,
           phone: member.company.phone,
           address: member.company.address,

@@ -69,7 +69,7 @@ function Table({
         data-slot="table"
         style={{ ...stickyStyle, ...style }}
         className={cn(
-          "w-full caption-bottom text-sm [&_tr>*:first-child]:pl-5 [&_tr>*:last-child]:pr-5",
+          "w-full caption-bottom [&_tr>*:first-child]:pl-5 [&_tr>*:last-child]:pr-5",
           stickyColumns >= 1 &&
             cn(
               "[&_th:nth-child(1)]:sticky [&_td:nth-child(1)]:sticky",
@@ -167,7 +167,7 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
     <th
       data-slot="table-head"
       className={cn(
-        "h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&:has([role=checkbox])]:pr-0",
+        "h-10 px-2 text-left align-middle text-base font-medium whitespace-nowrap text-foreground [&:has([role=checkbox])]:pr-0",
         className
       )}
       {...props}
@@ -180,7 +180,7 @@ function TableCell({ className, ...props }: React.ComponentProps<"td">) {
     <td
       data-slot="table-cell"
       className={cn(
-        "p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0",
+        "p-2 align-middle text-sm whitespace-nowrap [&:has([role=checkbox])]:pr-0",
         className
       )}
       {...props}

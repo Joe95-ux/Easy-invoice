@@ -2,6 +2,7 @@ import type { InvoiceHtmlData } from "@/lib/invoice-templates/types";
 import { SYSTEM_TEMPLATES } from "@/lib/invoice-templates/definitions";
 import { renderFromTemplate } from "@/lib/invoice-templates/render";
 import { inlineCompanyLogo } from "@/lib/inline-company-logo";
+import { companyBrandingFields } from "@/lib/company-branding";
 import { getEstimateForMember } from "@/lib/estimates";
 import { ensureSystemTemplates, getDefaultTemplateId, getTemplateById } from "@/lib/templates";
 
@@ -10,7 +11,18 @@ export function estimateToHtmlData(
 ): InvoiceHtmlData {
   return {
     documentKind: "estimate",
-    company: estimate.company,
+    company: {
+      name: estimate.company.name,
+      logoUrl: estimate.company.logoUrl,
+      email: estimate.company.email,
+      phone: estimate.company.phone,
+      address: estimate.company.address,
+      city: estimate.company.city,
+      state: estimate.company.state,
+      zip: estimate.company.zip,
+      country: estimate.company.country,
+      ...companyBrandingFields(estimate.company),
+    },
     client: estimate.client,
     invoice: {
       number: estimate.number,

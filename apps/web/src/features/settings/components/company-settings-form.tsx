@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { FormStepProgress } from "@/components/forms/form-step-progress";
+import { CompanyBrandOptions } from "@/components/forms/company-brand-options";
 import { CompanyLogoUpload } from "@/components/forms/company-logo-upload";
 import { AddressFields } from "@/components/forms/address-fields";
 import { CountrySelect, defaultCurrencyForCountry } from "@/components/forms/country-select";
@@ -15,6 +16,12 @@ import { LocaleSelect } from "@/components/forms/locale-select";
 import { PhoneInput } from "@/components/forms/phone-input";
 import { FormCard } from "@/components/forms/form-card";
 import { zodFieldErrors } from "@/lib/validation/zod";
+import {
+  normalizeLogoBg,
+  normalizeLogoPlacement,
+  type LogoBg,
+  type LogoPlacement,
+} from "@/lib/company-branding";
 import {
   companySettingsSchema,
   type CompanySettingsInput,
@@ -26,7 +33,7 @@ type CompanySettingsFormProps = {
 };
 
 const STEPS = [
-  { id: "brand", title: "Brand", description: "Logo and company identity" },
+  { id: "brand", title: "Brand", description: "Logo, colors, and document styling" },
   { id: "contact", title: "Contact", description: "How clients reach you" },
   { id: "address", title: "Address", description: "Business location" },
   { id: "preferences", title: "Preferences", description: "Currency and locale defaults" },
@@ -139,7 +146,16 @@ export function CompanySettingsForm({
               <CompanyLogoUpload
                 logoUrl={logoUrl}
                 onLogoChange={setLogoUrl}
+                logoBg={normalizeLogoBg(form.logoBg)}
                 suggestedImageUrl={user?.imageUrl}
+              />
+              <CompanyBrandOptions
+                logoBg={normalizeLogoBg(form.logoBg)}
+                logoPlacement={normalizeLogoPlacement(form.logoPlacement)}
+                brandColor={form.brandColor ?? null}
+                onLogoBgChange={(value) => updateField("logoBg", value)}
+                onLogoPlacementChange={(value) => updateField("logoPlacement", value)}
+                onBrandColorChange={(value) => updateField("brandColor", value)}
               />
               <div className="grid gap-4 sm:grid-cols-2">
                 <FormField
