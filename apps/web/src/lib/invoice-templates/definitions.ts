@@ -56,6 +56,36 @@ export const watermarkStyles = `
     color: #374151;
     margin-bottom: 8px;
   }
+  .totals.totals--wide { width: min(100%, 420px) !important; }
+  .payment-schedule-block { margin-top: 20px; width: 100%; }
+  .payment-block-label {
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .payment-schedule-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  .payment-schedule-table th,
+  .payment-schedule-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid #e4e4e7;
+    text-align: left;
+    vertical-align: top;
+  }
+  .payment-schedule-table th {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #666;
+  }
+  .payment-schedule-table .num { text-align: right; white-space: nowrap; }
+  .payment-history { margin-top: 16px; font-size: 12px; color: #475569; }
+  .payment-history-row { line-height: 1.55; }
 `;
 
 export const tableBandStyles = `
@@ -95,7 +125,8 @@ const sharedBody = `
       </thead>
       <tbody>{{line_items}}</tbody>
     </table>
-    <div class="totals">{{totals}}</div>
+    <div class="totals {{totals_class}}">{{totals}}</div>
+    {{payment_schedule}}
     {{terms_notes}}
     {{invoice_footer}}
   </div>
@@ -134,7 +165,8 @@ const modernBody = `
         </thead>
         <tbody>{{line_items}}</tbody>
       </table>
-      <div class="totals-wrap"><div class="totals">{{totals}}</div></div>
+      <div class="totals-wrap"><div class="totals {{totals_class}}">{{totals}}</div></div>
+      {{payment_schedule}}
       {{terms_notes}}
       {{invoice_footer}}
     </div>
@@ -174,7 +206,8 @@ const auroraBody = `
       </thead>
       <tbody>{{line_items}}</tbody>
     </table>
-    <div class="totals-wrap"><div class="totals">{{totals}}</div></div>
+    <div class="totals-wrap"><div class="totals {{totals_class}}">{{totals}}</div></div>
+    {{payment_schedule}}
     {{terms_notes}}
     {{invoice_footer}}
   </div>
@@ -215,7 +248,8 @@ const onyxBody = `
       </thead>
       <tbody>{{line_items}}</tbody>
     </table>
-    <div class="totals-wrap"><div class="totals">{{totals}}</div></div>
+    <div class="totals-wrap"><div class="totals {{totals_class}}">{{totals}}</div></div>
+    {{payment_schedule}}
     {{terms_notes}}
     {{invoice_footer}}
   </div>
@@ -260,7 +294,8 @@ const telegraphBody = `
       <tbody>{{line_items}}</tbody>
     </table>
     <div class="segment-rule" aria-hidden="true"><span></span><span></span></div>
-    <div class="totals-wrap"><div class="totals">{{totals}}</div></div>
+    <div class="totals-wrap"><div class="totals {{totals_class}}">{{totals}}</div></div>
+    {{payment_schedule}}
     {{terms_notes}}
     <div class="segment-rule footer-rule" aria-hidden="true"><span></span></div>
     {{invoice_footer}}

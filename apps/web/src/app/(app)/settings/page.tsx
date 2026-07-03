@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { BellIcon, ScrollTextIcon } from "lucide-react";
 import { CompanySettingsForm } from "@/features/settings/components/company-settings-form";
 import { ReminderSettingsSection } from "@/features/settings/components/reminder-settings-section";
 import { SettingsDefaultTemplateSection } from "@/features/settings/components/settings-default-template-section";
@@ -10,8 +12,9 @@ import { resolveMemberLoginEmails } from "@/lib/member-email";
 import { normalizeLogoBg, normalizeLogoPlacement } from "@/lib/company-branding";
 import { reminderSettingsFromCompany } from "@/lib/reminders/settings";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { PageScroll } from "@/components/app-shell/app-shell";
-import { PageHeader } from "@/components/app-shell/page-header";
+import { PageHeader, pageHeaderActionClass } from "@/components/app-shell/page-header";
 
 export default async function SettingsPage() {
   const member = await requireCompanyAdmin();
@@ -81,6 +84,26 @@ export default async function SettingsPage() {
       <PageHeader
         title="Settings"
         description="Manage your company profile and invoice preferences."
+        actions={
+          <>
+            <Button
+              variant="outline"
+              className={pageHeaderActionClass}
+              render={<Link href="/settings/notifications" />}
+            >
+              <BellIcon className="size-4" />
+              Notifications
+            </Button>
+            <Button
+              variant="outline"
+              className={pageHeaderActionClass}
+              render={<Link href="/settings/activity" />}
+            >
+              <ScrollTextIcon className="size-4" />
+              Activity log
+            </Button>
+          </>
+        }
       />
 
       <div className="space-y-6">

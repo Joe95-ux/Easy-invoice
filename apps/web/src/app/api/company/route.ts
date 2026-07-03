@@ -1,7 +1,38 @@
 import { NextResponse } from "next/server";
 import { requireApiMember, requireApiCompanyAdmin, parseJsonBody, validationError } from "@/lib/api/validation";
-import { prisma } from "@/lib/db";
+import { recordAuditEvent } from "@/lib/audit/service";
+import { summarizeCompanyProfileChange } from "@/lib/audit/summaries";
+import { AuditAction, AuditCategory, prisma } from "@/lib/db";
 import { companySettingsSchema } from "@/lib/schemas/company";
+
+const PROFILE_AUDIT_FIELDS = [
+  "name",
+  "email",
+  "phone",
+  "address",
+  "city",
+  "state",
+  "zip",
+  "country",
+  "currency",
+  "locale",
+  "taxId",
+  "logoBg",
+  "logoPlacement",
+  "brandColor",
+  "defaultHourlyRate",
+] as const;
+
+function companyProfileSnapshot(company: Record<string, unknown>) {
+  return Object.fromEntries(
+    PROFILE_AUDIT_FIELDS.map((field) => [
+      field,
+      field === "defaultHourlyRate" && company[field] != null
+        ? Number(company[field])
+        : company[field],
+    ]),
+  );
+}
 
 export async function GET() {
   const { member, response } = await requireApiMember();
@@ -19,6 +50,13 @@ export async function PATCH(request: Request) {
 
   const parsed = companySettingsSchema.safeParse(body);
   if (!parsed.success) return validationError(parsed.error);
+
+  const before = await prisma.company.findUnique({
+    where: { id: member.companyId },
+  });
+  if (!before) {
+    return NextResponse.json({ error: "Company not found" }, { status: 404 });
+  }
 
   const company = await prisma.company.update({
     where: { id: member.companyId },
@@ -46,6 +84,24 @@ export async function PATCH(request: Request) {
       }),
     },
   });
+
+  const { summary, changes } = summarizeCompanyProfileChange(
+    companyProfileSnapshot(before as Record<string, unknown>),
+    companyProfileSnapshot(company as Record<string, unknown>),
+  );
+
+  if (changes.length > 0) {
+    await recordAuditEvent({
+      companyId: member.companyId,
+      memberId: member.id,
+      category: AuditCategory.SETTINGS,
+      action: AuditAction.COMPANY_PROFILE_UPDATED,
+      summary,
+      entityType: "company",
+      entityId: member.companyId,
+      metadata: { changes },
+    });
+  }
 
   return NextResponse.json({ company });
 }

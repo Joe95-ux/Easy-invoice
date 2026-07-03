@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { parseJsonBody, validationError } from "@/lib/api/validation";
 import { setActiveCompanyCookie } from "@/lib/active-company";
-import { prisma } from "@/lib/db";
+import { recordAuditEvent } from "@/lib/audit/service";
+import { AuditAction, AuditCategory, prisma } from "@/lib/db";
 import { acceptInviteSchema } from "@/lib/schemas/team";
 import { normalizeInviteEmail } from "@/lib/team";
 
@@ -66,21 +67,36 @@ export async function POST(request: Request) {
     });
   }
 
-  await prisma.$transaction([
-    prisma.companyMember.create({
+  const userName = user.fullName?.trim() || null;
+
+  const newMember = await prisma.$transaction(async (tx) => {
+    const created = await tx.companyMember.create({
       data: {
         companyId: invite.companyId,
         clerkId: userId,
         email: inviteEmail,
+        name: userName,
         role: invite.role,
         lastActiveAt: new Date(),
       },
-    }),
-    prisma.companyInvite.update({
+    });
+    await tx.companyInvite.update({
       where: { id: invite.id },
       data: { acceptedAt: new Date() },
-    }),
-  ]);
+    });
+    return created;
+  });
+
+  await recordAuditEvent({
+    companyId: invite.companyId,
+    memberId: newMember.id,
+    category: AuditCategory.TEAM,
+    action: AuditAction.MEMBER_JOINED,
+    summary: `${inviteEmail} joined as ${invite.role}`,
+    entityType: "member",
+    entityId: newMember.id,
+    metadata: { email: inviteEmail, role: invite.role },
+  });
 
   await setActiveCompanyCookie(invite.companyId);
 

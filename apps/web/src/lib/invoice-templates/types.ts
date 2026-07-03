@@ -36,11 +36,27 @@ export type InvoiceHtmlData = {
     discount: number;
     total: number;
     notes?: string | null;
+    amountPaid?: number;
+    balanceDue?: number;
   };
   items: Array<{
     description: string;
     quantity: number;
     unitPrice: number;
     amount: number;
+  }>;
+  installments?: Array<{
+    dueDate: Date;
+    amount: number;
+    label?: string | null;
+    paidAmount: number;
+    balanceDue: number;
+    isPaid: boolean;
+  }>;
+  payments?: Array<{
+    paidAt: Date;
+    amount: number;
+    method: string;
+    reference?: string | null;
   }>;
 };

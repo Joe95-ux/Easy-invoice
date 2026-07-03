@@ -4,13 +4,15 @@ import Link from "next/link";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { HelpSheet } from "@/components/app-shell/help-sheet";
+import { NotificationBell } from "@/components/app-shell/notification-bell";
 
 type AppHeaderProps = {
+  memberId: string;
   title?: string;
   description?: string;
 };
 
-export function AppHeader({ title, description }: AppHeaderProps) {
+export function AppHeader({ memberId, title, description }: AppHeaderProps) {
   return (
     <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-border/70 bg-background/80 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/65 md:px-6">
       <SidebarTrigger className="-ml-1" />
@@ -27,6 +29,7 @@ export function AppHeader({ title, description }: AppHeaderProps) {
         )}
       </div>
       <div className="flex items-center gap-1 sm:gap-2">
+        <NotificationBell memberId={memberId} />
         <Button variant="ghost" size="sm" render={<Link href="/#pricing" />}>
           Pricing
         </Button>

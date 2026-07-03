@@ -7,7 +7,8 @@ import {
 } from "@/lib/api/validation";
 import { getAppOrigin } from "@/lib/app-url";
 import { sendTeamInviteEmail } from "@/lib/email";
-import { prisma, UserRole } from "@/lib/db";
+import { recordAuditEvent } from "@/lib/audit/service";
+import { AuditAction, AuditCategory, prisma, UserRole } from "@/lib/db";
 import { inviteMemberSchema } from "@/lib/schemas/team";
 import {
   canAssignRole,
@@ -85,6 +86,17 @@ export async function POST(request: Request) {
     const message = error instanceof Error ? error.message : "Failed to send invite email";
     return NextResponse.json({ error: message }, { status: 502 });
   }
+
+  await recordAuditEvent({
+    companyId: member.companyId,
+    memberId: member.id,
+    category: AuditCategory.TEAM,
+    action: AuditAction.MEMBER_INVITED,
+    summary: `Invited ${email} as ${role}`,
+    entityType: "invite",
+    entityId: invite.id,
+    metadata: { email, role },
+  });
 
   return NextResponse.json(
     {

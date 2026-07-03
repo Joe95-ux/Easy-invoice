@@ -46,6 +46,7 @@ export type InvoiceRow = {
   number: string;
   status: InvoiceStatus;
   total: string;
+  balanceDue: string;
   currency: string;
   dueDate: string | null;
   clientName: string | null;
@@ -54,7 +55,7 @@ export type InvoiceRow = {
 const STATUS_FILTER_OPTIONS = [
   { value: "all", label: "All statuses" },
   ...(
-    ["DRAFT", "SENT", "VIEWED", "PAID", "OVERDUE", "CANCELLED"] as InvoiceStatus[]
+    ["DRAFT", "SENT", "VIEWED", "PARTIALLY_PAID", "PAID", "OVERDUE", "CANCELLED"] as InvoiceStatus[]
   ).map((status) => ({
     value: status,
     label: invoiceStatusLabel(status),
@@ -192,7 +193,12 @@ export function InvoicesTable({ invoices, companyName }: InvoicesTableProps) {
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
-                  {formatMoney(invoice.total, invoice.currency)}
+                  <div>{formatMoney(invoice.total, invoice.currency)}</div>
+                  {Number(invoice.balanceDue) < Number(invoice.total) - 0.001 && (
+                    <div className="text-xs text-muted-foreground">
+                      {formatMoney(invoice.balanceDue, invoice.currency)} due
+                    </div>
+                  )}
                 </TableCell>
                 <TableCell className="w-40 pl-6 text-muted-foreground">
                   {invoice.dueDate ? formatDate(invoice.dueDate) : "—"}

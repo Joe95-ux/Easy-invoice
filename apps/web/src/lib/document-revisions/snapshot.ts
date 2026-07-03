@@ -1,4 +1,5 @@
-import type { DocumentRevisionSource } from "@easy-invoice/db";
+import type { ReminderKind } from "@easy-invoice/db";
+import type { ContentRevisionSource } from "@/lib/document-revisions/types";
 import type { Decimal } from "@prisma/client/runtime/library";
 import { formatMoney } from "@/lib/invoices";
 import type { DocumentSnapshot, DocumentSnapshotLineItem } from "@/lib/document-revisions/types";
@@ -35,6 +36,12 @@ export function invoiceToSnapshot(
     notes: string | null;
     templateId: string | null;
     remindersPaused?: boolean;
+    installments?: Array<{
+      dueDate: Date;
+      amount: MoneyInput;
+      label: string | null;
+      sortOrder: number;
+    }>;
     items: Array<{
       description: string;
       quantity: MoneyInput;
@@ -60,6 +67,12 @@ export function invoiceToSnapshot(
     notes: invoice.notes,
     templateId: invoice.templateId,
     remindersPaused: invoice.remindersPaused,
+    installments: invoice.installments?.map((row) => ({
+      dueDate: toIsoDate(row.dueDate) ?? new Date().toISOString(),
+      amount: toNumber(row.amount),
+      label: row.label,
+      sortOrder: row.sortOrder,
+    })),
     lineItems: invoice.items.map((item) => ({
       description: item.description,
       quantity: toNumber(item.quantity),
@@ -124,17 +137,25 @@ export function snapshotsEqual(a: DocumentSnapshot, b: DocumentSnapshot): boolea
 export function buildRevisionSummary(
   before: DocumentSnapshot | null,
   after: DocumentSnapshot,
-  source: DocumentRevisionSource,
-  metadata?: { email?: string; restoredFrom?: number },
+  source: ContentRevisionSource,
+  metadata?: {
+    email?: string;
+    restoredFrom?: number;
+    paymentAmount?: number;
+    amountPaid?: number;
+  },
 ): string {
-  if (source === "CREATE") return "Document created";
   if (source === "RESTORE") {
     return metadata?.restoredFrom
       ? `Restored from version ${metadata.restoredFrom}`
       : "Restored from saved version";
   }
-  if (source === "SEND") {
-    return metadata?.email ? `Sent to ${metadata.email}` : "Sent to client";
+  if (source === "STATUS" && metadata?.paymentAmount !== undefined) {
+    const paidLabel =
+      metadata.amountPaid !== undefined
+        ? ` (${formatMoney(metadata.amountPaid, after.currency)} paid)`
+        : "";
+    return `Payment of ${formatMoney(metadata.paymentAmount, after.currency)} recorded${paidLabel}`;
   }
   if (source === "STATUS" && before && before.status !== after.status) {
     return `Status changed to ${formatStatusLabel(after.status)}`;
@@ -192,4 +213,22 @@ export function snapshotLineItemsToCreate(
     amount: item.amount,
     sortOrder: item.sortOrder,
   }));
+}
+
+export function buildReminderRevisionSummary(
+  kind: ReminderKind | undefined,
+  email: string,
+): string {
+  switch (kind) {
+    case "BEFORE_DUE":
+      return `Automatic before-due reminder sent to ${email}`;
+    case "ON_DUE":
+      return `Automatic due-date reminder sent to ${email}`;
+    case "OVERDUE":
+      return `Automatic overdue reminder sent to ${email}`;
+    case "MANUAL":
+      return `Payment reminder sent to ${email}`;
+    default:
+      return `Payment reminder sent to ${email}`;
+  }
 }

@@ -30,6 +30,10 @@ import {
   type LineItemInput,
 } from "@/features/invoices/components/invoice-line-items";
 import { InvoiceTotalsSummary } from "@/features/invoices/components/invoice-totals-summary";
+import {
+  InvoiceInstallmentEditor,
+  type InstallmentRow,
+} from "@/features/invoices/components/invoice-installment-editor";
 import { TemplateCarousel } from "@/features/invoices/components/template-carousel";
 import {
   calculateInvoiceTotals,
@@ -37,6 +41,7 @@ import {
   resolveDiscountAmount,
   type DiscountMode,
 } from "@/lib/calculator";
+import { validateInstallments } from "@/lib/invoice-payments-utils";
 import type { ClientListItem } from "@/lib/clients";
 import { formatClientAddress } from "@/lib/clients";
 import { CURRENCY_OPTIONS } from "@/lib/geo/countries";
@@ -67,6 +72,7 @@ export type InvoiceInitialValues = {
   taxRate?: number;
   discount?: number;
   lineItems?: LineItemInput[];
+  installments?: InstallmentRow[];
 };
 
 type InvoiceCreatorProps = {
@@ -129,6 +135,9 @@ export function InvoiceCreator({
   const [discountValue, setDiscountValue] = useState(initialValues?.discount ?? 0);
   const [lineItems, setLineItems] = useState<LineItemInput[]>(
     initialValues?.lineItems?.length ? initialValues.lineItems : createDefaultLineItems(),
+  );
+  const [installments, setInstallments] = useState<InstallmentRow[]>(
+    initialValues?.installments ?? [],
   );
   const [activeTab, setActiveTab] = useState("form");
   const [step, setStep] = useState(0);
@@ -317,10 +326,19 @@ export function InvoiceCreator({
         sortOrder: index,
         ...(item.timeEntryIds?.length ? { timeEntryIds: item.timeEntryIds } : {}),
       })),
+      ...(installments.length > 0 ? { installments } : {}),
     };
   }
 
   async function handleSave(downloadAfter = false) {
+    if (installments.length > 0) {
+      const installmentError = validateInstallments(installments, totals.total);
+      if (installmentError) {
+        toast.error(installmentError);
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       const url = isEditing ? `/api/invoices/${invoiceId}` : "/api/invoices";
@@ -451,6 +469,15 @@ export function InvoiceCreator({
             onChange={(value) => value && setCurrency(value)}
             placeholder="Select currency"
           />
+          <div className="sm:col-span-2">
+            <InvoiceInstallmentEditor
+              installments={installments}
+              onChange={setInstallments}
+              invoiceTotal={totals.total}
+              currency={currency}
+              disabled={isEditing && invoiceStatus !== "DRAFT"}
+            />
+          </div>
         </div>
       )}
 
@@ -599,6 +626,7 @@ export function InvoiceCreator({
       totals={totals}
       taxRate={taxRate}
       discount={discountAmount}
+      installments={installments}
     />
   );
 

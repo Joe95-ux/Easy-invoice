@@ -34,6 +34,15 @@ export type PreviewLineItem = {
   unitPrice: number;
 };
 
+export type PreviewInstallment = {
+  dueDate: string;
+  amount: number;
+  label?: string | null;
+  paidAmount?: number;
+  balanceDue?: number;
+  isPaid?: boolean;
+};
+
 export type BuildDocumentHtmlOptions = {
   kind: DocumentKind;
   templateSlug?: string;
@@ -53,6 +62,9 @@ export type BuildDocumentHtmlOptions = {
   totals: { subtotal: number; taxAmount: number; total: number };
   taxRate: number;
   discount: number;
+  installments?: PreviewInstallment[];
+  amountPaid?: number;
+  balanceDue?: number;
 };
 
 export function pickTemplate(slug?: string) {
@@ -96,6 +108,20 @@ export function buildDocumentHtml(options: BuildDocumentHtmlOptions): string {
       amount: item.quantity * item.unitPrice,
     }));
 
+  const installments = (options.installments ?? []).map((row) => {
+    const amount = row.amount;
+    const paidAmount = row.paidAmount ?? 0;
+    const balanceDue = row.balanceDue ?? Math.max(0, amount - paidAmount);
+    return {
+      dueDate: parseDate(row.dueDate) ?? new Date(),
+      amount,
+      label: row.label ?? null,
+      paidAmount,
+      balanceDue,
+      isPaid: row.isPaid ?? balanceDue <= 0.001,
+    };
+  });
+
   const data: InvoiceHtmlData = {
     documentKind: options.kind,
     company: { ...options.company, logoUrl: absoluteLogoUrl(options.company.logoUrl) },
@@ -117,8 +143,11 @@ export function buildDocumentHtml(options: BuildDocumentHtmlOptions): string {
       discount: options.discount,
       total: options.totals.total,
       notes: options.notes?.trim() ? options.notes : null,
+      amountPaid: options.amountPaid,
+      balanceDue: options.balanceDue,
     },
     items,
+    ...(installments.length > 0 ? { installments } : {}),
   };
 
   return renderFromTemplate(template.html, template.css, data);

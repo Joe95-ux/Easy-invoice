@@ -14,6 +14,10 @@ import {
   loadInvoiceSnapshot,
   recordDocumentRevision,
 } from "@/lib/document-revisions/service";
+import {
+  syncInvoiceInstallments,
+  validateInstallments,
+} from "@/lib/invoice-payments";
 
 export async function POST(request: Request) {
   const { member, response } = await requireApiMember();
@@ -41,6 +45,11 @@ export async function POST(request: Request) {
   }
 
   const { lineItems, totals } = buildInvoiceTotals(parsed.data);
+
+  const installmentError = validateInstallments(parsed.data.installments ?? [], totals.total);
+  if (installmentError) {
+    return NextResponse.json({ error: installmentError }, { status: 400 });
+  }
 
   try {
     const invoice = await prisma.invoice.create({
@@ -74,6 +83,10 @@ export async function POST(request: Request) {
       await prisma.invoice.delete({ where: { id: invoice.id } });
       throw error;
     });
+
+    if (parsed.data.installments?.length) {
+      await syncInvoiceInstallments(invoice.id, parsed.data.installments);
+    }
 
     const snapshot = await loadInvoiceSnapshot(member.companyId, invoice.id);
     if (snapshot) {

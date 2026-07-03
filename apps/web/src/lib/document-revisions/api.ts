@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import type { DocumentType } from "@easy-invoice/db";
 import { requireApiMember } from "@/lib/api/validation";
 import {
@@ -6,6 +6,7 @@ import {
   getDocumentRevisionPermissions,
   listDocumentRevisions,
 } from "@/lib/document-revisions/service";
+import { formatRevisionActor } from "@/lib/member-email";
 import { getEstimateForMember } from "@/lib/estimates";
 import { getInvoiceForMember } from "@/lib/invoices";
 
@@ -36,6 +37,7 @@ async function getDocumentStatus(
 export async function handleListRevisions(
   documentType: DocumentType,
   context: RouteContext,
+  request?: NextRequest,
 ) {
   const { member, response } = await requireApiMember();
   if (response) return response;
@@ -46,14 +48,23 @@ export async function handleListRevisions(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const revisions = await listDocumentRevisions(member.companyId, documentType, id);
+  const url = request?.nextUrl;
+  const page = Math.max(1, Number(url?.searchParams.get("page") ?? 1));
+  const pageSize = Math.min(50, Math.max(1, Number(url?.searchParams.get("pageSize") ?? 10)));
+
+  const { revisions, totalCount } = await listDocumentRevisions(
+    member.companyId,
+    documentType,
+    id,
+    { page, pageSize },
+  );
   const permissions = getDocumentRevisionPermissions(
     documentType,
     doc.status,
     { hasConvertedInvoice: doc.hasConvertedInvoice },
   );
 
-  return NextResponse.json({ revisions, permissions });
+  return NextResponse.json({ revisions, totalCount, page, pageSize, permissions });
 }
 
 export async function handleGetRevision(
@@ -78,7 +89,13 @@ export async function handleGetRevision(
       summary: revision.summary,
       source: revision.source,
       createdAt: revision.createdAt.toISOString(),
-      actorEmail: revision.member?.email ?? null,
+      actorName:
+        (revision.metadata as { actorName?: string } | null)?.actorName ??
+        formatRevisionActor(revision.member?.name ?? null, revision.member?.email ?? null),
+      actorEmail:
+        (revision.metadata as { actorEmail?: string } | null)?.actorEmail ??
+        revision.member?.email ??
+        null,
       snapshot: revision.snapshot,
     },
   });

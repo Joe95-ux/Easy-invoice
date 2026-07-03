@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireApiMember, parseJsonBody, validationError } from "@/lib/api/validation";
-import { prisma } from "@/lib/db";
+import { recordAuditEvent } from "@/lib/audit/service";
+import { AuditAction, AuditCategory, prisma } from "@/lib/db";
 import {
   buildEstimateTotals,
   canTransitionEstimateStatus,
@@ -178,5 +179,21 @@ export async function DELETE(_request: Request, context: RouteContext) {
   }
 
   await prisma.estimate.delete({ where: { id } });
+
+  await recordAuditEvent({
+    companyId: member.companyId,
+    memberId: member.id,
+    category: AuditCategory.DOCUMENT,
+    action: AuditAction.ESTIMATE_DELETED,
+    summary: `Deleted estimate ${existing.number}`,
+    entityType: "estimate",
+    entityId: id,
+    metadata: {
+      number: existing.number,
+      status: existing.status,
+      clientName: existing.client?.name ?? null,
+    },
+  });
+
   return NextResponse.json({ success: true });
 }

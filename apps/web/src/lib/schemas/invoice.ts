@@ -39,6 +39,13 @@ const invoiceLineItemInputSchema = z.object({
   timeEntryIds: z.array(z.string()).optional(),
 });
 
+const invoiceInstallmentInputSchema = z.object({
+  dueDate: z.string(),
+  amount: z.number().positive(),
+  label: z.string().optional(),
+  sortOrder: z.number().int().nonnegative(),
+});
+
 export const createInvoiceSchema = z.object({
   clientId: z.string().optional(),
   templateId: z.string().optional(),
@@ -53,17 +60,32 @@ export const createInvoiceSchema = z.object({
   issueDate: z.string().optional(),
   dueDate: z.string().optional(),
   lineItems: z.array(invoiceLineItemInputSchema).min(1, "At least one line item is required"),
+  installments: z.array(invoiceInstallmentInputSchema).optional(),
 });
 
 export type CreateInvoiceInput = z.infer<typeof createInvoiceSchema>;
 
 export const updateInvoiceSchema = createInvoiceSchema.partial().extend({
-  status: z.enum(["DRAFT", "SENT", "VIEWED", "PAID", "OVERDUE", "CANCELLED"]).optional(),
+  status: z
+    .enum(["DRAFT", "SENT", "VIEWED", "PARTIALLY_PAID", "PAID", "OVERDUE", "CANCELLED"])
+    .optional(),
   templateId: z.string().optional().nullable(),
   clientEmail: z.string().email().optional(),
   dueDate: z.string().optional().nullable(),
   remindersPaused: z.boolean().optional(),
+  installments: z.array(invoiceInstallmentInputSchema).optional(),
 });
+
+export const recordInvoicePaymentSchema = z.object({
+  amount: z.number().positive(),
+  paidAt: z.string().optional(),
+  method: z.enum(["CASH", "CHECK", "BANK_TRANSFER", "CARD", "OTHER"]).optional(),
+  reference: z.string().optional(),
+  note: z.string().optional(),
+});
+
+export type RecordInvoicePaymentInput = z.infer<typeof recordInvoicePaymentSchema>;
+export type InvoiceInstallmentInput = z.infer<typeof invoiceInstallmentInputSchema>;
 
 export type UpdateInvoiceInput = z.infer<typeof updateInvoiceSchema>;
 

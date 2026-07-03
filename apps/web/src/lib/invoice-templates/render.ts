@@ -151,6 +151,56 @@ function buildCompanyLogo(company: InvoiceHtmlData["company"]): string {
   return `<div class="company-logo ${wrapClass}"><img src="${escapeHtml(company.logoUrl)}" alt="" /></div>`;
 }
 
+function buildPaymentScheduleHtml(data: InvoiceHtmlData): string {
+  const { invoice, installments, payments } = data;
+  const amountPaid = invoice.amountPaid ?? 0;
+  const hasPayments = amountPaid > 0.001;
+  const hasSchedule = (installments?.length ?? 0) > 0;
+
+  const hasPaymentHistory = hasPayments && (payments?.length ?? 0) > 0;
+  if (!hasSchedule && !hasPaymentHistory) return "";
+
+  const scheduleRows = hasSchedule
+    ? installments!
+        .map((row) => {
+          const status = row.isPaid
+            ? "Paid"
+            : `Due ${formatMoney(row.balanceDue, invoice.currency)}`;
+          const label = row.label ? `${escapeHtml(row.label)} · ` : "";
+          return `<tr>
+            <td>${row.isPaid ? "✓" : "○"} ${label}${formatDate(row.dueDate)}</td>
+            <td class="num">${formatMoney(row.amount, invoice.currency)}</td>
+            <td class="num">${status}</td>
+          </tr>`;
+        })
+        .join("")
+    : "";
+
+  const scheduleTable = hasSchedule
+    ? `<div class="payment-schedule">
+        <div class="payment-block-label">Payment schedule</div>
+        <table class="payment-schedule-table">
+          <thead><tr><th>Due date</th><th class="num">Amount</th><th class="num">Status</th></tr></thead>
+          <tbody>${scheduleRows}</tbody>
+        </table>
+      </div>`
+    : "";
+
+  const paymentHistory = hasPaymentHistory
+    ? `<div class="payment-history">
+          <div class="payment-block-label">Payments received</div>
+          ${payments!
+            .map(
+              (payment) =>
+                `<div class="payment-history-row">${formatDate(payment.paidAt)} · ${formatMoney(payment.amount, invoice.currency)} · ${escapeHtml(payment.method)}${payment.reference ? ` · ${escapeHtml(payment.reference)}` : ""}</div>`,
+            )
+            .join("")}
+        </div>`
+    : "";
+
+  return `<div class="payment-schedule-block">${scheduleTable}${paymentHistory}</div>`;
+}
+
 function buildSections(data: InvoiceHtmlData) {
   const { company, client, invoice, items } = data;
   const kind = data.documentKind ?? "invoice";
@@ -205,6 +255,11 @@ function buildSections(data: InvoiceHtmlData) {
     )
     .join("");
 
+  const amountPaid = invoice.amountPaid ?? 0;
+  const balanceDue = invoice.balanceDue ?? invoice.total;
+  const hasPartialPayment = amountPaid > 0.001;
+  const hasSchedule = (data.installments?.length ?? 0) > 0;
+
   const totals = [
     `<div class="totals-row"><span>Subtotal</span><span>${formatMoney(invoice.subtotal, invoice.currency)}</span></div>`,
     invoice.discount > 0
@@ -213,10 +268,21 @@ function buildSections(data: InvoiceHtmlData) {
     invoice.taxAmount > 0
       ? `<div class="totals-row"><span>Tax (${(invoice.taxRate * 100).toFixed(1)}%)</span><span>${formatMoney(invoice.taxAmount, invoice.currency)}</span></div>`
       : "",
-    `<div class="totals-row total"><span>${labels.totalLabel}</span><span>${formatMoney(invoice.total, invoice.currency)}</span></div>`,
+    hasPartialPayment
+      ? `<div class="totals-row"><span>Invoice total</span><span>${formatMoney(invoice.total, invoice.currency)}</span></div>`
+      : `<div class="totals-row total"><span>${labels.totalLabel}</span><span>${formatMoney(invoice.total, invoice.currency)}</span></div>`,
+    hasPartialPayment
+      ? `<div class="totals-row"><span>Amount paid</span><span>-${formatMoney(amountPaid, invoice.currency)}</span></div>`
+      : "",
+    hasPartialPayment
+      ? `<div class="totals-row total"><span>Balance due</span><span>${formatMoney(balanceDue, invoice.currency)}</span></div>`
+      : "",
   ]
     .filter(Boolean)
     .join("");
+
+  const totals_class = hasSchedule || hasPartialPayment ? "totals--wide" : "";
+  const payment_schedule = buildPaymentScheduleHtml(data);
 
   const termsNotes = invoice.notes
     ? `<div class="terms-notes"><div class="terms-notes-label">Terms &amp; Notes</div><div>${escapeHtml(invoice.notes)}</div></div>`
@@ -240,6 +306,8 @@ function buildSections(data: InvoiceHtmlData) {
     client_section: clientSection,
     line_items: lineItems,
     totals,
+    totals_class,
+    payment_schedule,
     terms_notes: termsNotes,
     watermark,
     invoice_footer: invoiceFooter,

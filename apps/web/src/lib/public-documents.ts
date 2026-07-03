@@ -1,12 +1,16 @@
 import type { EstimateStatus, InvoiceStatus } from "@easy-invoice/db";
 import { prisma } from "@/lib/db";
 import { generatePublicToken } from "@/lib/document-tokens";
+import { recordDocumentRevision } from "@/lib/document-revisions/service";
+import { createNotification } from "@/lib/notifications/service";
 
 const INVOICE_INCLUDE = {
   client: true,
   company: true,
   template: true,
   items: { orderBy: { sortOrder: "asc" as const } },
+  payments: { orderBy: { paidAt: "desc" as const } },
+  installments: { orderBy: { sortOrder: "asc" as const } },
 } as const;
 
 const ESTIMATE_INCLUDE = {
@@ -84,6 +88,14 @@ export async function getEstimateByPublicToken(token: string) {
 }
 
 export async function markInvoiceViewed(invoiceId: string, currentStatus: InvoiceStatus) {
+  const existing = await prisma.invoice.findUnique({
+    where: { id: invoiceId },
+    select: { companyId: true, viewedAt: true, client: { select: { name: true } } },
+  });
+  if (!existing || existing.viewedAt) {
+    return prisma.invoice.findUnique({ where: { id: invoiceId } });
+  }
+
   const now = new Date();
   const data: { viewedAt: Date; status?: InvoiceStatus } = { viewedAt: now };
 
@@ -91,13 +103,51 @@ export async function markInvoiceViewed(invoiceId: string, currentStatus: Invoic
     data.status = "VIEWED";
   }
 
-  return prisma.invoice.update({
+  const updated = await prisma.invoice.update({
     where: { id: invoiceId },
     data,
   });
+
+  const clientName = existing.client?.name ?? "Client";
+
+  await recordDocumentRevision({
+    companyId: existing.companyId,
+    documentType: "INVOICE",
+    documentId: invoiceId,
+    source: "VIEWED",
+    summary: `Viewed by ${clientName}`,
+    metadata: {
+      actorName: clientName,
+      viewedAt: now.toISOString(),
+    },
+  });
+
+  const invoice = await prisma.invoice.findUnique({
+    where: { id: invoiceId },
+    select: { number: true },
+  });
+  const memberIds = await getCompanyMemberIds(existing.companyId);
+  void createNotification({
+    companyId: existing.companyId,
+    recipientMemberIds: memberIds,
+    type: "CLIENT_VIEWED_INVOICE",
+    title: `${clientName} viewed invoice`,
+    body: `Invoice ${invoice?.number ?? ""} was viewed by ${clientName}`,
+    linkUrl: `/invoices/${invoiceId}`,
+  }).catch(() => undefined);
+
+  return updated;
 }
 
 export async function markEstimateViewed(estimateId: string, currentStatus: EstimateStatus) {
+  const existing = await prisma.estimate.findUnique({
+    where: { id: estimateId },
+    select: { companyId: true, viewedAt: true, client: { select: { name: true } } },
+  });
+  if (!existing || existing.viewedAt) {
+    return prisma.estimate.findUnique({ where: { id: estimateId } });
+  }
+
   const now = new Date();
   const data: { viewedAt: Date; status?: EstimateStatus } = { viewedAt: now };
 
@@ -105,10 +155,40 @@ export async function markEstimateViewed(estimateId: string, currentStatus: Esti
     data.status = "VIEWED";
   }
 
-  return prisma.estimate.update({
+  const updated = await prisma.estimate.update({
     where: { id: estimateId },
     data,
   });
+
+  const clientName = existing.client?.name ?? "Client";
+
+  await recordDocumentRevision({
+    companyId: existing.companyId,
+    documentType: "ESTIMATE",
+    documentId: estimateId,
+    source: "VIEWED",
+    summary: `Viewed by ${clientName}`,
+    metadata: {
+      actorName: clientName,
+      viewedAt: now.toISOString(),
+    },
+  });
+
+  const estimate = await prisma.estimate.findUnique({
+    where: { id: estimateId },
+    select: { number: true },
+  });
+  const memberIds = await getCompanyMemberIds(existing.companyId);
+  void createNotification({
+    companyId: existing.companyId,
+    recipientMemberIds: memberIds,
+    type: "CLIENT_VIEWED_ESTIMATE",
+    title: `${clientName} viewed estimate`,
+    body: `Estimate ${estimate?.number ?? ""} was viewed by ${clientName}`,
+    linkUrl: `/estimates/${estimateId}`,
+  }).catch(() => undefined);
+
+  return updated;
 }
 
 export async function respondToPublicEstimate(
@@ -132,5 +212,25 @@ export async function respondToPublicEstimate(
     include: ESTIMATE_INCLUDE,
   });
 
+  const clientName = estimate.client?.name ?? "Client";
+  const memberIds = await getCompanyMemberIds(estimate.companyId);
+  const verb = action === "accept" ? "accepted" : "declined";
+  void createNotification({
+    companyId: estimate.companyId,
+    recipientMemberIds: memberIds,
+    type: action === "accept" ? "ESTIMATE_ACCEPTED" : "ESTIMATE_DECLINED",
+    title: `Estimate ${verb}`,
+    body: `${clientName} ${verb} estimate ${estimate.number}`,
+    linkUrl: `/estimates/${estimate.id}`,
+  }).catch(() => undefined);
+
   return { estimate: updated, error: null };
+}
+
+async function getCompanyMemberIds(companyId: string): Promise<string[]> {
+  const members = await prisma.companyMember.findMany({
+    where: { companyId },
+    select: { id: true },
+  });
+  return members.map((m) => m.id);
 }

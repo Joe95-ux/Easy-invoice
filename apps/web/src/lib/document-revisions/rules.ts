@@ -14,7 +14,7 @@ export function canDuplicateFromVersion(
   options?: { hasConvertedInvoice?: boolean },
 ): boolean {
   if (documentType === "INVOICE") {
-    return status === "SENT" || status === "VIEWED" || status === "OVERDUE";
+    return status === "SENT" || status === "VIEWED" || status === "OVERDUE" || status === "PARTIALLY_PAID";
   }
 
   if (status === "ACCEPTED" && options?.hasConvertedInvoice) return false;

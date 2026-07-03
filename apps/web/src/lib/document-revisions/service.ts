@@ -16,6 +16,7 @@ import type {
   DocumentSnapshot,
   RevisionListItem,
   RevisionPermissions,
+  ContentRevisionSource,
 } from "@/lib/document-revisions/types";
 import {
   buildEstimateTotals,
@@ -31,6 +32,8 @@ import {
   linkTimeEntriesToInvoice,
   releaseTimeEntriesForInvoice,
 } from "@/lib/time-tracking/service";
+import { syncInvoiceInstallments } from "@/lib/invoice-payments";
+import { formatRevisionActor } from "@/lib/member-email";
 
 const MAX_REVISIONS_PER_DOCUMENT = 50;
 
@@ -55,6 +58,36 @@ async function pruneOldRevisions(documentType: DocumentType, documentId: string)
 
   await prisma.documentRevision.deleteMany({
     where: { id: { in: revisions.map((row) => row.id) } },
+  });
+}
+
+/** Documents created before revision tracking have no CREATE row — seed one from pre-edit state. */
+async function ensureBaselineRevision(
+  companyId: string,
+  documentType: DocumentType,
+  documentId: string,
+  memberId: string,
+  before: DocumentSnapshot,
+) {
+  const hasSnapshotRevision = await prisma.documentRevision.findFirst({
+    where: {
+      companyId,
+      documentType,
+      documentId,
+      snapshot: { not: Prisma.DbNull },
+    },
+    select: { id: true },
+  });
+  if (hasSnapshotRevision) return;
+
+  await recordDocumentRevision({
+    companyId,
+    documentType,
+    documentId,
+    memberId,
+    source: "CREATE",
+    snapshot: before,
+    summary: "Document created",
   });
 }
 
@@ -105,6 +138,21 @@ type RecordRevisionInput = {
 export async function recordDocumentRevision(input: RecordRevisionInput) {
   const revisionNumber = await nextRevisionNumber(input.documentType, input.documentId);
 
+  let metadata = input.metadata ?? {};
+  if (input.memberId && !metadata.actorName) {
+    const member = await prisma.companyMember.findUnique({
+      where: { id: input.memberId },
+      select: { name: true, email: true },
+    });
+    if (member) {
+      metadata = {
+        ...metadata,
+        actorName: formatRevisionActor(member.name, member.email),
+        actorEmail: member.email,
+      };
+    }
+  }
+
   const revision = await prisma.documentRevision.create({
     data: {
       companyId: input.companyId,
@@ -115,7 +163,7 @@ export async function recordDocumentRevision(input: RecordRevisionInput) {
       summary: input.summary,
       source: input.source,
       memberId: input.memberId ?? null,
-      metadata: (input.metadata as Prisma.InputJsonValue | undefined) ?? undefined,
+      metadata: (metadata as Prisma.InputJsonValue) ?? undefined,
     },
   });
 
@@ -132,10 +180,14 @@ export async function recordInvoiceContentRevision(
   memberId: string,
   before: DocumentSnapshot | null,
   after: DocumentSnapshot,
-  source: DocumentRevisionSource = "EDIT",
+  source: ContentRevisionSource = "EDIT",
   metadata?: Record<string, unknown>,
 ) {
   if (before && snapshotsEqual(before, after) && source === "EDIT") return null;
+
+  if (before && source === "EDIT") {
+    await ensureBaselineRevision(companyId, "INVOICE", invoiceId, memberId, before);
+  }
 
   return recordDocumentRevision({
     companyId,
@@ -155,10 +207,14 @@ export async function recordEstimateContentRevision(
   memberId: string,
   before: DocumentSnapshot | null,
   after: DocumentSnapshot,
-  source: DocumentRevisionSource = "EDIT",
+  source: ContentRevisionSource = "EDIT",
   metadata?: Record<string, unknown>,
 ) {
   if (before && snapshotsEqual(before, after) && source === "EDIT") return null;
+
+  if (before && source === "EDIT") {
+    await ensureBaselineRevision(companyId, "ESTIMATE", estimateId, memberId, before);
+  }
 
   return recordDocumentRevision({
     companyId,
@@ -176,29 +232,52 @@ export async function listDocumentRevisions(
   companyId: string,
   documentType: DocumentType,
   documentId: string,
-): Promise<RevisionListItem[]> {
-  const revisions = await prisma.documentRevision.findMany({
-    where: { companyId, documentType, documentId },
-    orderBy: { revisionNumber: "desc" },
-    include: { member: { select: { email: true } } },
-    take: 50,
-  });
+  options?: { page?: number; pageSize?: number },
+): Promise<{ revisions: RevisionListItem[]; totalCount: number }> {
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 10;
+  const skip = (page - 1) * pageSize;
 
-  return revisions.map((revision) => ({
-    id: revision.id,
-    revisionNumber: revision.revisionNumber,
-    summary: revision.summary,
-    source: revision.source,
-    createdAt: revision.createdAt.toISOString(),
-    actorEmail: revision.member?.email ?? null,
-    hasSnapshot: revision.snapshot !== null,
-  }));
+  const where = { companyId, documentType, documentId };
+
+  const [revisions, totalCount] = await Promise.all([
+    prisma.documentRevision.findMany({
+      where,
+      orderBy: { revisionNumber: "desc" },
+      include: { member: { select: { email: true, name: true } } },
+      skip,
+      take: pageSize,
+    }),
+    prisma.documentRevision.count({ where }),
+  ]);
+
+  return {
+    totalCount,
+    revisions: revisions.map((revision) => {
+      const metadata = revision.metadata as { actorName?: string; actorEmail?: string } | null;
+      const actorName =
+        metadata?.actorName ??
+        formatRevisionActor(revision.member?.name ?? null, revision.member?.email ?? null);
+      const actorEmail = metadata?.actorEmail ?? revision.member?.email ?? null;
+
+      return {
+        id: revision.id,
+        revisionNumber: revision.revisionNumber,
+        summary: revision.summary,
+        source: revision.source,
+        createdAt: revision.createdAt.toISOString(),
+        actorName,
+        actorEmail,
+        hasSnapshot: revision.snapshot !== null,
+      };
+    }),
+  };
 }
 
 export async function getDocumentRevision(companyId: string, revisionId: string) {
   return prisma.documentRevision.findFirst({
     where: { id: revisionId, companyId },
-    include: { member: { select: { email: true } } },
+    include: { member: { select: { email: true, name: true } } },
   });
 }
 
@@ -244,6 +323,18 @@ async function applyInvoiceSnapshot(
       ...item,
     })),
   });
+
+  if (snapshot.installments) {
+    await syncInvoiceInstallments(
+      invoiceId,
+      snapshot.installments.map((row) => ({
+        dueDate: row.dueDate,
+        amount: row.amount,
+        label: row.label ?? undefined,
+        sortOrder: row.sortOrder,
+      })),
+    );
+  }
 
   const invoice = await prisma.invoice.findFirst({
     where: { id: invoiceId, companyId },
@@ -313,6 +404,7 @@ export async function restoreDocumentRevision(
       throw new Error("Only draft invoices can be restored in place");
     }
 
+    const beforeRestore = await loadInvoiceSnapshot(companyId, revision.documentId);
     await applyInvoiceSnapshot(companyId, revision.documentId, snapshot);
     const after = await loadInvoiceSnapshot(companyId, revision.documentId);
     if (!after) throw new Error("Invoice not found");
@@ -321,7 +413,7 @@ export async function restoreDocumentRevision(
       companyId,
       revision.documentId,
       memberId,
-      null,
+      beforeRestore,
       after,
       "RESTORE",
       { restoredFrom: revision.revisionNumber },
@@ -336,6 +428,7 @@ export async function restoreDocumentRevision(
     throw new Error("Only draft estimates can be restored in place");
   }
 
+  const beforeRestore = await loadEstimateSnapshot(companyId, revision.documentId);
   await applyEstimateSnapshot(companyId, revision.documentId, snapshot);
   const after = await loadEstimateSnapshot(companyId, revision.documentId);
   if (!after) throw new Error("Estimate not found");
@@ -344,7 +437,7 @@ export async function restoreDocumentRevision(
     companyId,
     revision.documentId,
     memberId,
-    null,
+    beforeRestore,
     after,
     "RESTORE",
     { restoredFrom: revision.revisionNumber },

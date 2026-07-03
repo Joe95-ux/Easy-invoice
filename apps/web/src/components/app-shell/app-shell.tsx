@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 
 type AppShellProps = {
   activeCompanyId: string;
+  memberId: string;
   companies: CompanySummary[];
   companyName: string;
   logoUrl: string | null;
@@ -51,6 +52,7 @@ export function PageScroll({
 
 export function AppShell({
   activeCompanyId,
+  memberId,
   companies,
   companyName,
   logoUrl,
@@ -76,7 +78,7 @@ export function AppShell({
         userRole={userRole}
       />
       <SidebarInset className="flex h-full min-h-0 flex-col overflow-hidden">
-        <AppHeader />
+        <AppHeader memberId={memberId} />
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           {children}
         </div>

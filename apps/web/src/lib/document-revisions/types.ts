@@ -2,6 +2,12 @@ import type { DocumentRevisionSource, DocumentType, EstimateStatus, InvoiceStatu
 
 export type { DocumentRevisionSource, DocumentType };
 
+/** Sources that go through snapshot diff summary (not VIEWED / REMINDER / SEND / CREATE). */
+export type ContentRevisionSource = Extract<
+  DocumentRevisionSource,
+  "EDIT" | "RESTORE" | "STATUS"
+>;
+
 export type DocumentSnapshotLineItem = {
   description: string;
   quantity: number;
@@ -9,6 +15,13 @@ export type DocumentSnapshotLineItem = {
   amount: number;
   sortOrder: number;
   timeEntryIds?: string[];
+};
+
+export type DocumentSnapshotInstallment = {
+  dueDate: string;
+  amount: number;
+  label?: string | null;
+  sortOrder: number;
 };
 
 export type DocumentSnapshot = {
@@ -27,6 +40,7 @@ export type DocumentSnapshot = {
   notes: string | null;
   templateId: string | null;
   remindersPaused?: boolean;
+  installments?: DocumentSnapshotInstallment[];
   lineItems: DocumentSnapshotLineItem[];
 };
 
@@ -36,6 +50,7 @@ export type RevisionListItem = {
   summary: string;
   source: DocumentRevisionSource;
   createdAt: string;
+  actorName: string | null;
   actorEmail: string | null;
   hasSnapshot: boolean;
 };

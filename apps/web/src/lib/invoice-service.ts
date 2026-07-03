@@ -10,7 +10,10 @@ import { getInvoiceForMember } from "@/lib/invoices";
 export async function getInvoicesForMember(companyId: string, limit = 50) {
   return prisma.invoice.findMany({
     where: { companyId },
-    include: { client: true },
+    include: {
+      client: true,
+      payments: { select: { amount: true } },
+    },
     orderBy: { createdAt: "desc" },
     take: limit,
   });

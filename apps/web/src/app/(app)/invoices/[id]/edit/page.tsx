@@ -72,6 +72,12 @@ export default async function EditInvoicePage({ params }: PageProps) {
             unitPrice: Number(item.unitPrice),
             timeEntryIds: item.timeEntries.map((entry) => entry.id),
           })),
+          installments: invoice.installments.map((row) => ({
+            dueDate: row.dueDate.toISOString(),
+            amount: Number(row.amount),
+            label: row.label ?? undefined,
+            sortOrder: row.sortOrder,
+          })),
         }}
       />
     </PageScroll>

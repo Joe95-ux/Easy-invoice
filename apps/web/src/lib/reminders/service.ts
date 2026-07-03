@@ -8,13 +8,17 @@ import { publicDocumentUrl } from "@/lib/document-tokens";
 import { formatDueDateLabel, sendPaymentReminderEmail } from "@/lib/reminder-email";
 import { generateInvoicePdfBuffer } from "@/lib/invoice-service";
 import { formatMoney } from "@/lib/invoices";
+import { buildInvoicePaymentSummary } from "@/lib/invoice-payments";
+import { buildReminderRevisionSummary } from "@/lib/document-revisions/snapshot";
+import { recordDocumentRevision } from "@/lib/document-revisions/service";
+import { createNotification } from "@/lib/notifications/service";
 import { ensureInvoicePublicToken } from "@/lib/public-documents";
 import { daysUntilDue, startOfUtcDay } from "@/lib/reminders/dates";
 import type { ReminderSettings } from "@/lib/reminders/settings";
 import { reminderSettingsFromCompany } from "@/lib/reminders/settings";
 import { prisma } from "@/lib/db";
 
-const REMINDABLE_STATUSES: InvoiceStatus[] = ["SENT", "VIEWED", "OVERDUE"];
+const REMINDABLE_STATUSES: InvoiceStatus[] = ["SENT", "VIEWED", "OVERDUE", "PARTIALLY_PAID"];
 
 export type ReminderSlot = {
   kind: ReminderKind;
@@ -47,15 +51,54 @@ export function slotsForInvoiceToday(
 export async function markOverdueInvoices(now = new Date()) {
   const today = startOfUtcDay(now);
 
-  const result = await prisma.invoice.updateMany({
+  const candidates = await prisma.invoice.findMany({
     where: {
-      status: { in: ["SENT", "VIEWED"] },
-      dueDate: { lt: today },
+      status: { in: ["SENT", "VIEWED", "PARTIALLY_PAID"] },
     },
-    data: { status: "OVERDUE" },
+    include: {
+      payments: { select: { amount: true } },
+      installments: { orderBy: { sortOrder: "asc" } },
+    },
   });
 
-  return result.count;
+  let count = 0;
+  for (const invoice of candidates) {
+    const summary = buildInvoicePaymentSummary(invoice, now);
+    if (summary.balanceDue <= 0.001) continue;
+
+    const isOverdue =
+      summary.installments.some((row) => row.isOverdue) ||
+      (summary.installments.length === 0 &&
+        invoice.dueDate &&
+        startOfUtcDay(invoice.dueDate) < today);
+
+    if (isOverdue) {
+      await prisma.invoice.update({
+        where: { id: invoice.id },
+        data: { status: "OVERDUE" },
+      });
+
+      const memberIds = (
+        await prisma.companyMember.findMany({
+          where: { companyId: invoice.companyId },
+          select: { id: true },
+        })
+      ).map((m) => m.id);
+
+      void createNotification({
+        companyId: invoice.companyId,
+        recipientMemberIds: memberIds,
+        type: "INVOICE_OVERDUE",
+        title: "Invoice overdue",
+        body: `Invoice ${invoice.number} is now overdue (${formatMoney(summary.balanceDue, invoice.currency)} outstanding)`,
+        linkUrl: `/invoices/${invoice.id}`,
+      }).catch(() => undefined);
+
+      count += 1;
+    }
+  }
+
+  return count;
 }
 
 type SendReminderResult =
@@ -69,6 +112,7 @@ export async function sendInvoiceReminder(options: {
   offsetDays: number;
   scheduleDate: Date;
   recipientEmail?: string;
+  memberId?: string | null;
 }): Promise<SendReminderResult> {
   const scheduleDate = startOfUtcDay(options.scheduleDate);
 
@@ -93,6 +137,7 @@ export async function sendInvoiceReminder(options: {
   }
 
   const { invoice, pdfBuffer } = pdfResult;
+  const paymentSummary = buildInvoicePaymentSummary(invoice);
   const settings = reminderSettingsFromCompany(invoice.company);
 
   if (invoice.remindersPaused && options.kind !== ReminderKind.MANUAL) {
@@ -103,7 +148,12 @@ export async function sendInvoiceReminder(options: {
     return { ok: false, error: "Invoice is not eligible for reminders", skipped: true };
   }
 
-  if (!invoice.dueDate) {
+  if (!invoice.dueDate && !paymentSummary.nextDueDate) {
+    return { ok: false, error: "Invoice has no due date", skipped: true };
+  }
+
+  const effectiveDueDate = paymentSummary.nextDueDate ?? invoice.dueDate;
+  if (!effectiveDueDate) {
     return { ok: false, error: "Invoice has no due date", skipped: true };
   }
 
@@ -127,8 +177,11 @@ export async function sendInvoiceReminder(options: {
       to: toEmail,
       companyName: invoice.company.name,
       invoiceNumber: invoice.number,
-      total: formatMoney(invoice.total, invoice.currency),
-      dueDateLabel: formatDueDateLabel(invoice.dueDate),
+      total: formatMoney(
+        paymentSummary.balanceDue > 0 ? paymentSummary.balanceDue : invoice.total,
+        invoice.currency,
+      ),
+      dueDateLabel: formatDueDateLabel(effectiveDueDate),
       viewUrl,
       kind: options.kind,
       pdfBuffer: settings.reminderIncludePdf ? pdfBuffer : undefined,
@@ -142,6 +195,21 @@ export async function sendInvoiceReminder(options: {
         scheduleDate,
         toEmail,
         status: ReminderDeliveryStatus.SENT,
+      },
+    });
+
+    await recordDocumentRevision({
+      companyId: options.companyId,
+      documentType: "INVOICE",
+      documentId: options.invoiceId,
+      memberId: options.memberId ?? null,
+      source: "REMINDER",
+      summary: buildReminderRevisionSummary(options.kind, toEmail),
+      metadata: {
+        email: toEmail,
+        kind: options.kind,
+        reminderId: reminder.id,
+        ...(options.memberId ? {} : { actorName: "System" }),
       },
     });
 
@@ -192,18 +260,24 @@ export async function runInvoiceReminderJob(now = new Date()) {
       where: {
         companyId: company.id,
         remindersPaused: false,
-        dueDate: { not: null },
         sentAt: { not: null },
         status: { in: REMINDABLE_STATUSES },
         client: { email: { not: null } },
       },
-      select: { id: true, dueDate: true },
+      include: {
+        payments: { select: { amount: true } },
+        installments: { orderBy: { sortOrder: "asc" } },
+      },
     });
 
     for (const invoice of invoices) {
-      if (!invoice.dueDate) continue;
+      const summary = buildInvoicePaymentSummary(invoice, today);
+      if (summary.balanceDue <= 0.001) continue;
 
-      const slots = slotsForInvoiceToday(settings, invoice.dueDate, today);
+      const effectiveDueDate = summary.nextDueDate ?? invoice.dueDate;
+      if (!effectiveDueDate) continue;
+
+      const slots = slotsForInvoiceToday(settings, effectiveDueDate, today);
       for (const slot of slots) {
         const result = await sendInvoiceReminder({
           invoiceId: invoice.id,

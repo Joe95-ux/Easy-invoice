@@ -86,8 +86,11 @@ export function DocumentPreviewDrawer(props: DocumentPreviewDrawerProps) {
       buildOptions.totals.subtotal,
       buildOptions.totals.taxAmount,
       buildOptions.totals.total,
+      buildOptions.amountPaid,
+      buildOptions.balanceDue,
       JSON.stringify(buildOptions.items),
       JSON.stringify(buildOptions.company),
+      JSON.stringify(buildOptions.installments),
     ],
   );
 

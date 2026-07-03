@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireApiTeamManager } from "@/lib/api/validation";
-import { prisma } from "@/lib/db";
+import { recordAuditEvent } from "@/lib/audit/service";
+import { AuditAction, AuditCategory, prisma } from "@/lib/db";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -24,6 +25,17 @@ export async function DELETE(_request: Request, context: RouteContext) {
   }
 
   await prisma.companyInvite.delete({ where: { id: invite.id } });
+
+  await recordAuditEvent({
+    companyId: member.companyId,
+    memberId: member.id,
+    category: AuditCategory.TEAM,
+    action: AuditAction.MEMBER_INVITE_CANCELLED,
+    summary: `Cancelled invite for ${invite.email}`,
+    entityType: "invite",
+    entityId: invite.id,
+    metadata: { email: invite.email, role: invite.role },
+  });
 
   return NextResponse.json({ ok: true });
 }

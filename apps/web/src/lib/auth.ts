@@ -6,6 +6,7 @@ import {
 } from "@/lib/active-company";
 import { prisma } from "@/lib/db";
 import { canManageCompanySettings } from "@/lib/team";
+import { resolveMemberProfile } from "@/lib/member-email";
 
 const memberInclude = { company: true } as const;
 
@@ -65,6 +66,7 @@ export async function switchActiveCompany(clerkId: string, companyId: string) {
 export async function requireMember() {
   const member = await getCurrentMember();
   if (!member) redirect("/onboarding");
+  void resolveMemberProfile(member).catch(() => undefined);
   return member;
 }
 

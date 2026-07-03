@@ -1,5 +1,6 @@
 import { requireMember } from "@/lib/auth";
 import { getInvoicesForMember } from "@/lib/invoice-service";
+import { buildInvoicePaymentSummary } from "@/lib/invoice-payments";
 import { InvoicesTable } from "@/features/invoices/components/invoices-table";
 import Link from "next/link";
 import { FileTextIcon, PlusIcon } from "lucide-react";
@@ -12,15 +13,19 @@ export default async function InvoicesPage() {
   const member = await requireMember();
   const invoices = await getInvoicesForMember(member.companyId);
 
-  const rows = invoices.map((invoice) => ({
-    id: invoice.id,
-    number: invoice.number,
-    status: invoice.status,
-    total: invoice.total.toString(),
-    currency: invoice.currency,
-    dueDate: invoice.dueDate?.toISOString() ?? null,
-    clientName: invoice.client?.name ?? null,
-  }));
+  const rows = invoices.map((invoice) => {
+    const paymentSummary = buildInvoicePaymentSummary(invoice);
+    return {
+      id: invoice.id,
+      number: invoice.number,
+      status: invoice.status,
+      total: invoice.total.toString(),
+      balanceDue: paymentSummary.balanceDue.toString(),
+      currency: invoice.currency,
+      dueDate: invoice.dueDate?.toISOString() ?? null,
+      clientName: invoice.client?.name ?? null,
+    };
+  });
 
   return (
     <PageScroll>

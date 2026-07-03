@@ -5,7 +5,9 @@ import {
   requireApiTeamManager,
   validationError,
 } from "@/lib/api/validation";
-import { prisma, UserRole } from "@/lib/db";
+import { recordAuditEvent } from "@/lib/audit/service";
+import { AuditAction, AuditCategory, prisma, UserRole } from "@/lib/db";
+import { createNotification } from "@/lib/notifications/service";
 import { updateMemberRoleSchema } from "@/lib/schemas/team";
 import { canAssignRole, canModifyMember } from "@/lib/team";
 
@@ -51,6 +53,32 @@ export async function PATCH(request: Request, context: RouteContext) {
     data: { role: newRole },
   });
 
+  if (target.role !== newRole) {
+    await recordAuditEvent({
+      companyId: actor.companyId,
+      memberId: actor.id,
+      category: AuditCategory.TEAM,
+      action: AuditAction.MEMBER_ROLE_CHANGED,
+      summary: `Changed ${target.email} role: ${target.role} → ${newRole}`,
+      entityType: "member",
+      entityId: target.id,
+      metadata: {
+        email: target.email,
+        fromRole: target.role,
+        toRole: newRole,
+      },
+    });
+
+    void createNotification({
+      companyId: actor.companyId,
+      recipientMemberIds: [target.id],
+      type: "MEMBER_ROLE_CHANGED",
+      title: "Your role was changed",
+      body: `Your role has been changed from ${target.role.toLowerCase()} to ${newRole.toLowerCase()}`,
+      linkUrl: "/settings",
+    }).catch(() => undefined);
+  }
+
   return NextResponse.json({
     member: {
       id: updated.id,
@@ -94,6 +122,21 @@ export async function DELETE(_request: Request, context: RouteContext) {
   }
 
   await prisma.companyMember.delete({ where: { id: target.id } });
+
+  await recordAuditEvent({
+    companyId: actor.companyId,
+    memberId: actor.id,
+    category: AuditCategory.TEAM,
+    action: AuditAction.MEMBER_REMOVED,
+    summary: `Removed ${target.email} (${target.role})`,
+    entityType: "member",
+    entityId: target.id,
+    metadata: {
+      email: target.email,
+      role: target.role,
+      name: target.name,
+    },
+  });
 
   return NextResponse.json({ ok: true });
 }

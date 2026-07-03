@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/db";
+import { buildInvoicePaymentSummary } from "@/lib/invoice-payments";
 
 export async function getDashboardStats(companyId: string) {
-  const [statusGroups, clientCount, recentInvoices, outstanding] = await Promise.all([
+  const [statusGroups, clientCount, recentInvoices, openInvoices] = await Promise.all([
     prisma.invoice.groupBy({
       by: ["status"],
       where: { companyId },
@@ -14,13 +15,12 @@ export async function getDashboardStats(companyId: string) {
       orderBy: { createdAt: "desc" },
       take: 6,
     }),
-    prisma.invoice.aggregate({
+    prisma.invoice.findMany({
       where: {
         companyId,
-        status: { in: ["SENT", "VIEWED", "OVERDUE"] },
+        status: { in: ["SENT", "VIEWED", "OVERDUE", "PARTIALLY_PAID"] },
       },
-      _sum: { total: true },
-      _count: { _all: true },
+      include: { payments: { select: { amount: true } } },
     }),
   ]);
 
@@ -29,6 +29,12 @@ export async function getDashboardStats(companyId: string) {
   ) as Record<string, number>;
 
   const totalInvoices = statusGroups.reduce((sum, group) => sum + group._count._all, 0);
+  const outstandingTotal = openInvoices.reduce((sum, invoice) => {
+    return sum + buildInvoicePaymentSummary({
+      total: invoice.total,
+      payments: invoice.payments,
+    }).balanceDue;
+  }, 0);
 
   return {
     totalInvoices,
@@ -37,7 +43,7 @@ export async function getDashboardStats(companyId: string) {
     overdueCount: countByStatus.OVERDUE ?? 0,
     clientCount,
     recentInvoices,
-    outstandingTotal: Number(outstanding._sum.total ?? 0),
-    outstandingCount: outstanding._count._all,
+    outstandingTotal,
+    outstandingCount: openInvoices.length,
   };
 }

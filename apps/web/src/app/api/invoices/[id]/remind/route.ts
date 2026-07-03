@@ -33,6 +33,7 @@ export async function POST(request: Request, context: RouteContext) {
     offsetDays: -1,
     scheduleDate: startOfUtcDay(new Date()),
     recipientEmail: parsed.data.email,
+    memberId: member.id,
   });
 
   if (result.ok) {

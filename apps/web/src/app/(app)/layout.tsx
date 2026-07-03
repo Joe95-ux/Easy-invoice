@@ -14,6 +14,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <AppShell
       activeCompanyId={company.id}
+      memberId={member.id}
       companies={membershipsToCompanySummaries(memberships)}
       companyName={company.name}
       logoUrl={company.logoUrl}

@@ -40,6 +40,7 @@ export async function POST(request: Request) {
     user?.primaryEmailAddress?.emailAddress ??
     user?.emailAddresses[0]?.emailAddress ??
     "";
+  const userName = user?.fullName?.trim() || null;
   const companyEmail = parsed.data.email || userEmail || "";
   const slug = await createUniqueCompanySlug(parsed.data.name);
 
@@ -60,6 +61,7 @@ export async function POST(request: Request) {
         create: {
           clerkId: userId,
           email: userEmail,
+          name: userName,
           role: UserRole.OWNER,
           lastActiveAt: new Date(),
         },

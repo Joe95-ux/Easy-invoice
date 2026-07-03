@@ -8,7 +8,8 @@ import {
   uploadCompanyLogoFromUrl,
   validateLogoFile,
 } from "@/lib/cloudinary";
-import { prisma } from "@/lib/db";
+import { recordAuditEvent } from "@/lib/audit/service";
+import { AuditAction, AuditCategory, prisma } from "@/lib/db";
 
 const importLogoSchema = z.object({
   sourceUrl: z.string().url(),
@@ -64,6 +65,16 @@ export async function POST(request: Request) {
       data: { logoUrl },
     });
 
+    await recordAuditEvent({
+      companyId: member.companyId,
+      memberId: member.id,
+      category: AuditCategory.SETTINGS,
+      action: AuditAction.COMPANY_LOGO_UPLOADED,
+      summary: "Company logo updated",
+      entityType: "company",
+      entityId: member.companyId,
+    });
+
     return NextResponse.json({ logoUrl: company.logoUrl });
   } catch (error) {
     console.error("Logo upload failed:", error);
@@ -88,6 +99,16 @@ export async function DELETE() {
   await prisma.company.update({
     where: { id: member.companyId },
     data: { logoUrl: null },
+  });
+
+  await recordAuditEvent({
+    companyId: member.companyId,
+    memberId: member.id,
+    category: AuditCategory.SETTINGS,
+    action: AuditAction.COMPANY_LOGO_REMOVED,
+    summary: "Company logo removed",
+    entityType: "company",
+    entityId: member.companyId,
   });
 
   return NextResponse.json({ logoUrl: null });

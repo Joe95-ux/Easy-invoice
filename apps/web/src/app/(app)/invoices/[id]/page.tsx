@@ -16,10 +16,16 @@ import {
 import { InvoiceActions } from "@/features/invoices/components/invoice-actions";
 import { InvoiceAutoDownload } from "@/features/invoices/components/invoice-auto-download";
 import { InvoiceRemindersSection } from "@/features/invoices/components/invoice-reminders-section";
+import { InvoicePaymentsSection } from "@/features/invoices/components/invoice-payments-section";
 import { DocumentHistorySection } from "@/components/document-history-section";
 import { DocumentTemplateManager } from "@/features/invoices/components/document-template-manager";
 import { requireMember } from "@/lib/auth";
-import { companyBrandingFields } from "@/lib/company-branding";
+import {
+  companyBrandingFields,
+  logoPreviewClassName,
+  normalizeLogoBg,
+} from "@/lib/company-branding";
+import { cn } from "@/lib/utils";
 import {
   formatDate,
   formatMoney,
@@ -29,6 +35,7 @@ import {
   invoiceStatusVariant,
 } from "@/lib/invoices";
 import { getTemplatesForCompany } from "@/lib/templates";
+import { buildInvoicePaymentSummary } from "@/lib/invoice-payments";
 
 type PageProps = { params: Promise<{ id: string }> };
 
@@ -42,6 +49,8 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
     getInvoiceRemindersForMember(id, member.companyId),
   ]);
   if (!invoice) notFound();
+
+  const paymentSummary = buildInvoicePaymentSummary(invoice);
 
   return (
     <PageScroll>
@@ -76,6 +85,8 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
             invoiceNumber={invoice.number}
             companyName={invoice.company.name}
             status={invoice.status}
+            currency={invoice.currency}
+            balanceDue={paymentSummary.balanceDue}
             clientEmail={invoice.client?.email}
             dueDate={invoice.dueDate?.toISOString() ?? null}
             sentAt={invoice.sentAt?.toISOString() ?? null}
@@ -126,6 +137,16 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
               },
               taxRate: Number(invoice.taxRate) * 100,
               discount: Number(invoice.discount),
+              amountPaid: paymentSummary.amountPaid,
+              balanceDue: paymentSummary.balanceDue,
+              installments: paymentSummary.installments.map((row) => ({
+                dueDate: row.dueDate.toISOString(),
+                amount: row.amount,
+                label: row.label,
+                paidAmount: row.paidAmount,
+                balanceDue: row.balanceDue,
+                isPaid: row.isPaid,
+              })),
             }}
           />
         </CardContent>
@@ -141,7 +162,10 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
               <img
                 src={invoice.company.logoUrl}
                 alt={`${invoice.company.name} logo`}
-                className="mb-3 h-12 w-auto max-w-[160px] object-contain"
+                className={cn(
+                  "mb-3 h-12 w-auto max-w-[160px] rounded-md object-contain p-1.5 ring-1",
+                  logoPreviewClassName(normalizeLogoBg(invoice.company.logoBg)),
+                )}
               />
             )}
             <p className="font-semibold">{invoice.company.name}</p>
@@ -237,6 +261,35 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
           </CardContent>
         </Card>
       )}
+
+      <InvoicePaymentsSection
+        invoiceId={invoice.id}
+        invoiceNumber={invoice.number}
+        status={invoice.status}
+        currency={invoice.currency}
+        total={Number(invoice.total)}
+        amountPaid={paymentSummary.amountPaid}
+        balanceDue={paymentSummary.balanceDue}
+        clientEmail={invoice.client?.email}
+        installments={paymentSummary.installments.map((row) => ({
+          id: row.id,
+          dueDate: row.dueDate.toISOString(),
+          amount: row.amount,
+          label: row.label,
+          paidAmount: row.paidAmount,
+          balanceDue: row.balanceDue,
+          isPaid: row.isPaid,
+          isOverdue: row.isOverdue,
+        }))}
+        payments={invoice.payments.map((payment) => ({
+          id: payment.id,
+          amount: Number(payment.amount),
+          paidAt: payment.paidAt.toISOString(),
+          method: payment.method,
+          reference: payment.reference,
+          note: payment.note,
+        }))}
+      />
 
       <InvoiceRemindersSection
         invoiceId={invoice.id}

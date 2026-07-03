@@ -8,6 +8,10 @@ function getResend() {
   return new Resend(apiKey);
 }
 
+export function isEmailConfigured(): boolean {
+  return Boolean(process.env.RESEND_API_KEY);
+}
+
 type SendInvoiceEmailInput = {
   to: string;
   companyName: string;
@@ -153,6 +157,55 @@ export async function sendFeedbackEmail(input: SendFeedbackEmailInput) {
       <p><strong>Company:</strong> ${input.companyName}</p>
       <hr />
       <p>${escapedMessage}</p>
+    `,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
+type SendAuditAlertEmailInput = {
+  to: string[];
+  companyName: string;
+  actionLabel: string;
+  summary: string;
+  actorLabel: string;
+  occurredAt: Date;
+  activityUrl: string;
+};
+
+export async function sendAuditAlertEmail(input: SendAuditAlertEmailInput) {
+  const from = process.env.RESEND_FROM_EMAIL ?? "Easy Invoice <onboarding@resend.dev>";
+  const resend = getResend();
+
+  const escapedSummary = input.summary
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+  const occurredAt = input.occurredAt.toLocaleString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
+  const { data, error } = await resend.emails.send({
+    from,
+    to: input.to,
+    subject: `[${input.companyName}] ${input.actionLabel}`,
+    html: `
+      <p>A sensitive activity was recorded on your Invoice Desk account.</p>
+      <p><strong>Company:</strong> ${input.companyName}</p>
+      <p><strong>Action:</strong> ${input.actionLabel}</p>
+      <p><strong>Details:</strong> ${escapedSummary}</p>
+      <p><strong>By:</strong> ${input.actorLabel}</p>
+      <p><strong>When:</strong> ${occurredAt}</p>
+      <p><a href="${input.activityUrl}">View activity log</a></p>
     `,
   });
 

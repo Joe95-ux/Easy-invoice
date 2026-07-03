@@ -52,6 +52,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { formatMoney } from "@/lib/invoices";
 import { pageHeaderActionClass } from "@/components/app-shell/page-header";
 import { DocumentShareButton } from "@/components/document-share-button";
 import { usePdfDownload } from "@/hooks/use-pdf-download";
@@ -63,6 +64,8 @@ type InvoiceActionsProps = {
   invoiceNumber: string;
   companyName: string;
   status: InvoiceStatus;
+  currency: string;
+  balanceDue: number;
   clientEmail?: string | null;
   dueDate?: string | null;
   sentAt?: string | null;
@@ -73,6 +76,8 @@ export function InvoiceActions({
   invoiceNumber,
   companyName,
   status,
+  currency,
+  balanceDue,
   clientEmail,
   dueDate,
   sentAt,
@@ -84,14 +89,20 @@ export function InvoiceActions({
   const [remindOpen, setRemindOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [paymentOpen, setPaymentOpen] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState("");
   const [email, setEmail] = useState(clientEmail ?? "");
   const [reminderEmail, setReminderEmail] = useState(clientEmail ?? "");
 
   const canSend = status !== "CANCELLED" && status !== "PAID";
-  const canMarkPaid = status !== "PAID" && status !== "CANCELLED";
+  const canRecordPayment =
+    status !== "DRAFT" && status !== "CANCELLED" && status !== "PAID" && balanceDue > 0.001;
   const canRemind =
     Boolean(sentAt && dueDate) &&
-    (status === "SENT" || status === "VIEWED" || status === "OVERDUE");
+    (status === "SENT" ||
+      status === "VIEWED" ||
+      status === "OVERDUE" ||
+      status === "PARTIALLY_PAID");
   const isBusy = loading !== null;
 
   function handleDownloadPdf() {
@@ -145,20 +156,22 @@ export function InvoiceActions({
     }
   }
 
-  async function updateStatus(newStatus: InvoiceStatus) {
-    setLoading(newStatus);
+  async function handleRecordPayment() {
+    setLoading("payment");
     try {
-      const response = await fetch(`/api/invoices/${invoiceId}`, {
-        method: "PATCH",
+      const response = await fetch(`/api/invoices/${invoiceId}/payments`, {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ amount: Number(paymentAmount) }),
       });
-      if (!response.ok) throw new Error("Failed to update status");
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Failed to record payment");
 
-      toast.success(`Invoice marked as ${newStatus.toLowerCase()}`);
+      toast.success("Payment recorded");
+      setPaymentOpen(false);
       router.refresh();
-    } catch {
-      toast.error("Could not update invoice status");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not record payment");
     } finally {
       setLoading(null);
     }
@@ -266,10 +279,15 @@ export function InvoiceActions({
                   Download PDF
                 </DropdownMenuItem>
               )}
-              {canMarkPaid && (
-                <DropdownMenuItem onClick={() => updateStatus("PAID")}>
+              {canRecordPayment && (
+                <DropdownMenuItem
+                  onClick={() => {
+                    setPaymentAmount(String(balanceDue));
+                    setPaymentOpen(true);
+                  }}
+                >
                   <BanknoteCheckIcon className="size-4" />
-                  Mark as paid
+                  Record payment
                 </DropdownMenuItem>
               )}
               {canRemind && (
@@ -371,6 +389,41 @@ export function InvoiceActions({
             </Button>
             <Button onClick={handleRemind} disabled={!reminderEmail || loading === "remind"}>
               {loading === "remind" ? "Sending..." : "Send reminder"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Record payment</DialogTitle>
+            <DialogDescription>
+              Record a payment for {invoiceNumber}. Balance due:{" "}
+              {formatMoney(balanceDue, currency)}.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogBody className="space-y-2">
+            <Label htmlFor="quick-payment-amount">Amount</Label>
+            <Input
+              id="quick-payment-amount"
+              type="number"
+              min={0}
+              step="0.01"
+              max={balanceDue}
+              value={paymentAmount}
+              onChange={(e) => setPaymentAmount(e.target.value)}
+            />
+          </DialogBody>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPaymentOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleRecordPayment}
+              disabled={!paymentAmount || Number(paymentAmount) <= 0 || loading === "payment"}
+            >
+              {loading === "payment" ? "Saving..." : "Record payment"}
             </Button>
           </DialogFooter>
         </DialogContent>

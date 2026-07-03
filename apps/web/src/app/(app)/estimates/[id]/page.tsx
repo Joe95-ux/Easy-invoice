@@ -18,7 +18,12 @@ import { EstimateAutoDownload } from "@/features/estimates/components/estimate-a
 import { DocumentHistorySection } from "@/components/document-history-section";
 import { DocumentTemplateManager } from "@/features/invoices/components/document-template-manager";
 import { requireMember } from "@/lib/auth";
-import { companyBrandingFields } from "@/lib/company-branding";
+import {
+  companyBrandingFields,
+  logoPreviewClassName,
+  normalizeLogoBg,
+} from "@/lib/company-branding";
+import { cn } from "@/lib/utils";
 import {
   formatDate,
   formatMoney,
@@ -138,7 +143,10 @@ export default async function EstimateDetailPage({ params }: PageProps) {
               <img
                 src={estimate.company.logoUrl}
                 alt={`${estimate.company.name} logo`}
-                className="mb-3 h-12 w-auto max-w-[160px] object-contain"
+                className={cn(
+                  "mb-3 h-12 w-auto max-w-[160px] rounded-md object-contain p-1.5 ring-1",
+                  logoPreviewClassName(normalizeLogoBg(estimate.company.logoBg)),
+                )}
               />
             )}
             <p className="font-semibold">{estimate.company.name}</p>

@@ -5,8 +5,10 @@ import {
   requireApiMember,
   validationError,
 } from "@/lib/api/validation";
+import { recordAuditEvent } from "@/lib/audit/service";
+import { summarizeReminderSettingsChange } from "@/lib/audit/summaries";
+import { AuditAction, AuditCategory, prisma } from "@/lib/db";
 import { reminderSettingsFromCompany } from "@/lib/reminders/settings";
-import { prisma } from "@/lib/db";
 import { reminderSettingsSchema } from "@/lib/schemas/reminders";
 
 export async function GET() {
@@ -41,6 +43,20 @@ export async function PATCH(request: Request) {
   const parsed = reminderSettingsSchema.safeParse(body);
   if (!parsed.success) return validationError(parsed.error);
 
+  const before = await prisma.company.findUnique({
+    where: { id: authResult.member.companyId },
+    select: {
+      remindersEnabled: true,
+      reminderDaysBefore: true,
+      reminderOnDueDate: true,
+      reminderDaysAfter: true,
+      reminderIncludePdf: true,
+    },
+  });
+  if (!before) {
+    return NextResponse.json({ error: "Company not found" }, { status: 404 });
+  }
+
   const company = await prisma.company.update({
     where: { id: authResult.member.companyId },
     data: parsed.data,
@@ -53,5 +69,25 @@ export async function PATCH(request: Request) {
     },
   });
 
-  return NextResponse.json({ settings: reminderSettingsFromCompany(company) });
+  const beforeSettings = reminderSettingsFromCompany(before);
+  const afterSettings = reminderSettingsFromCompany(company);
+  const { summary, changes } = summarizeReminderSettingsChange(
+    beforeSettings as Record<string, unknown>,
+    afterSettings as Record<string, unknown>,
+  );
+
+  if (changes.length > 0) {
+    await recordAuditEvent({
+      companyId: authResult.member.companyId,
+      memberId: authResult.member.id,
+      category: AuditCategory.SETTINGS,
+      action: AuditAction.REMINDER_SETTINGS_UPDATED,
+      summary,
+      entityType: "company",
+      entityId: authResult.member.companyId,
+      metadata: { changes },
+    });
+  }
+
+  return NextResponse.json({ settings: afterSettings });
 }

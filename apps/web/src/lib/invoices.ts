@@ -10,6 +10,8 @@ export async function getInvoiceForMember(invoiceId: string, companyId: string) 
       company: true,
       template: true,
       items: { orderBy: { sortOrder: "asc" } },
+      payments: { orderBy: { paidAt: "desc" } },
+      installments: { orderBy: { sortOrder: "asc" } },
     },
   });
 }
@@ -71,16 +73,30 @@ export function formatDate(date: Date | string | null | undefined): string {
   });
 }
 
+export function formatDateTime(date: Date | string | null | undefined): string {
+  if (!date) return "—";
+  return new Date(date).toLocaleString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 export function invoiceStatusLabel(status: InvoiceStatus): string {
+  if (status === "PARTIALLY_PAID") return "Partially paid";
   return status.charAt(0) + status.slice(1).toLowerCase();
 }
 
 export function invoiceStatusVariant(
   status: InvoiceStatus,
-): "secondary" | "destructive" | "outline" | "success" | "info" {
+): "secondary" | "destructive" | "outline" | "success" | "info" | "warning" {
   switch (status) {
     case "PAID":
       return "success";
+    case "PARTIALLY_PAID":
+      return "warning";
     case "SENT":
     case "VIEWED":
       return "info";

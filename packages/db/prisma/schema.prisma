@@ -18,9 +18,18 @@ enum InvoiceStatus {
   DRAFT
   SENT
   VIEWED
+  PARTIALLY_PAID
   PAID
   OVERDUE
   CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  CHECK
+  BANK_TRANSFER
+  CARD
+  OTHER
 }
 
 enum EstimateStatus {
@@ -62,6 +71,41 @@ enum DocumentRevisionSource {
   RESTORE
   STATUS
   SEND
+  VIEWED
+  REMINDER
+}
+
+enum AuditCategory {
+  TEAM
+  SETTINGS
+  DOCUMENT
+}
+
+enum NotificationType {
+  CLIENT_VIEWED_INVOICE
+  CLIENT_VIEWED_ESTIMATE
+  ESTIMATE_ACCEPTED
+  ESTIMATE_DECLINED
+  PAYMENT_RECEIVED
+  INVOICE_OVERDUE
+  TEAM_INVITE_RECEIVED
+  MEMBER_ROLE_CHANGED
+}
+
+enum AuditAction {
+  MEMBER_INVITED
+  MEMBER_INVITE_CANCELLED
+  MEMBER_JOINED
+  MEMBER_ROLE_CHANGED
+  MEMBER_REMOVED
+  COMPANY_PROFILE_UPDATED
+  COMPANY_LOGO_UPLOADED
+  COMPANY_LOGO_REMOVED
+  REMINDER_SETTINGS_UPDATED
+  DEFAULT_TEMPLATE_CHANGED
+  INVOICE_DELETED
+  ESTIMATE_DELETED
+  CLIENT_DELETED
 }
 
 model Company {
@@ -104,6 +148,8 @@ model Company {
   defaultTemplate InvoiceTemplate? @relation("CompanyDefaultTemplate", fields: [defaultTemplateId], references: [id], onDelete: SetNull)
   timeEntries TimeEntry[]
   documentRevisions DocumentRevision[]
+  auditEvents       AuditEvent[]
+  notifications     Notification[]
 
   @@index([slug])
 }
@@ -113,15 +159,25 @@ model CompanyMember {
   companyId    String
   clerkId      String
   email        String
+  name         String?
   role         UserRole  @default(MEMBER)
   lastActiveAt DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
+  notifyClientViewed     Boolean @default(true)
+  notifyEstimateResponse Boolean @default(true)
+  notifyPaymentReceived  Boolean @default(true)
+  notifyInvoiceOverdue   Boolean @default(true)
+  notifyTeamChanges      Boolean @default(true)
+
   company     Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
   sentInvites CompanyInvite[] @relation("SentInvites")
   timeEntries TimeEntry[]
   documentRevisions DocumentRevision[]
+  invoicePayments InvoicePayment[]
+  auditEvents       AuditEvent[]
+  notifications     Notification[]
 
   @@unique([companyId, clerkId])
   @@index([clerkId])
@@ -200,6 +256,8 @@ model Invoice {
   sourceEstimate Estimate?    @relation("EstimateToInvoice", fields: [sourceEstimateId], references: [id], onDelete: SetNull)
   items     InvoiceLineItem[]
   reminders InvoiceReminder[]
+  installments InvoiceInstallment[]
+  payments  InvoicePayment[]
   timeEntries TimeEntry[]
 
   @@unique([companyId, number])
@@ -220,6 +278,37 @@ model InvoiceReminder {
   invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
   @@unique([invoiceId, kind, offsetDays, scheduleDate])
+  @@index([invoiceId])
+}
+
+model InvoiceInstallment {
+  id        String   @id @default(cuid())
+  invoiceId String
+  dueDate   DateTime
+  amount    Decimal  @db.Decimal(12, 2)
+  label     String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+}
+
+model InvoicePayment {
+  id        String        @id @default(cuid())
+  invoiceId String
+  memberId  String?
+  amount    Decimal       @db.Decimal(12, 2)
+  paidAt    DateTime      @default(now())
+  method    PaymentMethod @default(OTHER)
+  reference String?
+  note      String?
+  createdAt DateTime      @default(now())
+
+  invoice Invoice        @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  member  CompanyMember? @relation(fields: [memberId], references: [id], onDelete: SetNull)
+
   @@index([invoiceId])
 }
 
@@ -355,4 +444,42 @@ model DocumentRevision {
   @@unique([documentType, documentId, revisionNumber])
   @@index([companyId, documentType, documentId])
   @@index([documentId])
+}
+
+model AuditEvent {
+  id         String        @id @default(cuid())
+  companyId  String
+  memberId   String?
+  category   AuditCategory
+  action     AuditAction
+  summary    String
+  entityType String?
+  entityId   String?
+  metadata   Json?
+  createdAt  DateTime      @default(now())
+
+  company Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  member  CompanyMember? @relation(fields: [memberId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, createdAt(sort: Desc)])
+  @@index([companyId, category, createdAt(sort: Desc)])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  companyId String
+  memberId  String
+  type      NotificationType
+  title     String
+  body      String
+  linkUrl   String?
+  metadata  Json?
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  company Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  member  CompanyMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId, read, createdAt(sort: Desc)])
+  @@index([companyId])
 }

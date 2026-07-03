@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireApiMember, parseJsonBody, validationError } from "@/lib/api/validation";
-import { prisma } from "@/lib/db";
+import { recordAuditEvent } from "@/lib/audit/service";
+import { AuditAction, AuditCategory, prisma } from "@/lib/db";
 import {
   buildInvoiceTotals,
   canTransitionInvoiceStatus,
@@ -14,6 +15,11 @@ import {
   loadInvoiceSnapshot,
   recordInvoiceContentRevision,
 } from "@/lib/document-revisions/service";
+import {
+  buildInvoicePaymentSummary,
+  syncInvoiceInstallments,
+  validateInstallments,
+} from "@/lib/invoice-payments";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -48,6 +54,21 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   const data = parsed.data;
   const beforeSnapshot = await loadInvoiceSnapshot(member.companyId, id);
+
+  if (data.status === "PAID") {
+    const paymentSummary = buildInvoicePaymentSummary({
+      total: existing.total,
+      dueDate: existing.dueDate,
+      payments: existing.payments ?? [],
+      installments: existing.installments ?? [],
+    });
+    if (paymentSummary.balanceDue > 0.001) {
+      return NextResponse.json(
+        { error: "Record a payment for the remaining balance instead of marking as paid" },
+        { status: 400 },
+      );
+    }
+  }
 
   if (data.status && !canTransitionInvoiceStatus(existing.status, data.status)) {
     return NextResponse.json(
@@ -137,6 +158,27 @@ export async function PATCH(request: Request, context: RouteContext) {
     }
   }
 
+  const nextTotal =
+    totalsUpdate.total !== undefined ? totalsUpdate.total : Number(existing.total);
+  if (data.installments !== undefined) {
+    if (existing.status !== "DRAFT") {
+      return NextResponse.json(
+        { error: "Payment schedule can only be edited on draft invoices" },
+        { status: 400 },
+      );
+    }
+    if ((existing.payments?.length ?? 0) > 0) {
+      return NextResponse.json(
+        { error: "Cannot change the payment schedule after payments have been recorded" },
+        { status: 400 },
+      );
+    }
+    const installmentError = validateInstallments(data.installments, nextTotal);
+    if (installmentError) {
+      return NextResponse.json({ error: installmentError }, { status: 400 });
+    }
+  }
+
   const invoice = await prisma.invoice.update({
     where: { id },
     data: {
@@ -163,8 +205,16 @@ export async function PATCH(request: Request, context: RouteContext) {
       items: { orderBy: { sortOrder: "asc" } },
       company: true,
       template: true,
+      payments: { orderBy: { paidAt: "desc" } },
+      installments: { orderBy: { sortOrder: "asc" } },
     },
   });
+
+  if (data.installments !== undefined) {
+    await syncInvoiceInstallments(id, data.installments);
+  }
+
+  const refreshed = await getInvoiceForMember(id, member.companyId);
 
   const afterSnapshot = await loadInvoiceSnapshot(member.companyId, id);
   if (afterSnapshot) {
@@ -177,7 +227,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     );
   }
 
-  return NextResponse.json({ invoice });
+  return NextResponse.json({ invoice: refreshed });
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
@@ -192,5 +242,21 @@ export async function DELETE(_request: Request, context: RouteContext) {
 
   await releaseTimeEntriesForInvoice(id);
   await prisma.invoice.delete({ where: { id } });
+
+  await recordAuditEvent({
+    companyId: member.companyId,
+    memberId: member.id,
+    category: AuditCategory.DOCUMENT,
+    action: AuditAction.INVOICE_DELETED,
+    summary: `Deleted invoice ${existing.number}`,
+    entityType: "invoice",
+    entityId: id,
+    metadata: {
+      number: existing.number,
+      status: existing.status,
+      clientName: existing.client?.name ?? null,
+    },
+  });
+
   return NextResponse.json({ success: true });
 }

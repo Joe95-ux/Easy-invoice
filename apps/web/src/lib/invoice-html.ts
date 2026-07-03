@@ -4,6 +4,7 @@ import { renderFromTemplate } from "@/lib/invoice-templates/render";
 import { inlineCompanyLogo } from "@/lib/inline-company-logo";
 import { companyBrandingFields } from "@/lib/company-branding";
 import { getInvoiceForMember } from "@/lib/invoices";
+import { buildInvoicePaymentSummary, PAYMENT_METHOD_LABELS } from "@/lib/invoice-payments";
 import { ensureSystemTemplates, getDefaultTemplateId, getTemplateById } from "@/lib/templates";
 
 export type { InvoiceHtmlData };
@@ -11,6 +12,8 @@ export type { InvoiceHtmlData };
 export function invoiceToHtmlData(
   invoice: NonNullable<Awaited<ReturnType<typeof getInvoiceForMember>>>,
 ): InvoiceHtmlData {
+  const paymentSummary = buildInvoicePaymentSummary(invoice);
+
   return {
     documentKind: "invoice",
     company: {
@@ -38,12 +41,28 @@ export function invoiceToHtmlData(
       discount: Number(invoice.discount),
       total: Number(invoice.total),
       notes: invoice.notes,
+      amountPaid: paymentSummary.amountPaid,
+      balanceDue: paymentSummary.balanceDue,
     },
     items: invoice.items.map((item) => ({
       description: item.description,
       quantity: Number(item.quantity),
       unitPrice: Number(item.unitPrice),
       amount: Number(item.amount),
+    })),
+    installments: paymentSummary.installments.map((row) => ({
+      dueDate: row.dueDate,
+      amount: row.amount,
+      label: row.label,
+      paidAmount: row.paidAmount,
+      balanceDue: row.balanceDue,
+      isPaid: row.isPaid,
+    })),
+    payments: invoice.payments.map((payment) => ({
+      paidAt: payment.paidAt,
+      amount: Number(payment.amount),
+      method: PAYMENT_METHOD_LABELS[payment.method],
+      reference: payment.reference,
     })),
   };
 }

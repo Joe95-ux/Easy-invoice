@@ -58,7 +58,12 @@ const KIND_LABELS: Record<ReminderKind, string> = {
 
 function canSendReminder(status: InvoiceStatus, sentAt?: string | null, dueDate?: string | null) {
   if (!sentAt || !dueDate) return false;
-  return status === "SENT" || status === "VIEWED" || status === "OVERDUE";
+  return (
+    status === "SENT" ||
+    status === "VIEWED" ||
+    status === "OVERDUE" ||
+    status === "PARTIALLY_PAID"
+  );
 }
 
 export function InvoiceRemindersSection({

@@ -44,8 +44,10 @@ export function CompanyLogoUpload({
 }: CompanyLogoUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [removing, setRemoving] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(logoUrl);
   const [usingSuggested, setUsingSuggested] = useState(false);
+  const busy = uploading || removing;
 
   useEffect(() => {
     setPreviewUrl(logoUrl);
@@ -116,7 +118,7 @@ export function CompanyLogoUpload({
       return;
     }
 
-    setUploading(true);
+    setRemoving(true);
     try {
       const response = await fetch("/api/company/logo", { method: "DELETE" });
       const body = await response.json();
@@ -129,7 +131,7 @@ export function CompanyLogoUpload({
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not remove logo");
     } finally {
-      setUploading(false);
+      setRemoving(false);
     }
   }
 
@@ -166,7 +168,7 @@ export function CompanyLogoUpload({
                 type="button"
                 variant="outline"
                 size="sm"
-                disabled={uploading}
+                disabled={busy}
                 onClick={() => inputRef.current?.click()}
               >
                 <UploadIcon className="size-4" />
@@ -178,7 +180,7 @@ export function CompanyLogoUpload({
                   type="button"
                   variant="secondary"
                   size="sm"
-                  disabled={uploading}
+                  disabled={busy}
                   onClick={handleUseSuggested}
                 >
                   <UserRoundIcon className="size-4" />
@@ -191,10 +193,10 @@ export function CompanyLogoUpload({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  disabled={uploading}
+                  disabled={busy}
                   onClick={handleRemove}
                 >
-                  Remove
+                  {removing ? "Removing..." : "Remove"}
                 </Button>
               )}
             </div>
