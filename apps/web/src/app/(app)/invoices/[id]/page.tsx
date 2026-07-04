@@ -90,12 +90,13 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
             clientEmail={invoice.client?.email}
             dueDate={invoice.dueDate?.toISOString() ?? null}
             sentAt={invoice.sentAt?.toISOString() ?? null}
+            celebrateInvoicePaid={member.celebrateInvoicePaid}
           />
         }
       />
 
       <Card id="invoice-template" className="mb-6 scroll-mt-20">
-        <CardContent className="pt-6">
+        <CardContent>
           <DocumentTemplateManager
             kind="invoice"
             templates={templates}
@@ -289,6 +290,7 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
           reference: payment.reference,
           note: payment.note,
         }))}
+        celebrateInvoicePaid={member.celebrateInvoicePaid}
       />
 
       <InvoiceRemindersSection

@@ -58,6 +58,7 @@ import { DocumentShareButton } from "@/components/document-share-button";
 import { usePdfDownload } from "@/hooks/use-pdf-download";
 import { cn } from "@/lib/utils";
 import type { InvoiceStatus } from "@easy-invoice/db";
+import { showPaymentRecordedFeedback } from "@/lib/celebrate-invoice-paid";
 
 type InvoiceActionsProps = {
   invoiceId: string;
@@ -69,6 +70,7 @@ type InvoiceActionsProps = {
   clientEmail?: string | null;
   dueDate?: string | null;
   sentAt?: string | null;
+  celebrateInvoicePaid?: boolean;
 };
 
 export function InvoiceActions({
@@ -81,6 +83,7 @@ export function InvoiceActions({
   clientEmail,
   dueDate,
   sentAt,
+  celebrateInvoicePaid = false,
 }: InvoiceActionsProps) {
   const router = useRouter();
   const { openPdfDownload, pdfDownloadDialog } = usePdfDownload();
@@ -167,7 +170,11 @@ export function InvoiceActions({
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Failed to record payment");
 
-      toast.success("Payment recorded");
+      showPaymentRecordedFeedback({
+        invoiceNumber,
+        status: data.invoice?.status ?? status,
+        celebrateInvoicePaid,
+      });
       setPaymentOpen(false);
       router.refresh();
     } catch (error) {

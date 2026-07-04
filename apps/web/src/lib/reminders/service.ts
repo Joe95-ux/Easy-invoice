@@ -85,7 +85,7 @@ export async function markOverdueInvoices(now = new Date()) {
         })
       ).map((m) => m.id);
 
-      void createNotification({
+      await createNotification({
         companyId: invoice.companyId,
         recipientMemberIds: memberIds,
         type: "INVOICE_OVERDUE",

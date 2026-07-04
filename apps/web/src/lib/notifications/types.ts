@@ -6,6 +6,7 @@ export type NotificationPreferences = {
   notifyPaymentReceived: boolean;
   notifyInvoiceOverdue: boolean;
   notifyTeamChanges: boolean;
+  celebrateInvoicePaid: boolean;
 };
 
 export const NOTIFICATION_PREF_DEFAULTS: NotificationPreferences = {
@@ -14,6 +15,7 @@ export const NOTIFICATION_PREF_DEFAULTS: NotificationPreferences = {
   notifyPaymentReceived: true,
   notifyInvoiceOverdue: true,
   notifyTeamChanges: true,
+  celebrateInvoicePaid: false,
 };
 
 export const NOTIFICATION_TYPE_TO_PREF: Record<NotificationType, keyof NotificationPreferences> = {
@@ -47,6 +49,10 @@ export const NOTIFICATION_PREF_LABELS: Record<keyof NotificationPreferences, { t
   notifyTeamChanges: {
     title: "Team changes",
     description: "When you receive a team invite or your role changes",
+  },
+  celebrateInvoicePaid: {
+    title: "Celebrate paid invoices",
+    description: "Show confetti when you record the final payment on an invoice",
   },
 };
 

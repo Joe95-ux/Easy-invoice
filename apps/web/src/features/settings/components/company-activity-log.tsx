@@ -1,11 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { DownloadIcon, Loader2Icon } from "lucide-react";
+import { DownloadIcon, InfoIcon, Loader2Icon } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -23,11 +28,14 @@ const CATEGORY_LABELS: Record<AuditCategory, string> = {
   DOCUMENT: "Documents",
 };
 
-const CATEGORY_VARIANT: Record<AuditCategory, "default" | "secondary" | "outline"> = {
+const CATEGORY_VARIANT: Record<AuditCategory, "default" | "info" | "warning"> = {
   TEAM: "default",
-  SETTINGS: "secondary",
-  DOCUMENT: "outline",
+  SETTINGS: "info",
+  DOCUMENT: "warning",
 };
+
+const DESCRIPTION_TEXT =
+  "Immutable record of team, settings, and destructive changes. Admins receive email alerts for sensitive actions. Export to CSV for disputes or record-keeping.";
 
 type CompanyActivityLogProps = {
   initialEvents: AuditEventListItem[];
@@ -128,15 +136,13 @@ export function CompanyActivityLog({
 
   return (
     <Card>
-      <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      {/* Mobile: show title + description; Desktop: hide (shown in page header + info popover) */}
+      <CardHeader className="flex flex-col gap-4 sm:hidden">
         <div>
           <CardTitle>Activity log</CardTitle>
-          <CardDescription>
-            Immutable record of team, settings, and destructive changes. Admins receive email
-            alerts for sensitive actions. Export to CSV for disputes or record-keeping.
-          </CardDescription>
+          <CardDescription>{DESCRIPTION_TEXT}</CardDescription>
         </div>
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+        <div className="flex w-full flex-col gap-2">
           <Button variant="outline" onClick={handleExport} disabled={exporting || loading}>
             {exporting ? (
               <>
@@ -151,10 +157,42 @@ export function CompanyActivityLog({
             )}
           </Button>
           <Select
+            value={category}
+            onValueChange={(value) => setCategory(value as AuditCategory | "ALL")}
+          >
+            <SelectTrigger className="w-full data-[size=default]:h-8">
+              <SelectValue placeholder="Filter by category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All activity</SelectItem>
+              <SelectItem value="TEAM">Team</SelectItem>
+              <SelectItem value="SETTINGS">Settings</SelectItem>
+              <SelectItem value="DOCUMENT">Documents</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </CardHeader>
+
+      {/* Desktop: no title/description, just toolbar */}
+      <CardHeader className="hidden sm:flex sm:flex-row sm:items-center sm:justify-end sm:gap-2">
+        <Button variant="outline" onClick={handleExport} disabled={exporting || loading}>
+          {exporting ? (
+            <>
+              <Loader2Icon className="mr-2 size-4 animate-spin" />
+              Exporting…
+            </>
+          ) : (
+            <>
+              <DownloadIcon className="size-4" />
+              Export CSV
+            </>
+          )}
+        </Button>
+        <Select
           value={category}
           onValueChange={(value) => setCategory(value as AuditCategory | "ALL")}
         >
-          <SelectTrigger className="w-full sm:w-[180px]">
+          <SelectTrigger className="w-[180px] data-[size=default]:h-8">
             <SelectValue placeholder="Filter by category" />
           </SelectTrigger>
           <SelectContent>
@@ -164,8 +202,8 @@ export function CompanyActivityLog({
             <SelectItem value="DOCUMENT">Documents</SelectItem>
           </SelectContent>
         </Select>
-        </div>
       </CardHeader>
+
       <CardContent>
         {loading ? (
           <div className="flex items-center justify-center py-12 text-muted-foreground">
@@ -219,5 +257,26 @@ export function CompanyActivityLog({
         )}
       </CardContent>
     </Card>
+  );
+}
+
+export function ActivityLogInfoPopover() {
+  return (
+    <Popover>
+      <PopoverTrigger
+        render={
+          <button
+            type="button"
+            className="inline-flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            aria-label="About activity log"
+          />
+        }
+      >
+        <InfoIcon className="size-4" />
+      </PopoverTrigger>
+      <PopoverContent side="bottom" align="start" sideOffset={6} className="w-80">
+        <p className="text-sm text-muted-foreground">{DESCRIPTION_TEXT}</p>
+      </PopoverContent>
+    </Popover>
   );
 }

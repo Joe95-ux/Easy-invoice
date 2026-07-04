@@ -167,7 +167,7 @@ export async function recordInvoicePayment(input: {
     })
   ).map((m) => m.id);
 
-  void createNotification({
+  await createNotification({
     companyId: input.companyId,
     recipientMemberIds: memberIds,
     type: "PAYMENT_RECEIVED",

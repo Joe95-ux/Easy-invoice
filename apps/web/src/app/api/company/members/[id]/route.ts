@@ -69,7 +69,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       },
     });
 
-    void createNotification({
+    await createNotification({
       companyId: actor.companyId,
       recipientMemberIds: [target.id],
       type: "MEMBER_ROLE_CHANGED",

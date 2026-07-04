@@ -1,6 +1,15 @@
 import "server-only";
 
-let beamsClient: InstanceType<typeof import("@pusher/push-notifications-server").default> | null = null;
+type BeamsClient = Awaited<ReturnType<typeof createBeamsClient>>;
+
+let beamsClient: BeamsClient | null = null;
+
+async function createBeamsClient() {
+  const PushNotifications = (await import("@pusher/push-notifications-server")).default;
+  const instanceId = process.env.PUSHER_BEAMS_INSTANCE_ID!;
+  const secretKey = process.env.PUSHER_BEAMS_SECRET_KEY!;
+  return new PushNotifications({ instanceId, secretKey });
+}
 
 export async function getBeamsClient() {
   if (beamsClient) return beamsClient;
@@ -9,8 +18,7 @@ export async function getBeamsClient() {
   const secretKey = process.env.PUSHER_BEAMS_SECRET_KEY;
   if (!instanceId || !secretKey) return null;
 
-  const PushNotifications = (await import("@pusher/push-notifications-server")).default;
-  beamsClient = new PushNotifications({ instanceId, secretKey });
+  beamsClient = await createBeamsClient();
   return beamsClient;
 }
 

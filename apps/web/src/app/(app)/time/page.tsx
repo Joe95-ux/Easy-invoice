@@ -21,7 +21,7 @@ export default async function TimePage() {
   ]);
 
   return (
-    <PageScroll fullWidth>
+    <PageScroll>
       <TimePageContent
         entries={entries.map(serializeTimeEntry)}
         clients={clients}

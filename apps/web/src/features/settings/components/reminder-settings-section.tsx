@@ -33,13 +33,50 @@ export function ReminderSettingsSection({ initialSettings }: ReminderSettingsSec
   const [daysBeforeInput, setDaysBeforeInput] = useState(formatDaysInput(initialSettings.reminderDaysBefore));
   const [daysAfterInput, setDaysAfterInput] = useState(formatDaysInput(initialSettings.reminderDaysAfter));
   const [saving, setSaving] = useState(false);
+  const [savingSwitch, setSavingSwitch] = useState<keyof ReminderSettingsInput | null>(null);
 
-  async function handleSave() {
-    const payload: ReminderSettingsInput = {
+  function buildPayload(overrides?: Partial<ReminderSettingsInput>): ReminderSettingsInput {
+    return {
       ...settings,
       reminderDaysBefore: parseDaysInput(daysBeforeInput),
       reminderDaysAfter: parseDaysInput(daysAfterInput),
+      ...overrides,
     };
+  }
+
+  async function toggleSetting<K extends keyof ReminderSettingsInput>(
+    key: K,
+    value: ReminderSettingsInput[K],
+  ) {
+    const previous = { ...settings };
+    const payload = buildPayload({ [key]: value });
+
+    setSettings((prev) => ({ ...prev, [key]: value }));
+    setSavingSwitch(key);
+
+    try {
+      const response = await fetch("/api/company/reminder-settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error ?? "Failed to save reminder settings");
+
+      setSettings(body.settings);
+      setDaysBeforeInput(formatDaysInput(body.settings.reminderDaysBefore));
+      setDaysAfterInput(formatDaysInput(body.settings.reminderDaysAfter));
+      router.refresh();
+    } catch (error) {
+      setSettings(previous);
+      toast.error(error instanceof Error ? error.message : "Could not save settings");
+    } finally {
+      setSavingSwitch(null);
+    }
+  }
+
+  async function handleSave() {
+    const payload = buildPayload();
 
     setSaving(true);
     try {
@@ -63,11 +100,7 @@ export function ReminderSettingsSection({ initialSettings }: ReminderSettingsSec
     }
   }
 
-  const schedulePreview = describeReminderSchedule({
-    ...settings,
-    reminderDaysBefore: parseDaysInput(daysBeforeInput),
-    reminderDaysAfter: parseDaysInput(daysAfterInput),
-  });
+  const schedulePreview = describeReminderSchedule(buildPayload());
 
   return (
     <Card>
@@ -91,9 +124,8 @@ export function ReminderSettingsSection({ initialSettings }: ReminderSettingsSec
           <Switch
             id="reminders-enabled"
             checked={settings.remindersEnabled}
-            onCheckedChange={(checked) =>
-              setSettings((prev) => ({ ...prev, remindersEnabled: checked }))
-            }
+            onCheckedChange={(checked) => void toggleSetting("remindersEnabled", checked)}
+            disabled={savingSwitch !== null}
           />
         </div>
 
@@ -130,10 +162,8 @@ export function ReminderSettingsSection({ initialSettings }: ReminderSettingsSec
           <Switch
             id="reminder-on-due"
             checked={settings.reminderOnDueDate}
-            onCheckedChange={(checked) =>
-              setSettings((prev) => ({ ...prev, reminderOnDueDate: checked }))
-            }
-            disabled={!settings.remindersEnabled}
+            onCheckedChange={(checked) => void toggleSetting("reminderOnDueDate", checked)}
+            disabled={!settings.remindersEnabled || savingSwitch !== null}
           />
         </div>
 
@@ -145,9 +175,8 @@ export function ReminderSettingsSection({ initialSettings }: ReminderSettingsSec
           <Switch
             id="reminder-pdf"
             checked={settings.reminderIncludePdf}
-            onCheckedChange={(checked) =>
-              setSettings((prev) => ({ ...prev, reminderIncludePdf: checked }))
-            }
+            onCheckedChange={(checked) => void toggleSetting("reminderIncludePdf", checked)}
+            disabled={savingSwitch !== null}
           />
         </div>
 

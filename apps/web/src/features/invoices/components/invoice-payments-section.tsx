@@ -36,6 +36,7 @@ import {
 import type { InvoiceStatus, PaymentMethod } from "@easy-invoice/db";
 import { formatDate, formatMoney } from "@/lib/invoices";
 import { PAYMENT_METHOD_LABELS } from "@/lib/invoice-payments-utils";
+import { showPaymentRecordedFeedback } from "@/lib/celebrate-invoice-paid";
 
 type InstallmentRow = {
   id: string;
@@ -68,6 +69,7 @@ type InvoicePaymentsSectionProps = {
   clientEmail?: string | null;
   installments: InstallmentRow[];
   payments: PaymentRow[];
+  celebrateInvoicePaid?: boolean;
 };
 
 const METHOD_OPTIONS = Object.entries(PAYMENT_METHOD_LABELS) as [PaymentMethod, string][];
@@ -83,6 +85,7 @@ export function InvoicePaymentsSection({
   clientEmail,
   installments,
   payments,
+  celebrateInvoicePaid = false,
 }: InvoicePaymentsSectionProps) {
   const router = useRouter();
   const [recordOpen, setRecordOpen] = useState(false);
@@ -126,7 +129,11 @@ export function InvoicePaymentsSection({
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Failed to record payment");
 
-      toast.success("Payment recorded");
+      showPaymentRecordedFeedback({
+        invoiceNumber,
+        status: data.invoice?.status ?? status,
+        celebrateInvoicePaid,
+      });
       setRecordOpen(false);
       router.refresh();
     } catch (error) {

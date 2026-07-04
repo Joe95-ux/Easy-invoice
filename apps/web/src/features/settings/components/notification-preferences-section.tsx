@@ -64,8 +64,8 @@ export function NotificationPreferencesSection() {
           Notification preferences
         </CardTitle>
         <CardDescription>
-          Choose which events you want to be notified about. Notifications are
-          delivered in-app in real time and via browser push when available.
+          Choose which events you want to be notified about, and optional celebrations when
+          invoices are fully paid.
         </CardDescription>
       </CardHeader>
       <CardContent>

@@ -127,7 +127,7 @@ export async function markInvoiceViewed(invoiceId: string, currentStatus: Invoic
     select: { number: true },
   });
   const memberIds = await getCompanyMemberIds(existing.companyId);
-  void createNotification({
+  await createNotification({
     companyId: existing.companyId,
     recipientMemberIds: memberIds,
     type: "CLIENT_VIEWED_INVOICE",
@@ -179,7 +179,7 @@ export async function markEstimateViewed(estimateId: string, currentStatus: Esti
     select: { number: true },
   });
   const memberIds = await getCompanyMemberIds(existing.companyId);
-  void createNotification({
+  await createNotification({
     companyId: existing.companyId,
     recipientMemberIds: memberIds,
     type: "CLIENT_VIEWED_ESTIMATE",
@@ -215,7 +215,7 @@ export async function respondToPublicEstimate(
   const clientName = estimate.client?.name ?? "Client";
   const memberIds = await getCompanyMemberIds(estimate.companyId);
   const verb = action === "accept" ? "accepted" : "declined";
-  void createNotification({
+  await createNotification({
     companyId: estimate.companyId,
     recipientMemberIds: memberIds,
     type: action === "accept" ? "ESTIMATE_ACCEPTED" : "ESTIMATE_DECLINED",

@@ -77,7 +77,7 @@ export function InvoiceRemindersSection({
 }: InvoiceRemindersSectionProps) {
   const router = useRouter();
   const [remindersPaused, setRemindersPaused] = useState(initialPaused);
-  const [pausing, setPausing] = useState(false);
+  const [toggling, setToggling] = useState(false);
   const [remindOpen, setRemindOpen] = useState(false);
   const [email, setEmail] = useState(clientEmail ?? "");
   const [sending, setSending] = useState(false);
@@ -85,23 +85,27 @@ export function InvoiceRemindersSection({
   const eligible = canSendReminder(status, sentAt, dueDate);
 
   async function togglePaused(checked: boolean) {
-    setPausing(true);
+    const newPaused = !checked;
+    const previous = remindersPaused;
+    setRemindersPaused(newPaused);
+    setToggling(true);
+
     try {
       const response = await fetch(`/api/invoices/${invoiceId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ remindersPaused: !checked }),
+        body: JSON.stringify({ remindersPaused: newPaused }),
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body.error ?? "Failed to update");
 
-      setRemindersPaused(!checked);
-      toast.success(!checked ? "Automatic reminders paused" : "Automatic reminders resumed");
+      toast.success(newPaused ? "Automatic reminders paused" : "Automatic reminders resumed");
       router.refresh();
     } catch (error) {
+      setRemindersPaused(previous);
       toast.error(error instanceof Error ? error.message : "Could not update reminders");
     } finally {
-      setPausing(false);
+      setToggling(false);
     }
   }
 
@@ -175,8 +179,8 @@ export function InvoiceRemindersSection({
               <Switch
                 id="invoice-reminders-active"
                 checked={!remindersPaused}
-                onCheckedChange={togglePaused}
-                disabled={pausing}
+                onCheckedChange={(checked) => void togglePaused(checked)}
+                disabled={toggling}
               />
             </div>
           )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   BellIcon,
@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import Pusher from "pusher-js";
 import { toast } from "sonner";
+import { NotificationRow } from "@/features/notifications/components/notification-row";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -17,7 +18,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import type { NotificationListItem } from "@/lib/notifications/types";
-import { formatDateTime } from "@/lib/invoices";
+
+const DROPDOWN_LIMIT = 10;
 
 type NotificationBellProps = {
   memberId: string;
@@ -27,30 +29,22 @@ export function NotificationBell({ memberId }: NotificationBellProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [notifications, setNotifications] = useState<NotificationListItem[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [cursor, setCursor] = useState<string | null>(null);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const hasFetched = useRef(false);
 
-  const fetchNotifications = useCallback(async (nextCursor?: string) => {
-    const params = new URLSearchParams();
-    if (nextCursor) params.set("cursor", nextCursor);
-
+  const fetchNotifications = useCallback(async () => {
+    const params = new URLSearchParams({ limit: String(DROPDOWN_LIMIT) });
     const res = await fetch(`/api/notifications?${params.toString()}`);
     if (!res.ok) return;
 
     const data = (await res.json()) as {
       notifications: NotificationListItem[];
-      nextCursor: string | null;
+      totalCount: number;
       unreadCount: number;
     };
 
-    if (nextCursor) {
-      setNotifications((prev) => [...prev, ...data.notifications]);
-    } else {
-      setNotifications(data.notifications);
-    }
-    setCursor(data.nextCursor);
+    setNotifications(data.notifications);
+    setTotalCount(data.totalCount);
     setUnreadCount(data.unreadCount);
   }, []);
 
@@ -73,8 +67,9 @@ export function NotificationBell({ memberId }: NotificationBellProps) {
 
     const channel = pusher.subscribe(`private-member-${memberId}`);
     channel.bind("notification", (data: NotificationListItem) => {
-      setNotifications((prev) => [data, ...prev]);
-      setUnreadCount((c) => c + 1);
+      setNotifications((prev) => [data, ...prev].slice(0, DROPDOWN_LIMIT));
+      setTotalCount((count) => count + 1);
+      setUnreadCount((count) => count + 1);
       toast(data.title, { description: data.body });
     });
 
@@ -87,8 +82,7 @@ export function NotificationBell({ memberId }: NotificationBellProps) {
 
   async function handleOpen(isOpen: boolean) {
     setOpen(isOpen);
-    if (isOpen && !hasFetched.current) {
-      hasFetched.current = true;
+    if (isOpen) {
       setLoading(true);
       await fetchNotifications();
       setLoading(false);
@@ -109,12 +103,28 @@ export function NotificationBell({ memberId }: NotificationBellProps) {
     }
   }
 
-  async function handleLoadMore() {
-    if (!cursor) return;
-    setLoadingMore(true);
-    await fetchNotifications(cursor);
-    setLoadingMore(false);
+  function handleReadChange(id: string, read: boolean) {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read } : n)),
+    );
+    setUnreadCount((count) => {
+      if (read) return Math.max(0, count - 1);
+      return count + 1;
+    });
   }
+
+  function handleDelete(id: string) {
+    setNotifications((prev) => {
+      const target = prev.find((n) => n.id === id);
+      if (target && !target.read) {
+        setUnreadCount((count) => Math.max(0, count - 1));
+      }
+      return prev.filter((n) => n.id !== id);
+    });
+    setTotalCount((count) => Math.max(0, count - 1));
+  }
+
+  const showViewAll = totalCount > DROPDOWN_LIMIT;
 
   return (
     <Popover open={open} onOpenChange={handleOpen}>
@@ -124,7 +134,7 @@ export function NotificationBell({ memberId }: NotificationBellProps) {
         }
       >
         <div className="relative">
-          <BellIcon className="size-4" />
+          <BellIcon className="size-5" />
           {unreadCount > 0 && (
             <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
               {unreadCount > 9 ? "9+" : unreadCount}
@@ -135,7 +145,7 @@ export function NotificationBell({ memberId }: NotificationBellProps) {
       <PopoverContent
         align="end"
         sideOffset={8}
-        className="w-80 p-0 sm:w-96"
+        className="w-[min(calc(100vw-2rem),24rem)] gap-0 p-0 sm:w-96"
       >
         <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
           <span className="text-sm font-semibold">Notifications</span>
@@ -145,6 +155,7 @@ export function NotificationBell({ memberId }: NotificationBellProps) {
                 type="button"
                 variant="ghost"
                 size="icon-sm"
+                className="cursor-pointer"
                 onClick={() => void handleMarkAllRead()}
                 aria-label="Mark all read"
               >
@@ -154,7 +165,8 @@ export function NotificationBell({ memberId }: NotificationBellProps) {
             <Button
               variant="ghost"
               size="icon-sm"
-              render={<Link href="/settings/notifications" />}
+              className="cursor-pointer"
+              render={<Link href="/settings/notifications" onClick={() => setOpen(false)} />}
               aria-label="Notification settings"
             >
               <SettingsIcon className="size-4" />
@@ -162,7 +174,7 @@ export function NotificationBell({ memberId }: NotificationBellProps) {
           </div>
         </div>
 
-        <div className="max-h-80 overflow-y-auto">
+        <div className="max-h-[min(20rem,calc(100dvh-8rem))] overflow-y-auto">
           {loading ? (
             <div className="flex items-center justify-center py-8 text-muted-foreground">
               <Loader2Icon className="size-5 animate-spin" />
@@ -172,68 +184,35 @@ export function NotificationBell({ memberId }: NotificationBellProps) {
               No notifications yet
             </p>
           ) : (
-            <>
-              {notifications.map((n) => (
-                <NotificationRow key={n.id} notification={n} onClose={() => setOpen(false)} />
+            <div className="divide-y divide-border">
+              {notifications.map((notification) => (
+                <NotificationRow
+                  key={notification.id}
+                  notification={notification}
+                  compact
+                  showTypeBadge={false}
+                  onReadChange={handleReadChange}
+                  onDelete={handleDelete}
+                  onNavigate={() => setOpen(false)}
+                />
               ))}
-              {cursor && (
-                <div className="flex justify-center border-t border-border py-2">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => void handleLoadMore()}
-                    disabled={loadingMore}
-                  >
-                    {loadingMore ? (
-                      <Loader2Icon className="size-4 animate-spin" />
-                    ) : (
-                      "Load more"
-                    )}
-                  </Button>
-                </div>
-              )}
-            </>
+            </div>
           )}
         </div>
+
+        {showViewAll && (
+          <div className="border-t border-border p-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full cursor-pointer"
+              render={<Link href="/notifications" onClick={() => setOpen(false)} />}
+            >
+              View all
+            </Button>
+          </div>
+        )}
       </PopoverContent>
     </Popover>
   );
-}
-
-function NotificationRow({
-  notification,
-  onClose,
-}: {
-  notification: NotificationListItem;
-  onClose: () => void;
-}) {
-  const content = (
-    <div
-      className={`flex gap-3 px-4 py-3 transition-colors hover:bg-muted/50 ${
-        !notification.read ? "bg-primary/5" : ""
-      }`}
-    >
-      {!notification.read && (
-        <span className="mt-1.5 size-2 shrink-0 rounded-full bg-primary" />
-      )}
-      <div className="min-w-0 flex-1 space-y-0.5">
-        <p className="text-sm font-medium leading-tight">{notification.title}</p>
-        <p className="text-xs text-muted-foreground">{notification.body}</p>
-        <p className="text-[11px] text-muted-foreground/70">
-          {formatDateTime(notification.createdAt)}
-        </p>
-      </div>
-    </div>
-  );
-
-  if (notification.linkUrl) {
-    return (
-      <Link href={notification.linkUrl} onClick={onClose} className="block">
-        {content}
-      </Link>
-    );
-  }
-
-  return content;
 }

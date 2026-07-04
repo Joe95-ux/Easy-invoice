@@ -9,6 +9,7 @@ const prefsSchema = z.object({
   notifyPaymentReceived: z.boolean().optional(),
   notifyInvoiceOverdue: z.boolean().optional(),
   notifyTeamChanges: z.boolean().optional(),
+  celebrateInvoicePaid: z.boolean().optional(),
 });
 
 export async function GET() {
@@ -23,6 +24,7 @@ export async function GET() {
       notifyPaymentReceived: true,
       notifyInvoiceOverdue: true,
       notifyTeamChanges: true,
+      celebrateInvoicePaid: true,
     },
   });
 
@@ -48,6 +50,7 @@ export async function PUT(request: Request) {
       notifyPaymentReceived: true,
       notifyInvoiceOverdue: true,
       notifyTeamChanges: true,
+      celebrateInvoicePaid: true,
     },
   });
 

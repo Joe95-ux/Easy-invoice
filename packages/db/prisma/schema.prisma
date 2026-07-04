@@ -170,6 +170,7 @@ model CompanyMember {
   notifyPaymentReceived  Boolean @default(true)
   notifyInvoiceOverdue   Boolean @default(true)
   notifyTeamChanges      Boolean @default(true)
+  celebrateInvoicePaid   Boolean @default(false)
 
   company     Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
   sentInvites CompanyInvite[] @relation("SentInvites")
