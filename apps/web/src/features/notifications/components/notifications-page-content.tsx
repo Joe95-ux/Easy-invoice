@@ -40,6 +40,12 @@ const DEFAULT_PAGE_SIZE = 20;
 
 type ReadFilter = "all" | "read" | "unread";
 
+const READ_FILTER_ITEMS: { value: ReadFilter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "unread", label: "Unread" },
+  { value: "read", label: "Read" },
+];
+
 export const NOTIFICATIONS_INFO =
   "Updates about client activity, payments, and team changes for your account. Mark items read, delete them, or open linked invoices and estimates.";
 
@@ -176,12 +182,14 @@ export function NotificationsPageContent({
     }
   }
 
-  const typeOptions = useMemo(
-    () =>
-      (Object.keys(NOTIFICATION_TYPE_LABELS) as NotificationType[]).map((type) => ({
+  const typeFilterItems = useMemo(
+    () => [
+      { value: "ALL" as const, label: "All types" },
+      ...(Object.keys(NOTIFICATION_TYPE_LABELS) as NotificationType[]).map((type) => ({
         value: type,
         label: NOTIFICATION_TYPE_LABELS[type],
       })),
+    ],
     [],
   );
 
@@ -252,14 +260,17 @@ export function NotificationsPageContent({
               <Select
                 value={readFilter}
                 onValueChange={(value) => setReadFilter(value as ReadFilter)}
+                items={READ_FILTER_ITEMS}
               >
                 <SelectTrigger className="w-full data-[size=default]:h-8 sm:w-[140px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent align="end">
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="unread">Unread</SelectItem>
-                  <SelectItem value="read">Read</SelectItem>
+                  {READ_FILTER_ITEMS.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <Select
@@ -267,15 +278,15 @@ export function NotificationsPageContent({
                 onValueChange={(value) =>
                   setTypeFilter(value as NotificationType | "ALL")
                 }
+                items={typeFilterItems}
               >
                 <SelectTrigger className="w-full data-[size=default]:h-8 sm:w-[180px]">
                   <SelectValue placeholder="All types" />
                 </SelectTrigger>
                 <SelectContent align="end">
-                  <SelectItem value="ALL">All types</SelectItem>
-                  {typeOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
+                  {typeFilterItems.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
                     </SelectItem>
                   ))}
                 </SelectContent>

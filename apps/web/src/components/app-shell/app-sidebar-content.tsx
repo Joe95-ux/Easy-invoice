@@ -6,8 +6,10 @@ import { HelpCircleIcon, SparklesIcon, WalletIcon, WorkflowIcon } from "lucide-r
 import { AppLogo } from "@/components/app-logo";
 import {
   APP_QUICK_ACTIONS,
+  getAppTeamItemsForRole,
   getAppWorkspaceItemsForRole,
   isAppQuickActionActive,
+  isAppTeamItemActive,
   isAppWorkspaceItemActive,
   type AppNavItem,
 } from "@/components/app-shell/app-sidebar-config";
@@ -89,6 +91,7 @@ export function AppSidebarContent({
   const pathname = usePathname();
   const hasCompany = Boolean(companyName && activeCompanyId);
   const workspaceItems = getAppWorkspaceItemsForRole(userRole);
+  const teamItems = getAppTeamItemsForRole(userRole);
 
   return (
     <>
@@ -151,6 +154,22 @@ export function AppSidebarContent({
             />
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {teamItems.length > 0 && (
+          <>
+            <SidebarSeparator />
+            <SidebarGroup>
+              <SidebarGroupLabel>Team</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <NavMenu
+                  items={teamItems}
+                  isActive={(href) => isAppTeamItemActive(pathname, href)}
+                  onNavigate={onNavigate}
+                />
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </>
+        )}
 
         {showPublicSections && (
           <>

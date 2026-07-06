@@ -180,6 +180,23 @@ export function ReminderSettingsSection({ initialSettings }: ReminderSettingsSec
           />
         </div>
 
+        <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
+          <div className="space-y-1">
+            <Label htmlFor="payment-receipt-emails">Payment receipt emails</Label>
+            <p className="text-sm text-muted-foreground">
+              Email clients a receipt PDF and updated invoice when a payment is recorded on a sent invoice.
+            </p>
+          </div>
+          <Switch
+            id="payment-receipt-emails"
+            checked={settings.paymentReceiptEmailsEnabled}
+            onCheckedChange={(checked) =>
+              void toggleSetting("paymentReceiptEmailsEnabled", checked)
+            }
+            disabled={savingSwitch !== null}
+          />
+        </div>
+
         <div className="rounded-lg bg-muted/50 p-4 text-sm">
           <p className="font-medium">Schedule preview</p>
           <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">

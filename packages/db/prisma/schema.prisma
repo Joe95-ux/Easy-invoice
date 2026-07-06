@@ -135,6 +135,10 @@ model Company {
   reminderOnDueDate    Boolean  @default(true)
   reminderDaysAfter    Int[]    @default([1, 7, 14])
   reminderIncludePdf   Boolean  @default(true)
+  paymentReceiptEmailsEnabled Boolean @default(true)
+  documentPrefix       String?
+  invoiceSequence      Int      @default(0)
+  receiptSequence      Int      @default(0)
   defaultHourlyRate    Decimal? @db.Decimal(12, 2)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -297,15 +301,17 @@ model InvoiceInstallment {
 }
 
 model InvoicePayment {
-  id        String        @id @default(cuid())
-  invoiceId String
-  memberId  String?
-  amount    Decimal       @db.Decimal(12, 2)
-  paidAt    DateTime      @default(now())
-  method    PaymentMethod @default(OTHER)
-  reference String?
-  note      String?
-  createdAt DateTime      @default(now())
+  id            String        @id @default(cuid())
+  invoiceId     String
+  memberId      String?
+  receiptNumber String?       @unique
+  publicToken   String?       @unique
+  amount        Decimal       @db.Decimal(12, 2)
+  paidAt        DateTime      @default(now())
+  method        PaymentMethod @default(OTHER)
+  reference     String?
+  note          String?
+  createdAt     DateTime      @default(now())
 
   invoice Invoice        @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   member  CompanyMember? @relation(fields: [memberId], references: [id], onDelete: SetNull)

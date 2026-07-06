@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { DownloadIcon, InfoIcon, Loader2Icon } from "lucide-react";
+import Link from "next/link";
+import { DownloadIcon, HistoryIcon, InfoIcon, Loader2Icon, UsersRoundIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { PageHeader, pageHeaderActionClass } from "@/components/app-shell/page-header";
 import {
   Popover,
   PopoverContent,
@@ -34,18 +36,46 @@ const CATEGORY_VARIANT: Record<AuditCategory, "default" | "info" | "warning"> = 
   DOCUMENT: "warning",
 };
 
-const DESCRIPTION_TEXT =
+const CATEGORY_FILTER_ITEMS: { value: AuditCategory | "ALL"; label: string }[] = [
+  { value: "ALL", label: "All activity" },
+  { value: "TEAM", label: "Team" },
+  { value: "SETTINGS", label: "Settings" },
+  { value: "DOCUMENT", label: "Documents" },
+];
+
+export const ACTIVITY_LOG_INFO =
   "Immutable record of team, settings, and destructive changes. Admins receive email alerts for sensitive actions. Export to CSV for disputes or record-keeping.";
 
-type CompanyActivityLogProps = {
+export function ActivityLogInfoPopover() {
+  return (
+    <Popover>
+      <PopoverTrigger
+        render={
+          <button
+            type="button"
+            className="inline-flex size-6 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            aria-label="About activity log"
+          />
+        }
+      >
+        <InfoIcon className="size-4" />
+      </PopoverTrigger>
+      <PopoverContent side="bottom" align="start" sideOffset={6} className="w-80 gap-0">
+        <p className="text-sm text-muted-foreground">{ACTIVITY_LOG_INFO}</p>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+type ActivityLogPageContentProps = {
   initialEvents: AuditEventListItem[];
   initialCursor: string | null;
 };
 
-export function CompanyActivityLog({
+export function ActivityLogPageContent({
   initialEvents,
   initialCursor,
-}: CompanyActivityLogProps) {
+}: ActivityLogPageContentProps) {
   const [events, setEvents] = useState(initialEvents);
   const [cursor, setCursor] = useState<string | null>(initialCursor);
   const [category, setCategory] = useState<AuditCategory | "ALL">("ALL");
@@ -135,148 +165,132 @@ export function CompanyActivityLog({
   }
 
   return (
-    <Card>
-      {/* Mobile: show title + description; Desktop: hide (shown in page header + info popover) */}
-      <CardHeader className="flex flex-col gap-4 sm:hidden">
-        <div>
-          <CardTitle>Activity log</CardTitle>
-          <CardDescription>{DESCRIPTION_TEXT}</CardDescription>
-        </div>
-        <div className="flex w-full flex-col gap-2">
-          <Button variant="outline" onClick={handleExport} disabled={exporting || loading}>
-            {exporting ? (
-              <>
-                <Loader2Icon className="mr-2 size-4 animate-spin" />
-                Exporting…
-              </>
-            ) : (
-              <>
-                <DownloadIcon className="size-4" />
-                Export CSV
-              </>
-            )}
-          </Button>
-          <Select
-            value={category}
-            onValueChange={(value) => setCategory(value as AuditCategory | "ALL")}
-          >
-            <SelectTrigger className="w-full data-[size=default]:h-8">
-              <SelectValue placeholder="Filter by category" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All activity</SelectItem>
-              <SelectItem value="TEAM">Team</SelectItem>
-              <SelectItem value="SETTINGS">Settings</SelectItem>
-              <SelectItem value="DOCUMENT">Documents</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </CardHeader>
-
-      {/* Desktop: no title/description, just toolbar */}
-      <CardHeader className="hidden sm:flex sm:flex-row sm:items-center sm:justify-end sm:gap-2">
-        <Button variant="outline" onClick={handleExport} disabled={exporting || loading}>
-          {exporting ? (
-            <>
-              <Loader2Icon className="mr-2 size-4 animate-spin" />
-              Exporting…
-            </>
-          ) : (
-            <>
-              <DownloadIcon className="size-4" />
-              Export CSV
-            </>
-          )}
-        </Button>
-        <Select
-          value={category}
-          onValueChange={(value) => setCategory(value as AuditCategory | "ALL")}
-        >
-          <SelectTrigger className="w-[180px] data-[size=default]:h-8">
-            <SelectValue placeholder="Filter by category" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">All activity</SelectItem>
-            <SelectItem value="TEAM">Team</SelectItem>
-            <SelectItem value="SETTINGS">Settings</SelectItem>
-            <SelectItem value="DOCUMENT">Documents</SelectItem>
-          </SelectContent>
-        </Select>
-      </CardHeader>
-
-      <CardContent>
-        {loading ? (
-          <div className="flex items-center justify-center py-12 text-muted-foreground">
-            <Loader2Icon className="mr-2 size-4 animate-spin" />
-            Loading activity…
-          </div>
-        ) : events.length === 0 ? (
-          <p className="py-12 text-center text-sm text-muted-foreground">
-            No activity recorded yet. Team and settings changes will appear here.
-          </p>
-        ) : (
-          <div className="space-y-0 divide-y divide-border rounded-lg border border-border">
-            {events.map((event) => (
-              <div
-                key={event.id}
-                className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-start sm:justify-between"
-              >
-                <div className="min-w-0 space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant={CATEGORY_VARIANT[event.category]}>
-                      {CATEGORY_LABELS[event.category]}
-                    </Badge>
-                    <span className="text-sm font-medium text-foreground">{event.summary}</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground">By {event.actorLabel}</p>
-                </div>
-                <time
-                  className="shrink-0 text-xs text-muted-foreground sm:text-right"
-                  dateTime={event.createdAt}
-                >
-                  {formatDateTime(event.createdAt)}
-                </time>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {cursor && !loading && (
-          <div className="mt-4 flex justify-center">
-            <Button variant="outline" onClick={handleLoadMore} disabled={loadingMore}>
-              {loadingMore ? (
-                <>
-                  <Loader2Icon className="mr-2 size-4 animate-spin" />
-                  Loading…
-                </>
+    <>
+      <PageHeader
+        title="Activity log"
+        titleAddon={
+          <span className="hidden sm:inline-flex">
+            <ActivityLogInfoPopover />
+          </span>
+        }
+        description={<span className="sm:hidden">{ACTIVITY_LOG_INFO}</span>}
+        actions={
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+            <Button
+              variant="outline"
+              className={pageHeaderActionClass}
+              onClick={() => void handleExport()}
+              disabled={exporting || loading}
+            >
+              {exporting ? (
+                <Loader2Icon className="size-4 animate-spin" />
               ) : (
-                "Load more"
+                <DownloadIcon className="size-4" />
               )}
+              Export CSV
+            </Button>
+            <Button
+              variant="outline"
+              className={pageHeaderActionClass}
+              render={<Link href="/members" />}
+            >
+              <UsersRoundIcon className="size-4" />
+              Members
+            </Button>
+            <Button
+              variant="outline"
+              className={pageHeaderActionClass}
+              render={<Link href="/settings" />}
+            >
+              Settings
             </Button>
           </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-export function ActivityLogInfoPopover() {
-  return (
-    <Popover>
-      <PopoverTrigger
-        render={
-          <button
-            type="button"
-            className="inline-flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            aria-label="About activity log"
-          />
         }
-      >
-        <InfoIcon className="size-4" />
-      </PopoverTrigger>
-      <PopoverContent side="bottom" align="start" sideOffset={6} className="w-80">
-        <p className="text-sm text-muted-foreground">{DESCRIPTION_TEXT}</p>
-      </PopoverContent>
-    </Popover>
+      />
+
+      <Card>
+        <CardContent className="space-y-4 pt-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2">
+              <HistoryIcon className="size-4 text-muted-foreground" />
+              {!loading && events.length > 0 && (
+                <Badge variant="secondary">{events.length} shown</Badge>
+              )}
+            </div>
+            <Select
+              value={category}
+              onValueChange={(value) => setCategory(value as AuditCategory | "ALL")}
+              items={CATEGORY_FILTER_ITEMS}
+            >
+              <SelectTrigger
+                className="w-full data-[size=default]:h-8 sm:w-[180px]"
+                aria-label="Filter by category"
+              >
+                <SelectValue placeholder="All activity" />
+              </SelectTrigger>
+              <SelectContent align="end">
+                {CATEGORY_FILTER_ITEMS.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {loading ? (
+            <div className="flex items-center justify-center py-16 text-muted-foreground">
+              <Loader2Icon className="size-5 animate-spin" />
+            </div>
+          ) : events.length === 0 ? (
+            <p className="py-16 text-center text-sm text-muted-foreground">
+              No activity recorded yet. Team and settings changes will appear here.
+            </p>
+          ) : (
+            <div className="divide-y divide-border overflow-hidden rounded-lg border border-border">
+              {events.map((event) => (
+                <div
+                  key={event.id}
+                  className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-start sm:justify-between"
+                >
+                  <div className="min-w-0 space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant={CATEGORY_VARIANT[event.category]}>
+                        {CATEGORY_LABELS[event.category]}
+                      </Badge>
+                      <span className="text-sm font-medium text-foreground">{event.summary}</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">By {event.actorLabel}</p>
+                  </div>
+                  <time
+                    className="shrink-0 text-xs text-muted-foreground sm:text-right"
+                    dateTime={event.createdAt}
+                  >
+                    {formatDateTime(event.createdAt)}
+                  </time>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {cursor && !loading && (
+            <div className="flex justify-center">
+              <Button
+                variant="outline"
+                className="cursor-pointer"
+                onClick={() => void handleLoadMore()}
+                disabled={loadingMore}
+              >
+                {loadingMore ? (
+                  <Loader2Icon className="size-4 animate-spin" />
+                ) : (
+                  "Load more"
+                )}
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </>
   );
 }

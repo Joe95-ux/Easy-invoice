@@ -1,10 +1,13 @@
 import {
+  BarChart3Icon,
+  BellIcon,
   ClipboardListIcon,
   ClockIcon,
   FileTextIcon,
   LayoutDashboardIcon,
   LayoutTemplateIcon,
   PlusIcon,
+  ScrollTextIcon,
   SettingsIcon,
   UserRoundIcon,
   UsersRoundIcon,
@@ -32,6 +35,13 @@ export const APP_WORKSPACE_ITEMS: AppNavItem[] = [
   { href: "/templates", label: "Templates", icon: LayoutTemplateIcon },
   { href: "/clients", label: "Clients", icon: UsersRoundIcon },
   { href: "/time", label: "Time", icon: ClockIcon },
+];
+
+export const APP_TEAM_ITEMS: AppNavItem[] = [
+  { href: "/members", label: "Members", icon: UsersRoundIcon },
+  { href: "/settings/activity", label: "Activity log", icon: ScrollTextIcon },
+  { href: "/analytics", label: "Analytics", icon: BarChart3Icon },
+  { href: "/notifications", label: "Notifications", icon: BellIcon },
   { href: "/settings", label: "Settings", icon: SettingsIcon },
 ];
 
@@ -48,11 +58,35 @@ export function isAppWorkspaceItemActive(pathname: string, href: string) {
   return !APP_QUICK_ACTION_PATHS.has(pathname);
 }
 
+export function isAppTeamItemActive(pathname: string, href: string) {
+  if (href === "/members") {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
+  if (href === "/settings/activity") {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
+  if (href === "/analytics") {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
+  if (href === "/notifications") {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
+  if (href === "/settings") {
+    return pathname === "/settings";
+  }
+  return pathname === href;
+}
+
 export function getAppWorkspaceItemsForRole(role: UserRole): AppNavItem[] {
   return APP_WORKSPACE_ITEMS.filter((item) => {
-    if (item.href === "/settings" || item.href === "/templates") {
+    if (item.href === "/templates") {
       return canManageCompanySettings(role);
     }
     return true;
   });
+}
+
+export function getAppTeamItemsForRole(role: UserRole): AppNavItem[] {
+  if (!canManageCompanySettings(role)) return [];
+  return APP_TEAM_ITEMS;
 }

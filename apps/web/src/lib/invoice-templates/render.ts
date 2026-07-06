@@ -192,7 +192,7 @@ function buildPaymentScheduleHtml(data: InvoiceHtmlData): string {
           ${payments!
             .map(
               (payment) =>
-                `<div class="payment-history-row">${formatDate(payment.paidAt)} · ${formatMoney(payment.amount, invoice.currency)} · ${escapeHtml(payment.method)}${payment.reference ? ` · ${escapeHtml(payment.reference)}` : ""}</div>`,
+                `<div class="payment-history-row">${formatDate(payment.paidAt)} · ${formatMoney(payment.amount, invoice.currency)} · ${escapeHtml(payment.method)}${payment.receiptNumber ? ` · Receipt ${escapeHtml(payment.receiptNumber)}` : ""}${payment.reference ? ` · ${escapeHtml(payment.reference)}` : ""}</div>`,
             )
             .join("")}
         </div>`

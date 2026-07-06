@@ -289,6 +289,7 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
           method: payment.method,
           reference: payment.reference,
           note: payment.note,
+          receiptNumber: payment.receiptNumber,
         }))}
         celebrateInvoicePaid={member.celebrateInvoicePaid}
       />

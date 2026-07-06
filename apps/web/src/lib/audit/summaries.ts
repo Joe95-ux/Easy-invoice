@@ -22,6 +22,7 @@ const REMINDER_FIELD_LABELS: Record<string, string> = {
   reminderOnDueDate: "remind on due date",
   reminderDaysAfter: "days after due",
   reminderIncludePdf: "attach PDF to reminders",
+  paymentReceiptEmailsEnabled: "payment receipt emails",
 };
 
 function formatValue(value: unknown): string {

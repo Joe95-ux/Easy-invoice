@@ -38,7 +38,10 @@ export function inviteExpiresAt(from = new Date()): Date {
   return expires;
 }
 
-export const ROLE_DESCRIPTIONS: Record<"ADMIN" | "MEMBER", string> = {
-  MEMBER: "Create and manage invoices, estimates, and clients. Cannot change company settings or manage team.",
+export const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
+  OWNER:
+    "Full control of the company, billing, and team. Can assign admin or member roles and revoke any access except their own.",
   ADMIN: "Full access to company data, settings, and templates. Can invite and remove members.",
+  MEMBER:
+    "Create and manage invoices, estimates, and clients. Cannot change company settings or manage team.",
 };

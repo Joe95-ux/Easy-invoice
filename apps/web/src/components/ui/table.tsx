@@ -11,21 +11,31 @@ type TableProps = React.ComponentProps<"table"> & {
   stickyColumns?: 0 | 1 | 2
   /** Widths for sticky columns 1 and 2 (CSS lengths). */
   stickyColumnWidths?: [string, string?]
+  /** Sticky column background. Use "background" on page surfaces; "card" inside Card. */
+  surface?: "card" | "background"
 }
 
 function Table({
   className,
   stickyColumns = 2,
   stickyColumnWidths,
+  surface = "card",
   style,
   ...props
 }: TableProps) {
   const containerRef = React.useRef<HTMLDivElement>(null)
   const scrollEndTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [isScrolled, setIsScrolled] = React.useState(false)
   const [isScrolling, setIsScrolling] = React.useState(false)
 
   const [width0, width1] = stickyColumnWidths ?? DEFAULT_STICKY_WIDTHS
+  const stickyCol1Bg =
+    surface === "background"
+      ? "[&_th:nth-child(1)]:bg-background [&_td:nth-child(1)]:bg-background"
+      : "[&_th:nth-child(1)]:bg-card [&_td:nth-child(1)]:bg-card"
+  const stickyCol2Bg =
+    surface === "background"
+      ? "[&_th:nth-child(2)]:bg-background [&_td:nth-child(2)]:bg-background"
+      : "[&_th:nth-child(2)]:bg-card [&_td:nth-child(2)]:bg-card"
   const stickyStyle =
     stickyColumns > 0
       ? ({
@@ -35,13 +45,12 @@ function Table({
       : undefined
 
   React.useEffect(() => {
-    if (stickyColumns < 2) return
+    if (stickyColumns < 1) return
 
     const container = containerRef.current
     if (!container) return
 
     function handleScroll() {
-      setIsScrolled(container!.scrollLeft > 1)
       setIsScrolling(true)
       if (scrollEndTimerRef.current) clearTimeout(scrollEndTimerRef.current)
       scrollEndTimerRef.current = setTimeout(() => setIsScrolling(false), 180)
@@ -54,15 +63,12 @@ function Table({
     }
   }, [stickyColumns])
 
-  const showStickyEdge = isScrolled || isScrolling
-
   return (
     <div
       ref={containerRef}
       data-slot="table-container"
       className="group/table-container relative w-full overflow-x-auto"
       data-sticky-columns={stickyColumns > 0 ? stickyColumns : undefined}
-      data-table-scrolled={showStickyEdge || undefined}
       data-table-scrolling={isScrolling || undefined}
     >
       <table
@@ -76,9 +82,24 @@ function Table({
               "[&_th:nth-child(1)]:left-0 [&_td:nth-child(1)]:left-0",
               "[&_th:nth-child(1)]:z-20 [&_td:nth-child(1)]:z-10",
               "[&_th:nth-child(1)]:min-w-[var(--table-sticky-0-width)] [&_td:nth-child(1)]:min-w-[var(--table-sticky-0-width)]",
-              "[&_th:nth-child(1)]:bg-card [&_td:nth-child(1)]:bg-card",
+              stickyCol1Bg,
               "[&_tr:hover>td:nth-child(1)]:bg-muted/50",
               "[&_tr[data-state=selected]>td:nth-child(1)]:bg-muted",
+              stickyColumns === 1 &&
+                cn(
+                  "[&_th:nth-child(1)]:max-w-[var(--table-sticky-0-width)] [&_td:nth-child(1)]:max-w-[var(--table-sticky-0-width)]",
+                  "[&_td:nth-child(1)]:truncate",
+                  "[&_th:nth-child(1)]:transition-[box-shadow,border-color]",
+                  "[&_td:nth-child(1)]:transition-[box-shadow,border-color]",
+                  "group-data-[table-scrolling]/table-container:[&_th:nth-child(1)]:border-r",
+                  "group-data-[table-scrolling]/table-container:[&_td:nth-child(1)]:border-r",
+                  "group-data-[table-scrolling]/table-container:[&_th:nth-child(1)]:border-border",
+                  "group-data-[table-scrolling]/table-container:[&_td:nth-child(1)]:border-border",
+                  "group-data-[table-scrolling]/table-container:[&_th:nth-child(1)]:shadow-[6px_0_14px_-4px_rgba(0,0,0,0.2)]",
+                  "group-data-[table-scrolling]/table-container:[&_td:nth-child(1)]:shadow-[6px_0_14px_-4px_rgba(0,0,0,0.2)]",
+                  "dark:group-data-[table-scrolling]/table-container:[&_th:nth-child(1)]:shadow-[6px_0_14px_-4px_rgba(0,0,0,0.65)]",
+                  "dark:group-data-[table-scrolling]/table-container:[&_td:nth-child(1)]:shadow-[6px_0_14px_-4px_rgba(0,0,0,0.65)]",
+                ),
             ),
           stickyColumns >= 2 &&
             cn(
@@ -88,19 +109,13 @@ function Table({
               "[&_th:nth-child(2)]:min-w-[var(--table-sticky-1-width)] [&_td:nth-child(2)]:min-w-[var(--table-sticky-1-width)]",
               "[&_th:nth-child(2)]:max-w-[var(--table-sticky-1-width)] [&_td:nth-child(2)]:max-w-[var(--table-sticky-1-width)]",
               "[&_td:nth-child(2)]:truncate",
-              "[&_th:nth-child(2)]:bg-card [&_td:nth-child(2)]:bg-card",
+              stickyCol2Bg,
               "[&_tr:hover>td:nth-child(2)]:bg-muted/50",
               "[&_tr[data-state=selected]>td:nth-child(2)]:bg-muted",
               "[&_th:nth-child(2)]:transition-[box-shadow,border-color]",
               "[&_td:nth-child(2)]:transition-[box-shadow,border-color]",
-              "group-data-[table-scrolled]/table-container:[&_th:nth-child(2)]:border-r",
-              "group-data-[table-scrolled]/table-container:[&_td:nth-child(2)]:border-r",
-              "group-data-[table-scrolled]/table-container:[&_th:nth-child(2)]:border-border/80",
-              "group-data-[table-scrolled]/table-container:[&_td:nth-child(2)]:border-border/80",
-              "group-data-[table-scrolled]/table-container:[&_th:nth-child(2)]:shadow-[4px_0_10px_-4px_rgba(0,0,0,0.12)]",
-              "group-data-[table-scrolled]/table-container:[&_td:nth-child(2)]:shadow-[4px_0_10px_-4px_rgba(0,0,0,0.12)]",
-              "dark:group-data-[table-scrolled]/table-container:[&_th:nth-child(2)]:shadow-[4px_0_10px_-4px_rgba(0,0,0,0.5)]",
-              "dark:group-data-[table-scrolled]/table-container:[&_td:nth-child(2)]:shadow-[4px_0_10px_-4px_rgba(0,0,0,0.5)]",
+              "group-data-[table-scrolling]/table-container:[&_th:nth-child(2)]:border-r",
+              "group-data-[table-scrolling]/table-container:[&_td:nth-child(2)]:border-r",
               "group-data-[table-scrolling]/table-container:[&_th:nth-child(2)]:border-border",
               "group-data-[table-scrolling]/table-container:[&_td:nth-child(2)]:border-border",
               "group-data-[table-scrolling]/table-container:[&_th:nth-child(2)]:shadow-[6px_0_14px_-4px_rgba(0,0,0,0.2)]",

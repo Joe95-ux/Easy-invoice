@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { AppLogo } from "@/components/app-logo";
 import { PublicNavbarLoader } from "@/components/public-navbar-loader";
 import { Reveal } from "@/components/landing/reveal";
+import { FaqAccordion } from "@/components/landing/faq-accordion";
 
 const stats = [
   { value: "30 sec", label: "to a finished invoice" },
@@ -129,24 +130,6 @@ const plans = [
   },
 ];
 
-const faqs = [
-  {
-    q: "Do I need an accountant or any experience?",
-    a: "Not at all. If you can describe the work you did, you can make an invoice. Easy Invoice handles the formatting, math, and wording for you.",
-  },
-  {
-    q: "Does it really work in other languages?",
-    a: "Yes. Write your notes in the language you think in — French, Spanish, and more — and we translate them into clean, professional English invoices.",
-  },
-  {
-    q: "Will my invoices look professional?",
-    a: "Every invoice uses a polished template with your logo and business details, exported as a crisp PDF your clients can pay against.",
-  },
-  {
-    q: "Is it free to start?",
-    a: "Yes. You can create and send invoices on the free plan with no credit card. Upgrade only when you want custom branding and payment tracking.",
-  },
-];
 
 export default function HomePage() {
   return (
@@ -389,16 +372,8 @@ export default function HomePage() {
               title="Questions, answered"
               description="Everything you might want to know before you start."
             />
-            <Reveal className="mt-10 divide-y divide-border rounded-xl border border-border bg-card">
-              {faqs.map((faq) => (
-                <details key={faq.q} className="group px-5">
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-5 font-medium [&::-webkit-details-marker]:hidden">
-                    {faq.q}
-                    <ArrowRightIcon className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" />
-                  </summary>
-                  <p className="pb-5 text-sm leading-relaxed text-muted-foreground">{faq.a}</p>
-                </details>
-              ))}
+            <Reveal className="mt-10">
+              <FaqAccordion />
             </Reveal>
           </div>
         </section>

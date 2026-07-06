@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { BanknoteIcon, Loader2Icon, SendIcon } from "lucide-react";
+import { BanknoteIcon, DownloadIcon, Loader2Icon, SendIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,6 +36,7 @@ import {
 import type { InvoiceStatus, PaymentMethod } from "@easy-invoice/db";
 import { formatDate, formatMoney } from "@/lib/invoices";
 import { PAYMENT_METHOD_LABELS } from "@/lib/invoice-payments-utils";
+import { downloadReceiptPdf } from "@/lib/receipt-pdf-client";
 import { showPaymentRecordedFeedback } from "@/lib/celebrate-invoice-paid";
 
 type InstallmentRow = {
@@ -56,6 +57,7 @@ type PaymentRow = {
   method: PaymentMethod;
   reference: string | null;
   note: string | null;
+  receiptNumber: string | null;
 };
 
 type InvoicePaymentsSectionProps = {
@@ -97,6 +99,7 @@ export function InvoicePaymentsSection({
   const [reference, setReference] = useState("");
   const [note, setNote] = useState("");
   const [email, setEmail] = useState(clientEmail ?? "");
+  const [downloadingReceiptId, setDownloadingReceiptId] = useState<string | null>(null);
 
   const canRecord =
     status !== "DRAFT" && status !== "CANCELLED" && status !== "PAID" && balanceDue > 0.001;
@@ -140,6 +143,17 @@ export function InvoicePaymentsSection({
       toast.error(error instanceof Error ? error.message : "Could not record payment");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleDownloadReceipt(payment: PaymentRow) {
+    if (!payment.receiptNumber) return;
+
+    setDownloadingReceiptId(payment.id);
+    try {
+      await downloadReceiptPdf(invoiceId, payment.id, payment.receiptNumber);
+    } finally {
+      setDownloadingReceiptId(null);
     }
   }
 
@@ -273,19 +287,42 @@ export function InvoicePaymentsSection({
                 <TableHeader>
                   <TableRow>
                     <TableHead>Date</TableHead>
+                    <TableHead>Receipt</TableHead>
                     <TableHead>Method</TableHead>
                     <TableHead>Reference</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
+                    <TableHead className="w-14" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {payments.map((payment) => (
                     <TableRow key={payment.id}>
                       <TableCell>{formatDate(payment.paidAt)}</TableCell>
+                      <TableCell className="font-medium">
+                        {payment.receiptNumber ?? "—"}
+                      </TableCell>
                       <TableCell>{PAYMENT_METHOD_LABELS[payment.method]}</TableCell>
                       <TableCell>{payment.reference ?? payment.note ?? "—"}</TableCell>
                       <TableCell className="text-right">
                         {formatMoney(payment.amount, currency)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {payment.receiptNumber && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label={`Download receipt ${payment.receiptNumber}`}
+                            disabled={downloadingReceiptId === payment.id}
+                            onClick={() => void handleDownloadReceipt(payment)}
+                          >
+                            {downloadingReceiptId === payment.id ? (
+                              <Loader2Icon className="size-4 animate-spin" />
+                            ) : (
+                              <DownloadIcon className="size-4" />
+                            )}
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}

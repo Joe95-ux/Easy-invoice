@@ -31,18 +31,18 @@ export function AddressFields({
 }: AddressFieldsProps) {
   const country = values.country || defaultCountry;
   const labels = addressLabelsForCountry(country);
-  const [query, setQuery] = useState(values.address ?? "");
+  const streetAddress = values.address ?? "";
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
   const [searching, setSearching] = useState(false);
   const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const userHasSearchedRef = useRef(false);
 
   useEffect(() => {
-    setQuery(values.address ?? "");
-  }, [values.address]);
+    if (!userHasSearchedRef.current) {
+      return;
+    }
 
-  useEffect(() => {
-    if (query.trim().length < 3) {
+    if (streetAddress.trim().length < 3) {
       setSuggestions([]);
       setOpen(false);
       return;
@@ -51,7 +51,7 @@ export function AddressFields({
     const timer = window.setTimeout(async () => {
       setSearching(true);
       try {
-        const params = new URLSearchParams({ q: query });
+        const params = new URLSearchParams({ q: streetAddress });
         if (country) params.set("country", country);
         const response = await fetch(`/api/address/search?${params.toString()}`);
         if (!response.ok) return;
@@ -64,9 +64,10 @@ export function AddressFields({
     }, 350);
 
     return () => window.clearTimeout(timer);
-  }, [query, country]);
+  }, [streetAddress, country]);
 
   function applySuggestion(suggestion: AddressSuggestion) {
+    userHasSearchedRef.current = false;
     onChange({
       address: suggestion.address || suggestion.label.split(",")[0] || "",
       city: suggestion.city,
@@ -74,7 +75,7 @@ export function AddressFields({
       zip: suggestion.zip,
       country: suggestion.country || country,
     });
-    setQuery(suggestion.address || suggestion.label);
+    setSuggestions([]);
     setOpen(false);
   }
 
@@ -83,19 +84,20 @@ export function AddressFields({
       <Field>
         <FieldLabel htmlFor="address-search">Street address</FieldLabel>
         <FieldContent>
-          <div ref={containerRef} className="relative">
+          <div className="relative">
             <MapPinIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               id="address-search"
-              value={query}
+              value={streetAddress}
               onChange={(event) => {
-                const next = event.target.value;
-                setQuery(next);
-                onChange({ address: next });
+                userHasSearchedRef.current = true;
+                onChange({ address: event.target.value });
               }}
-              onFocus={() => suggestions.length > 0 && setOpen(true)}
+              onFocus={() => {
+                if (suggestions.length > 0) setOpen(true);
+              }}
               onBlur={() => window.setTimeout(() => setOpen(false), 150)}
-              placeholder="Start typing to search or enter manually"
+              placeholder="Street address"
               className="pl-9"
               autoComplete="street-address"
             />
@@ -119,9 +121,7 @@ export function AddressFields({
             )}
           </div>
           <FieldDescription>
-            {searching
-              ? "Looking up addresses..."
-              : "Search fills city, region, postal code, and country automatically."}
+            {searching ? "Looking up addresses..." : "Optional. Pick a suggestion or type manually."}
           </FieldDescription>
         </FieldContent>
       </Field>

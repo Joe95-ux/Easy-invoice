@@ -63,6 +63,7 @@ export function invoiceToHtmlData(
       amount: Number(payment.amount),
       method: PAYMENT_METHOD_LABELS[payment.method],
       reference: payment.reference,
+      receiptNumber: payment.receiptNumber,
     })),
   };
 }

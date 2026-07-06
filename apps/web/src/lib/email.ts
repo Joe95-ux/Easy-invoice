@@ -136,9 +136,9 @@ type SendFeedbackEmailInput = {
 };
 
 export async function sendFeedbackEmail(input: SendFeedbackEmailInput) {
-  const from = process.env.RESEND_FROM_EMAIL ?? "Easy Invoice <onboarding@resend.dev>";
+  const from = process.env.RESEND_FROM_EMAIL ?? "Invoice Desk <onboarding@resend.dev>";
   const supportEmail =
-    process.env.SUPPORT_EMAIL ?? process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? "support@easyinvoice.app";
+    process.env.SUPPORT_EMAIL ?? process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? "support@invoicedesk.app";
   const resend = getResend();
 
   const escapedMessage = input.message
@@ -158,6 +158,97 @@ export async function sendFeedbackEmail(input: SendFeedbackEmailInput) {
       <hr />
       <p>${escapedMessage}</p>
     `,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
+type SendContactEmailInput = {
+  fromEmail: string;
+  companyName: string;
+  subject: string;
+  topic: string;
+  message: string;
+};
+
+export async function sendContactEmail(input: SendContactEmailInput) {
+  const from = process.env.RESEND_FROM_EMAIL ?? "Invoice Desk <onboarding@resend.dev>";
+  const supportEmail =
+    process.env.SUPPORT_EMAIL ?? process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? "support@invoicedesk.app";
+  const resend = getResend();
+
+  const escapedMessage = input.message
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\n/g, "<br />");
+
+  const escapedSubject = input.subject
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+  const { data, error } = await resend.emails.send({
+    from,
+    to: supportEmail,
+    replyTo: input.fromEmail,
+    subject: `Invoice Desk support: ${input.subject}`,
+    html: `
+      <p><strong>From:</strong> ${input.fromEmail}</p>
+      <p><strong>Company:</strong> ${input.companyName}</p>
+      <p><strong>Topic:</strong> ${input.topic}</p>
+      <p><strong>Subject:</strong> ${escapedSubject}</p>
+      <hr />
+      <p>${escapedMessage}</p>
+    `,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
+type SendPaymentConfirmationEmailInput = {
+  to: string;
+  companyName: string;
+  invoiceNumber: string;
+  receiptNumber: string;
+  amount: string;
+  invoicePdfBuffer: Buffer;
+  receiptPdfBuffer: Buffer;
+};
+
+export async function sendPaymentConfirmationEmail(input: SendPaymentConfirmationEmailInput) {
+  const from = process.env.RESEND_FROM_EMAIL ?? "Easy Invoice <onboarding@resend.dev>";
+  const resend = getResend();
+
+  const { data, error } = await resend.emails.send({
+    from,
+    to: input.to,
+    subject: `Payment received — Receipt ${input.receiptNumber} for Invoice ${input.invoiceNumber}`,
+    html: `
+      <p>Hello,</p>
+      <p>Thank you for your payment of <strong>${input.amount}</strong> to <strong>${input.companyName}</strong>.</p>
+      <p>Receipt <strong>${input.receiptNumber}</strong> has been issued for invoice <strong>${input.invoiceNumber}</strong>.</p>
+      <p>Attached are your payment receipt and the updated invoice showing payments received.</p>
+      <p>Thank you for your business.</p>
+    `,
+    attachments: [
+      {
+        filename: `${input.receiptNumber}.pdf`,
+        content: input.receiptPdfBuffer,
+      },
+      {
+        filename: `${input.invoiceNumber}.pdf`,
+        content: input.invoicePdfBuffer,
+      },
+    ],
   });
 
   if (error) {

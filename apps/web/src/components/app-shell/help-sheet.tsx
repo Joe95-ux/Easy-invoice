@@ -17,7 +17,17 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { FaqAccordion } from "@/components/landing/faq-accordion";
+import { Input } from "@/components/ui/input";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Sheet,
   SheetContent,
@@ -27,18 +37,27 @@ import {
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { CONTACT_TOPICS } from "@/lib/schemas/contact";
 import { SUPPORT_EMAIL } from "@/lib/support";
 import { cn } from "@/lib/utils";
 
-type HelpView = "list" | "payment-reminders" | "feedback";
+type HelpView = "list" | "faqs" | "payment-reminders" | "feedback";
+type FaqSubview = "accordion" | "contact";
+
+const contactTopicItems = CONTACT_TOPICS.map((topic) => ({
+  value: topic.value,
+  label: topic.label,
+}));
+
+const sendButtonClassName = cn(
+  "h-9 rounded-xl border-transparent px-4 shadow-none",
+  "bg-primary text-primary-foreground hover:bg-primary/90",
+  "disabled:bg-primary/50 disabled:text-primary-foreground/80",
+  "dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-100",
+  "dark:disabled:bg-white/70 dark:disabled:text-neutral-900/60",
+);
 
 const linkOptions = [
-  {
-    title: "Browse FAQs",
-    description: "Common questions about invoices, estimates, and plans.",
-    href: "/#faq",
-    icon: CircleHelpIcon,
-  },
   {
     title: "How it works",
     description: "A quick walkthrough of creating and sending invoices.",
@@ -159,17 +178,68 @@ function PaymentRemindersHelp({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
-function FeedbackForm({ onSent }: { onSent: () => void }) {
-  const [message, setMessage] = useState("");
-  const [sending, setSending] = useState(false);
+function SendShortcutButton({
+  sending,
+  disabled,
+  onClick,
+}: {
+  sending: boolean;
+  disabled: boolean;
+  onClick: () => void;
+}) {
   const [metaLabel, setMetaLabel] = useState("Ctrl");
-
-  const canSend = message.trim().length >= 10 && !sending;
 
   useEffect(() => {
     const isMac = /mac|iphone|ipad|ipod/i.test(navigator.platform || navigator.userAgent);
     if (isMac) setMetaLabel("\u2318");
   }, []);
+
+  return (
+    <Button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={sendButtonClassName}
+    >
+      {sending ? (
+        <>
+          <Loader2Icon className="animate-spin" />
+          Sending...
+        </>
+      ) : (
+        <>
+          Send
+          <KbdGroup className="ml-1.5">
+            <Kbd
+              className={cn(
+                "rounded-md border-0 px-1.5 text-[11px] font-medium",
+                "bg-primary-foreground/15 text-primary-foreground",
+                "dark:bg-neutral-200 dark:text-neutral-700",
+              )}
+            >
+              {metaLabel}
+            </Kbd>
+            <Kbd
+              className={cn(
+                "rounded-md border-0 px-1 text-primary-foreground",
+                "bg-primary-foreground/15",
+                "dark:bg-neutral-200 dark:text-neutral-700",
+              )}
+            >
+              <CornerDownLeftIcon className="size-3" />
+            </Kbd>
+          </KbdGroup>
+        </>
+      )}
+    </Button>
+  );
+}
+
+function FeedbackForm({ onSent }: { onSent: () => void }) {
+  const [message, setMessage] = useState("");
+  const [sending, setSending] = useState(false);
+
+  const canSend = message.trim().length >= 10 && !sending;
 
   async function handleSend() {
     if (!canSend) return;
@@ -220,50 +290,171 @@ function FeedbackForm({ onSent }: { onSent: () => void }) {
       />
 
       <div className="flex justify-end">
-        <Button
-          type="button"
-          onClick={() => void handleSend()}
+        <SendShortcutButton
+          sending={sending}
           disabled={!canSend}
-          className={cn(
-            "h-9 rounded-xl border-transparent px-4 shadow-none",
-            "bg-primary text-primary-foreground hover:bg-primary/90",
-            "disabled:bg-primary/50 disabled:text-primary-foreground/80",
-            "dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-100",
-            "dark:disabled:bg-white/70 dark:disabled:text-neutral-900/60",
-          )}
-        >
-          {sending ? (
-            <>
-              <Loader2Icon className="animate-spin" />
-              Sending...
-            </>
-          ) : (
-            <>
-              Send
-              <KbdGroup className="ml-1.5">
-                <Kbd
-                  className={cn(
-                    "rounded-md border-0 px-1.5 text-[11px] font-medium",
-                    "bg-primary-foreground/15 text-primary-foreground",
-                    "dark:bg-neutral-200 dark:text-neutral-700",
-                  )}
-                >
-                  {metaLabel}
-                </Kbd>
-                <Kbd
-                  className={cn(
-                    "rounded-md border-0 px-1 text-primary-foreground",
-                    "bg-primary-foreground/15",
-                    "dark:bg-neutral-200 dark:text-neutral-700",
-                  )}
-                >
-                  <CornerDownLeftIcon className="size-3" />
-                </Kbd>
-              </KbdGroup>
-            </>
-          )}
-        </Button>
+          onClick={() => void handleSend()}
+        />
       </div>
+    </div>
+  );
+}
+
+function ContactForm({
+  onSent,
+  onBackToFaqs,
+}: {
+  onSent: () => void;
+  onBackToFaqs: () => void;
+}) {
+  const [subject, setSubject] = useState("");
+  const [topic, setTopic] = useState<string>(CONTACT_TOPICS[0].value);
+  const [message, setMessage] = useState("");
+  const [sending, setSending] = useState(false);
+
+  const canSend =
+    subject.trim().length >= 3 && message.trim().length >= 10 && !sending;
+
+  async function handleSend() {
+    if (!canSend) return;
+
+    setSending(true);
+    try {
+      const response = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subject: subject.trim(),
+          topic,
+          message: message.trim(),
+        }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(typeof body.error === "string" ? body.error : "Failed to send message");
+      }
+
+      toast.success("Message sent — we'll get back to you soon.");
+      setSubject("");
+      setTopic(CONTACT_TOPICS[0].value);
+      setMessage("");
+      onSent();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not send message");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  function handleKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+      event.preventDefault();
+      void handleSend();
+    }
+  }
+
+  return (
+    <div className="flex flex-1 flex-col gap-4">
+      <button
+        type="button"
+        onClick={onBackToFaqs}
+        className="flex w-fit cursor-pointer items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ChevronLeftIcon className="size-4" />
+        Back to FAQs
+      </button>
+
+      <p className="text-sm leading-relaxed text-muted-foreground">
+        Did not find what you need? Send us a message and the Invoice Desk team will reply to your
+        account email at {SUPPORT_EMAIL}.
+      </p>
+
+      <div className="space-y-2">
+        <Label htmlFor="contact-topic">Topic</Label>
+        <Select
+          value={topic}
+          onValueChange={(value) => {
+            if (value) setTopic(value);
+          }}
+          items={contactTopicItems}
+        >
+          <SelectTrigger id="contact-topic" className="w-full rounded-xl">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {contactTopicItems.map((item) => (
+              <SelectItem key={item.value} value={item.value}>
+                {item.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="contact-subject">Subject</Label>
+        <Input
+          id="contact-subject"
+          value={subject}
+          onChange={(event) => setSubject(event.target.value)}
+          placeholder="Brief summary of your question"
+          className="rounded-xl"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="contact-message">Message</Label>
+        <Textarea
+          id="contact-message"
+          value={message}
+          onChange={(event) => setMessage(event.target.value)}
+          onKeyDown={handleKeyDown}
+          rows={8}
+          placeholder="Tell us what you are trying to do or what went wrong..."
+          className="min-h-[160px] resize-none rounded-xl"
+        />
+      </div>
+
+      <div className="flex justify-end">
+        <SendShortcutButton
+          sending={sending}
+          disabled={!canSend}
+          onClick={() => void handleSend()}
+        />
+      </div>
+    </div>
+  );
+}
+
+function FaqHelpPanel({
+  subview,
+  onShowContact,
+  onBackToFaqs,
+  onContactSent,
+}: {
+  subview: FaqSubview;
+  onShowContact: () => void;
+  onBackToFaqs: () => void;
+  onContactSent: () => void;
+}) {
+  if (subview === "contact") {
+    return <ContactForm onSent={onContactSent} onBackToFaqs={onBackToFaqs} />;
+  }
+
+  return (
+    <div className="space-y-4">
+      <FaqAccordion />
+      <p className="text-center text-sm text-muted-foreground">
+        Still have questions?{" "}
+        <button
+          type="button"
+          onClick={onShowContact}
+          className="cursor-pointer font-medium text-foreground underline-offset-4 hover:underline"
+        >
+          Contact us
+        </button>{" "}
+        and we will get back to you.
+      </p>
     </div>
   );
 }
@@ -272,6 +463,7 @@ export function HelpSheet() {
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<HelpView>("list");
+  const [faqSubview, setFaqSubview] = useState<FaqSubview>("accordion");
 
   function close() {
     setOpen(false);
@@ -281,24 +473,37 @@ export function HelpSheet() {
     setOpen(nextOpen);
     if (!nextOpen) {
       setView("list");
+      setFaqSubview("accordion");
     }
   }
 
   function goBack() {
+    if (view === "faqs" && faqSubview === "contact") {
+      setFaqSubview("accordion");
+      return;
+    }
     setView("list");
   }
 
-  const titles: Record<HelpView, string> = {
-    list: "How can we help?",
-    "payment-reminders": "Payment reminders",
-    feedback: "Share feedback",
-  };
+  const sheetTitle =
+    view === "faqs" && faqSubview === "contact"
+      ? "Contact us"
+      : {
+          list: "How can we help?",
+          faqs: "FAQs",
+          "payment-reminders": "Payment reminders",
+          feedback: "Share feedback",
+        }[view];
 
-  const descriptions: Record<HelpView, string | null> = {
-    list: "Start with self-serve resources, or email us if you are stuck.",
-    "payment-reminders": "How automatic and manual payment reminders work.",
-    feedback: "Help us improve Invoice Desk.",
-  };
+  const sheetDescription =
+    view === "faqs" && faqSubview === "contact"
+      ? "We will reply to your account email."
+      : {
+          list: "Start with self-serve resources, or email us if you are stuck.",
+          faqs: "Common questions about invoices, estimates, and plans.",
+          "payment-reminders": "How automatic and manual payment reminders work.",
+          feedback: "Help us improve Invoice Desk.",
+        }[view];
 
   return (
     <>
@@ -324,10 +529,8 @@ export function HelpSheet() {
                 Back
               </Button>
             )}
-            <SheetTitle>{titles[view]}</SheetTitle>
-            {descriptions[view] && (
-              <SheetDescription>{descriptions[view]}</SheetDescription>
-            )}
+            <SheetTitle>{sheetTitle}</SheetTitle>
+            {sheetDescription && <SheetDescription>{sheetDescription}</SheetDescription>}
           </SheetHeader>
 
           <div
@@ -357,6 +560,16 @@ export function HelpSheet() {
                     <ArrowUpRightIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
                   </Link>
                 ))}
+
+                <HelpOptionButton
+                  title="Browse FAQs"
+                  description="Common questions about invoices, estimates, and plans."
+                  icon={CircleHelpIcon}
+                  onClick={() => {
+                    setFaqSubview("accordion");
+                    setView("faqs");
+                  }}
+                />
 
                 <HelpOptionButton
                   title="Payment reminders"
@@ -391,6 +604,14 @@ export function HelpSheet() {
               </>
             )}
 
+            {view === "faqs" && (
+              <FaqHelpPanel
+                subview={faqSubview}
+                onShowContact={() => setFaqSubview("contact")}
+                onBackToFaqs={() => setFaqSubview("accordion")}
+                onContactSent={() => setFaqSubview("accordion")}
+              />
+            )}
             {view === "payment-reminders" && <PaymentRemindersHelp onNavigate={close} />}
             {view === "feedback" && <FeedbackForm onSent={goBack} />}
           </div>

@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
+import { ClipboardListIcon, FileTextIcon, Trash2Icon } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,17 +17,22 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageScroll } from "@/components/app-shell/app-shell";
 import { PageBackLink, PageHeader, pageHeaderActionClass } from "@/components/app-shell/page-header";
-import { FormCard } from "@/components/forms/form-card";
-import { ClientForm } from "@/features/clients/components/client-form";
-import { ClientInvoicesTable } from "@/features/clients/components/client-invoices-table";
-import type { ClientDetailData } from "@/lib/clients";
+import { ClientActivityTab } from "@/features/clients/components/client-activity-tab";
+import { ClientEstimatesTab } from "@/features/clients/components/client-estimates-tab";
+import { ClientInvoicesTab } from "@/features/clients/components/client-invoices-tab";
+import { ClientReceiptsTab } from "@/features/clients/components/client-receipts-tab";
+import type { ClientFinancialProfile } from "@/lib/clients/financial-profile";
+import { formatMoney } from "@/lib/invoices";
 import type { ClientInput } from "@/lib/schemas/client";
 
+const clientTabTriggerClass =
+  "flex-none rounded-lg border-0 bg-muted px-3 py-1.5 text-muted-foreground shadow-none data-active:bg-muted data-active:text-foreground data-active:shadow-none dark:data-active:border-transparent dark:data-active:bg-muted";
+
 type ClientDetailProps = {
-  client: ClientDetailData;
+  client: ClientFinancialProfile;
   companyName: string;
 };
 
@@ -34,6 +40,27 @@ export function ClientDetail({ client, companyName }: ClientDetailProps) {
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState("overview");
+  const tabTriggerRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+
+  function handleTabChange(value: string | null) {
+    if (!value) return;
+    setActiveTab(value);
+    requestAnimationFrame(() => {
+      tabTriggerRefs.current[value]?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+        inline: "center",
+      });
+    });
+  }
+
+  function setTabTriggerRef(value: string) {
+    return (node: HTMLButtonElement | null) => {
+      tabTriggerRefs.current[value] = node;
+    };
+  }
+  const { summary } = client;
 
   async function handleUpdate(data: ClientInput) {
     const response = await fetch(`/api/clients/${client.id}`, {
@@ -63,95 +90,142 @@ export function ClientDetail({ client, companyName }: ClientDetailProps) {
     }
   }
 
+  const descriptionParts = [
+    formatMoney(summary.totalCollected, summary.currency) + " collected",
+    summary.outstanding > 0
+      ? formatMoney(summary.outstanding, summary.currency) + " outstanding"
+      : null,
+  ].filter(Boolean);
+
   return (
-    <PageScroll fullWidth>
+    <PageScroll maxWidth="6xl">
       <PageBackLink href="/clients">Back to clients</PageBackLink>
 
       <PageHeader
         title={client.name}
-        description={`${client._count.invoices} invoice${client._count.invoices === 1 ? "" : "s"}`}
+        description={descriptionParts.join(" · ")}
         actions={
           <>
+            <Button
+              variant="outline"
+              className={pageHeaderActionClass}
+              render={<Link href={`/estimates/new?clientId=${client.id}`} />}
+            >
+              <ClipboardListIcon className="size-4" />
+              New estimate
+            </Button>
             <Button
               className={pageHeaderActionClass}
               render={<Link href={`/invoices/new?clientId=${client.id}`} />}
             >
-              Create invoice
+              <FileTextIcon className="size-4" />
+              New invoice
             </Button>
             <AlertDialog>
               <AlertDialogTrigger
                 render={
                   <Button variant="destructive" className={pageHeaderActionClass} disabled={deleting}>
-                    Delete
+                    <Trash2Icon className="size-4" />
+                    <span className="sm:hidden">Delete client</span>
+                    <span className="hidden sm:inline">Delete</span>
                   </Button>
                 }
               />
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete client?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This will delete {client.name}. Their invoices will remain but will no
-                  longer be linked to this client record.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete}>
-                  {deleting ? "Deleting..." : "Delete"}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete client?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will delete {client.name}. Their invoices and estimates will remain but
+                    will no longer be linked to this client record.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDelete}>
+                    {deleting ? "Deleting..." : "Delete"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </>
         }
       />
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <FormCard
-          title="Edit client"
-          footer={
-            <Button type="submit" form="edit-client-form" disabled={saving}>
-              {saving ? "Saving..." : "Save changes"}
-            </Button>
-          }
-        >
-          <ClientForm
-            formId="edit-client-form"
-            showSubmit={false}
-            onSubmittingChange={setSaving}
-            initialValues={{
-              name: client.name,
-              email: client.email ?? "",
-              phone: client.phone ?? "",
-              address: client.address ?? "",
-              city: client.city ?? "",
-              state: client.state ?? "",
-              zip: client.zip ?? "",
-              country: client.country ?? "",
-              notes: client.notes ?? "",
-            }}
-            submitLabel="Save changes"
-            onSubmit={handleUpdate}
-          />
-        </FormCard>
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="mt-6 gap-6">
+        <div className="-mx-4 overflow-x-auto px-4 no-scrollbar sm:mx-0 sm:px-0">
+          <TabsList className="inline-flex h-auto w-max min-w-full justify-start gap-1.5 bg-transparent p-0 sm:min-w-0">
+            <TabsTrigger
+              ref={setTabTriggerRef("overview")}
+              value="overview"
+              className={clientTabTriggerClass}
+            >
+              Overview
+            </TabsTrigger>
+            <TabsTrigger
+              ref={setTabTriggerRef("invoices")}
+              value="invoices"
+              className={clientTabTriggerClass}
+            >
+              Invoices{summary.invoiceCount > 0 ? ` (${summary.invoiceCount})` : ""}
+            </TabsTrigger>
+            <TabsTrigger
+              ref={setTabTriggerRef("estimates")}
+              value="estimates"
+              className={clientTabTriggerClass}
+            >
+              Estimates{summary.estimateCount > 0 ? ` (${summary.estimateCount})` : ""}
+            </TabsTrigger>
+            <TabsTrigger
+              ref={setTabTriggerRef("receipts")}
+              value="receipts"
+              className={clientTabTriggerClass}
+            >
+              Receipts{client.receipts.length > 0 ? ` (${client.receipts.length})` : ""}
+            </TabsTrigger>
+            <TabsTrigger
+              ref={setTabTriggerRef("activity")}
+              value="activity"
+              className={clientTabTriggerClass}
+            >
+              Activity{client.activity.length > 0 ? ` (${client.activity.length})` : ""}
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent invoices</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {client.invoices.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No invoices yet.</p>
-            ) : (
-              <ClientInvoicesTable
-                invoices={client.invoices}
-                companyName={companyName}
-                clientEmail={client.email}
-              />
-            )}
-          </CardContent>
-        </Card>
-      </div>
+        <TabsContent value="overview">
+          <ClientOverviewTab
+            client={client}
+            saving={saving}
+            onSavingChange={setSaving}
+            onUpdate={handleUpdate}
+          />
+        </TabsContent>
+
+        <TabsContent value="invoices">
+          <ClientInvoicesTab
+            invoices={client.invoices}
+            companyName={companyName}
+            clientEmail={client.email}
+            clientId={client.id}
+          />
+        </TabsContent>
+
+        <TabsContent value="estimates">
+          <ClientEstimatesTab
+            estimates={client.estimates}
+            companyName={companyName}
+            clientId={client.id}
+          />
+        </TabsContent>
+
+        <TabsContent value="receipts">
+          <ClientReceiptsTab receipts={client.receipts} />
+        </TabsContent>
+
+        <TabsContent value="activity">
+          <ClientActivityTab activity={client.activity} currency={summary.currency} />
+        </TabsContent>
+      </Tabs>
     </PageScroll>
   );
 }

@@ -3,6 +3,11 @@ import { prisma } from "@/lib/db";
 import { recordInvoiceContentRevision } from "@/lib/document-revisions/service";
 import { loadInvoiceSnapshot } from "@/lib/document-revisions/service";
 import { createNotification } from "@/lib/notifications/service";
+import { allocateReceiptNumber } from "@/lib/document-numbers";
+import { generatePublicToken } from "@/lib/document-tokens";
+import { isEmailConfigured, sendPaymentConfirmationEmail } from "@/lib/email";
+import { generateInvoicePdfBuffer } from "@/lib/invoice-service";
+import { generateReceiptPdfBuffer } from "@/lib/receipt-service";
 import {
   buildInvoicePaymentSummary,
   deriveInvoiceStatusAfterPayment,
@@ -129,16 +134,20 @@ export async function recordInvoicePayment(input: {
     throw new Error(`Payment cannot exceed the balance due (${summary.balanceDue.toFixed(2)})`);
   }
 
-  await prisma.invoicePayment.create({
+  const receiptNumber = await allocateReceiptNumber(input.companyId);
+  const createdPayment = await prisma.invoicePayment.create({
     data: {
       invoiceId: input.invoiceId,
       memberId: input.memberId,
+      receiptNumber,
+      publicToken: generatePublicToken(),
       amount,
       paidAt: input.paidAt ?? new Date(),
       method: input.method ?? "OTHER",
       reference: input.reference ?? null,
       note: input.note ?? null,
     },
+    select: { id: true, receiptNumber: true },
   });
 
   const updated = await refreshInvoicePaymentStatus(input.invoiceId, input.companyId);
@@ -176,5 +185,65 @@ export async function recordInvoicePayment(input: {
     linkUrl: `/invoices/${input.invoiceId}`,
   }).catch(() => undefined);
 
+  if (
+    createdPayment &&
+    invoice.sentAt &&
+    updated.client?.email &&
+    isEmailConfigured()
+  ) {
+    const company = await prisma.company.findUnique({
+      where: { id: input.companyId },
+      select: { paymentReceiptEmailsEnabled: true, name: true },
+    });
+
+    if (company?.paymentReceiptEmailsEnabled) {
+      void sendPaymentConfirmationForRecordedPayment({
+        paymentId: createdPayment.id,
+        companyId: input.companyId,
+        invoiceId: input.invoiceId,
+        to: updated.client.email,
+        companyName: company.name,
+        invoiceNumber: updated.number,
+        receiptNumber: createdPayment.receiptNumber ?? "",
+        amount,
+        currency: updated.currency,
+      }).catch(() => undefined);
+    }
+  }
+
   return updated;
+}
+
+async function sendPaymentConfirmationForRecordedPayment(input: {
+  paymentId: string;
+  companyId: string;
+  invoiceId: string;
+  to: string;
+  companyName: string;
+  invoiceNumber: string;
+  receiptNumber: string;
+  amount: number;
+  currency: string;
+}) {
+  const [invoicePdf, receiptPdf] = await Promise.all([
+    generateInvoicePdfBuffer(input.invoiceId, input.companyId),
+    generateReceiptPdfBuffer(input.paymentId, input.companyId),
+  ]);
+
+  if (!invoicePdf || !receiptPdf) return;
+
+  const formattedAmount = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: input.currency,
+  }).format(input.amount);
+
+  await sendPaymentConfirmationEmail({
+    to: input.to,
+    companyName: input.companyName,
+    invoiceNumber: input.invoiceNumber,
+    receiptNumber: input.receiptNumber,
+    amount: formattedAmount,
+    invoicePdfBuffer: invoicePdf.pdfBuffer,
+    receiptPdfBuffer: receiptPdf.pdfBuffer,
+  });
 }

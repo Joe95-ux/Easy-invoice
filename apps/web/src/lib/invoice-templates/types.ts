@@ -58,5 +58,6 @@ export type InvoiceHtmlData = {
     amount: number;
     method: string;
     reference?: string | null;
+    receiptNumber?: string | null;
   }>;
 };

@@ -1,14 +1,11 @@
 import Link from "next/link";
-import { BellIcon, ScrollTextIcon } from "lucide-react";
+import { BellIcon, UsersRoundIcon } from "lucide-react";
 import { CompanySettingsForm } from "@/features/settings/components/company-settings-form";
 import { ReminderSettingsSection } from "@/features/settings/components/reminder-settings-section";
 import { SettingsDefaultTemplateSection } from "@/features/settings/components/settings-default-template-section";
-import { TeamSettingsSection } from "@/features/settings/components/team-settings-section";
+import { SettingsSectionNav } from "@/features/settings/components/settings-section-nav";
 import { requireCompanyAdmin } from "@/lib/auth";
-import { canManageTeam } from "@/lib/team";
 import { getDefaultTemplateId, getTemplatesForCompany } from "@/lib/templates";
-import { prisma } from "@/lib/db";
-import { resolveMemberLoginEmails } from "@/lib/member-email";
 import { normalizeLogoBg, normalizeLogoPlacement } from "@/lib/company-branding";
 import { reminderSettingsFromCompany } from "@/lib/reminders/settings";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,50 +16,11 @@ import { PageHeader, pageHeaderActionClass } from "@/components/app-shell/page-h
 export default async function SettingsPage() {
   const member = await requireCompanyAdmin();
 
-  const [templates, defaultTemplateId, members, invites] = await Promise.all([
+  const [templates, defaultTemplateId] = await Promise.all([
     getTemplatesForCompany(member.companyId),
     getDefaultTemplateId(member.companyId),
-    prisma.companyMember.findMany({
-      where: { companyId: member.companyId },
-      orderBy: { createdAt: "asc" },
-    }),
-    canManageTeam(member.role)
-      ? prisma.companyInvite.findMany({
-          where: {
-            companyId: member.companyId,
-            acceptedAt: null,
-            expiresAt: { gt: new Date() },
-          },
-          orderBy: { createdAt: "desc" },
-        })
-      : Promise.resolve([]),
   ]);
   const { company } = member;
-
-  const roleOrder = { OWNER: 0, ADMIN: 1, MEMBER: 2 } as const;
-  const sortedMembers = [...members].sort(
-    (a, b) => roleOrder[a.role] - roleOrder[b.role],
-  );
-  const membersWithEmails = await resolveMemberLoginEmails(sortedMembers);
-
-  const teamData = {
-    currentMemberId: member.id,
-    currentRole: member.role,
-    members: membersWithEmails.map((row) => ({
-      id: row.id,
-      email: row.email,
-      role: row.role,
-      createdAt: row.createdAt.toISOString(),
-      isCurrentUser: row.clerkId === member.clerkId,
-    })),
-    invites: invites.map((row) => ({
-      id: row.id,
-      email: row.email,
-      role: row.role,
-      expiresAt: row.expiresAt.toISOString(),
-      createdAt: row.createdAt.toISOString(),
-    })),
-  };
 
   const companyPreview = {
     name: company.name,
@@ -85,7 +43,15 @@ export default async function SettingsPage() {
         title="Settings"
         description="Manage your company profile and invoice preferences."
         actions={
-          <>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+            <Button
+              variant="outline"
+              className={pageHeaderActionClass}
+              render={<Link href="/members" />}
+            >
+              <UsersRoundIcon className="size-4" />
+              Members
+            </Button>
             <Button
               variant="outline"
               className={pageHeaderActionClass}
@@ -94,19 +60,13 @@ export default async function SettingsPage() {
               <BellIcon className="size-4" />
               Notifications
             </Button>
-            <Button
-              variant="outline"
-              className={pageHeaderActionClass}
-              render={<Link href="/settings/activity" />}
-            >
-              <ScrollTextIcon className="size-4" />
-              Activity log
-            </Button>
-          </>
+          </div>
         }
       />
 
       <div className="space-y-6">
+        <SettingsSectionNav />
+
         <CompanySettingsForm
           initialLogoUrl={company.logoUrl}
           initialValues={{
@@ -130,25 +90,27 @@ export default async function SettingsPage() {
           }}
         />
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Invoice templates</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <SettingsDefaultTemplateSection
-              templates={templates}
-              defaultTemplateId={defaultTemplateId ?? templates[0]?.id ?? ""}
-              company={companyPreview}
-              currency={company.currency}
-            />
-          </CardContent>
-        </Card>
+        <section id="settings-templates" className="scroll-mt-20">
+          <Card>
+            <CardHeader>
+              <CardTitle>Invoice templates</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <SettingsDefaultTemplateSection
+                templates={templates}
+                defaultTemplateId={defaultTemplateId ?? templates[0]?.id ?? ""}
+                company={companyPreview}
+                currency={company.currency}
+              />
+            </CardContent>
+          </Card>
+        </section>
 
-        <ReminderSettingsSection
-          initialSettings={reminderSettingsFromCompany(company)}
-        />
-
-        <TeamSettingsSection initialData={teamData} />
+        <section id="settings-reminders" className="scroll-mt-20">
+          <ReminderSettingsSection
+            initialSettings={reminderSettingsFromCompany(company)}
+          />
+        </section>
       </div>
     </PageScroll>
   );

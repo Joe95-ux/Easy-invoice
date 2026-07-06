@@ -2,6 +2,7 @@ import type { InvoiceStatus } from "@easy-invoice/db";
 import { Prisma } from "@easy-invoice/db";
 import { renderInvoicePdf } from "@/lib/ai-docs";
 import { calculateInvoiceTotals, lineItemAmount } from "@/lib/calculator";
+import { allocateInvoiceNumber } from "@/lib/document-numbers";
 import { renderInvoiceHtmlForInvoice } from "@/lib/invoice-html";
 import { prisma } from "@/lib/db";
 import type { CreateInvoiceInput } from "@/lib/schemas/invoice";
@@ -20,20 +21,7 @@ export async function getInvoicesForMember(companyId: string, limit = 50) {
 }
 
 export async function generateNextInvoiceNumber(companyId: string): Promise<string> {
-  const maxAttempts = 5;
-
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const count = await prisma.invoice.count({ where: { companyId } });
-    const number = `INV-${String(count + 1 + attempt).padStart(4, "0")}`;
-
-    const exists = await prisma.invoice.findFirst({
-      where: { companyId, number },
-      select: { id: true },
-    });
-    if (!exists) return number;
-  }
-
-  throw new Error("Could not generate unique invoice number");
+  return allocateInvoiceNumber(companyId);
 }
 
 type ClientInput = {

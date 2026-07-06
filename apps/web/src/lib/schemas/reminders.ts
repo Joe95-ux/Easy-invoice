@@ -11,6 +11,7 @@ export const reminderSettingsSchema = z.object({
   reminderOnDueDate: z.boolean(),
   reminderDaysAfter: daysArraySchema,
   reminderIncludePdf: z.boolean(),
+  paymentReceiptEmailsEnabled: z.boolean(),
 });
 
 export type ReminderSettingsInput = z.infer<typeof reminderSettingsSchema>;

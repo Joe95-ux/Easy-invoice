@@ -6,6 +6,7 @@ export type ReminderSettings = {
   reminderOnDueDate: boolean;
   reminderDaysAfter: number[];
   reminderIncludePdf: boolean;
+  paymentReceiptEmailsEnabled: boolean;
 };
 
 export function reminderSettingsFromCompany(company: Pick<
@@ -15,6 +16,7 @@ export function reminderSettingsFromCompany(company: Pick<
   | "reminderOnDueDate"
   | "reminderDaysAfter"
   | "reminderIncludePdf"
+  | "paymentReceiptEmailsEnabled"
 >): ReminderSettings {
   return {
     remindersEnabled: company.remindersEnabled,
@@ -22,6 +24,7 @@ export function reminderSettingsFromCompany(company: Pick<
     reminderOnDueDate: company.reminderOnDueDate,
     reminderDaysAfter: company.reminderDaysAfter,
     reminderIncludePdf: company.reminderIncludePdf,
+    paymentReceiptEmailsEnabled: company.paymentReceiptEmailsEnabled,
   };
 }
 

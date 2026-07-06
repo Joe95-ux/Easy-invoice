@@ -23,6 +23,7 @@ export async function GET() {
       reminderOnDueDate: true,
       reminderDaysAfter: true,
       reminderIncludePdf: true,
+      paymentReceiptEmailsEnabled: true,
     },
   });
 
@@ -51,6 +52,7 @@ export async function PATCH(request: Request) {
       reminderOnDueDate: true,
       reminderDaysAfter: true,
       reminderIncludePdf: true,
+      paymentReceiptEmailsEnabled: true,
     },
   });
   if (!before) {
@@ -66,6 +68,7 @@ export async function PATCH(request: Request) {
       reminderOnDueDate: true,
       reminderDaysAfter: true,
       reminderIncludePdf: true,
+      paymentReceiptEmailsEnabled: true,
     },
   });
 

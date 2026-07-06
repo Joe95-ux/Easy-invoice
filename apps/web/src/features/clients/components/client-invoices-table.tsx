@@ -32,31 +32,36 @@ import {
 import { InvoicePreviewSheet } from "@/features/invoices/components/invoice-preview-sheet";
 import { InvoiceSendDialog } from "@/features/invoices/components/invoice-send-dialog";
 import { usePdfDownload } from "@/hooks/use-pdf-download";
+import type { InvoiceStatus } from "@easy-invoice/db";
 import {
+  formatDate,
   formatMoney,
   invoiceStatusLabel,
   invoiceStatusVariant,
 } from "@/lib/invoices";
-import type { InvoiceStatus } from "@easy-invoice/db";
 
 export type ClientInvoiceRow = {
   id: string;
   number: string;
   status: InvoiceStatus;
   total: number;
+  balanceDue?: number;
   currency: string;
+  dueDate?: string | null;
 };
 
 type ClientInvoicesTableProps = {
   invoices: ClientInvoiceRow[];
   companyName: string;
   clientEmail?: string | null;
+  detailed?: boolean;
 };
 
 export function ClientInvoicesTable({
   invoices,
   companyName,
   clientEmail,
+  detailed = false,
 }: ClientInvoicesTableProps) {
   const router = useRouter();
   const { openPdfDownload, pdfDownloadDialog } = usePdfDownload();
@@ -97,12 +102,14 @@ export function ClientInvoicesTable({
 
   return (
     <>
-      <Table stickyColumnWidths={["5rem", "6.5rem"]}>
+      <Table stickyColumns={1} stickyColumnWidths={["5rem"]}>
         <TableHeader>
           <TableRow>
             <TableHead>Number</TableHead>
             <TableHead>Status</TableHead>
+            {detailed && <TableHead className="text-right">Balance</TableHead>}
             <TableHead className="text-right">Total</TableHead>
+            {detailed && <TableHead className="w-28 pl-4">Due</TableHead>}
             <TableHead className="w-14 text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -119,9 +126,19 @@ export function ClientInvoicesTable({
                   {invoiceStatusLabel(invoice.status)}
                 </Badge>
               </TableCell>
+              {detailed && (
+                <TableCell className="text-right tabular-nums">
+                  {formatMoney(invoice.balanceDue ?? 0, invoice.currency)}
+                </TableCell>
+              )}
               <TableCell className="text-right tabular-nums">
                 {formatMoney(invoice.total, invoice.currency)}
               </TableCell>
+              {detailed && (
+                <TableCell className="w-28 pl-4 text-muted-foreground">
+                  {invoice.dueDate ? formatDate(invoice.dueDate) : "—"}
+                </TableCell>
+              )}
               <TableCell className="text-right">
                 <DropdownMenu>
                   <DropdownMenuTrigger
