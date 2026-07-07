@@ -40,7 +40,7 @@ import type { ClientListItem } from "@/lib/clients";
 import { formatClientAddress } from "@/lib/clients";
 import { CURRENCY_OPTIONS } from "@/lib/geo/countries";
 import { normalizeDraftDate } from "@/lib/draft-dates";
-import type { InvoiceDraft } from "@/lib/schemas/invoice";
+import type { DocumentParseMeta, InvoiceDraft } from "@/lib/schemas/invoice";
 import type { TemplateSummary } from "@/lib/templates";
 
 const BASE_STEPS: FormStep[] = [
@@ -211,25 +211,41 @@ export function EstimateCreator({
     );
   }
 
-  function applyDraft(draft: InvoiceDraft) {
-    setSelectedClientId("");
-    setClientName(draft.client_name);
-    setClientEmail(draft.client_email ?? "");
-    setClientPhone(draft.client_phone ?? "");
-    setClientAddress(draft.client_address ?? "");
-    setNotes(draft.notes ?? "");
-    setCurrency(draft.currency ?? defaultCurrency);
-    setTaxRate((draft.tax_rate ?? 0) * 100);
-    setDiscountMode("amount");
-    setDiscountValue(draft.discount ?? 0);
-    if (draft.issue_date) {
-      const issue = normalizeDraftDate(draft.issue_date);
-      if (issue) setIssueDate(issue);
+  function applyDraft(draft: InvoiceDraft, meta?: DocumentParseMeta) {
+    const linesOnly = meta?.extraction_mode === "lines_only";
+
+    if (!linesOnly) {
+      setSelectedClientId("");
+      setClientName(draft.client_name);
+      setClientEmail(draft.client_email ?? "");
+      setClientPhone(draft.client_phone ?? "");
+      setClientAddress(draft.client_address ?? "");
+      setNotes(draft.notes ?? "");
+      setCurrency(draft.currency ?? defaultCurrency);
+      setTaxRate((draft.tax_rate ?? 0) * 100);
+      setDiscountMode("amount");
+      setDiscountValue(draft.discount ?? 0);
+      if (draft.issue_date) {
+        const issue = normalizeDraftDate(draft.issue_date);
+        if (issue) setIssueDate(issue);
+      }
+      if (draft.due_date) {
+        const due = normalizeDraftDate(draft.due_date);
+        if (due) setValidUntil(due);
+      }
+    } else {
+      if (draft.notes) {
+        setNotes((current) => (current.trim() ? `${current.trim()}\n${draft.notes}` : draft.notes ?? ""));
+      }
+      if ((draft.tax_rate ?? 0) > 0) {
+        setTaxRate((draft.tax_rate ?? 0) * 100);
+      }
+      if ((draft.discount ?? 0) > 0) {
+        setDiscountMode("amount");
+        setDiscountValue(draft.discount ?? 0);
+      }
     }
-    if (draft.due_date) {
-      const due = normalizeDraftDate(draft.due_date);
-      if (due) setValidUntil(due);
-    }
+
     setLineItems(
       draft.line_items.map((item) => ({
         description: item.description,
@@ -238,7 +254,10 @@ export function EstimateCreator({
       })),
     );
     setActiveTab("form");
-    setStep(steps.findIndex((s) => s.id === "client") || 0);
+    setStep(
+      steps.findIndex((s) => s.id === (linesOnly ? "items" : "client")) ||
+        0,
+    );
   }
 
   function buildPayload() {
@@ -552,7 +571,7 @@ export function EstimateCreator({
         title={title}
         description={description}
         actions={
-          <TabsList className="w-full sm:w-auto">
+          <TabsList variant="segment" className="w-full sm:w-auto">
             <TabsTrigger value="form">Form</TabsTrigger>
             <TabsTrigger value="ai">Describe with AI</TabsTrigger>
           </TabsList>
@@ -561,7 +580,12 @@ export function EstimateCreator({
 
       <TabsContent value="ai">
         <FormCard>
-          <AiDocumentParseTab variant="estimate" onDraft={applyDraft} />
+          <AiDocumentParseTab
+            variant="estimate"
+            onDraft={applyDraft}
+            knownClientName={clientName || undefined}
+            preferLinesOnly={Boolean(selectedClientId || clientName.trim())}
+          />
         </FormCard>
       </TabsContent>
 

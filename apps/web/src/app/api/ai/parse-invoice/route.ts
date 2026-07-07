@@ -20,6 +20,9 @@ export async function POST(request: Request) {
       companyCurrency: member.company.currency,
       outputLanguage: "en",
       referenceDate: new Date().toISOString().slice(0, 10),
+      documentKind: parsed.data.documentKind ?? "invoice",
+      extractionMode: parsed.data.extractionMode ?? "full",
+      knownClientName: parsed.data.knownClientName,
     });
     return NextResponse.json(draft);
   } catch (error) {

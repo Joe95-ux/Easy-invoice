@@ -18,7 +18,10 @@ export default async function PublicInvoicePage({ params }: PageProps) {
     await markInvoiceViewed(invoice.id, invoice.status);
   }
 
-  const html = await renderInvoiceHtmlForInvoice(invoice);
+  const html = await renderInvoiceHtmlForInvoice(invoice, {
+    inlineLogo: false,
+    ensureTemplates: false,
+  });
 
   return (
     <div className="space-y-6">

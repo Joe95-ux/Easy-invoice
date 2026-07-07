@@ -15,7 +15,10 @@ export async function GET(_request: Request, context: RouteContext) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const html = await renderInvoiceHtmlForInvoice(invoice);
+  const html = await renderInvoiceHtmlForInvoice(invoice, {
+    inlineLogo: false,
+    ensureTemplates: false,
+  });
 
   return NextResponse.json({
     html,

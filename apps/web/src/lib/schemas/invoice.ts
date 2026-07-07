@@ -92,7 +92,31 @@ export type UpdateInvoiceInput = z.infer<typeof updateInvoiceSchema>;
 export const parseInvoiceRequestSchema = z.object({
   text: z.string().min(10),
   localeHint: z.string().optional(),
+  documentKind: z.enum(["invoice", "estimate"]).optional(),
+  extractionMode: z.enum(["full", "lines_only"]).optional(),
+  knownClientName: z.string().optional(),
 });
+
+export const documentExtractionModeSchema = z.enum(["full", "lines_only"]);
+export type DocumentExtractionMode = z.infer<typeof documentExtractionModeSchema>;
+
+export const documentParseMetaSchema = z.object({
+  extraction_mode: documentExtractionModeSchema,
+  extraction_method: z.enum(["text", "vision", "plain_text"]),
+  warnings: z.array(z.string()),
+  source_filename: z.string(),
+});
+
+export type DocumentParseMeta = z.infer<typeof documentParseMetaSchema>;
+
+export const parseDocumentResponseSchema = invoiceDraftSchema.extend({
+  extraction_mode: documentExtractionModeSchema,
+  extraction_method: z.enum(["text", "vision", "plain_text"]),
+  warnings: z.array(z.string()),
+  source_filename: z.string(),
+});
+
+export type ParseDocumentResponse = z.infer<typeof parseDocumentResponseSchema>;
 
 // Re-export company schemas for backwards compatibility
 export {

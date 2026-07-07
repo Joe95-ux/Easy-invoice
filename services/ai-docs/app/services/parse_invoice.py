@@ -1,3 +1,4 @@
+import base64
 import json
 
 from openai import OpenAI
@@ -62,16 +63,32 @@ OTHER:
 - If tax is mentioned as a percent, set tax_rate as a decimal.
 - Use reasonable defaults for missing fields; never invent client email or phone.
 - Set detected_language to the primary language of the input text.
+
+DOCUMENT IMPORT:
+- Input may come from OCR or a converted invoice/estimate PDF. Preserve numbers, currency symbols, and quantities exactly.
+- The sender/from company is never the client. Bill-to / customer / client blocks map to client_name and related client fields.
+- For document_kind=estimate, due_date is the quote valid-until date.
+
+EXTRACTION MODES:
+- extraction_mode=full: extract client details, dates, line items, tax, discount, and notes when present.
+- extraction_mode=lines_only: extract only line_items plus tax_rate, discount, and notes when clearly visible on the document.
+  For lines_only, set client_name to known_client_name when provided, otherwise "Client".
+  Do not invent client email, phone, or address. Leave issue_date and due_date null unless they are essential to a line item.
 """
 
 
 def _build_user_message(payload: ParseInvoiceRequest) -> str:
     parts: list[str] = []
 
+    parts.append(f"Document kind: {payload.document_kind}")
+    parts.append(f"Extraction mode: {payload.extraction_mode}")
+
     if payload.company_name:
-        parts.append(f"Company sending this invoice: {payload.company_name}")
+        parts.append(f"Company sending this document: {payload.company_name}")
     if payload.company_currency:
         parts.append(f"Default currency: {payload.company_currency}")
+    if payload.known_client_name:
+        parts.append(f"Known client already on file: {payload.known_client_name}")
     if payload.output_language:
         parts.append(f"Output language: {payload.output_language}")
     if payload.reference_date:
@@ -80,7 +97,7 @@ def _build_user_message(payload: ParseInvoiceRequest) -> str:
         parts.append(f"Locale hint: {payload.locale_hint}")
 
     parts.append("")
-    parts.append("Job description from the user:")
+    parts.append("Source content:")
     parts.append(payload.text)
 
     return "\n".join(parts)
@@ -104,11 +121,17 @@ def _normalize_draft(draft: InvoiceDraft) -> InvoiceDraft:
     return draft.model_copy(update={"line_items": line_items, "discount": discount})
 
 
-def parse_invoice_text(payload: ParseInvoiceRequest) -> InvoiceDraft:
+def _openai_client() -> OpenAI:
     if not settings.openai_api_key:
         raise RuntimeError("OPENAI_API_KEY is not configured")
+    return OpenAI(
+        api_key=settings.openai_api_key,
+        timeout=settings.openai_timeout_seconds,
+    )
 
-    client = OpenAI(api_key=settings.openai_api_key)
+
+def parse_invoice_text(payload: ParseInvoiceRequest) -> InvoiceDraft:
+    client = _openai_client()
     user_content = _build_user_message(payload)
 
     response = client.chat.completions.create(
@@ -126,5 +149,49 @@ def parse_invoice_text(payload: ParseInvoiceRequest) -> InvoiceDraft:
         raise RuntimeError("Empty response from OpenAI")
 
     data = json.loads(content)
+    draft = InvoiceDraft.model_validate(data)
+    return _normalize_draft(draft)
+
+
+def parse_invoice_from_images(
+    payload: ParseInvoiceRequest,
+    images: list[bytes],
+) -> InvoiceDraft:
+    if not images:
+        raise ValueError("No document images to parse")
+
+    client = _openai_client()
+    instruction = _build_user_message(
+        payload.model_copy(update={"text": "The invoice or estimate is in the attached images."}),
+    )
+
+    content: list[dict] = [{"type": "text", "text": instruction}]
+    for image_bytes in images[:4]:
+        encoded = base64.b64encode(image_bytes).decode("ascii")
+        content.append(
+            {
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:image/jpeg;base64,{encoded}",
+                    "detail": "low",
+                },
+            }
+        )
+
+    response = client.chat.completions.create(
+        model=settings.openai_vision_model,
+        temperature=0.1,
+        response_format={"type": "json_object"},
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": content},
+        ],
+    )
+
+    body = response.choices[0].message.content
+    if not body:
+        raise RuntimeError("Empty response from OpenAI")
+
+    data = json.loads(body)
     draft = InvoiceDraft.model_validate(data)
     return _normalize_draft(draft)

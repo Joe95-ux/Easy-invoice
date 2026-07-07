@@ -11,6 +11,7 @@
     "lint": "turbo lint",
     "db:generate": "npm run generate -w @easy-invoice/db",
     "db:push": "npm run push -w @easy-invoice/db",
+    "db:push:force": "npm run push:force -w @easy-invoice/db",
     "db:migrate": "npm run migrate -w @easy-invoice/db",
     "db:studio": "npm run studio -w @easy-invoice/db"
   },

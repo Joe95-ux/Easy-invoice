@@ -23,6 +23,7 @@ import { PageBackLink, PageHeader, pageHeaderActionClass } from "@/components/ap
 import { ClientActivityTab } from "@/features/clients/components/client-activity-tab";
 import { ClientEstimatesTab } from "@/features/clients/components/client-estimates-tab";
 import { ClientInvoicesTab } from "@/features/clients/components/client-invoices-tab";
+import { ClientOverviewTab } from "@/features/clients/components/client-overview-tab";
 import { ClientReceiptsTab } from "@/features/clients/components/client-receipts-tab";
 import type { ClientFinancialProfile } from "@/lib/clients/financial-profile";
 import { formatMoney } from "@/lib/invoices";

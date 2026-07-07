@@ -31,14 +31,6 @@ function FieldLabel({ children, className }: { children: ReactNode; className?: 
   );
 }
 
-type InvoiceInstallmentEditorProps = {
-  installments: InstallmentRow[];
-  onChange: (installments: InstallmentRow[]) => void;
-  invoiceTotal: number;
-  currency: string;
-  disabled?: boolean;
-};
-
 function createEmptyInstallment(sortOrder: number): InstallmentRow {
   return {
     dueDate: new Date().toISOString(),

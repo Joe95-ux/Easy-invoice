@@ -7,6 +7,7 @@
   "scripts": {
     "generate": "dotenv -e ../../.env -- prisma generate",
     "push": "dotenv -e ../../.env -- prisma db push",
+    "push:force": "dotenv -e ../../.env -- prisma db push --accept-data-loss",
     "migrate": "dotenv -e ../../.env -- prisma migrate dev",
     "studio": "dotenv -e ../../.env -- prisma studio",
     "build": "dotenv -e ../../.env -- prisma generate"

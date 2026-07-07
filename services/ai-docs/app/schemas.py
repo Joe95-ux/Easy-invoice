@@ -1,5 +1,5 @@
 from decimal import Decimal
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -29,11 +29,21 @@ class InvoiceDraft(BaseModel):
 
 class ParseInvoiceRequest(BaseModel):
     text: str = Field(min_length=10)
+    document_kind: Literal["invoice", "estimate"] = "invoice"
+    extraction_mode: Literal["full", "lines_only"] = "full"
     locale_hint: Optional[str] = None
     company_name: Optional[str] = None
     company_currency: Optional[str] = None
     output_language: Optional[str] = "en"
     reference_date: Optional[str] = None
+    known_client_name: Optional[str] = None
+
+
+class ParseDocumentResponse(InvoiceDraft):
+    extraction_mode: Literal["full", "lines_only"]
+    extraction_method: Literal["text", "vision", "plain_text"]
+    warnings: list[str] = Field(default_factory=list)
+    source_filename: str
 
 
 class RenderPdfRequest(BaseModel):

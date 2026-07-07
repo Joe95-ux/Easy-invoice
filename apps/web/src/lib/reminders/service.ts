@@ -246,6 +246,7 @@ export async function runInvoiceReminderJob(now = new Date()) {
       reminderOnDueDate: true,
       reminderDaysAfter: true,
       reminderIncludePdf: true,
+      paymentReceiptEmailsEnabled: true,
     },
   });
 

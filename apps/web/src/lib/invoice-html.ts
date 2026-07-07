@@ -3,14 +3,24 @@ import { SYSTEM_TEMPLATES } from "@/lib/invoice-templates/definitions";
 import { renderFromTemplate } from "@/lib/invoice-templates/render";
 import { inlineCompanyLogo } from "@/lib/inline-company-logo";
 import { companyBrandingFields } from "@/lib/company-branding";
+import { prisma } from "@/lib/db";
 import { getInvoiceForMember } from "@/lib/invoices";
 import { buildInvoicePaymentSummary, PAYMENT_METHOD_LABELS } from "@/lib/invoice-payments";
 import { ensureSystemTemplates, getDefaultTemplateId, getTemplateById } from "@/lib/templates";
 
 export type { InvoiceHtmlData };
 
+type InvoiceWithRelations = NonNullable<Awaited<ReturnType<typeof getInvoiceForMember>>>;
+
+export type RenderInvoiceHtmlOptions = {
+  /** Embed logo as data URL (required for PDF). Browser previews can load remote URLs. */
+  inlineLogo?: boolean;
+  /** Sync system templates in DB before resolving template. Skip for fast screen previews. */
+  ensureTemplates?: boolean;
+};
+
 export function invoiceToHtmlData(
-  invoice: NonNullable<Awaited<ReturnType<typeof getInvoiceForMember>>>,
+  invoice: InvoiceWithRelations,
 ): InvoiceHtmlData {
   const paymentSummary = buildInvoicePaymentSummary(invoice);
 
@@ -68,31 +78,59 @@ export function invoiceToHtmlData(
   };
 }
 
-export async function renderInvoiceHtmlForInvoice(
-  invoice: NonNullable<Awaited<ReturnType<typeof getInvoiceForMember>>>,
-): Promise<string> {
-  await ensureSystemTemplates();
-  const data = await inlineCompanyLogo(invoiceToHtmlData(invoice));
-
+async function resolveInvoiceTemplate(
+  invoice: InvoiceWithRelations,
+  ensureTemplates: boolean,
+): Promise<{ html: string; css: string | null }> {
   if (invoice.template) {
-    return renderFromTemplate(invoice.template.html, invoice.template.css, data);
+    return { html: invoice.template.html, css: invoice.template.css };
   }
+
+  const lookupTemplate = (templateId: string) =>
+    prisma.invoiceTemplate.findFirst({
+      where: {
+        id: templateId,
+        OR: [{ isSystem: true, companyId: null }, { companyId: invoice.companyId }],
+      },
+    });
 
   if (invoice.templateId) {
-    const template = await getTemplateById(invoice.templateId, invoice.companyId);
-    if (template) {
-      return renderFromTemplate(template.html, template.css, data);
-    }
+    const template = await lookupTemplate(invoice.templateId);
+    if (template) return { html: template.html, css: template.css };
   }
 
-  const defaultId = await getDefaultTemplateId(invoice.companyId);
-  if (defaultId) {
-    const template = await getTemplateById(defaultId, invoice.companyId);
-    if (template) {
-      return renderFromTemplate(template.html, template.css, data);
+  if (invoice.company.defaultTemplateId) {
+    const template = await lookupTemplate(invoice.company.defaultTemplateId);
+    if (template) return { html: template.html, css: template.css };
+  }
+
+  if (ensureTemplates) {
+    const defaultId = await getDefaultTemplateId(invoice.companyId);
+    if (defaultId) {
+      const template = await getTemplateById(defaultId, invoice.companyId);
+      if (template) return { html: template.html, css: template.css };
     }
   }
 
   const classic = SYSTEM_TEMPLATES.find((t) => t.slug === "classic")!;
-  return renderFromTemplate(classic.html, classic.css, data);
+  return { html: classic.html, css: classic.css };
+}
+
+export async function renderInvoiceHtmlForInvoice(
+  invoice: InvoiceWithRelations,
+  options: RenderInvoiceHtmlOptions = {},
+): Promise<string> {
+  const { inlineLogo = true, ensureTemplates = true } = options;
+
+  if (ensureTemplates) {
+    await ensureSystemTemplates();
+  }
+
+  let data = invoiceToHtmlData(invoice);
+  if (inlineLogo) {
+    data = await inlineCompanyLogo(data);
+  }
+
+  const { html, css } = await resolveInvoiceTemplate(invoice, ensureTemplates);
+  return renderFromTemplate(html, css, data);
 }

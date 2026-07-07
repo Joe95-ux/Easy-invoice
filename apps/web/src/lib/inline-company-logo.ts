@@ -1,6 +1,6 @@
 import type { InvoiceHtmlData } from "@/lib/invoice-templates/types";
 
-const LOGO_FETCH_TIMEOUT_MS = 12_000;
+const LOGO_FETCH_TIMEOUT_MS = 4_000;
 
 /**
  * WeasyPrint cannot fetch remote images reliably — inline logos as data URLs before PDF render.
