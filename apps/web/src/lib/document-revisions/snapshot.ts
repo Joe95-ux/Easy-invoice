@@ -232,3 +232,14 @@ export function buildReminderRevisionSummary(
       return `Payment reminder sent to ${email}`;
   }
 }
+
+export function buildPaymentConfirmationRevisionSummary(input: {
+  toEmail: string;
+  receiptNumber: string;
+  isResend: boolean;
+}): string {
+  if (input.isResend) {
+    return `Payment confirmation resent to ${input.toEmail} (receipt ${input.receiptNumber})`;
+  }
+  return `Payment confirmation sent to ${input.toEmail} (receipt ${input.receiptNumber})`;
+}

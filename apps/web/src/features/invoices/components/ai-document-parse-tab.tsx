@@ -12,13 +12,10 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { DocumentUploadDialog } from "@/features/invoices/components/document-upload-dialog";
 import { VoiceInputVisualizer } from "@/features/invoices/components/voice-input-visualizer";
 import { useVoiceInput } from "@/hooks/use-voice-input";
@@ -27,13 +24,14 @@ import { cn } from "@/lib/utils";
 import {
   invoiceDraftSchema,
   parseDocumentResponseSchema,
-  type DocumentParseMeta,
   type DocumentExtractionMode,
   type InvoiceDraft,
+  type AiApplyMeta,
 } from "@/lib/schemas/invoice";
+import { AiSourceNotesPanel } from "@/features/invoices/components/ai-source-notes-panel";
 
 type AiDocumentParseTabProps = {
-  onDraft: (draft: InvoiceDraft, meta?: DocumentParseMeta) => void;
+  onDraft: (draft: InvoiceDraft, meta?: AiApplyMeta) => void;
   variant?: "invoice" | "estimate";
   knownClientName?: string;
   preferLinesOnly?: boolean;
@@ -49,6 +47,9 @@ type VariantCopy = {
   examples: ExamplePrompt[];
 };
 
+const composerIconButtonClass =
+  "rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground";
+
 const copy: Record<"invoice" | "estimate", VariantCopy> = {
   invoice: {
     title: "Describe the job",
@@ -56,7 +57,7 @@ const copy: Record<"invoice" | "estimate", VariantCopy> = {
       "Describe the job, upload an old invoice PDF, or speak naturally. We'll extract client details, line items, amounts, and notes.",
     success: "AI draft applied — review the form and create your invoice.",
     placeholder:
-      "e.g. Invoice for bathroom remodel — remove old tile $300 x 2 showers, install drywall $600, 7.5% discount if materials supplied, work done in 3 days. Issue date May 11.",
+      "e.g. Invoice for bathroom remodel — remove tile $300 x 2 showers, install drywall $600, 7.5% discount if materials supplied, work done in 3 days. Issue date May 11.",
     examples: [
       {
         label: "Bathroom remodel",
@@ -78,7 +79,7 @@ const copy: Record<"invoice" | "estimate", VariantCopy> = {
       "Describe the job, upload an old invoice PDF, or speak naturally. We'll extract client details, line items, amounts, and notes.",
     success: "AI draft applied — review the form and create your estimate.",
     placeholder:
-      "e.g. Estimate for bathroom remodel — remove old tile $300 x 2 showers, install drywall $600, 7.5% discount if materials supplied, valid for 30 days. Issue date May 11.",
+      "e.g. Estimate for bathroom remodel — remove tile $300 x 2 showers, install drywall $600, 7.5% discount if materials supplied, valid for 30 days. Issue date May 11.",
     examples: [
       {
         label: "Bathroom remodel",
@@ -108,6 +109,7 @@ export function AiDocumentParseTab({
   const [parsingDocument, setParsingDocument] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [appliedSourceNotes, setAppliedSourceNotes] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { isRecording, isTranscribing, isBusy, audioLevels, toggleRecording } =
@@ -144,7 +146,8 @@ export function AiDocumentParseTab({
           typeof body.error === "string" ? body.error : "Failed to parse description",
         );
       }
-      onDraft(invoiceDraftSchema.parse(body));
+      onDraft(invoiceDraftSchema.parse(body), { sourceNotes: displayText.trim() });
+      setAppliedSourceNotes(displayText.trim());
       toast.success(labels.success);
     } catch (error) {
       toast.error(
@@ -239,12 +242,21 @@ export function AiDocumentParseTab({
       const { extraction_mode, extraction_method, warnings, source_filename, ...draft } =
         parsed;
 
+      const sourceNotes = [
+        displayText.trim(),
+        uploadFile ? `Document: ${uploadFile.name}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n\n");
+
       onDraft(draft, {
         extraction_mode,
         extraction_method,
         warnings,
         source_filename,
+        sourceNotes,
       });
+      setAppliedSourceNotes(sourceNotes);
 
       if (warnings.length > 0) {
         toast.warning("Document imported — please review highlighted fields", {
@@ -289,34 +301,33 @@ export function AiDocumentParseTab({
         <h3 className="font-heading text-base font-semibold tracking-tight">
           {labels.title}
         </h3>
-        <Dialog>
-          <DialogTrigger
+        <Popover>
+          <PopoverTrigger
             render={
-              <Button
+              <button
                 type="button"
-                variant="ghost"
-                size="icon-sm"
-                className="text-muted-foreground"
+                className="inline-flex size-6 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 aria-label="How AI parsing works"
               />
             }
           >
             <InfoIcon className="size-4" />
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>How AI parsing works</DialogTitle>
-              <DialogDescription>{labels.helper}</DialogDescription>
-            </DialogHeader>
-          </DialogContent>
-        </Dialog>
+          </PopoverTrigger>
+          <PopoverContent side="bottom" align="start" sideOffset={6} className="w-80 gap-0">
+            <p className="text-sm text-muted-foreground">{labels.helper}</p>
+          </PopoverContent>
+        </Popover>
       </div>
+
+      {appliedSourceNotes && (
+        <AiSourceNotesPanel notes={appliedSourceNotes} onDismiss={() => setAppliedSourceNotes(null)} />
+      )}
 
       <div
         className={cn(
           "rounded-2xl border bg-input/30 shadow-sm transition-[color,box-shadow,border-color]",
           isRecording
-            ? "border-destructive/50 ring-3 ring-destructive/20"
+            ? "border-primary/50 ring-3 ring-primary/20"
             : "border-input focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50",
         )}
       >
@@ -355,7 +366,7 @@ export function AiDocumentParseTab({
               disabled={isWorking || isBusy}
               aria-label="Upload document"
               title="Upload PDF or image"
-              className="rounded-lg text-muted-foreground hover:bg-muted"
+              className={composerIconButtonClass}
             >
               {parsingDocument ? (
                 <Loader2Icon className="size-4 animate-spin" />
@@ -367,7 +378,7 @@ export function AiDocumentParseTab({
             {isRecording && (
               <>
                 <VoiceInputVisualizer levels={audioLevels} active />
-                <span className="truncate text-xs font-medium text-destructive">
+                <span className="truncate text-xs font-medium text-primary">
                   Listening…
                 </span>
               </>
@@ -383,16 +394,15 @@ export function AiDocumentParseTab({
           <div className="flex items-center gap-1.5">
             <Button
               type="button"
-              variant={isRecording ? "destructive" : "ghost"}
+              variant={isRecording ? "default" : "ghost"}
               size="icon"
               onClick={() => void handleVoiceInput()}
               disabled={isWorking || isTranscribing}
               aria-label={isRecording ? "Stop recording" : "Record voice input"}
               title={isRecording ? "Stop recording" : "Record voice input"}
               className={cn(
-                "rounded-lg",
-                !isRecording && "text-muted-foreground hover:bg-muted",
-                isRecording && "animate-pulse",
+                !isRecording && composerIconButtonClass,
+                isRecording && "animate-pulse rounded-lg",
               )}
             >
               {isTranscribing ? (

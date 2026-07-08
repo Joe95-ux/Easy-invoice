@@ -1,10 +1,10 @@
 "use client";
 
 import { AiDocumentParseTab } from "@/features/invoices/components/ai-document-parse-tab";
-import type { DocumentParseMeta, InvoiceDraft } from "@/lib/schemas/invoice";
+import type { AiApplyMeta, InvoiceDraft } from "@/lib/schemas/invoice";
 
 type AiInvoiceTabProps = {
-  onDraft: (draft: InvoiceDraft, meta?: DocumentParseMeta) => void;
+  onDraft: (draft: InvoiceDraft, meta?: AiApplyMeta) => void;
 };
 
 export function AiInvoiceTab({ onDraft }: AiInvoiceTabProps) {

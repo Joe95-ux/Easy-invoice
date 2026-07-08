@@ -7,6 +7,7 @@ import {
   CheckCircle2Icon,
   CircleDollarSignIcon,
   FileTextIcon,
+  MailCheckIcon,
   SendIcon,
 } from "lucide-react";
 import { TablePagination } from "@/components/data-table/table-pagination";
@@ -23,6 +24,7 @@ const ACTIVITY_ICONS: Record<ClientActivityKind, typeof FileTextIcon> = {
   invoice_sent: SendIcon,
   estimate_sent: SendIcon,
   reminder_sent: BellRingIcon,
+  payment_confirmation_sent: MailCheckIcon,
   estimate_accepted: CheckCircle2Icon,
 };
 
@@ -75,6 +77,7 @@ export function ClientActivityTab({ activity, currency }: ClientActivityTabProps
                 className={cn(
                   "flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground",
                   event.kind === "payment" && "text-success",
+                  event.kind === "payment_confirmation_sent" && "text-success",
                   event.kind === "estimate_accepted" && "text-success",
                 )}
               >

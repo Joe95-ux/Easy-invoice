@@ -10,6 +10,7 @@ import {
   resolveClientForInvoice,
 } from "@/lib/invoice-service";
 import type { CreateEstimateInput } from "@/lib/schemas/estimate";
+import { allocateEstimateNumber } from "@/lib/document-numbers";
 import { getEstimateForMember } from "@/lib/estimates";
 
 export async function getEstimatesForMember(companyId: string, limit = 50) {
@@ -22,20 +23,7 @@ export async function getEstimatesForMember(companyId: string, limit = 50) {
 }
 
 export async function generateNextEstimateNumber(companyId: string): Promise<string> {
-  const maxAttempts = 5;
-
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const count = await prisma.estimate.count({ where: { companyId } });
-    const number = `EST-${String(count + 1 + attempt).padStart(4, "0")}`;
-
-    const exists = await prisma.estimate.findFirst({
-      where: { companyId, number },
-      select: { id: true },
-    });
-    if (!exists) return number;
-  }
-
-  throw new Error("Could not generate unique estimate number");
+  return allocateEstimateNumber(companyId);
 }
 
 export function buildEstimateTotals(input: CreateEstimateInput) {

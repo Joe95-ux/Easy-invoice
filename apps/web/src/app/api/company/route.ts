@@ -21,6 +21,7 @@ const PROFILE_AUDIT_FIELDS = [
   "logoPlacement",
   "brandColor",
   "defaultHourlyRate",
+  "documentPrefix",
 ] as const;
 
 function companyProfileSnapshot(company: Record<string, unknown>) {
@@ -81,6 +82,9 @@ export async function PATCH(request: Request) {
       }),
       ...(parsed.data.defaultHourlyRate !== undefined && {
         defaultHourlyRate: parsed.data.defaultHourlyRate,
+      }),
+      ...(parsed.data.documentPrefix !== undefined && {
+        documentPrefix: parsed.data.documentPrefix,
       }),
     },
   });

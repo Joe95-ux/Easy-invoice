@@ -43,6 +43,7 @@ export type ClientActivityKind =
   | "invoice_sent"
   | "estimate_sent"
   | "reminder_sent"
+  | "payment_confirmation_sent"
   | "estimate_accepted";
 
 export type ClientActivityRow = {
@@ -108,7 +109,12 @@ export async function getClientFinancialProfile(
       invoices: {
         orderBy: { createdAt: "desc" },
         include: {
-          payments: { orderBy: { paidAt: "desc" } },
+          payments: {
+            orderBy: { paidAt: "desc" },
+            include: {
+              confirmationEmails: { orderBy: { createdAt: "desc" } },
+            },
+          },
           reminders: { orderBy: { createdAt: "desc" } },
           installments: { orderBy: { sortOrder: "asc" } },
         },
@@ -168,6 +174,24 @@ export async function getClientFinancialProfile(
           currency: invoice.currency,
           method: PAYMENT_METHOD_LABELS[payment.method],
           paidAt: payment.paidAt.toISOString(),
+        });
+      }
+
+      for (const confirmation of payment.confirmationEmails) {
+        activity.push({
+          id: `payment-confirmation-${confirmation.id}`,
+          kind: "payment_confirmation_sent",
+          occurredAt: confirmation.createdAt.toISOString(),
+          title: confirmation.isResend
+            ? "Payment confirmation resent"
+            : "Payment confirmation sent",
+          description:
+            confirmation.status === "FAILED"
+              ? `${invoice.number} · ${confirmation.toEmail} · Failed: ${confirmation.error ?? "Unknown error"}`
+              : `${invoice.number} · Receipt ${payment.receiptNumber ?? "—"} · ${confirmation.toEmail}`,
+          amount,
+          currency: invoice.currency,
+          href: `/invoices/${invoice.id}`,
         });
       }
     }

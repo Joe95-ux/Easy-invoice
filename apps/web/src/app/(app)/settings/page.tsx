@@ -69,6 +69,10 @@ export default async function SettingsPage() {
 
         <CompanySettingsForm
           initialLogoUrl={company.logoUrl}
+          companyId={company.id}
+          invoiceSequence={company.invoiceSequence}
+          estimateSequence={company.estimateSequence}
+          receiptSequence={company.receiptSequence}
           initialValues={{
             name: company.name,
             email: company.email ?? "",
@@ -81,6 +85,7 @@ export default async function SettingsPage() {
             currency: company.currency,
             locale: company.locale,
             taxId: company.taxId ?? "",
+            documentPrefix: company.documentPrefix,
             defaultHourlyRate: company.defaultHourlyRate
               ? Number(company.defaultHourlyRate)
               : null,

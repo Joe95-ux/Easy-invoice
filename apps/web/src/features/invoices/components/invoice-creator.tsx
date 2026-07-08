@@ -47,7 +47,8 @@ import { formatClientAddress } from "@/lib/clients";
 import { CURRENCY_OPTIONS } from "@/lib/geo/countries";
 import { normalizeDraftDate } from "@/lib/draft-dates";
 import type { InvoiceStatus } from "@easy-invoice/db";
-import type { DocumentParseMeta, InvoiceDraft } from "@/lib/schemas/invoice";
+import type { AiApplyMeta, InvoiceDraft } from "@/lib/schemas/invoice";
+import { AiSourceNotesPanel } from "@/features/invoices/components/ai-source-notes-panel";
 import type { TemplateSummary } from "@/lib/templates";
 
 const BASE_STEPS: FormStep[] = [
@@ -143,6 +144,7 @@ export function InvoiceCreator({
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [timeDialogOpen, setTimeDialogOpen] = useState(false);
+  const [aiSourceNotes, setAiSourceNotes] = useState<string | null>(null);
 
   const canAddFromTime =
     Boolean(selectedClientId) && (!isEditing || invoiceStatus === "DRAFT");
@@ -242,8 +244,12 @@ export function InvoiceCreator({
     setStep(itemsStepIndex);
   }, [isEditing, preselectedTimeIdsKey, selectedClientId, itemsStepIndex]);
 
-  function applyDraft(draft: InvoiceDraft, meta?: DocumentParseMeta) {
+  function applyDraft(draft: InvoiceDraft, meta?: AiApplyMeta) {
     const linesOnly = meta?.extraction_mode === "lines_only";
+
+    if (meta?.sourceNotes?.trim()) {
+      setAiSourceNotes(meta.sourceNotes.trim());
+    }
 
     if (!linesOnly) {
       setSelectedClientId("");
@@ -395,6 +401,10 @@ export function InvoiceCreator({
   const formBody = (
     <div className="space-y-6">
       <FormStepProgress steps={steps} step={step} onStepChange={setStep} />
+
+      {aiSourceNotes && (
+        <AiSourceNotesPanel notes={aiSourceNotes} onDismiss={() => setAiSourceNotes(null)} />
+      )}
 
       {currentStepId === "template" && (
         <TemplateCarousel

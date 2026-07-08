@@ -19,7 +19,7 @@ export function VoiceInputVisualizer({ levels, active, className }: VoiceInputVi
           key={index}
           className={cn(
             "w-0.5 rounded-full transition-[height,background-color] duration-75",
-            active ? "bg-destructive" : "bg-muted-foreground/30",
+            active ? "bg-primary" : "bg-muted-foreground/30",
           )}
           style={{
             height: `${Math.max(4, Math.round(level * 20))}px`,

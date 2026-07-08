@@ -31,7 +31,7 @@ const tabsListVariants = cva(
         default: "bg-muted",
         line: "gap-1 bg-transparent",
         segment:
-          "gap-0 bg-muted p-1 group-data-horizontal/tabs:h-9",
+          "gap-0 bg-muted p-[0.1rem] group-data-horizontal/tabs:h-9",
       },
     },
     defaultVariants: {

@@ -26,22 +26,36 @@ import {
   companySettingsSchema,
   type CompanySettingsInput,
 } from "@/lib/schemas/company";
+import {
+  getCompanyDocumentPrefix,
+  previewEstimateNumber,
+  previewInvoiceNumber,
+  previewReceiptNumber,
+} from "@/lib/document-numbers";
 
 type CompanySettingsFormProps = {
   initialValues: CompanySettingsInput;
   initialLogoUrl?: string | null;
+  companyId: string;
+  invoiceSequence: number;
+  estimateSequence: number;
+  receiptSequence: number;
 };
 
 const STEPS = [
   { id: "brand", title: "Brand", description: "Logo, colors, and document styling" },
   { id: "contact", title: "Contact", description: "How clients reach you" },
   { id: "address", title: "Address", description: "Business location" },
-  { id: "preferences", title: "Preferences", description: "Currency and locale defaults" },
+  { id: "preferences", title: "Preferences", description: "Currency, locale, and document numbering" },
 ] as const;
 
 export function CompanySettingsForm({
   initialValues,
   initialLogoUrl = null,
+  companyId,
+  invoiceSequence,
+  estimateSequence,
+  receiptSequence,
 }: CompanySettingsFormProps) {
   const { user } = useUser();
   const router = useRouter();
@@ -100,6 +114,24 @@ export function CompanySettingsForm({
     }
     void handleSubmit();
   }
+
+  const documentPrefixPreview = {
+    id: companyId,
+    documentPrefix: form.documentPrefix ?? null,
+  };
+  const nextInvoiceNumber = previewInvoiceNumber({
+    ...documentPrefixPreview,
+    invoiceSequence,
+  });
+  const nextReceiptNumber = previewReceiptNumber({
+    ...documentPrefixPreview,
+    receiptSequence,
+  });
+  const nextEstimateNumber = previewEstimateNumber({
+    ...documentPrefixPreview,
+    estimateSequence,
+  });
+  const effectivePrefix = getCompanyDocumentPrefix(documentPrefixPreview);
 
   return (
     <FormCard
@@ -235,6 +267,34 @@ export function CompanySettingsForm({
                 onChange={(value) => updateField("locale", value)}
                 error={errors.locale}
               />
+              <FormField
+                label="Invoice prefix"
+                id="documentPrefix"
+                value={form.documentPrefix ?? ""}
+                onChange={(value) =>
+                  updateField("documentPrefix", value === "" ? null : value.toUpperCase())
+                }
+                error={errors.documentPrefix}
+                placeholder="ACME"
+                description="Used for invoice, estimate, and receipt numbers. Leave blank to use the automatic prefix."
+                className="sm:col-span-2"
+              />
+              <div className="rounded-lg border bg-muted/30 px-4 py-3 sm:col-span-2">
+                <p className="text-sm font-medium">Number preview</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Prefix: <span className="font-mono text-foreground">{effectivePrefix}</span>
+                </p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Next invoice:{" "}
+                  <span className="font-mono text-foreground">{nextInvoiceNumber}</span>
+                  {" · "}
+                  Next estimate:{" "}
+                  <span className="font-mono text-foreground">{nextEstimateNumber}</span>
+                  {" · "}
+                  Next receipt:{" "}
+                  <span className="font-mono text-foreground">{nextReceiptNumber}</span>
+                </p>
+              </div>
               <FormField
                 label="Default hourly rate"
                 id="defaultHourlyRate"

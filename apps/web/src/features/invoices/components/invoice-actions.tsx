@@ -175,6 +175,17 @@ export function InvoiceActions({
         status: data.invoice?.status ?? status,
         celebrateInvoicePaid,
       });
+
+      if (data.confirmationEmail?.sent) {
+        toast.success("Payment confirmation emailed", {
+          description: `Receipt and updated invoice sent to ${data.confirmationEmail.toEmail}.`,
+        });
+      } else if (data.confirmationEmail?.error) {
+        toast.warning("Payment recorded, but confirmation email failed", {
+          description: data.confirmationEmail.error,
+        });
+      }
+
       setPaymentOpen(false);
       router.refresh();
     } catch (error) {

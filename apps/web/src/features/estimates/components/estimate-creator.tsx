@@ -40,7 +40,8 @@ import type { ClientListItem } from "@/lib/clients";
 import { formatClientAddress } from "@/lib/clients";
 import { CURRENCY_OPTIONS } from "@/lib/geo/countries";
 import { normalizeDraftDate } from "@/lib/draft-dates";
-import type { DocumentParseMeta, InvoiceDraft } from "@/lib/schemas/invoice";
+import type { AiApplyMeta, InvoiceDraft } from "@/lib/schemas/invoice";
+import { AiSourceNotesPanel } from "@/features/invoices/components/ai-source-notes-panel";
 import type { TemplateSummary } from "@/lib/templates";
 
 const BASE_STEPS: FormStep[] = [
@@ -127,6 +128,7 @@ export function EstimateCreator({
   const [activeTab, setActiveTab] = useState("form");
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [aiSourceNotes, setAiSourceNotes] = useState<string | null>(null);
 
   const steps = useMemo(
     () => (templates.length > 0 ? BASE_STEPS : BASE_STEPS.filter((s) => s.id !== "template")),
@@ -211,8 +213,12 @@ export function EstimateCreator({
     );
   }
 
-  function applyDraft(draft: InvoiceDraft, meta?: DocumentParseMeta) {
+  function applyDraft(draft: InvoiceDraft, meta?: AiApplyMeta) {
     const linesOnly = meta?.extraction_mode === "lines_only";
+
+    if (meta?.sourceNotes?.trim()) {
+      setAiSourceNotes(meta.sourceNotes.trim());
+    }
 
     if (!linesOnly) {
       setSelectedClientId("");
@@ -321,6 +327,10 @@ export function EstimateCreator({
   const formBody = (
     <div className="space-y-6">
       <FormStepProgress steps={steps} step={step} onStepChange={setStep} />
+
+      {aiSourceNotes && (
+        <AiSourceNotesPanel notes={aiSourceNotes} onDismiss={() => setAiSourceNotes(null)} />
+      )}
 
       {currentStepId === "template" && (
         <TemplateCarousel

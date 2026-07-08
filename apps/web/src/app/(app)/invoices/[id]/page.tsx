@@ -36,6 +36,7 @@ import {
 } from "@/lib/invoices";
 import { getTemplatesForCompany } from "@/lib/templates";
 import { buildInvoicePaymentSummary } from "@/lib/invoice-payments";
+import { getPaymentConfirmationsByInvoice } from "@/lib/payment-confirmation";
 
 type PageProps = { params: Promise<{ id: string }> };
 
@@ -43,10 +44,11 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
   const member = await requireMember();
 
   const { id } = await params;
-  const [invoice, templates, reminders] = await Promise.all([
+  const [invoice, templates, reminders, paymentConfirmations] = await Promise.all([
     getInvoiceForMember(id, member.companyId),
     getTemplatesForCompany(member.companyId),
     getInvoiceRemindersForMember(id, member.companyId),
+    getPaymentConfirmationsByInvoice(id, member.companyId),
   ]);
   if (!invoice) notFound();
 
@@ -290,6 +292,7 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
           reference: payment.reference,
           note: payment.note,
           receiptNumber: payment.receiptNumber,
+          confirmationEmails: paymentConfirmations.get(payment.id) ?? [],
         }))}
         celebrateInvoicePaid={member.celebrateInvoicePaid}
       />

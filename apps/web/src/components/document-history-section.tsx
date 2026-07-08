@@ -61,6 +61,7 @@ const SOURCE_CONFIG: Record<
   SEND: { label: "Sent", variant: "success" },
   VIEWED: { label: "Viewed", variant: "secondary" },
   REMINDER: { label: "Reminder", variant: "destructive" },
+  PAYMENT_CONFIRMATION: { label: "Payment email", variant: "success" },
 };
 
 const PAGE_SIZE = 10;

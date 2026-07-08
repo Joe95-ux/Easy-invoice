@@ -192,6 +192,7 @@ export function EstimateActions({
     if (canConvert) {
       return (
         <Button
+          variant="outline"
           className="flex-1 sm:flex-none"
           onClick={handleConvertToInvoice}
           disabled={isBusy}
@@ -229,7 +230,8 @@ export function EstimateActions({
           </Button>
           {canSend ? (
             <Button
-              className="flex-1 sm:flex-none"
+              variant="outline"
+              className="flex-1 text-primary hover:text-primary sm:flex-none"
               onClick={() => {
                 setEmail(clientEmail ?? "");
                 setSendOpen(true);

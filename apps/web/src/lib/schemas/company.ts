@@ -22,11 +22,24 @@ export const companyProfileSchema = z.object({
 });
 
 export const companyOnboardingSchema = companyProfileSchema;
+export const documentPrefixSchema = z.preprocess(
+  (value) => (value === null || value === undefined ? "" : value),
+  z
+    .string()
+    .trim()
+    .transform((value) => value.toUpperCase())
+    .refine((value) => value === "" || /^[A-Z0-9]{2,12}$/.test(value), {
+      message: "Use 2–12 letters or numbers, or leave blank for the automatic prefix",
+    })
+    .transform((value) => (value === "" ? null : value)),
+);
+
 export const companySettingsSchema = companyProfileSchema.extend({
   taxId: z.string().optional(),
   logoBg: logoBgSchema.optional(),
   logoPlacement: logoPlacementSchema.optional(),
   brandColor: brandColorSchema,
+  documentPrefix: documentPrefixSchema.nullable().optional(),
   defaultHourlyRate: z.preprocess(
     (value) => (value === "" || value === null || value === undefined ? null : Number(value)),
     z.number().nonnegative().nullable().optional(),

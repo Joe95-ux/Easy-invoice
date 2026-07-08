@@ -188,7 +188,7 @@ function ExploreFeatureCard({
 
 export function ProcessPageContent() {
   return (
-    <PageScroll fullWidth className="space-y-16 pb-8 md:space-y-20">
+    <PageScroll className="space-y-16 pb-8 md:space-y-20">
       <PageHeader
         eyebrow="Process"
         title="From rough notes to a paid invoice"

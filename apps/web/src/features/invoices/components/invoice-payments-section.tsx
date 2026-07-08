@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { BanknoteIcon, DownloadIcon, Loader2Icon, SendIcon } from "lucide-react";
+import { BanknoteIcon, DownloadIcon, Loader2Icon, MailIcon, SendIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -33,8 +33,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { InvoiceStatus, PaymentMethod } from "@easy-invoice/db";
-import { formatDate, formatMoney } from "@/lib/invoices";
+import type { InvoiceStatus, PaymentMethod, ReminderDeliveryStatus } from "@easy-invoice/db";
+import { formatDate, formatDateTime, formatMoney } from "@/lib/invoices";
 import { PAYMENT_METHOD_LABELS } from "@/lib/invoice-payments-utils";
 import { downloadReceiptPdf } from "@/lib/receipt-pdf-client";
 import { showPaymentRecordedFeedback } from "@/lib/celebrate-invoice-paid";
@@ -50,6 +50,15 @@ type InstallmentRow = {
   isOverdue: boolean;
 };
 
+type ConfirmationEmailRow = {
+  id: string;
+  toEmail: string;
+  isResend: boolean;
+  status: ReminderDeliveryStatus;
+  error: string | null;
+  createdAt: string;
+};
+
 type PaymentRow = {
   id: string;
   amount: number;
@@ -58,6 +67,7 @@ type PaymentRow = {
   reference: string | null;
   note: string | null;
   receiptNumber: string | null;
+  confirmationEmails: ConfirmationEmailRow[];
 };
 
 type InvoicePaymentsSectionProps = {
@@ -100,6 +110,21 @@ export function InvoicePaymentsSection({
   const [note, setNote] = useState("");
   const [email, setEmail] = useState(clientEmail ?? "");
   const [downloadingReceiptId, setDownloadingReceiptId] = useState<string | null>(null);
+  const [resendOpen, setResendOpen] = useState(false);
+  const [resendPayment, setResendPayment] = useState<PaymentRow | null>(null);
+  const [resendEmail, setResendEmail] = useState(clientEmail ?? "");
+  const [resending, setResending] = useState(false);
+
+  const confirmationLog = payments.flatMap((payment) =>
+    payment.confirmationEmails.map((confirmation) => ({
+      ...confirmation,
+      paymentId: payment.id,
+      receiptNumber: payment.receiptNumber,
+    })),
+  );
+  confirmationLog.sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
 
   const canRecord =
     status !== "DRAFT" && status !== "CANCELLED" && status !== "PAID" && balanceDue > 0.001;
@@ -137,6 +162,17 @@ export function InvoicePaymentsSection({
         status: data.invoice?.status ?? status,
         celebrateInvoicePaid,
       });
+
+      if (data.confirmationEmail?.sent) {
+        toast.success("Payment confirmation emailed", {
+          description: `Receipt and updated invoice sent to ${data.confirmationEmail.toEmail}.`,
+        });
+      } else if (data.confirmationEmail?.error) {
+        toast.warning("Payment recorded, but confirmation email failed", {
+          description: data.confirmationEmail.error,
+        });
+      }
+
       setRecordOpen(false);
       router.refresh();
     } catch (error) {
@@ -154,6 +190,38 @@ export function InvoicePaymentsSection({
       await downloadReceiptPdf(invoiceId, payment.id, payment.receiptNumber);
     } finally {
       setDownloadingReceiptId(null);
+    }
+  }
+
+  function openResendDialog(payment: PaymentRow) {
+    setResendPayment(payment);
+    setResendEmail(clientEmail ?? "");
+    setResendOpen(true);
+  }
+
+  async function handleResendConfirmation() {
+    if (!resendPayment) return;
+
+    setResending(true);
+    try {
+      const response = await fetch(
+        `/api/invoices/${invoiceId}/payments/${resendPayment.id}/resend-confirmation`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: resendEmail || undefined }),
+        },
+      );
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Failed to resend confirmation");
+
+      toast.success(`Payment confirmation resent to ${data.toEmail}`);
+      setResendOpen(false);
+      router.refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not resend confirmation");
+    } finally {
+      setResending(false);
     }
   }
 
@@ -291,11 +359,15 @@ export function InvoicePaymentsSection({
                     <TableHead>Method</TableHead>
                     <TableHead>Reference</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
-                    <TableHead className="w-14" />
+                    <TableHead>Confirmation</TableHead>
+                    <TableHead className="w-24" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {payments.map((payment) => (
+                  {payments.map((payment) => {
+                    const lastConfirmation = payment.confirmationEmails[0];
+
+                    return (
                     <TableRow key={payment.id}>
                       <TableCell>{formatDate(payment.paidAt)}</TableCell>
                       <TableCell className="font-medium">
@@ -306,22 +378,92 @@ export function InvoicePaymentsSection({
                       <TableCell className="text-right">
                         {formatMoney(payment.amount, currency)}
                       </TableCell>
-                      <TableCell className="text-right">
-                        {payment.receiptNumber && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            aria-label={`Download receipt ${payment.receiptNumber}`}
-                            disabled={downloadingReceiptId === payment.id}
-                            onClick={() => void handleDownloadReceipt(payment)}
-                          >
-                            {downloadingReceiptId === payment.id ? (
-                              <Loader2Icon className="size-4 animate-spin" />
-                            ) : (
-                              <DownloadIcon className="size-4" />
+                      <TableCell>
+                        {lastConfirmation ? (
+                          <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground">
+                              {lastConfirmation.isResend ? "Resent" : "Sent"}{" "}
+                              {formatDateTime(lastConfirmation.createdAt)}
+                            </p>
+                            <p className="text-xs">{lastConfirmation.toEmail}</p>
+                            {lastConfirmation.status === "FAILED" && (
+                              <Badge variant="destructive" className="text-[10px]">
+                                Failed
+                              </Badge>
                             )}
-                          </Button>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">Not sent</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          {payment.receiptNumber && status !== "DRAFT" && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label={`Resend confirmation for ${payment.receiptNumber}`}
+                              title="Resend payment confirmation"
+                              disabled={resending}
+                              onClick={() => openResendDialog(payment)}
+                            >
+                              <MailIcon className="size-4" />
+                            </Button>
+                          )}
+                          {payment.receiptNumber && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label={`Download receipt ${payment.receiptNumber}`}
+                              disabled={downloadingReceiptId === payment.id}
+                              onClick={() => void handleDownloadReceipt(payment)}
+                            >
+                              {downloadingReceiptId === payment.id ? (
+                                <Loader2Icon className="size-4 animate-spin" />
+                              ) : (
+                                <DownloadIcon className="size-4" />
+                              )}
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+
+          {confirmationLog.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="text-sm font-medium">Confirmation email log</h3>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Receipt</TableHead>
+                    <TableHead>Recipient</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {confirmationLog.map((row) => (
+                    <TableRow key={row.id}>
+                      <TableCell>{formatDateTime(row.createdAt)}</TableCell>
+                      <TableCell>{row.receiptNumber ?? "—"}</TableCell>
+                      <TableCell>{row.toEmail}</TableCell>
+                      <TableCell>{row.isResend ? "Resend" : "Initial"}</TableCell>
+                      <TableCell>
+                        {row.status === "FAILED" ? (
+                          <span className="text-destructive" title={row.error ?? undefined}>
+                            Failed
+                          </span>
+                        ) : (
+                          <Badge variant="success">Sent</Badge>
                         )}
                       </TableCell>
                     </TableRow>
@@ -448,6 +590,40 @@ export function InvoicePaymentsSection({
             <Button onClick={() => void handleSendUpdate()} disabled={!email || loading}>
               {loading && <Loader2Icon className="size-4 animate-spin" />}
               Send update
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={resendOpen} onOpenChange={setResendOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Resend payment confirmation</DialogTitle>
+            <DialogDescription>
+              Email the receipt PDF and updated invoice again for receipt{" "}
+              {resendPayment?.receiptNumber ?? ""}. This action is logged for your team.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogBody className="space-y-2">
+            <Label htmlFor="resend-confirmation-email">Client email</Label>
+            <Input
+              id="resend-confirmation-email"
+              type="email"
+              value={resendEmail}
+              onChange={(e) => setResendEmail(e.target.value)}
+              placeholder="client@example.com"
+            />
+          </DialogBody>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResendOpen(false)} disabled={resending}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => void handleResendConfirmation()}
+              disabled={!resendEmail || resending}
+            >
+              {resending && <Loader2Icon className="size-4 animate-spin" />}
+              Resend confirmation
             </Button>
           </DialogFooter>
         </DialogContent>

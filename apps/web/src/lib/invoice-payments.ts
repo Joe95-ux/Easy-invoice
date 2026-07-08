@@ -5,9 +5,7 @@ import { loadInvoiceSnapshot } from "@/lib/document-revisions/service";
 import { createNotification } from "@/lib/notifications/service";
 import { allocateReceiptNumber } from "@/lib/document-numbers";
 import { generatePublicToken } from "@/lib/document-tokens";
-import { isEmailConfigured, sendPaymentConfirmationEmail } from "@/lib/email";
-import { generateInvoicePdfBuffer } from "@/lib/invoice-service";
-import { generateReceiptPdfBuffer } from "@/lib/receipt-service";
+import { sendPaymentConfirmationWithLogging } from "@/lib/payment-confirmation";
 import {
   buildInvoicePaymentSummary,
   deriveInvoiceStatusAfterPayment,
@@ -105,7 +103,10 @@ export async function recordInvoicePayment(input: {
   method?: PaymentMethod;
   reference?: string;
   note?: string;
-}) {
+}): Promise<{
+  invoice: NonNullable<Awaited<ReturnType<typeof refreshInvoicePaymentStatus>>>;
+  confirmationEmail?: { sent: boolean; toEmail?: string; error?: string };
+}> {
   const invoice = await prisma.invoice.findFirst({
     where: { id: input.invoiceId, companyId: input.companyId },
     include: {
@@ -176,74 +177,42 @@ export async function recordInvoicePayment(input: {
     })
   ).map((m) => m.id);
 
+  let confirmationEmail: { sent: boolean; toEmail?: string; error?: string } | undefined;
+
+  if (createdPayment && invoice.sentAt && updated.client?.email) {
+    const company = await prisma.company.findUnique({
+      where: { id: input.companyId },
+      select: { paymentReceiptEmailsEnabled: true },
+    });
+
+    if (company?.paymentReceiptEmailsEnabled) {
+      const result = await sendPaymentConfirmationWithLogging({
+        paymentId: createdPayment.id,
+        companyId: input.companyId,
+        memberId: input.memberId,
+        isResend: false,
+      });
+
+      confirmationEmail = result.ok
+        ? { sent: true, toEmail: result.toEmail }
+        : { sent: false, error: result.error };
+    }
+  }
+
+  const notificationBody = confirmationEmail?.sent
+    ? `${amount.toFixed(2)} ${updated.currency} payment on invoice ${updated.number}. Confirmation emailed to ${confirmationEmail.toEmail}.`
+    : confirmationEmail?.error
+      ? `${amount.toFixed(2)} ${updated.currency} payment on invoice ${updated.number}. Confirmation email failed: ${confirmationEmail.error}`
+      : `${amount.toFixed(2)} ${updated.currency} payment on invoice ${updated.number}`;
+
   await createNotification({
     companyId: input.companyId,
     recipientMemberIds: memberIds,
     type: "PAYMENT_RECEIVED",
     title: "Payment received",
-    body: `${amount.toFixed(2)} ${updated.currency} payment on invoice ${updated.number}`,
+    body: notificationBody,
     linkUrl: `/invoices/${input.invoiceId}`,
   }).catch(() => undefined);
 
-  if (
-    createdPayment &&
-    invoice.sentAt &&
-    updated.client?.email &&
-    isEmailConfigured()
-  ) {
-    const company = await prisma.company.findUnique({
-      where: { id: input.companyId },
-      select: { paymentReceiptEmailsEnabled: true, name: true },
-    });
-
-    if (company?.paymentReceiptEmailsEnabled) {
-      void sendPaymentConfirmationForRecordedPayment({
-        paymentId: createdPayment.id,
-        companyId: input.companyId,
-        invoiceId: input.invoiceId,
-        to: updated.client.email,
-        companyName: company.name,
-        invoiceNumber: updated.number,
-        receiptNumber: createdPayment.receiptNumber ?? "",
-        amount,
-        currency: updated.currency,
-      }).catch(() => undefined);
-    }
-  }
-
-  return updated;
-}
-
-async function sendPaymentConfirmationForRecordedPayment(input: {
-  paymentId: string;
-  companyId: string;
-  invoiceId: string;
-  to: string;
-  companyName: string;
-  invoiceNumber: string;
-  receiptNumber: string;
-  amount: number;
-  currency: string;
-}) {
-  const [invoicePdf, receiptPdf] = await Promise.all([
-    generateInvoicePdfBuffer(input.invoiceId, input.companyId),
-    generateReceiptPdfBuffer(input.paymentId, input.companyId),
-  ]);
-
-  if (!invoicePdf || !receiptPdf) return;
-
-  const formattedAmount = new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: input.currency,
-  }).format(input.amount);
-
-  await sendPaymentConfirmationEmail({
-    to: input.to,
-    companyName: input.companyName,
-    invoiceNumber: input.invoiceNumber,
-    receiptNumber: input.receiptNumber,
-    amount: formattedAmount,
-    invoicePdfBuffer: invoicePdf.pdfBuffer,
-    receiptPdfBuffer: receiptPdf.pdfBuffer,
-  });
+  return { invoice: updated, confirmationEmail };
 }

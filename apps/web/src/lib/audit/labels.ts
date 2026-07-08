@@ -20,4 +20,6 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   INVOICE_DELETED: "Invoice deleted",
   ESTIMATE_DELETED: "Estimate deleted",
   CLIENT_DELETED: "Client deleted",
+  PAYMENT_CONFIRMATION_SENT: "Payment confirmation sent",
+  PAYMENT_CONFIRMATION_RESENT: "Payment confirmation resent",
 };

@@ -17,7 +17,7 @@ export async function POST(request: Request, context: RouteContext) {
   if (!parsed.success) return validationError(parsed.error);
 
   try {
-    const invoice = await recordInvoicePayment({
+    const { invoice, confirmationEmail } = await recordInvoicePayment({
       invoiceId: id,
       companyId: member.companyId,
       memberId: member.id,
@@ -28,7 +28,7 @@ export async function POST(request: Request, context: RouteContext) {
       note: parsed.data.note,
     });
 
-    return NextResponse.json({ invoice }, { status: 201 });
+    return NextResponse.json({ invoice, confirmationEmail }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not record payment";
     return NextResponse.json({ error: message }, { status: 400 });

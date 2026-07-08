@@ -109,6 +109,10 @@ export const documentParseMetaSchema = z.object({
 
 export type DocumentParseMeta = z.infer<typeof documentParseMetaSchema>;
 
+export type AiApplyMeta = {
+  sourceNotes?: string;
+} & Partial<DocumentParseMeta>;
+
 export const parseDocumentResponseSchema = invoiceDraftSchema.extend({
   extraction_mode: documentExtractionModeSchema,
   extraction_method: z.enum(["text", "vision", "plain_text"]),
