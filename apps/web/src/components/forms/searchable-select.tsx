@@ -27,6 +27,7 @@ type SearchableSelectProps<T extends string = string> = {
   className?: string;
   contentClassName?: string;
   matchTriggerWidth?: boolean;
+  container?: HTMLElement | null;
 };
 
 export function SearchableSelect<T extends string = string>({
@@ -42,6 +43,7 @@ export function SearchableSelect<T extends string = string>({
   className,
   contentClassName,
   matchTriggerWidth,
+  container,
 }: SearchableSelectProps<T>) {
   return (
     <Field data-invalid={!!error} className={className}>
@@ -57,6 +59,7 @@ export function SearchableSelect<T extends string = string>({
           disabled={disabled}
           contentClassName={contentClassName}
           matchTriggerWidth={matchTriggerWidth}
+          container={container}
           className={error ? "border-destructive" : undefined}
         />
         {description && <FieldDescription>{description}</FieldDescription>}

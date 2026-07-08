@@ -34,6 +34,7 @@ type ComboboxProps<T extends string = string> = {
   listClassName?: string;
   showSearch?: boolean;
   matchTriggerWidth?: boolean;
+  container?: HTMLElement | null;
   "aria-label"?: string;
 };
 
@@ -50,6 +51,7 @@ export function Combobox<T extends string = string>({
   listClassName,
   showSearch = true,
   matchTriggerWidth = true,
+  container,
   "aria-label": ariaLabel,
 }: ComboboxProps<T>) {
   const [open, setOpen] = useState(false);
@@ -89,6 +91,7 @@ export function Combobox<T extends string = string>({
         align="start"
         side="bottom"
         sideOffset={6}
+        container={container}
         collisionAvoidance={{ side: "none" }}
         className={cn(
           "overflow-hidden p-0",

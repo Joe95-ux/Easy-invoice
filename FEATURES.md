@@ -80,6 +80,7 @@ Manual time logs, unbilled hours → invoice line items, Toggl/Clockify import, 
 | Schema | `TimeEntry`, `Company.defaultHourlyRate`, `externalSource` / `externalId` |
 | Page | `/time` |
 | Import | `POST /api/time-entries/import` (Toggl, Clockify) |
+| Live timer | `GET/POST/PATCH/DELETE /api/time-timer`, `POST /api/time-timer/stop` |
 | Invoice | `AddUnbilledTimeDialog` on create + draft edit |
 
 #### Time tracking — later phases
@@ -87,7 +88,7 @@ Manual time logs, unbilled hours → invoice line items, Toggl/Clockify import, 
 | Phase | Scope | Status |
 |-------|--------|--------|
 | **A — Import** | Toggl Track + Clockify one-time import | Done |
-| **B — Live timer** | Start/stop timer in app, background-friendly logging, optional reminders to stop | Planned |
+| **B — Live timer** | Start/stop timer in app, background-friendly logging, optional reminders to stop | Done |
 | **C — Full product** | Projects, budgets, approvals, payroll, expenses, mobile timer widgets | Planned (out of scope for Invoice Desk core) |
 
 **B (live timer)** — build when users ask for “track as I work” without leaving Invoice Desk. Keep lightweight: one active timer per user, client + description, persist on stop.

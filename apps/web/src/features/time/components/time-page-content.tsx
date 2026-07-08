@@ -10,6 +10,7 @@ import {
   InfoIcon,
   Loader2Icon,
   PencilIcon,
+  PlayIcon,
   PlusIcon,
   Trash2Icon,
 } from "lucide-react";
@@ -43,6 +44,7 @@ import { TablePagination } from "@/components/data-table/table-pagination";
 import { TableToolbar } from "@/components/data-table/table-toolbar";
 import { LogTimeDialog } from "@/features/time/components/log-time-dialog";
 import { ImportTimeDialog } from "@/features/time/components/import-time-dialog";
+import { useTimeTimer } from "@/features/time/components/time-timer-provider";
 import { useListTable } from "@/hooks/use-list-table";
 import { useIsMobile } from "@/hooks/use-mobile";
 import type { ClientListItem } from "@/lib/clients";
@@ -85,6 +87,7 @@ export function TimePageContent({
 }: TimePageContentProps) {
   const router = useRouter();
   const isMobile = useIsMobile();
+  const { openStartTimer, timer, toggleActiveTimer } = useTimeTimer();
   const [isInvoicing, startInvoicing] = useTransition();
   const invoicingToastRef = useRef<string | number | null>(null);
   const [filter, setFilter] = useState<"all" | "unbilled">("all");
@@ -233,6 +236,18 @@ export function TimePageContent({
             >
               <DownloadIcon className="size-4" />
               Import
+            </Button>
+            <Button
+              variant="outline"
+              className={pageHeaderActionClass}
+              onClick={timer ? toggleActiveTimer : openStartTimer}
+            >
+              {timer ? (
+                <ClockIcon className="size-4" />
+              ) : (
+                <PlayIcon className="size-4" />
+              )}
+              {timer ? "View timer" : "Start timer"}
             </Button>
             <Button
               className={pageHeaderActionClass}

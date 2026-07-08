@@ -5,6 +5,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { HelpSheet } from "@/components/app-shell/help-sheet";
 import { NotificationBell } from "@/components/app-shell/notification-bell";
+import { TimerHeaderChip } from "@/features/time/components/timer-header-chip";
 
 type AppHeaderProps = {
   memberId: string;
@@ -29,6 +30,7 @@ export function AppHeader({ memberId, title, description }: AppHeaderProps) {
         )}
       </div>
       <div className="flex items-center gap-1 sm:gap-2">
+        <TimerHeaderChip />
         <NotificationBell memberId={memberId} />
         <Button variant="ghost" size="sm" render={<Link href="/#pricing" />}>
           Pricing
