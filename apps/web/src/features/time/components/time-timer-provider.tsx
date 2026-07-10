@@ -56,7 +56,13 @@ export function useTimeTimer() {
   return context;
 }
 
-export function TimeTimerProvider({ children }: { children: React.ReactNode }) {
+export function TimeTimerProvider({
+  activeCompanyId,
+  children,
+}: {
+  activeCompanyId: string;
+  children: React.ReactNode;
+}) {
   const router = useRouter();
   const [timer, setTimer] = useState<SerializedActiveTimer | null>(null);
   const [defaultHourlyRate, setDefaultHourlyRate] = useState<number | null>(null);
@@ -86,8 +92,10 @@ export function TimeTimerProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    setStartDrawerOpen(false);
+    setActiveDrawerOpen(false);
     void refreshTimer();
-  }, [refreshTimer]);
+  }, [activeCompanyId, refreshTimer]);
 
   useEffect(() => {
     if (!timer) {

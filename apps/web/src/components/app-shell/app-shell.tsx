@@ -69,7 +69,7 @@ export function AppShell({
       data-app-shell
       className="h-svh overflow-hidden"
     >
-      <TimeTimerProvider>
+      <TimeTimerProvider activeCompanyId={activeCompanyId}>
         <ActiveCompanySync />
         <AppSidebar
           activeCompanyId={activeCompanyId}
@@ -86,7 +86,7 @@ export function AppShell({
             {children}
           </div>
         </SidebarInset>
-        <TimeTimerShell />
+        <TimeTimerShell activeCompanyId={activeCompanyId} />
       </TimeTimerProvider>
     </SidebarProvider>
   );

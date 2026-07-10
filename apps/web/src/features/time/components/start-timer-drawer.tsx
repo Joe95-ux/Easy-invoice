@@ -33,6 +33,8 @@ export function StartTimerDrawer({ clients }: StartTimerDrawerProps) {
   } = useTimeTimer();
 
   const [clientId, setClientId] = useState("");
+  const [addNewClient, setAddNewClient] = useState(false);
+  const [newClientName, setNewClientName] = useState("");
   const [description, setDescription] = useState("");
   const [hourlyRate, setHourlyRate] = useState(
     defaultHourlyRate ? String(defaultHourlyRate) : "",
@@ -45,6 +47,8 @@ export function StartTimerDrawer({ clients }: StartTimerDrawerProps) {
   useEffect(() => {
     if (!startDrawerOpen) return;
     setClientId("");
+    setAddNewClient(false);
+    setNewClientName("");
     setDescription("");
     setHourlyRate(defaultHourlyRate ? String(defaultHourlyRate) : "");
     setBillable(true);
@@ -66,10 +70,27 @@ export function StartTimerDrawer({ clients }: StartTimerDrawerProps) {
       toast.error("Enter a valid hourly rate");
       return;
     }
+    if (addNewClient && !newClientName.trim()) {
+      toast.error("Enter a client name");
+      return;
+    }
 
     try {
+      let resolvedClientId = clientId || null;
+
+      if (addNewClient) {
+        const clientResponse = await fetch("/api/clients", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: newClientName.trim(), country: "US" }),
+        });
+        const clientBody = await clientResponse.json();
+        if (!clientResponse.ok) throw new Error(clientBody.error ?? "Failed to create client");
+        resolvedClientId = clientBody.client.id;
+      }
+
       await startTimer({
-        clientId: clientId || null,
+        clientId: resolvedClientId,
         description: description.trim(),
         hourlyRate: parsedRate,
         billable,
@@ -95,17 +116,44 @@ export function StartTimerDrawer({ clients }: StartTimerDrawerProps) {
         </DrawerHeader>
 
         <div className="flex-1 space-y-4 overflow-y-auto p-4">
-          {clients.length > 0 && (
-            <SearchableSelect
-              id="timer-client"
-              label="Client"
-              value={clientId}
-              options={clientOptions}
-              onChange={(value) => setClientId(value ?? "")}
-              placeholder="Select client (optional)"
-              container={popupContainer}
-            />
-          )}
+          <div className="space-y-3">
+            {clients.length > 0 && !addNewClient && (
+              <SearchableSelect
+                id="timer-client"
+                label="Client"
+                value={clientId}
+                options={clientOptions}
+                onChange={(value) => setClientId(value ?? "")}
+                placeholder="Select client (optional)"
+                container={popupContainer}
+              />
+            )}
+            {addNewClient ? (
+              <div className="space-y-2">
+                <Label htmlFor="timer-new-client-name">New client name</Label>
+                <Input
+                  id="timer-new-client-name"
+                  value={newClientName}
+                  onChange={(event) => setNewClientName(event.target.value)}
+                  placeholder="Client or company name"
+                  autoFocus
+                />
+              </div>
+            ) : null}
+            <Button
+              type="button"
+              variant="link"
+              className="h-auto p-0 text-sm"
+              onClick={() => setAddNewClient((value) => !value)}
+            >
+              {addNewClient ? "Pick an existing client instead" : "+ Add new client"}
+            </Button>
+            {billable && !clientId && !addNewClient && (
+              <p className="text-xs text-muted-foreground">
+                Add a client to invoice this time in one click later.
+              </p>
+            )}
+          </div>
 
           <div className="space-y-2">
             <Label htmlFor="timer-description">Description</Label>

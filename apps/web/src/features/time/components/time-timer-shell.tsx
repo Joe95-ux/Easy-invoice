@@ -6,12 +6,13 @@ import { ActiveTimerDrawer } from "@/features/time/components/active-timer-drawe
 import { StartTimerDrawer } from "@/features/time/components/start-timer-drawer";
 import { useTimeTimer } from "@/features/time/components/time-timer-provider";
 
-export function TimeTimerShell() {
+export function TimeTimerShell({ activeCompanyId }: { activeCompanyId: string }) {
   const { timer } = useTimeTimer();
   const [clients, setClients] = useState<ClientListItem[]>([]);
 
   useEffect(() => {
     let cancelled = false;
+    setClients([]);
 
     async function loadClients() {
       try {
@@ -28,7 +29,7 @@ export function TimeTimerShell() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [activeCompanyId]);
 
   return (
     <>

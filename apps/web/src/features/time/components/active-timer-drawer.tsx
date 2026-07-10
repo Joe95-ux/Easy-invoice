@@ -40,6 +40,8 @@ export function ActiveTimerDrawer({ clients }: ActiveTimerDrawerProps) {
   const [snap, setSnap] = useState<number | string>(SNAP_POINTS[0]);
   const [description, setDescription] = useState("");
   const [clientId, setClientId] = useState("");
+  const [addNewClient, setAddNewClient] = useState(false);
+  const [newClientName, setNewClientName] = useState("");
   const [hourlyRate, setHourlyRate] = useState("");
   const [billable, setBillable] = useState(true);
   // Popups (combobox) must portal inside the drawer so Vaul's Radix focus trap
@@ -54,6 +56,8 @@ export function ActiveTimerDrawer({ clients }: ActiveTimerDrawerProps) {
     if (!timer) return;
     setDescription(timer.description);
     setClientId(timer.clientId ?? "");
+    setAddNewClient(false);
+    setNewClientName("");
     setHourlyRate(String(timer.hourlyRate));
     setBillable(timer.billable);
   }, [timer]);
@@ -98,14 +102,34 @@ export function ActiveTimerDrawer({ clients }: ActiveTimerDrawerProps) {
   }
 
   async function handleSaveDetails() {
+    if (addNewClient && !newClientName.trim()) {
+      toast.error("Enter a client name");
+      return;
+    }
+
     setPendingAction("save");
     try {
+      let resolvedClientId = clientId || null;
+
+      if (addNewClient) {
+        const clientResponse = await fetch("/api/clients", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: newClientName.trim(), country: "US" }),
+        });
+        const clientBody = await clientResponse.json();
+        if (!clientResponse.ok) throw new Error(clientBody.error ?? "Failed to create client");
+        resolvedClientId = clientBody.client.id;
+      }
+
       await updateTimer({
         description: description.trim(),
-        clientId: clientId || null,
+        clientId: resolvedClientId,
         hourlyRate: Number(hourlyRate),
         billable,
       });
+      setAddNewClient(false);
+      setNewClientName("");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not update timer");
     } finally {
@@ -122,9 +146,9 @@ export function ActiveTimerDrawer({ clients }: ActiveTimerDrawerProps) {
       setActiveSnapPoint={(value) => setSnap(value ?? SNAP_POINTS[0])}
       dismissible
     >
-      <DrawerContent className="h-[92vh]">
-        <div ref={setPopupContainer} />
-        <div className="mx-auto flex h-full w-full max-w-2xl flex-col overflow-y-auto px-4 pb-8">
+      <DrawerContent className="max-h-[92vh] overflow-hidden">
+        <div ref={setPopupContainer} className="shrink-0" />
+        <div className="no-scrollbar mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col overflow-y-auto px-4 pb-8">
           <DrawerHeader className="items-center pb-0 text-center">
             <DrawerTitle className="flex items-center justify-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-primary">
               <span className="inline-block size-1.5 animate-pulse rounded-full bg-primary" />
@@ -189,17 +213,44 @@ export function ActiveTimerDrawer({ clients }: ActiveTimerDrawerProps) {
           <div className="mx-auto mt-8 w-full max-w-md space-y-4 border-t pt-6">
             <p className="text-sm font-medium text-muted-foreground">Timer details</p>
 
-            {clients.length > 0 && (
-              <SearchableSelect
-                id="active-timer-client"
-                label="Client"
-                value={clientId}
-                options={clientOptions}
-                onChange={(value) => setClientId(value ?? "")}
-                placeholder="Select client (optional)"
-                container={popupContainer}
-              />
-            )}
+            <div className="space-y-3">
+              {clients.length > 0 && !addNewClient && (
+                <SearchableSelect
+                  id="active-timer-client"
+                  label="Client"
+                  value={clientId}
+                  options={clientOptions}
+                  onChange={(value) => setClientId(value ?? "")}
+                  placeholder="Select client (optional)"
+                  container={popupContainer}
+                />
+              )}
+              {addNewClient ? (
+                <div className="space-y-2">
+                  <Label htmlFor="active-timer-new-client-name">New client name</Label>
+                  <Input
+                    id="active-timer-new-client-name"
+                    value={newClientName}
+                    onChange={(event) => setNewClientName(event.target.value)}
+                    placeholder="Client or company name"
+                    autoFocus
+                  />
+                </div>
+              ) : null}
+              <Button
+                type="button"
+                variant="link"
+                className="h-auto p-0 text-sm"
+                onClick={() => setAddNewClient((value) => !value)}
+              >
+                {addNewClient ? "Pick an existing client instead" : "+ Add new client"}
+              </Button>
+              {billable && !clientId && !addNewClient && (
+                <p className="text-xs text-muted-foreground">
+                  Add a client to invoice this time in one click later.
+                </p>
+              )}
+            </div>
 
             <div className="space-y-2">
               <Label htmlFor="active-timer-description">Description</Label>
