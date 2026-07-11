@@ -310,6 +310,23 @@ export function CompanySettingsForm({
                 placeholder="e.g. 90"
                 description="Pre-fills new time entries. You can override per entry."
               />
+              <FormField
+                label="Timer rounding (minutes)"
+                id="timerRoundToMinutes"
+                type="number"
+                min={1}
+                max={60}
+                value={form.timerRoundToMinutes?.toString() ?? "1"}
+                onChange={(value) =>
+                  updateField(
+                    "timerRoundToMinutes",
+                    value === "" ? 1 : Number(value),
+                  )
+                }
+                error={errors.timerRoundToMinutes}
+                placeholder="1"
+                description="Stopped timers round up to this increment (e.g. 15 = quarter-hour billing)."
+              />
             </div>
           )}
         </form>

@@ -59,6 +59,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     include: {
       client: { select: { id: true, name: true } },
       invoice: { select: { id: true, number: true } },
+      member: { select: { id: true, name: true, email: true } },
     },
   });
 

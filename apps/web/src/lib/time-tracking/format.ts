@@ -30,3 +30,10 @@ export function formatElapsedClock(totalSeconds: number): string {
 
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
+
+/** Round elapsed timer duration up to the nearest increment (minimum 1 minute). */
+export function roundElapsedMinutes(elapsedMs: number, roundToMinutes = 1): number {
+  const increment = Math.max(1, Math.round(roundToMinutes));
+  const rawMinutes = elapsedMs / 60_000;
+  return Math.max(increment, Math.ceil(rawMinutes / increment) * increment);
+}

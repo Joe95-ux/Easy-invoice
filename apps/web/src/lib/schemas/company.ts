@@ -44,6 +44,10 @@ export const companySettingsSchema = companyProfileSchema.extend({
     (value) => (value === "" || value === null || value === undefined ? null : Number(value)),
     z.number().nonnegative().nullable().optional(),
   ),
+  timerRoundToMinutes: z.preprocess(
+    (value) => (value === "" || value === null || value === undefined ? 1 : Number(value)),
+    z.number().int().min(1).max(60).optional(),
+  ),
 });
 
 export type CompanyProfileInput = z.infer<typeof companyProfileSchema>;

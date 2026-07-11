@@ -14,6 +14,7 @@ const COMPANY_FIELD_LABELS: Record<string, string> = {
   logoPlacement: "logo placement",
   brandColor: "brand color",
   defaultHourlyRate: "default hourly rate",
+  timerRoundToMinutes: "timer rounding",
   documentPrefix: "invoice prefix",
 };
 

@@ -284,7 +284,7 @@ export function AiDocumentParseTab({
     }
   }
 
-  function useExample(text: string) {
+  function applyExample(text: string) {
     setAiText(text);
     setLiveText("");
     requestAnimationFrame(() => {
@@ -442,7 +442,7 @@ export function AiDocumentParseTab({
           <button
             key={example.label}
             type="button"
-            onClick={() => useExample(example.text)}
+            onClick={() => applyExample(example.text)}
             disabled={parsing || isBusy || parsingDocument}
             className="rounded-full border border-border bg-muted/40 px-3 py-1 text-xs text-muted-foreground transition-colors hover:border-border hover:bg-muted hover:text-foreground disabled:opacity-50"
           >

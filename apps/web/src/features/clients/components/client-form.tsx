@@ -27,6 +27,7 @@ const emptyValues: ClientInput = {
   zip: "",
   country: "US",
   notes: "",
+  defaultHourlyRate: null,
 };
 
 type ClientFormProps = {
@@ -131,6 +132,25 @@ export function ClientForm({
           value={form.country || "US"}
           onChange={(value) => updateField("country", value)}
           error={errors.country}
+        />
+      </FormSection>
+
+      <FormSection
+        title="Billing"
+        description="Optional client-specific hourly rate for time tracking and invoicing."
+      >
+        <FormField
+          label="Default hourly rate"
+          id="defaultHourlyRate"
+          type="number"
+          min={0}
+          step={0.01}
+          value={form.defaultHourlyRate?.toString() ?? ""}
+          onChange={(value) =>
+            updateField("defaultHourlyRate", value ? Number(value) : null)
+          }
+          error={errors.defaultHourlyRate}
+          placeholder="Uses company default if empty"
         />
       </FormSection>
 

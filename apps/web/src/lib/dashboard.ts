@@ -1,8 +1,9 @@
 import { prisma } from "@/lib/db";
 import { buildInvoicePaymentSummary } from "@/lib/invoice-payments";
+import { getCompanyUnbilledTimeStats } from "@/lib/time-tracking/unbilled-stats";
 
 export async function getDashboardStats(companyId: string) {
-  const [statusGroups, clientCount, recentInvoices, openInvoices] = await Promise.all([
+  const [statusGroups, clientCount, recentInvoices, openInvoices, unbilledTime] = await Promise.all([
     prisma.invoice.groupBy({
       by: ["status"],
       where: { companyId },
@@ -22,6 +23,7 @@ export async function getDashboardStats(companyId: string) {
       },
       include: { payments: { select: { amount: true } } },
     }),
+    getCompanyUnbilledTimeStats(companyId),
   ]);
 
   const countByStatus = Object.fromEntries(
@@ -45,5 +47,6 @@ export async function getDashboardStats(companyId: string) {
     recentInvoices,
     outstandingTotal,
     outstandingCount: openInvoices.length,
+    unbilledTime,
   };
 }

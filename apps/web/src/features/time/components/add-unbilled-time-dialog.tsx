@@ -156,7 +156,7 @@ export function AddUnbilledTimeDialog({
         <DialogHeader>
           <DialogTitle>Add from unbilled time</DialogTitle>
           <DialogDescription>
-            Pull logged hours for {clientName} into this invoice.
+            Pull logged hours for {clientName} into line items.
           </DialogDescription>
         </DialogHeader>
 

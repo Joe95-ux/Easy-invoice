@@ -17,13 +17,21 @@ import { Label } from "@/components/ui/label";
 import { SearchableSelect } from "@/components/forms/searchable-select";
 import { Switch } from "@/components/ui/switch";
 import { useTimeTimer } from "@/features/time/components/time-timer-provider";
+import { RecentDescriptionsField } from "@/features/time/components/recent-descriptions-field";
 import type { ClientListItem } from "@/lib/clients";
+import { resolveHourlyRateFromDefaults } from "@/lib/time-tracking/resolve-hourly-rate";
 
 type StartTimerDrawerProps = {
   clients: ClientListItem[];
+  recentDescriptions?: string[];
+  onClientsChange?: () => Promise<void> | void;
 };
 
-export function StartTimerDrawer({ clients }: StartTimerDrawerProps) {
+export function StartTimerDrawer({
+  clients,
+  recentDescriptions = [],
+  onClientsChange,
+}: StartTimerDrawerProps) {
   const {
     startDrawerOpen,
     setStartDrawerOpen,
@@ -43,6 +51,22 @@ export function StartTimerDrawer({ clients }: StartTimerDrawerProps) {
   // Popups (combobox) must portal inside the drawer so Vaul's Radix focus trap
   // treats them as part of the drawer; portaling to document.body closes them.
   const [popupContainer, setPopupContainer] = useState<HTMLElement | null>(null);
+
+  function rateForClient(selectedClientId: string) {
+    const client = clients.find((item) => item.id === selectedClientId);
+    const rate = resolveHourlyRateFromDefaults({
+      clientDefaultHourlyRate:
+        client?.defaultHourlyRate != null ? Number(client.defaultHourlyRate) : null,
+      companyDefaultHourlyRate: defaultHourlyRate,
+    });
+    return rate > 0 ? String(rate) : "";
+  }
+
+  function handleClientChange(value: string | null) {
+    const nextClientId = value ?? "";
+    setClientId(nextClientId);
+    setHourlyRate(rateForClient(nextClientId));
+  }
 
   useEffect(() => {
     if (!startDrawerOpen) return;
@@ -87,6 +111,7 @@ export function StartTimerDrawer({ clients }: StartTimerDrawerProps) {
         const clientBody = await clientResponse.json();
         if (!clientResponse.ok) throw new Error(clientBody.error ?? "Failed to create client");
         resolvedClientId = clientBody.client.id;
+        await onClientsChange?.();
       }
 
       await startTimer({
@@ -123,7 +148,7 @@ export function StartTimerDrawer({ clients }: StartTimerDrawerProps) {
                 label="Client"
                 value={clientId}
                 options={clientOptions}
-                onChange={(value) => setClientId(value ?? "")}
+                onChange={handleClientChange}
                 placeholder="Select client (optional)"
                 container={popupContainer}
               />
@@ -163,6 +188,10 @@ export function StartTimerDrawer({ clients }: StartTimerDrawerProps) {
               onChange={(event) => setDescription(event.target.value)}
               placeholder="e.g. Website redesign, support call"
               autoFocus
+            />
+            <RecentDescriptionsField
+              descriptions={recentDescriptions}
+              onSelect={setDescription}
             />
           </div>
 

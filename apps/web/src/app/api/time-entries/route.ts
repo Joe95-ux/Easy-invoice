@@ -51,18 +51,8 @@ export async function POST(request: Request) {
   const parsed = timeEntrySchema.safeParse(body);
   if (!parsed.success) return validationError(parsed.error);
 
-  const company = await prisma.company.findUnique({
-    where: { id: member.companyId },
-    select: { defaultHourlyRate: true },
-  });
-
   try {
-    const entry = await createTimeEntry(
-      member.companyId,
-      member.id,
-      parsed.data,
-      company?.defaultHourlyRate ? Number(company.defaultHourlyRate) : null,
-    );
+    const entry = await createTimeEntry(member.companyId, member.id, parsed.data);
     return NextResponse.json({ entry: serializeTimeEntry(entry) }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to log time";

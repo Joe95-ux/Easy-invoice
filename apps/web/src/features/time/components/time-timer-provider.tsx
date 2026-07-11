@@ -29,6 +29,7 @@ type TimeTimerContextValue = {
   timer: SerializedActiveTimer | null;
   defaultHourlyRate: number | null;
   currency: string;
+  recentDescriptions: string[];
   isLoading: boolean;
   isBusy: boolean;
   elapsedSeconds: number;
@@ -67,6 +68,7 @@ export function TimeTimerProvider({
   const [timer, setTimer] = useState<SerializedActiveTimer | null>(null);
   const [defaultHourlyRate, setDefaultHourlyRate] = useState<number | null>(null);
   const [currency, setCurrency] = useState("USD");
+  const [recentDescriptions, setRecentDescriptions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isBusy, setIsBusy] = useState(false);
   const [startDrawerOpen, setStartDrawerOpen] = useState(false);
@@ -84,6 +86,7 @@ export function TimeTimerProvider({
       setTimer(body.timer ?? null);
       setDefaultHourlyRate(body.defaultHourlyRate ?? null);
       setCurrency(body.currency ?? "USD");
+      setRecentDescriptions(body.recentDescriptions ?? []);
     } catch {
       // Keep last known timer state if refresh fails briefly.
     } finally {
@@ -225,6 +228,7 @@ export function TimeTimerProvider({
       timer,
       defaultHourlyRate,
       currency,
+      recentDescriptions,
       isLoading,
       isBusy,
       elapsedSeconds,
@@ -245,6 +249,7 @@ export function TimeTimerProvider({
       timer,
       defaultHourlyRate,
       currency,
+      recentDescriptions,
       isLoading,
       isBusy,
       elapsedSeconds,

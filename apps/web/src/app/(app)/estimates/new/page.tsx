@@ -6,12 +6,21 @@ import { companyBrandingFields } from "@/lib/company-branding";
 import { getDefaultTemplateId, getTemplatesForCompany } from "@/lib/templates";
 import { EstimateCreator } from "@/features/estimates/components/estimate-creator";
 
-type PageProps = { searchParams: Promise<{ clientId?: string }> };
+type PageProps = {
+  searchParams: Promise<{
+    clientId?: string;
+    addTime?: string;
+    timeEntryIds?: string;
+  }>;
+};
 
 export default async function NewEstimatePage({ searchParams }: PageProps) {
   const member = await requireMember();
 
-  const { clientId } = await searchParams;
+  const { clientId, addTime, timeEntryIds } = await searchParams;
+  const preselectedTimeEntryIds = timeEntryIds
+    ? timeEntryIds.split(",").filter(Boolean)
+    : [];
   const [clients, templates, defaultTemplateId] = await Promise.all([
     getClientsForMember(member.companyId),
     getTemplatesForCompany(member.companyId),
@@ -39,6 +48,8 @@ export default async function NewEstimatePage({ searchParams }: PageProps) {
         templates={templates}
         initialClientId={clientId}
         defaultTemplateId={defaultTemplateId}
+        autoOpenTimeDialog={addTime === "1"}
+        preselectedTimeEntryIds={preselectedTimeEntryIds}
       />
     </PageScroll>
   );

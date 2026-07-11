@@ -13,11 +13,12 @@ import {
   startActiveTimer,
   updateActiveTimer,
 } from "@/lib/time-tracking/timer-service";
+import { getRecentTimeDescriptions } from "@/lib/time-tracking/service";
 
 async function getCompanyDefaults(companyId: string) {
   return prisma.company.findUnique({
     where: { id: companyId },
-    select: { defaultHourlyRate: true, currency: true },
+    select: { defaultHourlyRate: true, currency: true, timerRoundToMinutes: true },
   });
 }
 
@@ -25,15 +26,18 @@ export async function GET() {
   const { member, response } = await requireApiMember();
   if (response) return response;
 
-  const [timer, company] = await Promise.all([
+  const [timer, company, recentDescriptions] = await Promise.all([
     getActiveTimerForMember(member.companyId, member.id),
     getCompanyDefaults(member.companyId),
+    getRecentTimeDescriptions(member.companyId),
   ]);
 
   return NextResponse.json({
     timer: timer ? serializeActiveTimer(timer) : null,
     defaultHourlyRate: company?.defaultHourlyRate ? Number(company.defaultHourlyRate) : null,
     currency: company?.currency ?? "USD",
+    timerRoundToMinutes: company?.timerRoundToMinutes ?? 1,
+    recentDescriptions,
   });
 }
 
@@ -47,15 +51,8 @@ export async function POST(request: Request) {
   const parsed = startTimeTimerSchema.safeParse(body);
   if (!parsed.success) return validationError(parsed.error);
 
-  const company = await getCompanyDefaults(member.companyId);
-
   try {
-    const timer = await startActiveTimer(
-      member.companyId,
-      member.id,
-      parsed.data,
-      company?.defaultHourlyRate ? Number(company.defaultHourlyRate) : null,
-    );
+    const timer = await startActiveTimer(member.companyId, member.id, parsed.data);
     return NextResponse.json({ timer: serializeActiveTimer(timer) }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to start timer";

@@ -20,7 +20,9 @@ import { SearchableSelect } from "@/components/forms/searchable-select";
 import { Switch } from "@/components/ui/switch";
 import { DatePicker } from "@/components/forms/date-picker";
 import type { ClientListItem } from "@/lib/clients";
+import { RecentDescriptionsField } from "@/features/time/components/recent-descriptions-field";
 import { invoiceFromTimeUrl } from "@/lib/time-tracking/invoice-from-time";
+import { resolveHourlyRateFromDefaults } from "@/lib/time-tracking/resolve-hourly-rate";
 
 type SerializedTimeEntry = {
   id: string;
@@ -40,6 +42,7 @@ type LogTimeDialogProps = {
   defaultHourlyRate?: number | null;
   initialClientId?: string;
   entry?: SerializedTimeEntry | null;
+  recentDescriptions?: string[];
 };
 
 export function LogTimeDialog({
@@ -49,6 +52,7 @@ export function LogTimeDialog({
   defaultHourlyRate = null,
   initialClientId,
   entry = null,
+  recentDescriptions = [],
 }: LogTimeDialogProps) {
   const router = useRouter();
   const isEditing = Boolean(entry);
@@ -64,19 +68,38 @@ export function LogTimeDialog({
   const [billable, setBillable] = useState(entry?.billable ?? true);
   const [saving, setSaving] = useState(false);
 
+  function rateForClient(selectedClientId: string) {
+    const client = clients.find((item) => item.id === selectedClientId);
+    const rate = resolveHourlyRateFromDefaults({
+      clientDefaultHourlyRate:
+        client?.defaultHourlyRate != null ? Number(client.defaultHourlyRate) : null,
+      companyDefaultHourlyRate: defaultHourlyRate,
+    });
+    return rate > 0 ? String(rate) : "";
+  }
+
+  function handleClientChange(value: string | null) {
+    const nextClientId = value ?? "";
+    setClientId(nextClientId);
+    if (!isEditing) {
+      setHourlyRate(rateForClient(nextClientId));
+    }
+  }
+
   useEffect(() => {
     if (!open) return;
-    setClientId(entry?.clientId ?? initialClientId ?? "");
+    const nextClientId = entry?.clientId ?? initialClientId ?? "";
+    setClientId(nextClientId);
     setAddNewClient(false);
     setNewClientName("");
     setDescription(entry?.description ?? "");
     setDate(entry?.date.slice(0, 10) ?? new Date().toISOString().slice(0, 10));
     setHours(entry?.hours?.toString() ?? "1");
     setHourlyRate(
-      entry?.hourlyRate?.toString() ?? (defaultHourlyRate ? String(defaultHourlyRate) : ""),
+      entry?.hourlyRate?.toString() ?? rateForClient(nextClientId),
     );
     setBillable(entry?.billable ?? true);
-  }, [open, entry, initialClientId, defaultHourlyRate]);
+  }, [open, entry, initialClientId, defaultHourlyRate, clients]);
 
   const clientOptions = clients.map((client) => ({ value: client.id, label: client.name }));
 
@@ -171,7 +194,7 @@ export function LogTimeDialog({
                   label="Client"
                   value={clientId}
                   options={clientOptions}
-                  onChange={(value) => setClientId(value ?? "")}
+                  onChange={handleClientChange}
                   placeholder="Select client (optional)"
                 />
               )}
@@ -209,7 +232,7 @@ export function LogTimeDialog({
               label="Client"
               value={clientId}
               options={clientOptions}
-              onChange={(value) => setClientId(value ?? "")}
+              onChange={handleClientChange}
               placeholder="Select client (optional)"
             />
           )}
@@ -222,6 +245,12 @@ export function LogTimeDialog({
               onChange={(e) => setDescription(e.target.value)}
               placeholder="e.g. Website redesign, support call"
             />
+            {!isEditing && (
+              <RecentDescriptionsField
+                descriptions={recentDescriptions}
+                onSelect={setDescription}
+              />
+            )}
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">

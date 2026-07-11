@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import type { StartTimeTimerInput, UpdateTimeTimerInput } from "@/lib/schemas/time-timer";
-import { createTimeEntry } from "@/lib/time-tracking/service";
-import { hoursToMinutes, minutesToHours } from "@/lib/time-tracking/format";
+import { hoursToMinutes, minutesToHours, roundElapsedMinutes } from "@/lib/time-tracking/format";
+import { resolveHourlyRate } from "@/lib/time-tracking/resolve-hourly-rate";
 
 const timerInclude = {
   client: { select: { id: true, name: true } },
@@ -18,7 +18,6 @@ export async function startActiveTimer(
   companyId: string,
   memberId: string,
   input: StartTimeTimerInput,
-  defaultHourlyRate?: number | null,
 ) {
   const existing = await getActiveTimerForMember(companyId, memberId);
   if (existing) {
@@ -33,10 +32,10 @@ export async function startActiveTimer(
     if (!client) throw new Error("Client not found");
   }
 
-  const hourlyRate =
-    input.hourlyRate !== undefined && input.hourlyRate > 0
-      ? input.hourlyRate
-      : Number(defaultHourlyRate ?? 0);
+  const hourlyRate = await resolveHourlyRate(companyId, {
+    clientId: input.clientId,
+    explicitRate: input.hourlyRate,
+  });
 
   return prisma.activeTimeTimer.create({
     data: {
@@ -88,16 +87,20 @@ export async function discardActiveTimer(companyId: string, memberId: string) {
   return timer;
 }
 
-function elapsedMinutesFromStart(startedAt: Date): number {
+function elapsedMinutesFromStart(startedAt: Date, roundToMinutes = 1): number {
   const elapsedMs = Date.now() - startedAt.getTime();
-  return Math.max(1, Math.round(elapsedMs / 60_000));
+  return roundElapsedMinutes(elapsedMs, roundToMinutes);
 }
 
-export async function stopActiveTimerAndLogEntry(companyId: string, memberId: string) {
+export async function stopActiveTimerAndLogEntry(
+  companyId: string,
+  memberId: string,
+  roundToMinutes = 1,
+) {
   const timer = await getActiveTimerForMember(companyId, memberId);
   if (!timer) throw new Error("No active timer");
 
-  const durationMinutes = elapsedMinutesFromStart(timer.startedAt);
+  const durationMinutes = elapsedMinutesFromStart(timer.startedAt, roundToMinutes);
   const hours = minutesToHours(durationMinutes);
   const date = timer.startedAt.toISOString().slice(0, 10);
 
@@ -116,6 +119,7 @@ export async function stopActiveTimerAndLogEntry(companyId: string, memberId: st
       include: {
         client: { select: { id: true, name: true } },
         invoice: { select: { id: true, number: true } },
+        member: { select: { id: true, name: true, email: true } },
       },
     });
 

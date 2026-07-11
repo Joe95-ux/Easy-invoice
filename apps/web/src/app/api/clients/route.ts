@@ -34,6 +34,7 @@ export async function POST(request: Request) {
       zip: parsed.data.zip || null,
       country: parsed.data.country || null,
       notes: parsed.data.notes || null,
+      defaultHourlyRate: parsed.data.defaultHourlyRate ?? null,
     },
   });
 

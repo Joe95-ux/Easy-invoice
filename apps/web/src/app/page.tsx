@@ -251,10 +251,10 @@ export default function HomePage() {
               <h2 className="mt-3 font-heading text-3xl font-semibold tracking-tight sm:text-4xl">
                 Write like you talk.
                 <br />
-                We'll make it official.
+                We&apos;ll make it official.
               </h2>
               <p className="mt-5 text-muted-foreground">
-                Skip the line-by-line data entry. Describe the job the way you'd text a
+                Skip the line-by-line data entry. Describe the job the way you&apos;d text a
                 friend — Easy Invoice figures out the items, quantities, rates, discounts,
                 and totals, then writes it up in clean, professional English.
               </p>

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import type { TimeEntryInput } from "@/lib/schemas/time-entry";
 import { hoursToMinutes } from "@/lib/time-tracking/format";
+import { resolveHourlyRate } from "@/lib/time-tracking/resolve-hourly-rate";
 
 export async function getTimeEntriesForCompany(
   companyId: string,
@@ -23,6 +24,7 @@ export async function getTimeEntriesForCompany(
     include: {
       client: { select: { id: true, name: true } },
       invoice: { select: { id: true, number: true } },
+      member: { select: { id: true, name: true, email: true } },
     },
     orderBy: [{ date: "desc" }, { createdAt: "desc" }],
     take: options?.limit ?? 200,
@@ -41,10 +43,11 @@ export async function createTimeEntry(
   companyId: string,
   memberId: string,
   input: TimeEntryInput,
-  defaultHourlyRate?: number | null,
 ) {
-  const hourlyRate =
-    input.hourlyRate > 0 ? input.hourlyRate : Number(defaultHourlyRate ?? 0);
+  const hourlyRate = await resolveHourlyRate(companyId, {
+    clientId: input.clientId,
+    explicitRate: input.hourlyRate,
+  });
 
   if (input.clientId) {
     const client = await prisma.client.findFirst({
@@ -70,6 +73,7 @@ export async function createTimeEntry(
     include: {
       client: { select: { id: true, name: true } },
       invoice: { select: { id: true, number: true } },
+      member: { select: { id: true, name: true, email: true } },
     },
   });
 }
@@ -160,6 +164,8 @@ export function serializeTimeEntry(
     id: entry.id,
     clientId: entry.clientId,
     clientName: entry.client?.name ?? null,
+    memberId: entry.memberId,
+    memberName: entry.member?.name ?? entry.member?.email ?? null,
     description: entry.description,
     date: entry.date.toISOString(),
     durationMinutes: entry.durationMinutes,
@@ -171,4 +177,28 @@ export function serializeTimeEntry(
     invoiceNumber: entry.invoice?.number ?? null,
     createdAt: entry.createdAt.toISOString(),
   };
+}
+
+export async function getRecentTimeDescriptions(companyId: string, limit = 6) {
+  const entries = await prisma.timeEntry.findMany({
+    where: { companyId },
+    select: { description: true },
+    orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+    take: 40,
+  });
+
+  const seen = new Set<string>();
+  const descriptions: string[] = [];
+
+  for (const entry of entries) {
+    const normalized = entry.description.trim();
+    if (!normalized) continue;
+    const key = normalized.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    descriptions.push(normalized);
+    if (descriptions.length >= limit) break;
+  }
+
+  return descriptions;
 }

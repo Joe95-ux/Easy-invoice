@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FormCard } from "@/components/forms/form-card";
 import { Button } from "@/components/ui/button";
 import { ClientForm } from "@/features/clients/components/client-form";
@@ -7,6 +8,8 @@ import type { ClientFinancialProfile } from "@/lib/clients/financial-profile";
 import type { ClientInput } from "@/lib/schemas/client";
 import { formatMoney } from "@/lib/invoices";
 import { formatClientAddress } from "@/lib/clients";
+import { invoiceFromTimeUrl } from "@/lib/time-tracking/invoice-from-time";
+import { FileTextIcon } from "lucide-react";
 
 type ClientOverviewTabProps = {
   client: ClientFinancialProfile;
@@ -50,9 +53,36 @@ export function ClientOverviewTab({
 }: ClientOverviewTabProps) {
   const { summary } = client;
   const address = formatClientAddress(client);
+  const hasUnbilledTime = summary.unbilledEntryCount > 0;
 
   return (
     <div className="space-y-6">
+      {hasUnbilledTime && (
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-primary/25 bg-primary/5 px-4 py-4 sm:px-5">
+          <div className="min-w-0">
+            <p className="font-medium">
+              {summary.unbilledHours.toFixed(2)} unbilled hours
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {formatMoney(summary.unbilledValue, summary.currency)} ready to add to an invoice
+            </p>
+          </div>
+          <Button
+            render={
+              <Link
+                href={invoiceFromTimeUrl({
+                  clientId: client.id,
+                  openPicker: true,
+                })}
+              />
+            }
+          >
+            <FileTextIcon className="size-4" />
+            Invoice unbilled time
+          </Button>
+        </div>
+      )}
+
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <SummaryCard
           label="Total billed"
@@ -70,6 +100,20 @@ export function ClientOverviewTab({
           value={formatMoney(summary.outstanding, summary.currency)}
           hint={summary.outstanding > 0 ? "Awaiting payment" : "Nothing outstanding"}
           tone={summary.outstanding > 0 ? "warning" : "neutral"}
+        />
+        <SummaryCard
+          label="Unbilled time"
+          value={
+            hasUnbilledTime
+              ? `${summary.unbilledHours.toFixed(2)} hrs`
+              : "—"
+          }
+          hint={
+            hasUnbilledTime
+              ? formatMoney(summary.unbilledValue, summary.currency)
+              : "No billable hours waiting"
+          }
+          tone={hasUnbilledTime ? "warning" : "neutral"}
         />
         <SummaryCard
           label="Avg. days to pay"
@@ -139,6 +183,7 @@ export function ClientOverviewTab({
             zip: client.zip ?? "",
             country: client.country ?? "US",
             notes: client.notes ?? "",
+            defaultHourlyRate: client.defaultHourlyRate,
           }}
           submitLabel="Save changes"
           onSubmit={onUpdate}

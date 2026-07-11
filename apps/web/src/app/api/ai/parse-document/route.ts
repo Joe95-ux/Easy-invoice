@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { DOCUMENT_PARSE_MAX_DURATION_SECONDS, parseDocumentFromFile } from "@/lib/ai-docs";
+import { parseDocumentFromFile } from "@/lib/ai-docs";
 import { requireApiMember } from "@/lib/api/validation";
 
-export const maxDuration = DOCUMENT_PARSE_MAX_DURATION_SECONDS;
+/** Must be a literal for Next.js route config (default 480s; see DOCUMENT_PARSE_MAX_DURATION_SECONDS). */
+export const maxDuration = 480;
 
 const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024;
 

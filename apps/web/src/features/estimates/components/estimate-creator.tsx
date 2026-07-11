@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { EyeIcon } from "lucide-react";
+import { EyeIcon, ClockIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/app-shell/page-header";
@@ -22,6 +22,7 @@ import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { AiDocumentParseTab } from "@/features/invoices/components/ai-document-parse-tab";
+import { AddUnbilledTimeDialog } from "@/features/time/components/add-unbilled-time-dialog";
 import {
   InvoiceLineItems,
   createDefaultLineItems,
@@ -80,6 +81,8 @@ type EstimateCreatorProps = {
   estimateId?: string;
   estimateNumber?: string;
   initialValues?: EstimateInitialValues;
+  autoOpenTimeDialog?: boolean;
+  preselectedTimeEntryIds?: string[];
 };
 
 export function EstimateCreator({
@@ -94,6 +97,8 @@ export function EstimateCreator({
   estimateId,
   estimateNumber,
   initialValues,
+  autoOpenTimeDialog = false,
+  preselectedTimeEntryIds = [],
 }: EstimateCreatorProps) {
   const router = useRouter();
   const isEditing = Boolean(estimateId);
@@ -128,7 +133,10 @@ export function EstimateCreator({
   const [activeTab, setActiveTab] = useState("form");
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [timeDialogOpen, setTimeDialogOpen] = useState(false);
   const [aiSourceNotes, setAiSourceNotes] = useState<string | null>(null);
+
+  const canAddFromTime = Boolean(selectedClientId) && !isEditing;
 
   const steps = useMemo(
     () => (templates.length > 0 ? BASE_STEPS : BASE_STEPS.filter((s) => s.id !== "template")),
@@ -207,6 +215,23 @@ export function EstimateCreator({
     }
   }, [initialClientId, clients, initialValues]);
 
+  const itemsStepIndex = useMemo(() => steps.findIndex((s) => s.id === "items"), [steps]);
+  const preselectedTimeIdsKey = useMemo(
+    () => preselectedTimeEntryIds.join(","),
+    [preselectedTimeEntryIds],
+  );
+
+  useEffect(() => {
+    if (isEditing || !autoOpenTimeDialog || !selectedClientId || itemsStepIndex < 0) return;
+    setStep(itemsStepIndex);
+    setTimeDialogOpen(true);
+  }, [isEditing, autoOpenTimeDialog, selectedClientId, itemsStepIndex]);
+
+  useEffect(() => {
+    if (isEditing || !preselectedTimeIdsKey || !selectedClientId || itemsStepIndex < 0) return;
+    setStep(itemsStepIndex);
+  }, [isEditing, preselectedTimeIdsKey, selectedClientId, itemsStepIndex]);
+
   function removeLineItem(index: number) {
     setLineItems((items) =>
       items.length === 1 ? items : items.filter((_, i) => i !== index),
@@ -264,6 +289,33 @@ export function EstimateCreator({
       steps.findIndex((s) => s.id === (linesOnly ? "items" : "client")) ||
         0,
     );
+  }
+
+  function handleAddFromTime(items: LineItemInput[]): boolean {
+    let added = false;
+
+    setLineItems((current) => {
+      const usedIds = new Set(current.flatMap((item) => item.timeEntryIds ?? []));
+      const freshItems = items
+        .map((item) => ({
+          ...item,
+          timeEntryIds: item.timeEntryIds?.filter((id) => !usedIds.has(id)),
+        }))
+        .filter((item) => (item.timeEntryIds?.length ?? 0) > 0);
+
+      if (freshItems.length === 0) {
+        toast.error("Those hours are already on this estimate");
+        return current;
+      }
+
+      added = true;
+      const hasContent = current.some(
+        (item) => item.description.trim() || item.unitPrice > 0 || item.quantity !== 1,
+      );
+      return hasContent ? [...current, ...freshItems] : freshItems;
+    });
+
+    return added;
   }
 
   function buildPayload() {
@@ -429,6 +481,18 @@ export function EstimateCreator({
 
       {currentStepId === "items" && (
         <div className="space-y-4">
+          {canAddFromTime && (
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setTimeDialogOpen(true)}
+              >
+                <ClockIcon className="size-4" />
+                Add from unbilled time
+              </Button>
+            </div>
+          )}
           <FormSection title="Line items">
             <InvoiceLineItems
               items={lineItems}
@@ -566,11 +630,26 @@ export function EstimateCreator({
     />
   );
 
+  const timeDialog = canAddFromTime ? (
+    <AddUnbilledTimeDialog
+      open={timeDialogOpen}
+      onOpenChange={setTimeDialogOpen}
+      clientId={selectedClientId}
+      clientName={clientName || clients.find((c) => c.id === selectedClientId)?.name || "Client"}
+      currency={currency}
+      onAdd={handleAddFromTime}
+      initialSelectedIds={
+        preselectedTimeEntryIds.length > 0 ? preselectedTimeEntryIds : undefined
+      }
+    />
+  ) : null;
+
   if (isEditing) {
     return (
       <>
         <FormCard footer={formFooter}>{formBody}</FormCard>
         {previewDrawer}
+        {timeDialog}
       </>
     );
   }
@@ -604,6 +683,7 @@ export function EstimateCreator({
       </TabsContent>
 
       {previewDrawer}
+      {timeDialog}
     </Tabs>
   );
 }

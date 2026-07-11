@@ -49,6 +49,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       zip: parsed.data.zip || null,
       country: parsed.data.country || null,
       notes: parsed.data.notes || null,
+      defaultHourlyRate: parsed.data.defaultHourlyRate ?? null,
     },
   });
 

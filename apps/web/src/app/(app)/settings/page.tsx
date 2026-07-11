@@ -89,6 +89,7 @@ export default async function SettingsPage() {
             defaultHourlyRate: company.defaultHourlyRate
               ? Number(company.defaultHourlyRate)
               : null,
+            timerRoundToMinutes: company.timerRoundToMinutes ?? 1,
             logoBg: normalizeLogoBg(company.logoBg),
             logoPlacement: normalizeLogoPlacement(company.logoPlacement),
             brandColor: company.brandColor,

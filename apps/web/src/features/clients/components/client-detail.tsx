@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import { ClipboardListIcon, FileTextIcon, Trash2Icon } from "lucide-react";
+import { ClipboardListIcon, ClockIcon, FileTextIcon, Trash2Icon } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,6 +28,7 @@ import { ClientReceiptsTab } from "@/features/clients/components/client-receipts
 import type { ClientFinancialProfile } from "@/lib/clients/financial-profile";
 import { formatMoney } from "@/lib/invoices";
 import type { ClientInput } from "@/lib/schemas/client";
+import { invoiceFromTimeUrl } from "@/lib/time-tracking/invoice-from-time";
 
 const clientTabTriggerClass =
   "flex-none rounded-lg border-0 bg-muted px-3 py-1.5 text-muted-foreground shadow-none data-active:bg-muted data-active:text-foreground data-active:shadow-none dark:data-active:border-transparent dark:data-active:bg-muted";
@@ -107,6 +108,23 @@ export function ClientDetail({ client, companyName }: ClientDetailProps) {
         description={descriptionParts.join(" · ")}
         actions={
           <>
+            {summary.unbilledEntryCount > 0 && (
+              <Button
+                variant="outline"
+                className={pageHeaderActionClass}
+                render={
+                  <Link
+                    href={invoiceFromTimeUrl({
+                      clientId: client.id,
+                      openPicker: true,
+                    })}
+                  />
+                }
+              >
+                <ClockIcon className="size-4" />
+                Invoice time
+              </Button>
+            )}
             <Button
               variant="outline"
               className={pageHeaderActionClass}

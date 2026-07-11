@@ -6,6 +6,7 @@ import {
   buildInvoicePaymentSummary,
   PAYMENT_METHOD_LABELS,
 } from "@/lib/invoice-payments-utils";
+import { getClientUnbilledTimeStats } from "@/lib/time-tracking/unbilled-stats";
 
 export type ClientFinancialSummary = {
   totalBilled: number;
@@ -15,6 +16,9 @@ export type ClientFinancialSummary = {
   estimateCount: number;
   avgDaysToPay: number | null;
   currency: string;
+  unbilledHours: number;
+  unbilledValue: number;
+  unbilledEntryCount: number;
 };
 
 export type ClientInvoiceRow = {
@@ -79,6 +83,7 @@ export type ClientFinancialProfile = {
   zip: string | null;
   country: string | null;
   notes: string | null;
+  defaultHourlyRate: number | null;
   updatedAt: string;
   summary: ClientFinancialSummary;
   invoices: ClientInvoiceRow[];
@@ -126,6 +131,10 @@ export async function getClientFinancialProfile(
   });
 
   if (!client) return null;
+
+  const [unbilledTime] = await Promise.all([
+    getClientUnbilledTimeStats(companyId, clientId),
+  ]);
 
   const currency = client.company.currency;
   let totalBilled = 0;
@@ -302,6 +311,7 @@ export async function getClientFinancialProfile(
     zip: client.zip,
     country: client.country,
     notes: client.notes,
+    defaultHourlyRate: client.defaultHourlyRate ? Number(client.defaultHourlyRate) : null,
     updatedAt: client.updatedAt.toISOString(),
     summary: {
       totalBilled: Math.round(totalBilled * 100) / 100,
@@ -311,6 +321,9 @@ export async function getClientFinancialProfile(
       estimateCount: client.estimates.length,
       avgDaysToPay,
       currency,
+      unbilledHours: unbilledTime.totalHours,
+      unbilledValue: unbilledTime.totalValue,
+      unbilledEntryCount: unbilledTime.entryCount,
     },
     invoices,
     estimates,

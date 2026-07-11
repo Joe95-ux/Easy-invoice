@@ -1,40 +1,45 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { ClientListItem } from "@/lib/clients";
 import { ActiveTimerDrawer } from "@/features/time/components/active-timer-drawer";
 import { StartTimerDrawer } from "@/features/time/components/start-timer-drawer";
 import { useTimeTimer } from "@/features/time/components/time-timer-provider";
 
 export function TimeTimerShell({ activeCompanyId }: { activeCompanyId: string }) {
-  const { timer } = useTimeTimer();
+  const { timer, recentDescriptions } = useTimeTimer();
   const [clients, setClients] = useState<ClientListItem[]>([]);
 
-  useEffect(() => {
-    let cancelled = false;
-    setClients([]);
-
-    async function loadClients() {
-      try {
-        const response = await fetch("/api/clients");
-        const body = await response.json();
-        if (!response.ok || cancelled) return;
-        setClients(body.clients ?? []);
-      } catch {
-        // Drawers still work without client pickers.
-      }
+  const reloadClients = useCallback(async () => {
+    try {
+      const response = await fetch("/api/clients");
+      const body = await response.json();
+      if (!response.ok) return;
+      setClients(body.clients ?? []);
+    } catch {
+      // Drawers still work without client pickers.
     }
+  }, []);
 
-    void loadClients();
-    return () => {
-      cancelled = true;
-    };
-  }, [activeCompanyId]);
+  useEffect(() => {
+    setClients([]);
+    void reloadClients();
+  }, [activeCompanyId, reloadClients]);
 
   return (
     <>
-      <StartTimerDrawer clients={clients} />
-      {timer ? <ActiveTimerDrawer clients={clients} /> : null}
+      <StartTimerDrawer
+        clients={clients}
+        recentDescriptions={recentDescriptions}
+        onClientsChange={reloadClients}
+      />
+      {timer ? (
+        <ActiveTimerDrawer
+          clients={clients}
+          recentDescriptions={recentDescriptions}
+          onClientsChange={reloadClients}
+        />
+      ) : null}
     </>
   );
 }

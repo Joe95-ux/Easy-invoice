@@ -3,6 +3,7 @@ import {
   ArrowRightIcon,
   ArrowUpRightIcon,
   CheckCircle2Icon,
+  ClockIcon,
   FileTextIcon,
   PlusIcon,
   UsersRoundIcon,
@@ -90,6 +91,36 @@ export default async function DashboardPage() {
           icon={UsersRoundIcon}
         />
       </section>
+
+      {stats.unbilledTime.entryCount > 0 && (
+        <Link
+          href="/time"
+          className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-primary/25 bg-primary/5 px-4 py-4 transition-colors hover:bg-primary/10 sm:px-5"
+        >
+          <div className="flex min-w-0 items-start gap-3">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <ClockIcon className="size-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="font-medium">
+                {stats.unbilledTime.totalHours.toFixed(2)} unbilled hours ready to invoice
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {formatMoney(stats.unbilledTime.totalValue, company.currency)} across{" "}
+                {stats.unbilledTime.entryCount} entr
+                {stats.unbilledTime.entryCount === 1 ? "y" : "ies"}
+                {stats.unbilledTime.clientCount > 0
+                  ? ` · ${stats.unbilledTime.clientCount} client${stats.unbilledTime.clientCount === 1 ? "" : "s"}`
+                  : ""}
+              </p>
+            </div>
+          </div>
+          <span className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-primary">
+            Review time
+            <ArrowUpRightIcon className="size-4" />
+          </span>
+        </Link>
+      )}
 
       <section className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">

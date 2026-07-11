@@ -16,16 +16,23 @@ import { Label } from "@/components/ui/label";
 import { SearchableSelect } from "@/components/forms/searchable-select";
 import { Switch } from "@/components/ui/switch";
 import { useTimeTimer } from "@/features/time/components/time-timer-provider";
+import { RecentDescriptionsField } from "@/features/time/components/recent-descriptions-field";
 import type { ClientListItem } from "@/lib/clients";
 import { formatElapsedClock } from "@/lib/time-tracking/format";
 
 type ActiveTimerDrawerProps = {
   clients: ClientListItem[];
+  recentDescriptions?: string[];
+  onClientsChange?: () => Promise<void> | void;
 };
 
 const SNAP_POINTS = [0.5, 1] as const;
 
-export function ActiveTimerDrawer({ clients }: ActiveTimerDrawerProps) {
+export function ActiveTimerDrawer({
+  clients,
+  recentDescriptions = [],
+  onClientsChange,
+}: ActiveTimerDrawerProps) {
   const {
     timer,
     activeDrawerOpen,
@@ -120,6 +127,7 @@ export function ActiveTimerDrawer({ clients }: ActiveTimerDrawerProps) {
         const clientBody = await clientResponse.json();
         if (!clientResponse.ok) throw new Error(clientBody.error ?? "Failed to create client");
         resolvedClientId = clientBody.client.id;
+        await onClientsChange?.();
       }
 
       await updateTimer({
@@ -258,6 +266,10 @@ export function ActiveTimerDrawer({ clients }: ActiveTimerDrawerProps) {
                 id="active-timer-description"
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
+              />
+              <RecentDescriptionsField
+                descriptions={recentDescriptions}
+                onSelect={setDescription}
               />
             </div>
 

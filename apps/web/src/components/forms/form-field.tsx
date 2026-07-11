@@ -20,6 +20,9 @@ type FormFieldProps = {
   required?: boolean;
   placeholder?: string;
   autoComplete?: string;
+  min?: number;
+  max?: number;
+  step?: number | string;
   className?: string;
 };
 
@@ -34,6 +37,9 @@ export function FormField({
   required,
   placeholder,
   autoComplete,
+  min,
+  max,
+  step,
   className,
 }: FormFieldProps) {
   return (
@@ -50,6 +56,9 @@ export function FormField({
           required={required}
           placeholder={placeholder}
           autoComplete={autoComplete}
+          min={min}
+          max={max}
+          step={step}
           onChange={(event) => onChange(event.target.value)}
         />
         {description && <FieldDescription>{description}</FieldDescription>}

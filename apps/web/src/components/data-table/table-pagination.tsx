@@ -74,10 +74,10 @@ export function TablePagination({
   onPageSizeChange,
   className,
 }: TablePaginationProps) {
-  if (totalCount === 0) return null;
-
   const desktopPages = useMemo(() => buildPageRange(page, pageCount), [page, pageCount]);
   const mobilePages = useMemo(() => buildMobilePageRange(page, pageCount), [page, pageCount]);
+
+  if (totalCount === 0) return null;
 
   return (
     <div

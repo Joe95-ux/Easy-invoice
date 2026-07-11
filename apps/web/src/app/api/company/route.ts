@@ -21,6 +21,7 @@ const PROFILE_AUDIT_FIELDS = [
   "logoPlacement",
   "brandColor",
   "defaultHourlyRate",
+  "timerRoundToMinutes",
   "documentPrefix",
 ] as const;
 
@@ -82,6 +83,9 @@ export async function PATCH(request: Request) {
       }),
       ...(parsed.data.defaultHourlyRate !== undefined && {
         defaultHourlyRate: parsed.data.defaultHourlyRate,
+      }),
+      ...(parsed.data.timerRoundToMinutes !== undefined && {
+        timerRoundToMinutes: parsed.data.timerRoundToMinutes,
       }),
       ...(parsed.data.documentPrefix !== undefined && {
         documentPrefix: parsed.data.documentPrefix,

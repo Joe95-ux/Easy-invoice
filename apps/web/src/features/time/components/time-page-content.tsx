@@ -5,10 +5,13 @@ import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState, useTransition, useEffect } from "react";
 import {
   ClockIcon,
+  ClipboardListIcon,
   DownloadIcon,
+  EyeIcon,
   FileTextIcon,
   InfoIcon,
   Loader2Icon,
+  MoreHorizontalIcon,
   PencilIcon,
   PlayIcon,
   PlusIcon,
@@ -26,10 +29,25 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DatePicker } from "@/components/forms/date-picker";
 import {
   Table,
   TableBody,
@@ -51,12 +69,15 @@ import type { ClientListItem } from "@/lib/clients";
 import { formatDate, formatMoney } from "@/lib/invoices";
 import { formatDuration } from "@/lib/time-tracking/format";
 import { invoiceFromTimeUrl } from "@/lib/time-tracking/invoice-from-time";
+import { estimateFromTimeUrl } from "@/lib/time-tracking/estimate-from-time";
 import { cn } from "@/lib/utils";
 
 export type SerializedTimeEntry = {
   id: string;
   clientId: string | null;
   clientName: string | null;
+  memberId: string | null;
+  memberName: string | null;
   description: string;
   date: string;
   durationMinutes: number;
@@ -68,22 +89,95 @@ export type SerializedTimeEntry = {
   invoiceNumber: string | null;
 };
 
+function isInvoiceable(entry: SerializedTimeEntry) {
+  return !entry.invoicedAt && entry.billable && Boolean(entry.clientId);
+}
+
+function entryHasActions(entry: SerializedTimeEntry) {
+  const isBilled = Boolean(entry.invoicedAt);
+  return isInvoiceable(entry) || !isBilled || Boolean(entry.invoiceId);
+}
+
+function TimeEntryActions({
+  entry,
+  isInvoicing,
+  onInvoice,
+  onEstimate,
+  onEdit,
+  onDelete,
+}: {
+  entry: SerializedTimeEntry;
+  isInvoicing: boolean;
+  onInvoice: () => void;
+  onEstimate: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const isBilled = Boolean(entry.invoicedAt);
+  const canInvoice = isInvoiceable(entry);
+
+  if (!entryHasActions(entry)) return null;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        className="inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border border-transparent text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+        disabled={isInvoicing}
+        aria-label="Time entry actions"
+      >
+        <MoreHorizontalIcon className="size-4" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-44 w-48">
+        {canInvoice && (
+          <>
+            <DropdownMenuItem onClick={onInvoice} disabled={isInvoicing}>
+              <FileTextIcon className="size-4" />
+              Create invoice
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onEstimate} disabled={isInvoicing}>
+              <ClipboardListIcon className="size-4" />
+              Create estimate
+            </DropdownMenuItem>
+          </>
+        )}
+        {isBilled && entry.invoiceId && (
+          <DropdownMenuItem render={<Link href={`/invoices/${entry.invoiceId}`} />}>
+            <EyeIcon className="size-4" />
+            View invoice
+          </DropdownMenuItem>
+        )}
+        {!isBilled && (
+          <>
+            {canInvoice && <DropdownMenuSeparator />}
+            <DropdownMenuItem onClick={onEdit}>
+              <PencilIcon className="size-4" />
+              Edit
+            </DropdownMenuItem>
+            <DropdownMenuItem variant="destructive" onClick={onDelete}>
+              <Trash2Icon className="size-4" />
+              Delete
+            </DropdownMenuItem>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 type TimePageContentProps = {
   entries: SerializedTimeEntry[];
   clients: ClientListItem[];
   currency: string;
   defaultHourlyRate: number | null;
+  recentDescriptions?: string[];
 };
-
-function isInvoiceable(entry: SerializedTimeEntry) {
-  return !entry.invoicedAt && entry.billable && Boolean(entry.clientId);
-}
 
 export function TimePageContent({
   entries: initialEntries,
   clients,
   currency,
   defaultHourlyRate,
+  recentDescriptions = [],
 }: TimePageContentProps) {
   const router = useRouter();
   const isMobile = useIsMobile();
@@ -91,6 +185,9 @@ export function TimePageContent({
   const [isInvoicing, startInvoicing] = useTransition();
   const invoicingToastRef = useRef<string | number | null>(null);
   const [filter, setFilter] = useState<"all" | "unbilled">("all");
+  const [clientFilter, setClientFilter] = useState("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [logOpen, setLogOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<SerializedTimeEntry | null>(null);
@@ -100,16 +197,33 @@ export function TimePageContent({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const entries = useMemo(() => {
+    let result = initialEntries;
+
     if (filter === "unbilled") {
-      return initialEntries.filter((entry) => !entry.invoicedAt && entry.billable);
+      result = result.filter((entry) => !entry.invoicedAt && entry.billable);
     }
-    return initialEntries;
-  }, [filter, initialEntries]);
+
+    if (clientFilter !== "all") {
+      result = result.filter((entry) => entry.clientId === clientFilter);
+    }
+
+    if (dateFrom) {
+      result = result.filter((entry) => entry.date.slice(0, 10) >= dateFrom);
+    }
+
+    if (dateTo) {
+      result = result.filter((entry) => entry.date.slice(0, 10) <= dateTo);
+    }
+
+    return result;
+  }, [filter, initialEntries, clientFilter, dateFrom, dateTo]);
+
+  const hasTableFilters = clientFilter !== "all" || Boolean(dateFrom) || Boolean(dateTo);
 
   const table = useListTable<SerializedTimeEntry>({
     tableId: "time",
     data: entries,
-    searchKeys: ["clientName", "description", "invoiceNumber"],
+    searchKeys: ["clientName", "memberName", "description", "invoiceNumber"],
     defaultSortKey: "date",
     defaultSortDirection: "desc",
     getSortValue: (row, key) => {
@@ -124,6 +238,13 @@ export function TimePageContent({
     () => entries.filter(isInvoiceable),
     [entries],
   );
+
+  const showSelectionColumn = invoiceableEntries.length > 0;
+  const showActionsColumn = useMemo(
+    () => entries.some(entryHasActions),
+    [entries],
+  );
+  const columnCount = 8 + (showSelectionColumn ? 1 : 0) + (showActionsColumn ? 1 : 0);
 
   const unbilledHours = initialEntries
     .filter((entry) => !entry.invoicedAt && entry.billable)
@@ -162,6 +283,14 @@ export function TimePageContent({
 
     startInvoicing(() => {
       router.push(invoiceFromTimeUrl({ clientId, timeEntryIds }));
+    });
+  }
+
+  function handleEstimateFromTime(clientId: string, timeEntryIds: string[]) {
+    if (isInvoicing) return;
+
+    startInvoicing(() => {
+      router.push(estimateFromTimeUrl({ clientId, timeEntryIds }));
     });
   }
 
@@ -222,6 +351,17 @@ export function TimePageContent({
     );
   }
 
+  function handleBulkEstimate() {
+    if (selectedClientIds.size !== 1 || isInvoicing) return;
+    const clientId = selectedEntries[0]?.clientId;
+    if (!clientId) return;
+
+    handleEstimateFromTime(
+      clientId,
+      selectedEntries.map((entry) => entry.id),
+    );
+  }
+
   return (
     <>
       <PageHeader
@@ -264,22 +404,102 @@ export function TimePageContent({
       />
 
       {initialEntries.length > 0 && (
-        <div className="mb-4 flex flex-wrap items-center gap-3">
-          <Tabs
-            value={filter}
-            onValueChange={(value) => {
-              setFilter(value as "all" | "unbilled");
-              setSelectedIds(new Set());
-            }}
-          >
-            <TabsList>
-              <TabsTrigger value="all">All</TabsTrigger>
-              <TabsTrigger value="unbilled">Unbilled</TabsTrigger>
-            </TabsList>
-          </Tabs>
-          <p className="text-sm text-muted-foreground">
-            {unbilledHours.toFixed(2)} unbilled hours ready to invoice
-          </p>
+        <div className="mb-4 space-y-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <Tabs
+              value={filter}
+              onValueChange={(value) => {
+                setFilter(value as "all" | "unbilled");
+                setSelectedIds(new Set());
+              }}
+            >
+              <TabsList>
+                <TabsTrigger value="all">All</TabsTrigger>
+                <TabsTrigger value="unbilled">Unbilled</TabsTrigger>
+              </TabsList>
+            </Tabs>
+            <p className="text-sm text-muted-foreground">
+              {unbilledHours.toFixed(2)} unbilled hours ready to invoice
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-end gap-3">
+            {clients.length > 0 && (
+              <div className="w-full min-w-[10rem] sm:w-48">
+                <label htmlFor="time-client-filter" className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                  Client
+                </label>
+                <Select
+                  value={clientFilter}
+                  onValueChange={(value) => {
+                    if (!value) return;
+                    setClientFilter(value);
+                    setSelectedIds(new Set());
+                  }}
+                  items={[
+                    { value: "all", label: "All clients" },
+                    ...clients.map((client) => ({ value: client.id, label: client.name })),
+                  ]}
+                >
+                  <SelectTrigger id="time-client-filter" size="sm" className="w-full">
+                    <SelectValue placeholder="All clients" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All clients</SelectItem>
+                    {clients.map((client) => (
+                      <SelectItem key={client.id} value={client.id}>
+                        {client.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="w-full min-w-[10rem] sm:w-40">
+              <label htmlFor="time-date-from" className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                From
+              </label>
+              <DatePicker
+                id="time-date-from"
+                value={dateFrom}
+                onChange={(value) => {
+                  setDateFrom(value);
+                  setSelectedIds(new Set());
+                }}
+                placeholder="Start date"
+              />
+            </div>
+            <div className="w-full min-w-[10rem] sm:w-40">
+              <label htmlFor="time-date-to" className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                To
+              </label>
+              <DatePicker
+                id="time-date-to"
+                value={dateTo}
+                onChange={(value) => {
+                  setDateTo(value);
+                  setSelectedIds(new Set());
+                }}
+                placeholder="End date"
+              />
+            </div>
+            {hasTableFilters && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8"
+                onClick={() => {
+                  setClientFilter("all");
+                  setDateFrom("");
+                  setDateTo("");
+                  setSelectedIds(new Set());
+                }}
+              >
+                Clear filters
+              </Button>
+            )}
+          </div>
         </div>
       )}
 
@@ -310,6 +530,19 @@ export function TimePageContent({
                 <FileTextIcon className="size-4" />
               )}
               {isInvoicing ? "Creating invoice..." : "Create invoice"}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleBulkEstimate}
+              disabled={selectedClientIds.size !== 1 || isInvoicing}
+            >
+              {isInvoicing ? (
+                <Loader2Icon className="size-4 animate-spin" />
+              ) : (
+                <ClipboardListIcon className="size-4" />
+              )}
+              {isInvoicing ? "Creating estimate..." : "Create estimate"}
             </Button>
             {isMobile && selectedClientIds.size > 1 && (
               <p className="flex w-full items-start gap-1.5 text-xs text-muted-foreground">
@@ -367,18 +600,23 @@ export function TimePageContent({
             searchPlaceholder="Search time entries..."
           />
 
-          <Table stickyColumnWidths={["3.25rem", "6.5rem"]}>
+          <Table
+            stickyColumns={showSelectionColumn ? 2 : 1}
+            stickyColumnWidths={
+              showSelectionColumn ? ["3.25rem", "6.5rem"] : ["6.5rem"]
+            }
+          >
             <TableHeader>
               <TableRow>
-                <TableHead className="w-10">
-                  {invoiceableEntries.length > 0 && (
+                {showSelectionColumn && (
+                  <TableHead className="w-10">
                     <Checkbox
                       checked={allInvoiceableSelected}
                       onCheckedChange={(checked) => toggleAll(checked === true)}
                       aria-label="Select all invoiceable entries"
                     />
-                  )}
-                </TableHead>
+                  </TableHead>
+                )}
                 <SortableTableHead
                   label="Date"
                   column="date"
@@ -392,6 +630,15 @@ export function TimePageContent({
                   sortKey={table.sortKey}
                   sortDirection={table.sortDirection}
                   onSort={table.toggleSort}
+                  className="min-w-[8rem]"
+                />
+                <SortableTableHead
+                  label="Logged by"
+                  column="memberName"
+                  sortKey={table.sortKey}
+                  sortDirection={table.sortDirection}
+                  onSort={table.toggleSort}
+                  className="min-w-[7rem]"
                 />
                 <SortableTableHead
                   label="Description"
@@ -399,6 +646,7 @@ export function TimePageContent({
                   sortKey={table.sortKey}
                   sortDirection={table.sortDirection}
                   onSort={table.toggleSort}
+                  className="min-w-[10rem]"
                 />
                 <SortableTableHead
                   label="Duration"
@@ -406,7 +654,7 @@ export function TimePageContent({
                   sortKey={table.sortKey}
                   sortDirection={table.sortDirection}
                   onSort={table.toggleSort}
-                  className="text-right [&_button]:ml-auto"
+                  className="min-w-[5.5rem] pl-4 text-right [&_button]:ml-auto"
                 />
                 <SortableTableHead
                   label="Rate"
@@ -414,7 +662,7 @@ export function TimePageContent({
                   sortKey={table.sortKey}
                   sortDirection={table.sortDirection}
                   onSort={table.toggleSort}
-                  className="text-right [&_button]:ml-auto"
+                  className="min-w-[5.5rem] pl-4 text-right [&_button]:ml-auto"
                 />
                 <SortableTableHead
                   label="Amount"
@@ -422,16 +670,18 @@ export function TimePageContent({
                   sortKey={table.sortKey}
                   sortDirection={table.sortDirection}
                   onSort={table.toggleSort}
-                  className="text-right [&_button]:ml-auto"
+                  className="min-w-[5.5rem] pl-4 text-right [&_button]:ml-auto"
                 />
-                <TableHead>Status</TableHead>
-                <TableHead className="w-24" />
+                <TableHead className="min-w-[7rem] pl-4">Status</TableHead>
+                {showActionsColumn && (
+                  <TableHead className="w-14 pl-4 text-right">Actions</TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
               {table.pageRows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
+                  <TableCell colSpan={columnCount} className="h-24 text-center text-muted-foreground">
                     {table.hasActiveFilters
                       ? "No time entries match your search."
                       : "No time entries."}
@@ -445,24 +695,31 @@ export function TimePageContent({
 
                 return (
                   <TableRow key={entry.id} data-state={selectedIds.has(entry.id) ? "selected" : undefined}>
-                    <TableCell>
-                      {canInvoice && (
-                        <Checkbox
-                          checked={selectedIds.has(entry.id)}
-                          onCheckedChange={(checked) => toggleEntry(entry.id, checked === true)}
-                          aria-label={`Select ${entry.description}`}
-                        />
-                      )}
-                    </TableCell>
+                    {showSelectionColumn && (
+                      <TableCell>
+                        {canInvoice && (
+                          <Checkbox
+                            checked={selectedIds.has(entry.id)}
+                            onCheckedChange={(checked) => toggleEntry(entry.id, checked === true)}
+                            aria-label={`Select ${entry.description}`}
+                          />
+                        )}
+                      </TableCell>
+                    )}
                     <TableCell>{formatDate(entry.date)}</TableCell>
                     <TableCell>{entry.clientName ?? "—"}</TableCell>
-                    <TableCell className="max-w-[200px] truncate">{entry.description}</TableCell>
-                    <TableCell className="text-right">{formatDuration(entry.durationMinutes)}</TableCell>
-                    <TableCell className="text-right">
+                    <TableCell>{entry.memberName ?? "—"}</TableCell>
+                    <TableCell className="max-w-[16rem] truncate">{entry.description}</TableCell>
+                    <TableCell className="pl-4 text-right tabular-nums">
+                      {formatDuration(entry.durationMinutes)}
+                    </TableCell>
+                    <TableCell className="pl-4 text-right tabular-nums">
                       {formatMoney(entry.hourlyRate, currency)}
                     </TableCell>
-                    <TableCell className="text-right">{formatMoney(amount, currency)}</TableCell>
-                    <TableCell>
+                    <TableCell className="pl-4 text-right tabular-nums">
+                      {formatMoney(amount, currency)}
+                    </TableCell>
+                    <TableCell className="pl-4">
                       {isBilled ? (
                         entry.invoiceId ? (
                           <Link
@@ -480,46 +737,21 @@ export function TimePageContent({
                         <Badge variant="secondary">Non-billable</Badge>
                       )}
                     </TableCell>
-                    <TableCell>
-                      <div className="flex justify-end gap-1">
-                        {canInvoice && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleInvoiceFromTime(entry.clientId!, [entry.id])
-                            }
-                            disabled={isInvoicing}
-                            className={cn(buttonVariants({ variant: "ghost", size: "icon-sm" }))}
-                            aria-label="Create invoice from time entry"
-                          >
-                            <FileTextIcon className="size-4" />
-                          </button>
-                        )}
-                        {!isBilled && (
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              onClick={() => {
-                                setEditingEntry(entry);
-                                setLogOpen(true);
-                              }}
-                              aria-label="Edit time entry"
-                            >
-                              <PencilIcon className="size-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              onClick={() => setDeleteEntry(entry)}
-                              aria-label="Delete time entry"
-                            >
-                              <Trash2Icon className="size-4" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </TableCell>
+                    {showActionsColumn && (
+                      <TableCell className="pl-4 text-right">
+                        <TimeEntryActions
+                          entry={entry}
+                          isInvoicing={isInvoicing}
+                          onInvoice={() => handleInvoiceFromTime(entry.clientId!, [entry.id])}
+                          onEstimate={() => handleEstimateFromTime(entry.clientId!, [entry.id])}
+                          onEdit={() => {
+                            setEditingEntry(entry);
+                            setLogOpen(true);
+                          }}
+                          onDelete={() => setDeleteEntry(entry)}
+                        />
+                      </TableCell>
+                    )}
                   </TableRow>
                 );
               })
@@ -547,6 +779,7 @@ export function TimePageContent({
         clients={clients}
         defaultHourlyRate={defaultHourlyRate}
         entry={editingEntry}
+        recentDescriptions={recentDescriptions}
       />
 
       <ImportTimeDialog
