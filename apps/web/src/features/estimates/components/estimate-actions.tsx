@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
+  CopyIcon,
   DownloadIcon,
   FileTextIcon,
   LinkIcon,
@@ -128,6 +129,28 @@ export function EstimateActions({
       router.refresh();
     } catch {
       toast.error("Could not update estimate status");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function handleDuplicate() {
+    setLoading("duplicate");
+    const toastId = toast.loading("Duplicating estimate…");
+    try {
+      const response = await fetch(`/api/estimates/${estimateId}/duplicate`, {
+        method: "POST",
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Failed to duplicate");
+
+      toast.success(`Draft created from ${estimateNumber}`, { id: toastId });
+      router.push(`/estimates/${data.estimate.id}`);
+      router.refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not duplicate estimate", {
+        id: toastId,
+      });
     } finally {
       setLoading(null);
     }
@@ -324,6 +347,10 @@ export function EstimateActions({
                   </DropdownMenuItem>
                 </>
               )}
+              <DropdownMenuItem onClick={handleDuplicate} disabled={isBusy}>
+                <CopyIcon className="size-4" />
+                {loading === "duplicate" ? "Duplicating..." : "Duplicate"}
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem variant="destructive" onClick={() => setDeleteOpen(true)}>
                 <Trash2Icon className="size-4" />

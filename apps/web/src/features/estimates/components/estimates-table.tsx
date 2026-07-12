@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
+  CopyIcon,
   DownloadIcon,
   EyeIcon,
   MoreHorizontalIcon,
@@ -97,6 +98,28 @@ export function EstimatesTable({ estimates, companyName }: EstimatesTableProps) 
       documentNumber: estimate.number,
       companyName,
     });
+  }
+
+  async function handleDuplicate(estimate: EstimateRow) {
+    setLoadingId(estimate.id);
+    const toastId = toast.loading("Duplicating estimate…");
+    try {
+      const response = await fetch(`/api/estimates/${estimate.id}/duplicate`, {
+        method: "POST",
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Failed to duplicate");
+
+      toast.success(`Draft created from ${estimate.number}`, { id: toastId });
+      router.push(`/estimates/${data.estimate.id}`);
+      router.refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not duplicate estimate", {
+        id: toastId,
+      });
+    } finally {
+      setLoadingId(null);
+    }
   }
 
   async function handleDelete(estimate: EstimateRow) {
@@ -222,6 +245,10 @@ export function EstimatesTable({ estimates, companyName }: EstimatesTableProps) 
                       <DropdownMenuItem render={<Link href={`/estimates/${estimate.id}`} />}>
                         <SendIcon className="size-4" />
                         Send estimate
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleDuplicate(estimate)}>
+                        <CopyIcon className="size-4" />
+                        Duplicate
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem

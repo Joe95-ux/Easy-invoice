@@ -6,6 +6,7 @@ import { useState } from "react";
 import {
   createLucideIcon,
   BellRingIcon,
+  CopyIcon,
   DownloadIcon,
   LinkIcon,
   MoreHorizontalIcon,
@@ -195,6 +196,28 @@ export function InvoiceActions({
     }
   }
 
+  async function handleDuplicate() {
+    setLoading("duplicate");
+    const toastId = toast.loading("Duplicating invoice…");
+    try {
+      const response = await fetch(`/api/invoices/${invoiceId}/duplicate`, {
+        method: "POST",
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Failed to duplicate");
+
+      toast.success(`Draft created from ${invoiceNumber}`, { id: toastId });
+      router.push(`/invoices/${data.invoice.id}`);
+      router.refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not duplicate invoice", {
+        id: toastId,
+      });
+    } finally {
+      setLoading(null);
+    }
+  }
+
   async function handleDelete() {
     setLoading("delete");
     try {
@@ -319,6 +342,10 @@ export function InvoiceActions({
                   Send payment reminder
                 </DropdownMenuItem>
               )}
+              <DropdownMenuItem onClick={handleDuplicate} disabled={isBusy}>
+                <CopyIcon className="size-4" />
+                {loading === "duplicate" ? "Duplicating..." : "Duplicate"}
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem variant="destructive" onClick={() => setDeleteOpen(true)}>
                 <Trash2Icon className="size-4" />

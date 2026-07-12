@@ -32,7 +32,7 @@ import {
   linkTimeEntriesToInvoice,
   releaseTimeEntriesForInvoice,
 } from "@/lib/time-tracking/service";
-import { syncInvoiceInstallments } from "@/lib/invoice-payments";
+import { syncInvoiceInstallments, validateInstallments } from "@/lib/invoice-payments";
 import { formatRevisionActor } from "@/lib/member-email";
 
 const MAX_REVISIONS_PER_DOCUMENT = 50;
@@ -590,6 +590,159 @@ export async function duplicateDocumentFromRevision(
       snapshot: createdSnapshot,
       summary: `Created from version ${revision.revisionNumber} of ${snapshot.number}`,
       metadata: { duplicatedFromRevisionId: revision.id },
+    });
+  }
+
+  return created;
+}
+
+async function resolveSnapshotClientName(companyId: string, clientId: string | null) {
+  if (!clientId) return "Client";
+
+  const client = await prisma.client.findFirst({
+    where: { id: clientId, companyId },
+    select: { name: true },
+  });
+
+  return client?.name ?? "Client";
+}
+
+export async function duplicateInvoice(
+  companyId: string,
+  memberId: string,
+  invoiceId: string,
+) {
+  const snapshot = await loadInvoiceSnapshot(companyId, invoiceId);
+  if (!snapshot) throw new Error("Invoice not found");
+
+  const clientName = await resolveSnapshotClientName(companyId, snapshot.clientId);
+  const { lineItems, totals } = buildInvoiceTotals({
+    clientName,
+    currency: snapshot.currency,
+    taxRate: snapshot.taxRate,
+    discount: snapshot.discount,
+    lineItems: snapshot.lineItems.map((item) => ({
+      description: item.description,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      sortOrder: item.sortOrder,
+    })),
+  });
+
+  const installments =
+    snapshot.installments?.map((row) => ({
+      dueDate: row.dueDate,
+      amount: row.amount,
+      label: row.label ?? undefined,
+      sortOrder: row.sortOrder,
+    })) ?? [];
+
+  const installmentError = validateInstallments(installments, totals.total);
+  if (installmentError) {
+    throw new Error(installmentError);
+  }
+
+  const created = await prisma.invoice.create({
+    data: {
+      companyId,
+      clientId: snapshot.clientId,
+      templateId: snapshot.templateId,
+      number: await generateNextInvoiceNumber(companyId),
+      status: "DRAFT",
+      currency: snapshot.currency,
+      subtotal: totals.subtotal,
+      taxRate: snapshot.taxRate,
+      taxAmount: totals.taxAmount,
+      discount: snapshot.discount,
+      total: totals.total,
+      notes: snapshot.notes,
+      issueDate: new Date(),
+      dueDate: snapshot.dueDate ? new Date(snapshot.dueDate) : null,
+      items: { create: lineItems },
+    },
+    include: {
+      client: true,
+      items: { orderBy: { sortOrder: "asc" } },
+      company: true,
+      template: true,
+    },
+  });
+
+  if (installments.length > 0) {
+    await syncInvoiceInstallments(created.id, installments);
+  }
+
+  const createdSnapshot = await loadInvoiceSnapshot(companyId, created.id);
+  if (createdSnapshot) {
+    await recordDocumentRevision({
+      companyId,
+      documentType: "INVOICE",
+      documentId: created.id,
+      memberId,
+      source: "CREATE",
+      snapshot: createdSnapshot,
+      summary: `Duplicated from ${snapshot.number}`,
+      metadata: { duplicatedFromInvoiceId: invoiceId },
+    });
+  }
+
+  return created;
+}
+
+export async function duplicateEstimate(
+  companyId: string,
+  memberId: string,
+  estimateId: string,
+) {
+  const snapshot = await loadEstimateSnapshot(companyId, estimateId);
+  if (!snapshot) throw new Error("Estimate not found");
+
+  const clientName = await resolveSnapshotClientName(companyId, snapshot.clientId);
+  const { lineItems, totals } = buildEstimateTotals({
+    clientName,
+    currency: snapshot.currency,
+    taxRate: snapshot.taxRate,
+    discount: snapshot.discount,
+    lineItems: snapshot.lineItems.map((item) => ({
+      description: item.description,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      sortOrder: item.sortOrder,
+    })),
+  });
+
+  const created = await prisma.estimate.create({
+    data: {
+      companyId,
+      clientId: snapshot.clientId,
+      templateId: snapshot.templateId,
+      number: await generateNextEstimateNumber(companyId),
+      status: "DRAFT",
+      currency: snapshot.currency,
+      subtotal: totals.subtotal,
+      taxRate: snapshot.taxRate,
+      taxAmount: totals.taxAmount,
+      discount: snapshot.discount,
+      total: totals.total,
+      notes: snapshot.notes,
+      issueDate: new Date(),
+      validUntil: snapshot.validUntil ? new Date(snapshot.validUntil) : null,
+      items: { create: lineItems },
+    },
+    include: estimateDetailInclude,
+  });
+
+  const createdSnapshot = await loadEstimateSnapshot(companyId, created.id);
+  if (createdSnapshot) {
+    await recordDocumentRevision({
+      companyId,
+      documentType: "ESTIMATE",
+      documentId: created.id,
+      memberId,
+      source: "CREATE",
+      snapshot: createdSnapshot,
+      summary: `Duplicated from ${snapshot.number}`,
+      metadata: { duplicatedFromEstimateId: estimateId },
     });
   }
 

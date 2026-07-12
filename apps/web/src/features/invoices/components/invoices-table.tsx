@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
+  CopyIcon,
   DownloadIcon,
   EyeIcon,
   MoreHorizontalIcon,
@@ -98,6 +99,28 @@ export function InvoicesTable({ invoices, companyName }: InvoicesTableProps) {
       documentNumber: invoice.number,
       companyName,
     });
+  }
+
+  async function handleDuplicate(invoice: InvoiceRow) {
+    setLoadingId(invoice.id);
+    const toastId = toast.loading("Duplicating invoice…");
+    try {
+      const response = await fetch(`/api/invoices/${invoice.id}/duplicate`, {
+        method: "POST",
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Failed to duplicate");
+
+      toast.success(`Draft created from ${invoice.number}`, { id: toastId });
+      router.push(`/invoices/${data.invoice.id}`);
+      router.refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not duplicate invoice", {
+        id: toastId,
+      });
+    } finally {
+      setLoadingId(null);
+    }
   }
 
   async function handleDelete(invoice: InvoiceRow) {
@@ -228,6 +251,10 @@ export function InvoicesTable({ invoices, companyName }: InvoicesTableProps) {
                       <DropdownMenuItem render={<Link href={`/invoices/${invoice.id}`} />}>
                         <SendIcon className="size-4" />
                         Send invoice
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleDuplicate(invoice)}>
+                        <CopyIcon className="size-4" />
+                        Duplicate
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
