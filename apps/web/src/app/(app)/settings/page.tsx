@@ -7,6 +7,7 @@ import { SettingsSectionNav } from "@/features/settings/components/settings-sect
 import { requireCompanyAdmin } from "@/lib/auth";
 import { getDefaultTemplateId, getTemplatesForCompany } from "@/lib/templates";
 import { normalizeLogoBg, normalizeLogoPlacement } from "@/lib/company-branding";
+import { normalizePaymentMethods } from "@/lib/company-payment-methods";
 import { reminderSettingsFromCompany } from "@/lib/reminders/settings";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,7 @@ export default async function SettingsPage() {
     state: company.state,
     zip: company.zip,
     country: company.country,
+    paymentMethods: normalizePaymentMethods(company.paymentMethods),
   };
 
   return (
@@ -90,6 +92,7 @@ export default async function SettingsPage() {
               ? Number(company.defaultHourlyRate)
               : null,
             timerRoundToMinutes: company.timerRoundToMinutes ?? 1,
+            paymentMethods: normalizePaymentMethods(company.paymentMethods),
             logoBg: normalizeLogoBg(company.logoBg),
             logoPlacement: normalizeLogoPlacement(company.logoPlacement),
             brandColor: company.brandColor,

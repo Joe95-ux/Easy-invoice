@@ -16,6 +16,7 @@ const COMPANY_FIELD_LABELS: Record<string, string> = {
   defaultHourlyRate: "default hourly rate",
   timerRoundToMinutes: "timer rounding",
   documentPrefix: "invoice prefix",
+  paymentMethods: "payment information",
 };
 
 const REMINDER_FIELD_LABELS: Record<string, string> = {
@@ -29,7 +30,12 @@ const REMINDER_FIELD_LABELS: Record<string, string> = {
 
 function formatValue(value: unknown): string {
   if (value === null || value === undefined || value === "") return "empty";
-  if (Array.isArray(value)) return value.join(", ");
+  if (Array.isArray(value)) {
+    if (value.every((item) => item && typeof item === "object")) {
+      return `${value.length} item${value.length === 1 ? "" : "s"}`;
+    }
+    return value.join(", ");
+  }
   if (typeof value === "boolean") return value ? "on" : "off";
   if (typeof value === "object" && value !== null && "toString" in value) {
     return String(value);

@@ -56,6 +56,36 @@ export const watermarkStyles = `
     color: #374151;
     margin-bottom: 8px;
   }
+  .terms-notes-body {
+    color: #475569;
+    line-height: 1.65;
+    white-space: pre-wrap;
+  }
+  .payment-info { margin-top: 28px; }
+  .payment-info-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #374151;
+    margin-bottom: 10px;
+  }
+  .payment-info-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.75rem;
+    text-align: left;
+    line-height: 1.55;
+    font-size: 12px;
+    color: #475569;
+    margin-bottom: 4px;
+  }
+  .payment-info-method {
+    font-weight: 600;
+    color: #1f2937;
+    min-width: 6.5rem;
+  }
+  .payment-info-detail { color: #475569; }
   .totals.totals--wide { width: min(100%, 420px) !important; }
   .payment-schedule-block { margin-top: 20px; width: 100%; }
   .payment-block-label {
@@ -127,6 +157,7 @@ const sharedBody = `
     </table>
     <div class="totals {{totals_class}}">{{totals}}</div>
     {{payment_schedule}}
+    {{payment_info}}
     {{terms_notes}}
     {{invoice_footer}}
   </div>
@@ -167,6 +198,7 @@ const modernBody = `
       </table>
       <div class="totals-wrap"><div class="totals {{totals_class}}">{{totals}}</div></div>
       {{payment_schedule}}
+      {{payment_info}}
       {{terms_notes}}
       {{invoice_footer}}
     </div>
@@ -208,6 +240,7 @@ const auroraBody = `
     </table>
     <div class="totals-wrap"><div class="totals {{totals_class}}">{{totals}}</div></div>
     {{payment_schedule}}
+    {{payment_info}}
     {{terms_notes}}
     {{invoice_footer}}
   </div>
@@ -250,6 +283,7 @@ const onyxBody = `
     </table>
     <div class="totals-wrap"><div class="totals {{totals_class}}">{{totals}}</div></div>
     {{payment_schedule}}
+    {{payment_info}}
     {{terms_notes}}
     {{invoice_footer}}
   </div>
@@ -296,6 +330,7 @@ const telegraphBody = `
     <div class="segment-rule" aria-hidden="true"><span></span><span></span></div>
     <div class="totals-wrap"><div class="totals {{totals_class}}">{{totals}}</div></div>
     {{payment_schedule}}
+    {{payment_info}}
     {{terms_notes}}
     <div class="segment-rule footer-rule" aria-hidden="true"><span></span></div>
     {{invoice_footer}}
@@ -560,7 +595,8 @@ export const SYSTEM_TEMPLATES: SystemTemplateDefinition[] = [
         color: #737373;
         margin-bottom: 8px;
       }
-      .terms-notes div:last-child { color: #404040; line-height: 1.75; }
+      .terms-notes div:last-child,
+      .terms-notes-body { color: #404040; line-height: 1.75; }
       .invoice-footer {
         border-top: none;
         margin-top: 0;

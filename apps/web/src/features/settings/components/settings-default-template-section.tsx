@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { DocumentPreviewDrawer } from "@/components/document-preview-drawer";
 import { TemplateCarousel } from "@/features/invoices/components/template-carousel";
-import { SAMPLE_PAYMENT_NOTES, type PreviewCompany } from "@/lib/invoice-templates/preview-html";
+import { SAMPLE_TERMS_NOTES, type PreviewCompany } from "@/lib/invoice-templates/preview-html";
 import type { TemplateSummary } from "@/lib/templates";
 
 type SettingsDefaultTemplateSectionProps = {
@@ -93,7 +93,7 @@ export function SettingsDefaultTemplateSection({
         issueDate={new Date().toISOString().slice(0, 10)}
         expiryDate={new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10)}
         currency={currency}
-        notes={SAMPLE_PAYMENT_NOTES}
+        notes={SAMPLE_TERMS_NOTES}
         items={[
           { description: "Design & discovery", quantity: 1, unitPrice: 1200 },
           { description: "Development", quantity: 12, unitPrice: 90 },

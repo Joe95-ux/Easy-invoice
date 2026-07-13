@@ -17,6 +17,7 @@ export type InvoiceHtmlData = {
     state?: string | null;
     zip?: string | null;
     country?: string | null;
+    paymentMethods?: Array<{ label: string; value: string }> | null;
   };
   client: {
     name: string;

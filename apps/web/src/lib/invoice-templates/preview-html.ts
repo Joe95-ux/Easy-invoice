@@ -1,17 +1,21 @@
 import { SYSTEM_TEMPLATES } from "@/lib/invoice-templates/definitions";
 import { renderFromTemplate } from "@/lib/invoice-templates/render";
 import type { DocumentKind, InvoiceHtmlData } from "@/lib/invoice-templates/types";
+import type { CompanyPaymentMethod } from "@/lib/company-payment-methods";
 
-/** Sample Terms & Notes shown in template previews — illustrates payment info users can add. */
-export const SAMPLE_PAYMENT_NOTES = `Payment due within 14 days.
+/** Sample terms shown in template previews (payment methods live separately). */
+export const SAMPLE_TERMS_NOTES = `Payment due within 14 days.
+Thank you for your business.`;
 
-PayPal: billing@yourcompany.com
-Zelle: (555) 123-4567
-Cash App: $YourBusiness
+export const SAMPLE_PAYMENT_METHODS: CompanyPaymentMethod[] = [
+  { label: "PayPal", value: "billing@yourcompany.com" },
+  { label: "Zelle", value: "(555) 123-4567" },
+  { label: "Cash App", value: "$YourBusiness" },
+  { label: "Bank transfer", value: "Chase · Routing 021000021 · Account ****4821" },
+];
 
-Bank transfer — Chase Bank
-Routing: 021000021 · Account: ****4821
-Account name: Your Company LLC`;
+/** @deprecated Prefer SAMPLE_TERMS_NOTES + SAMPLE_PAYMENT_METHODS */
+export const SAMPLE_PAYMENT_NOTES = SAMPLE_TERMS_NOTES;
 
 export type PreviewCompany = {
   name: string;
@@ -26,6 +30,7 @@ export type PreviewCompany = {
   state?: string | null;
   zip?: string | null;
   country?: string | null;
+  paymentMethods?: CompanyPaymentMethod[] | null;
 };
 
 export type PreviewLineItem = {
@@ -124,7 +129,11 @@ export function buildDocumentHtml(options: BuildDocumentHtmlOptions): string {
 
   const data: InvoiceHtmlData = {
     documentKind: options.kind,
-    company: { ...options.company, logoUrl: absoluteLogoUrl(options.company.logoUrl) },
+    company: {
+      ...options.company,
+      logoUrl: absoluteLogoUrl(options.company.logoUrl),
+      paymentMethods: options.company.paymentMethods ?? null,
+    },
     client: {
       name: options.client.name.trim() ? options.client.name : "Client name",
       email: options.client.email ?? null,
@@ -174,7 +183,12 @@ export function buildSampleDocumentHtml(
   return buildDocumentHtml({
     kind,
     templateSlug,
-    company,
+    company: {
+      ...company,
+      paymentMethods: company.paymentMethods?.length
+        ? company.paymentMethods
+        : SAMPLE_PAYMENT_METHODS,
+    },
     number: "0001",
     client: {
       name: "Acme Studios",
@@ -184,7 +198,7 @@ export function buildSampleDocumentHtml(
     issueDate: new Date().toISOString().slice(0, 10),
     expiryDate: new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10),
     currency,
-    notes: SAMPLE_PAYMENT_NOTES,
+    notes: SAMPLE_TERMS_NOTES,
     items,
     totals: { subtotal, taxAmount, total: subtotal + taxAmount },
     taxRate: 7.5,

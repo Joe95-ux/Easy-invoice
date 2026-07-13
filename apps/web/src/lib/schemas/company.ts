@@ -48,6 +48,15 @@ export const companySettingsSchema = companyProfileSchema.extend({
     (value) => (value === "" || value === null || value === undefined ? 1 : Number(value)),
     z.number().int().min(1).max(60).optional(),
   ),
+  paymentMethods: z
+    .array(
+      z.object({
+        label: z.string().trim().min(1, "Add a label").max(40),
+        value: z.string().trim().min(1, "Add payment details").max(200),
+      }),
+    )
+    .max(12)
+    .optional(),
 });
 
 export type CompanyProfileInput = z.infer<typeof companyProfileSchema>;

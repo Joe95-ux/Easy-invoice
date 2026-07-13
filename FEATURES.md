@@ -107,9 +107,17 @@ Reusable line items for faster repeat invoicing.
 
 ### 7. Duplicate invoice / estimate
 
-**Status:** Planned
+**Status:** Done
 
-Clone an existing document in one click.
+Clone any invoice or estimate into a new draft with a fresh number.
+
+---
+
+### 7b. Company payment information
+
+**Status:** Done
+
+Structured payment methods (PayPal, Zelle, bank, etc.) in company settings; rendered above Terms & notes on invoices and estimates.
 
 ---
 

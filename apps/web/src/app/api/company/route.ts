@@ -23,6 +23,7 @@ const PROFILE_AUDIT_FIELDS = [
   "defaultHourlyRate",
   "timerRoundToMinutes",
   "documentPrefix",
+  "paymentMethods",
 ] as const;
 
 function companyProfileSnapshot(company: Record<string, unknown>) {
@@ -89,6 +90,9 @@ export async function PATCH(request: Request) {
       }),
       ...(parsed.data.documentPrefix !== undefined && {
         documentPrefix: parsed.data.documentPrefix,
+      }),
+      ...(parsed.data.paymentMethods !== undefined && {
+        paymentMethods: parsed.data.paymentMethods,
       }),
     },
   });

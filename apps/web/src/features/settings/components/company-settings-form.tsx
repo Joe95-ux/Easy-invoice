@@ -32,6 +32,8 @@ import {
   previewInvoiceNumber,
   previewReceiptNumber,
 } from "@/lib/document-numbers";
+import { PaymentMethodsEditor } from "@/features/settings/components/payment-methods-editor";
+import { normalizePaymentMethods } from "@/lib/company-payment-methods";
 
 type CompanySettingsFormProps = {
   initialValues: CompanySettingsInput;
@@ -45,6 +47,7 @@ type CompanySettingsFormProps = {
 const STEPS = [
   { id: "brand", title: "Brand", description: "Logo, colors, and document styling" },
   { id: "contact", title: "Contact", description: "How clients reach you" },
+  { id: "payment", title: "Payment", description: "How clients pay you" },
   { id: "address", title: "Address", description: "Business location" },
   { id: "preferences", title: "Preferences", description: "Currency, locale, and document numbering" },
 ] as const;
@@ -60,7 +63,10 @@ export function CompanySettingsForm({
   const { user } = useUser();
   const router = useRouter();
   const [step, setStep] = useState(0);
-  const [form, setForm] = useState<CompanySettingsInput>(initialValues);
+  const [form, setForm] = useState<CompanySettingsInput>({
+    ...initialValues,
+    paymentMethods: normalizePaymentMethods(initialValues.paymentMethods),
+  });
   const [logoUrl, setLogoUrl] = useState<string | null>(initialLogoUrl);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -234,6 +240,14 @@ export function CompanySettingsForm({
           )}
 
           {step === 2 && (
+            <PaymentMethodsEditor
+              value={form.paymentMethods ?? []}
+              onChange={(value) => updateField("paymentMethods", value)}
+              error={errors.paymentMethods}
+            />
+          )}
+
+          {step === 3 && (
             <div className="space-y-4">
               <AddressFields
                 values={form}
@@ -255,7 +269,7 @@ export function CompanySettingsForm({
             </div>
           )}
 
-          {step === 3 && (
+          {step === 4 && (
             <div className="grid gap-4 sm:grid-cols-2">
               <CurrencySelect
                 value={form.currency}

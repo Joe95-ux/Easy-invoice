@@ -56,7 +56,7 @@ const BASE_STEPS: FormStep[] = [
   { id: "client", title: "Client", description: "Who you're billing for this invoice." },
   { id: "details", title: "Details", description: "Dates and currency for this invoice." },
   { id: "items", title: "Line items", description: "Products or services on this invoice." },
-  { id: "notes", title: "Notes", description: "Payment methods, due dates, or anything else to include." },
+  { id: "notes", title: "Notes", description: "Due dates, late fees, or anything else to include." },
 ];
 
 export type InvoiceInitialValues = {
@@ -569,7 +569,7 @@ export function InvoiceCreator({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={5}
-              placeholder="e.g. Payment due in 14 days. PayPal, Zelle, Cash App, or bank transfer details..."
+              placeholder="e.g. Payment due in 14 days. Late fees or net terms..."
             />
           </FieldContent>
         </Field>

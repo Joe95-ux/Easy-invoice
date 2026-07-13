@@ -1,3 +1,5 @@
+import { normalizePaymentMethods } from "@/lib/company-payment-methods";
+
 export type LogoBg = "white" | "dark" | "none";
 export type LogoPlacement = "watermark" | "header";
 
@@ -56,11 +58,13 @@ export function companyBrandingFields(company: {
   logoBg?: string | null;
   logoPlacement?: string | null;
   brandColor?: string | null;
+  paymentMethods?: unknown;
 }) {
   return {
     logoBg: normalizeLogoBg(company.logoBg),
     logoPlacement: normalizeLogoPlacement(company.logoPlacement),
     brandColor: company.brandColor ?? null,
+    paymentMethods: normalizePaymentMethods(company.paymentMethods),
   };
 }
 
@@ -104,6 +108,8 @@ table.line-items tbody tr.band-even td {
 }
 
 .terms-notes-label { color: ${brandColor} !important; }
+.payment-info-label { color: ${brandColor} !important; }
+.payment-info-method { color: ${brandColor} !important; }
 
 .totals-row.total {
   border-top-color: ${brandColor} !important;

@@ -5,6 +5,7 @@ import {
   normalizeLogoBg,
   normalizeLogoPlacement,
 } from "@/lib/company-branding";
+import { normalizePaymentMethods } from "@/lib/company-payment-methods";
 
 function escapeHtml(value: string): string {
   return value
@@ -284,8 +285,18 @@ function buildSections(data: InvoiceHtmlData) {
   const totals_class = hasSchedule || hasPartialPayment ? "totals--wide" : "";
   const payment_schedule = buildPaymentScheduleHtml(data);
 
+  const paymentMethods = normalizePaymentMethods(company.paymentMethods);
+  const payment_info = paymentMethods.length
+    ? `<div class="payment-info"><div class="payment-info-label">Payment information</div>${paymentMethods
+        .map(
+          (method) =>
+            `<div class="payment-info-row"><span class="payment-info-method">${escapeHtml(method.label)}</span><span class="payment-info-detail">${escapeHtml(method.value)}</span></div>`,
+        )
+        .join("")}</div>`
+    : "";
+
   const termsNotes = invoice.notes
-    ? `<div class="terms-notes"><div class="terms-notes-label">Terms &amp; Notes</div><div>${escapeHtml(invoice.notes)}</div></div>`
+    ? `<div class="terms-notes"><div class="terms-notes-label">Terms &amp; Notes</div><div class="terms-notes-body">${escapeHtml(invoice.notes)}</div></div>`
     : "";
 
   const watermark =
@@ -308,6 +319,7 @@ function buildSections(data: InvoiceHtmlData) {
     totals,
     totals_class,
     payment_schedule,
+    payment_info,
     terms_notes: termsNotes,
     watermark,
     invoice_footer: invoiceFooter,
