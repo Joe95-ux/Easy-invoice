@@ -11,7 +11,10 @@ export const SAMPLE_PAYMENT_METHODS: CompanyPaymentMethod[] = [
   { label: "PayPal", value: "billing@yourcompany.com" },
   { label: "Zelle", value: "(555) 123-4567" },
   { label: "Cash App", value: "$YourBusiness" },
-  { label: "Bank transfer", value: "Chase · Routing 021000021 · Account ****4821" },
+  {
+    label: "Bank transfer",
+    value: "Chase Bank\nAccount name: Your Company LLC\nRouting: 021000021\nAccount: ****4821",
+  },
 ];
 
 /** @deprecated Prefer SAMPLE_TERMS_NOTES + SAMPLE_PAYMENT_METHODS */
@@ -32,6 +35,16 @@ export type PreviewCompany = {
   country?: string | null;
   paymentMethods?: CompanyPaymentMethod[] | null;
 };
+
+/** Use sample payment methods when browsing templates so previews match carousel thumbs. */
+export function companyForTemplatePreview(company: PreviewCompany): PreviewCompany {
+  return {
+    ...company,
+    paymentMethods: company.paymentMethods?.length
+      ? company.paymentMethods
+      : SAMPLE_PAYMENT_METHODS,
+  };
+}
 
 export type PreviewLineItem = {
   description: string;

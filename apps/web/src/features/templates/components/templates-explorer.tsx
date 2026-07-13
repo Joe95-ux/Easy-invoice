@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { DocumentPreviewDrawer } from "@/components/document-preview-drawer";
 import { TemplateCarousel } from "@/features/invoices/components/template-carousel";
-import { SAMPLE_TERMS_NOTES, type PreviewCompany } from "@/lib/invoice-templates/preview-html";
+import { SAMPLE_TERMS_NOTES, companyForTemplatePreview, type PreviewCompany } from "@/lib/invoice-templates/preview-html";
 import type { TemplateSummary } from "@/lib/templates";
 
 type TemplatesExplorerProps = {
@@ -78,7 +78,7 @@ export function TemplatesExplorer({
         open={previewOpen}
         onOpenChange={setPreviewOpen}
         kind="invoice"
-        company={company}
+        company={companyForTemplatePreview(company)}
         templateSlug={previewTemplate?.slug}
         templateName={previewTemplate?.name}
         isSelected={previewTemplate?.id === selected}

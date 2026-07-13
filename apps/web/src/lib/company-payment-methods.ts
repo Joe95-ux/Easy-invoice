@@ -5,7 +5,7 @@ export type CompanyPaymentMethod = {
 
 const MAX_PAYMENT_METHODS = 12;
 const MAX_LABEL_LENGTH = 40;
-const MAX_VALUE_LENGTH = 200;
+const MAX_VALUE_LENGTH = 500;
 
 export function normalizePaymentMethods(raw: unknown): CompanyPaymentMethod[] {
   if (!Array.isArray(raw)) return [];
@@ -31,11 +31,21 @@ export function normalizePaymentMethods(raw: unknown): CompanyPaymentMethod[] {
   return methods.filter((method) => method.label.length > 0 && method.value.length > 0);
 }
 
-export const SUGGESTED_PAYMENT_LABELS = [
-  "PayPal",
-  "Zelle",
-  "Venmo",
-  "Cash App",
-  "Bank transfer",
-  "Wire transfer",
+export const BANK_TRANSFER_TEMPLATE = `Bank name:
+Account name:
+Routing number:
+Account number:`;
+
+export const SUGGESTED_PAYMENT_METHODS = [
+  { label: "PayPal", value: "" },
+  { label: "Zelle", value: "" },
+  { label: "Venmo", value: "" },
+  { label: "Cash App", value: "" },
+  { label: "Bank transfer", value: BANK_TRANSFER_TEMPLATE },
+  { label: "Wire transfer", value: BANK_TRANSFER_TEMPLATE },
 ] as const;
+
+/** @deprecated Prefer SUGGESTED_PAYMENT_METHODS */
+export const SUGGESTED_PAYMENT_LABELS = SUGGESTED_PAYMENT_METHODS.map(
+  (method) => method.label,
+);

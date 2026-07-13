@@ -52,7 +52,7 @@ export const companySettingsSchema = companyProfileSchema.extend({
     .array(
       z.object({
         label: z.string().trim().min(1, "Add a label").max(40),
-        value: z.string().trim().min(1, "Add payment details").max(200),
+        value: z.string().trim().min(1, "Add payment details").max(500),
       }),
     )
     .max(12)

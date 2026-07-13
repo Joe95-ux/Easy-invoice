@@ -72,20 +72,26 @@ export const watermarkStyles = `
   }
   .payment-info-row {
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.35rem 0.75rem;
+    align-items: flex-start;
+    gap: 0.75rem;
     text-align: left;
     line-height: 1.55;
     font-size: 12px;
     color: #475569;
-    margin-bottom: 4px;
+    margin-bottom: 8px;
   }
   .payment-info-method {
     font-weight: 600;
     color: #1f2937;
     min-width: 6.5rem;
+    flex-shrink: 0;
   }
-  .payment-info-detail { color: #475569; }
+  .payment-info-detail {
+    color: #475569;
+    white-space: pre-wrap;
+    flex: 1;
+    min-width: 0;
+  }
   .totals.totals--wide { width: min(100%, 420px) !important; }
   .payment-schedule-block { margin-top: 20px; width: 100%; }
   .payment-block-label {
