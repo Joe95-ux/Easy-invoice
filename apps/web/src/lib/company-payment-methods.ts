@@ -3,6 +3,31 @@ export type CompanyPaymentMethod = {
   value: string;
 };
 
+export type BankDetailFields = {
+  bankName: string;
+  accountName: string;
+  routingNumber: string;
+  accountNumber: string;
+};
+
+export const BANK_DETAIL_FIELDS = [
+  { key: "bankName", label: "Bank name", placeholder: "Chase" },
+  { key: "accountName", label: "Account name", placeholder: "Your Company LLC" },
+  { key: "routingNumber", label: "Routing number", placeholder: "021000021" },
+  { key: "accountNumber", label: "Account number", placeholder: "••••4821" },
+] as const satisfies ReadonlyArray<{
+  key: keyof BankDetailFields;
+  label: string;
+  placeholder: string;
+}>;
+
+const EMPTY_BANK_DETAILS: BankDetailFields = {
+  bankName: "",
+  accountName: "",
+  routingNumber: "",
+  accountNumber: "",
+};
+
 const MAX_PAYMENT_METHODS = 12;
 const MAX_LABEL_LENGTH = 40;
 const MAX_VALUE_LENGTH = 500;
@@ -31,18 +56,58 @@ export function normalizePaymentMethods(raw: unknown): CompanyPaymentMethod[] {
   return methods.filter((method) => method.label.length > 0 && method.value.length > 0);
 }
 
-export const BANK_TRANSFER_TEMPLATE = `Bank name:
-Account name:
-Routing number:
-Account number:`;
+export function isBankTransferMethod(label: string) {
+  const normalized = label.trim().toLowerCase();
+  return normalized.includes("bank") || normalized.includes("wire");
+}
+
+export function parseBankDetails(value: string): BankDetailFields {
+  const details = { ...EMPTY_BANK_DETAILS };
+  if (!value.trim()) return details;
+
+  for (const line of value.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    for (const field of BANK_DETAIL_FIELDS) {
+      const prefix = `${field.label}:`;
+      if (trimmed.toLowerCase().startsWith(prefix.toLowerCase())) {
+        details[field.key] = trimmed.slice(prefix.length).trim();
+        break;
+      }
+    }
+  }
+
+  // Older freeform bank text with no labeled lines — keep it in bank name.
+  if (
+    !details.bankName &&
+    !details.accountName &&
+    !details.routingNumber &&
+    !details.accountNumber &&
+    value.trim()
+  ) {
+    details.bankName = value.trim();
+  }
+
+  return details;
+}
+
+export function serializeBankDetails(details: BankDetailFields): string {
+  return BANK_DETAIL_FIELDS.map((field) => {
+    const fieldValue = details[field.key].trim();
+    return fieldValue ? `${field.label}: ${fieldValue}` : null;
+  })
+    .filter(Boolean)
+    .join("\n");
+}
 
 export const SUGGESTED_PAYMENT_METHODS = [
   { label: "PayPal", value: "" },
   { label: "Zelle", value: "" },
   { label: "Venmo", value: "" },
   { label: "Cash App", value: "" },
-  { label: "Bank transfer", value: BANK_TRANSFER_TEMPLATE },
-  { label: "Wire transfer", value: BANK_TRANSFER_TEMPLATE },
+  { label: "Bank transfer", value: "" },
+  { label: "Wire transfer", value: "" },
 ] as const;
 
 /** @deprecated Prefer SUGGESTED_PAYMENT_METHODS */

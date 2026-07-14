@@ -4,9 +4,13 @@ import { PlusIcon, Trash2Icon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
+  BANK_DETAIL_FIELDS,
   SUGGESTED_PAYMENT_METHODS,
+  isBankTransferMethod,
+  parseBankDetails,
+  serializeBankDetails,
+  type BankDetailFields,
   type CompanyPaymentMethod,
 } from "@/lib/company-payment-methods";
 
@@ -15,11 +19,6 @@ type PaymentMethodsEditorProps = {
   onChange: (value: CompanyPaymentMethod[]) => void;
   error?: string;
 };
-
-function isMultiLineMethod(label: string) {
-  const normalized = label.trim().toLowerCase();
-  return normalized.includes("bank") || normalized.includes("wire");
-}
 
 export function PaymentMethodsEditor({
   value,
@@ -46,6 +45,17 @@ export function PaymentMethodsEditor({
     addRow(suggestion.label, suggestion.value);
   }
 
+  function updateBankField(
+    index: number,
+    key: keyof BankDetailFields,
+    fieldValue: string,
+  ) {
+    const current = parseBankDetails(value[index]?.value ?? "");
+    updateRow(index, {
+      value: serializeBankDetails({ ...current, [key]: fieldValue }),
+    });
+  }
+
   const availableSuggestions = SUGGESTED_PAYMENT_METHODS.filter(
     (method) => !value.some((row) => row.label.toLowerCase() === method.label.toLowerCase()),
   );
@@ -55,24 +65,25 @@ export function PaymentMethodsEditor({
       <div>
         <p className="text-sm font-medium">Payment information</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Shown on invoices and estimates above Terms &amp; notes. Use one line for
-          PayPal or Zelle; bank transfers can include multiple lines.
+          Shown on invoices and estimates above Terms &amp; notes. PayPal and Zelle use a
+          single field; bank and wire transfers use structured account details.
         </p>
       </div>
 
       {value.length > 0 && (
         <div className="space-y-4">
           {value.map((row, index) => {
-            const multiLine = isMultiLineMethod(row.label) || row.value.includes("\n");
+            const isBank = isBankTransferMethod(row.label);
+            const bankDetails = isBank ? parseBankDetails(row.value) : null;
 
             return (
               <div
                 key={`payment-method-${index}`}
                 className="rounded-lg border bg-muted/20 p-3 sm:p-4"
               >
-                <div className="flex items-start gap-2">
-                  <div className="grid min-w-0 flex-1 gap-3 sm:grid-cols-[minmax(7rem,10rem)_1fr]">
-                    <div className="space-y-1.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1 space-y-3">
+                    <div className="space-y-1.5 sm:max-w-xs">
                       <Label htmlFor={`payment-label-${index}`}>Method</Label>
                       <Input
                         id={`payment-label-${index}`}
@@ -83,20 +94,29 @@ export function PaymentMethodsEditor({
                         placeholder="PayPal"
                       />
                     </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor={`payment-value-${index}`}>Details</Label>
-                      {multiLine ? (
-                        <Textarea
-                          id={`payment-value-${index}`}
-                          value={row.value}
-                          onChange={(event) =>
-                            updateRow(index, { value: event.target.value })
-                          }
-                          placeholder={"Bank name:\nAccount name:\nRouting number:\nAccount number:"}
-                          rows={5}
-                          className="min-h-[7.5rem] font-mono text-sm"
-                        />
-                      ) : (
+
+                    {isBank && bankDetails ? (
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        {BANK_DETAIL_FIELDS.map((field) => (
+                          <div key={field.key} className="space-y-1.5">
+                            <Label htmlFor={`payment-${field.key}-${index}`}>
+                              {field.label}
+                            </Label>
+                            <Input
+                              id={`payment-${field.key}-${index}`}
+                              value={bankDetails[field.key]}
+                              onChange={(event) =>
+                                updateBankField(index, field.key, event.target.value)
+                              }
+                              placeholder={field.placeholder}
+                              autoComplete="off"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5">
+                        <Label htmlFor={`payment-value-${index}`}>Details</Label>
                         <Input
                           id={`payment-value-${index}`}
                           value={row.value}
@@ -105,9 +125,10 @@ export function PaymentMethodsEditor({
                           }
                           placeholder="email, phone, or handle"
                         />
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
+
                   <Button
                     type="button"
                     variant="ghost"
