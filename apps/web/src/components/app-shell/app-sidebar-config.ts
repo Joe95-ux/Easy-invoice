@@ -7,6 +7,7 @@ import {
   LayoutDashboardIcon,
   LayoutTemplateIcon,
   PlusIcon,
+  QrCodeIcon,
   ScrollTextIcon,
   SettingsIcon,
   UserRoundIcon,
@@ -16,10 +17,16 @@ import {
 import type { UserRole } from "@/lib/db";
 import { canManageCompanySettings } from "@/lib/team";
 
+export type AppSubNavItem = {
+  href: string;
+  label: string;
+};
+
 export type AppNavItem = {
   href: string;
   label: string;
   icon: LucideIcon;
+  children?: AppSubNavItem[];
 };
 
 export const APP_QUICK_ACTIONS: AppNavItem[] = [
@@ -35,6 +42,15 @@ export const APP_WORKSPACE_ITEMS: AppNavItem[] = [
   { href: "/templates", label: "Templates", icon: LayoutTemplateIcon },
   { href: "/clients", label: "Clients", icon: UsersRoundIcon },
   { href: "/time", label: "Time", icon: ClockIcon },
+  {
+    href: "/qr-codes",
+    label: "QR codes",
+    icon: QrCodeIcon,
+    children: [
+      { href: "/qr-codes/new", label: "Create QR code" },
+      { href: "/qr-codes", label: "QR codes" },
+    ],
+  },
 ];
 
 export const APP_TEAM_ITEMS: AppNavItem[] = [

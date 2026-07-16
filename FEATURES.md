@@ -121,6 +121,28 @@ Structured payment methods (PayPal, Zelle, bank, etc.) in company settings; rend
 
 ---
 
+### 7c. QR codes (Workspace)
+
+**Status:** Done
+
+Dynamic QR codes for links, PDFs, business cards (vCard), and events. The printed code
+points to a stable short link (`/q/[token]`) so the destination can be edited and scans
+are counted without reprinting. Multi-step creator (type → content → design) with color
+presets, dot/corner styles, and optional center logo.
+
+| Piece | Location |
+|-------|----------|
+| Schema | `QrCode` model + `QrCodeType` enum |
+| Lib | `apps/web/src/lib/qr-codes/*` (service, design, content/vcard+ics, url) |
+| API | `GET/POST /api/qr-codes`, `GET/PATCH/DELETE /api/qr-codes/[id]`, `POST /api/qr-codes/upload` |
+| Public | `/q/[token]` resolver (redirect or vCard/event landing), `/q/[token]/vcf`, `/q/[token]/ics` |
+| UI | `features/qr-codes/*`, pages `/qr-codes`, `/qr-codes/new`, `/qr-codes/[id]/edit` |
+| Sidebar | Collapsible **QR codes** group (Create QR code / QR codes) |
+
+Later: scan analytics over time, more types (menu, app store, wifi), frames/labels.
+
+---
+
 ### 8. Custom fields (UI)
 
 **Status:** Planned

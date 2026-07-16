@@ -36,7 +36,7 @@ export default async function DashboardPage() {
   const { company } = member;
 
   return (
-    <PageScroll fullWidth className="space-y-8">
+    <PageScroll maxWidth="85rem" className="space-y-8">
       <PageHeader
         eyebrow={getGreeting()}
         title={company.name}

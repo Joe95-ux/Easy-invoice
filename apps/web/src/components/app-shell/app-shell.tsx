@@ -35,14 +35,19 @@ export function PageScroll({
   children: React.ReactNode;
   className?: string;
   fullWidth?: boolean;
-  maxWidth?: "6xl" | "4xl";
+  maxWidth?: "6xl" | "4xl" | "85rem";
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
       <div
         className={cn(
           "mx-auto w-full p-4 md:p-6",
-          !fullWidth && (maxWidth === "4xl" ? "max-w-4xl" : "max-w-6xl"),
+          !fullWidth &&
+            (maxWidth === "4xl"
+              ? "max-w-4xl"
+              : maxWidth === "85rem"
+                ? "max-w-[85rem]"
+                : "max-w-6xl"),
           className,
         )}
       >

@@ -48,6 +48,13 @@ enum UserRole {
   MEMBER
 }
 
+enum QrCodeType {
+  LINK
+  PDF
+  VCARD
+  EVENT
+}
+
 enum ReminderKind {
   BEFORE_DUE
   ON_DUE
@@ -162,6 +169,7 @@ model Company {
   documentRevisions DocumentRevision[]
   auditEvents       AuditEvent[]
   notifications     Notification[]
+  qrCodes           QrCode[]
 
   @@index([slug])
 }
@@ -193,6 +201,7 @@ model CompanyMember {
   paymentConfirmationEmails PaymentConfirmationEmail[]
   auditEvents       AuditEvent[]
   notifications     Notification[]
+  qrCodes           QrCode[]
 
   @@unique([companyId, clerkId])
   @@index([clerkId])
@@ -214,6 +223,28 @@ model CompanyInvite {
 
   @@index([companyId])
   @@index([email])
+}
+
+model QrCode {
+  id            String     @id @default(cuid())
+  companyId     String
+  memberId      String?
+  name          String
+  type          QrCodeType
+  token         String     @unique
+  /// Type-specific payload, e.g. { "url": "https://..." } or vCard/event fields.
+  content       Json
+  /// Visual settings: colors, dot style, corner radius, logo toggle.
+  design        Json
+  scanCount     Int        @default(0)
+  lastScannedAt DateTime?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  company Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  member  CompanyMember? @relation(fields: [memberId], references: [id], onDelete: SetNull)
+
+  @@index([companyId])
 }
 
 model Client {

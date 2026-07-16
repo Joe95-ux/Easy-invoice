@@ -173,20 +173,22 @@ export function PaymentMethodsEditor({
       </div>
 
       {value.length > 0 ? (
-        <div className="md:divide-y md:divide-border/70 md:border-y md:border-border/70">
+        <div className="max-md:space-y-3 md:border-y md:border-dashed md:border-border">
           {value.map((row, index) => {
             const isBank = isBankTransferMethod(row.label);
             const bankDetails = isBank ? parseBankDetails(row.value) : null;
             const filledBankFields = bankDetails
               ? BANK_DETAIL_FIELDS.filter((field) => bankDetails[field.key].trim())
               : [];
+            const isLast = index === value.length - 1;
 
             return (
               <div
                 key={`payment-method-${index}`}
                 className={cn(
-                  "max-md:mb-3 max-md:rounded-lg max-md:border max-md:bg-muted/20 max-md:p-3",
+                  "max-md:rounded-lg max-md:border max-md:bg-muted/20 max-md:p-3",
                   "md:mb-0 md:rounded-none md:border-0 md:bg-transparent md:px-0 md:py-4",
+                  !isLast && "md:border-b md:border-dashed md:border-border",
                 )}
               >
                 {isBank && bankDetails ? (
@@ -256,23 +258,16 @@ export function PaymentMethodsEditor({
                         />
                       </div>
                     </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger
-                        className="mt-6 inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-transparent text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                        aria-label={`${row.label || "Payment method"} actions`}
-                      >
-                        <MoreHorizontalIcon className="size-4" />
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="min-w-36 w-40">
-                        <DropdownMenuItem
-                          variant="destructive"
-                          onClick={() => removeRow(index)}
-                        >
-                          <Trash2Icon className="size-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="mt-6 shrink-0 text-muted-foreground hover:text-destructive"
+                      onClick={() => removeRow(index)}
+                      aria-label={`Remove ${row.label || "payment method"}`}
+                    >
+                      <Trash2Icon className="size-4" />
+                    </Button>
                   </div>
                 )}
               </div>
@@ -280,7 +275,7 @@ export function PaymentMethodsEditor({
           })}
         </div>
       ) : (
-        <p className="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground md:rounded-none md:border-x-0 md:border-y md:py-5 md:text-left">
+        <p className="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground md:rounded-none md:border-x-0 md:border-y md:border-dashed md:py-5 md:text-left">
           No payment methods yet. Add PayPal, Zelle, bank transfer, or another option
           clients can use.
         </p>

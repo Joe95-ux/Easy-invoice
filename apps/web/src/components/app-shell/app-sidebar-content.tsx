@@ -1,8 +1,15 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { HelpCircleIcon, SparklesIcon, WalletIcon, WorkflowIcon } from "lucide-react";
+import {
+  ChevronRightIcon,
+  HelpCircleIcon,
+  SparklesIcon,
+  WalletIcon,
+  WorkflowIcon,
+} from "lucide-react";
 import { AppLogo } from "@/components/app-logo";
 import {
   APP_QUICK_ACTIONS,
@@ -18,6 +25,12 @@ import { SidebarOrgHeader } from "@/components/app-shell/sidebar-org-header";
 import type { CompanySummary } from "@/lib/companies";
 import type { LogoBg } from "@/lib/company-branding";
 import type { UserRole } from "@/lib/db";
+import { cn } from "@/lib/utils";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
   SidebarContent,
   SidebarFooter,
@@ -28,6 +41,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
 
@@ -61,19 +77,88 @@ function NavMenu({
 }) {
   return (
     <SidebarMenu className="gap-1">
-      {items.map((item) => (
-        <SidebarMenuItem key={item.href}>
-          <SidebarMenuButton
-            tooltip={item.label}
+      {items.map((item) =>
+        item.children && item.children.length > 0 ? (
+          <NavCollapsibleItem
+            key={item.href}
+            item={item}
             isActive={isActive(item.href)}
-            render={<Link href={item.href} onClick={onNavigate} />}
-          >
-            <item.icon />
-            <span>{item.label}</span>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      ))}
+            onNavigate={onNavigate}
+          />
+        ) : (
+          <SidebarMenuItem key={item.href}>
+            <SidebarMenuButton
+              tooltip={item.label}
+              isActive={isActive(item.href)}
+              render={<Link href={item.href} onClick={onNavigate} />}
+            >
+              <item.icon />
+              <span>{item.label}</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        ),
+      )}
     </SidebarMenu>
+  );
+}
+
+function NavCollapsibleItem({
+  item,
+  isActive,
+  onNavigate,
+}: {
+  item: AppNavItem;
+  isActive: boolean;
+  onNavigate?: () => void;
+}) {
+  const pathname = usePathname();
+  const children = useMemo(() => item.children ?? [], [item.children]);
+
+  const activeChildHref = useMemo(() => {
+    let best: string | null = null;
+    for (const child of children) {
+      if (pathname === child.href || pathname.startsWith(`${child.href}/`)) {
+        if (!best || child.href.length > best.length) best = child.href;
+      }
+    }
+    return best;
+  }, [children, pathname]);
+
+  const [open, setOpen] = useState(() => activeChildHref !== null);
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <SidebarMenuItem>
+        <CollapsibleTrigger
+          render={
+            <SidebarMenuButton tooltip={item.label} isActive={isActive} />
+          }
+        >
+          <item.icon />
+          <span>{item.label}</span>
+          <ChevronRightIcon
+            className={cn(
+              "ml-auto transition-transform duration-200",
+              open && "rotate-90",
+            )}
+          />
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <SidebarMenuSub>
+            {children.map((child) => (
+              <SidebarMenuSubItem key={`${child.href}-${child.label}`}>
+                <SidebarMenuSubButton
+                  isActive={activeChildHref === child.href}
+                  render={<Link href={child.href} onClick={onNavigate} />}
+                >
+                  <span>{child.label}</span>
+                </SidebarMenuSubButton>
+              </SidebarMenuSubItem>
+            ))}
+          </SidebarMenuSub>
+        </CollapsibleContent>
+      </SidebarMenuItem>
+    </Collapsible>
   );
 }
 

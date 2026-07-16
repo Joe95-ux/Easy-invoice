@@ -1,3 +1,4 @@
+import { randomBytes } from "crypto";
 import { v2 as cloudinary, type UploadApiResponse } from "cloudinary";
 
 const ALLOWED_MIME_TYPES = new Set([
@@ -8,6 +9,7 @@ const ALLOWED_MIME_TYPES = new Set([
 ]);
 
 const MAX_LOGO_BYTES = 2 * 1024 * 1024;
+const MAX_QR_PDF_BYTES = 10 * 1024 * 1024;
 
 export function isCloudinaryConfigured(): boolean {
   return Boolean(
@@ -82,6 +84,43 @@ export async function uploadCompanyLogoFromUrl(
     public_id: "logo",
     overwrite: true,
     resource_type: "image",
+  });
+
+  return result.secure_url;
+}
+
+export function validateQrPdfFile(file: File): string | null {
+  if (file.type !== "application/pdf") {
+    return "File must be a PDF";
+  }
+  if (file.size > MAX_QR_PDF_BYTES) {
+    return "PDF must be under 10 MB";
+  }
+  return null;
+}
+
+export async function uploadQrPdf(companyId: string, buffer: Buffer): Promise<string> {
+  const cld = configureCloudinary();
+  const publicId = `${randomBytes(8).toString("hex")}.pdf`;
+
+  const result = await new Promise<UploadApiResponse>((resolve, reject) => {
+    const stream = cld.uploader.upload_stream(
+      {
+        folder: `easy-invoice/qr/${companyId}`,
+        public_id: publicId,
+        resource_type: "raw",
+        overwrite: false,
+      },
+      (error, uploadResult) => {
+        if (error || !uploadResult) {
+          reject(error ?? new Error("Upload failed"));
+          return;
+        }
+        resolve(uploadResult);
+      },
+    );
+
+    stream.end(buffer);
   });
 
   return result.secure_url;
