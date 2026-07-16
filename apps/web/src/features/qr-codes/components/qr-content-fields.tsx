@@ -12,6 +12,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
+import { QrDateTimeField } from "@/features/qr-codes/components/qr-datetime-field";
 import type { QrFormState } from "@/features/qr-codes/components/qr-form";
 
 type QrContentFieldsProps = {
@@ -118,18 +119,16 @@ export function QrContentFields({ form, onChange }: QrContentFieldsProps) {
         placeholder="Product launch party"
       />
       <div className="grid gap-4 sm:grid-cols-2">
-        <FormField
+        <QrDateTimeField
           id="qr-start"
           label="Starts"
-          type="datetime-local"
           required
           value={form.startAt}
           onChange={(value) => onChange("startAt", value)}
         />
-        <FormField
+        <QrDateTimeField
           id="qr-end"
           label="Ends"
-          type="datetime-local"
           value={form.endAt}
           onChange={(value) => onChange("endAt", value)}
         />

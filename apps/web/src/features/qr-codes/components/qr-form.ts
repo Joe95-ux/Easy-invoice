@@ -29,6 +29,9 @@ export type QrFormState = {
   endAt: string;
   eventUrl: string;
   design: QrDesign;
+  // Access
+  passwordEnabled: boolean;
+  password: string;
 };
 
 export function emptyQrForm(type: QrCodeType = "LINK"): QrFormState {
@@ -52,6 +55,8 @@ export function emptyQrForm(type: QrCodeType = "LINK"): QrFormState {
     endAt: "",
     eventUrl: "",
     design: { ...DEFAULT_QR_DESIGN },
+    passwordEnabled: false,
+    password: "",
   };
 }
 
@@ -98,6 +103,8 @@ export function formFromSerialized(qr: SerializedQrCode): QrFormState {
     endAt: toDatetimeLocal(content.endAt),
     eventUrl: str(content.url),
     design: qr.design,
+    passwordEnabled: qr.passwordProtected,
+    password: "",
   };
 }
 

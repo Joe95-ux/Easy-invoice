@@ -55,6 +55,12 @@ enum QrCodeType {
   EVENT
 }
 
+enum QrCodeStatus {
+  ACTIVE
+  PAUSED
+  DELETED
+}
+
 enum ReminderKind {
   BEFORE_DUE
   ON_DUE
@@ -231,7 +237,10 @@ model QrCode {
   memberId      String?
   name          String
   type          QrCodeType
+  status        QrCodeStatus @default(ACTIVE)
   token         String     @unique
+  /// scrypt hash ("salt:derivedKey") when the code is password protected.
+  passwordHash  String?
   /// Type-specific payload, e.g. { "url": "https://..." } or vCard/event fields.
   content       Json
   /// Visual settings: colors, dot style, corner radius, logo toggle.

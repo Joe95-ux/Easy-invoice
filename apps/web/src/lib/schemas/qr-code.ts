@@ -60,11 +60,16 @@ const eventContent = z.object({
 
 const nameField = z.string().trim().min(1, "Give this code a name").max(80);
 
+const accessFields = {
+  passwordEnabled: z.boolean().optional(),
+  password: z.string().max(128).optional(),
+};
+
 export const qrCodeSchema = z.discriminatedUnion("type", [
-  z.object({ name: nameField, type: z.literal("LINK"), content: linkContent, design: qrDesignSchema }),
-  z.object({ name: nameField, type: z.literal("PDF"), content: pdfContent, design: qrDesignSchema }),
-  z.object({ name: nameField, type: z.literal("VCARD"), content: vcardContent, design: qrDesignSchema }),
-  z.object({ name: nameField, type: z.literal("EVENT"), content: eventContent, design: qrDesignSchema }),
+  z.object({ name: nameField, type: z.literal("LINK"), content: linkContent, design: qrDesignSchema, ...accessFields }),
+  z.object({ name: nameField, type: z.literal("PDF"), content: pdfContent, design: qrDesignSchema, ...accessFields }),
+  z.object({ name: nameField, type: z.literal("VCARD"), content: vcardContent, design: qrDesignSchema, ...accessFields }),
+  z.object({ name: nameField, type: z.literal("EVENT"), content: eventContent, design: qrDesignSchema, ...accessFields }),
 ]);
 
 export type QrCodeInput = z.infer<typeof qrCodeSchema>;

@@ -32,6 +32,8 @@ export async function POST(request: Request) {
     type: parsed.data.type,
     content: parsed.data.content,
     design: parsed.data.design,
+    passwordEnabled: parsed.data.passwordEnabled,
+    password: parsed.data.password,
   });
 
   return NextResponse.json({ qrCode }, { status: 201 });

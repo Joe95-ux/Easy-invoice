@@ -1,7 +1,8 @@
 import type { Prisma } from "@easy-invoice/db";
-import { prisma, type QrCodeType } from "@/lib/db";
+import { prisma, type QrCodeStatus, type QrCodeType } from "@/lib/db";
 import { generatePublicToken } from "@/lib/document-tokens";
 import { normalizeQrDesign } from "@/lib/qr-codes/design";
+import { hashQrPassword } from "@/lib/qr-codes/password";
 import type { QrDesign, SerializedQrCode } from "@/lib/qr-codes/types";
 
 const QR_INCLUDE = {
@@ -15,7 +16,9 @@ export function serializeQrCode(qr: QrCodeWithMember): SerializedQrCode {
     id: qr.id,
     name: qr.name,
     type: qr.type,
+    status: qr.status,
     token: qr.token,
+    passwordProtected: Boolean(qr.passwordHash),
     content: (qr.content ?? {}) as Record<string, unknown>,
     design: normalizeQrDesign(qr.design),
     scanCount: qr.scanCount,
@@ -82,10 +85,14 @@ type CreateQrCodeInput = {
   type: QrCodeType;
   content: Record<string, unknown>;
   design: QrDesign;
+  passwordEnabled?: boolean;
+  password?: string;
 };
 
 export async function createQrCode(input: CreateQrCodeInput): Promise<SerializedQrCode> {
   const token = await generateUniqueQrToken();
+  const passwordHash =
+    input.passwordEnabled && input.password ? hashQrPassword(input.password) : null;
   const qr = await prisma.qrCode.create({
     data: {
       companyId: input.companyId,
@@ -93,6 +100,7 @@ export async function createQrCode(input: CreateQrCodeInput): Promise<Serialized
       name: input.name,
       type: input.type,
       token,
+      passwordHash,
       content: input.content as Prisma.InputJsonValue,
       design: input.design as unknown as Prisma.InputJsonValue,
     },
@@ -105,7 +113,22 @@ type UpdateQrCodeInput = {
   name?: string;
   content?: Record<string, unknown>;
   design?: QrDesign;
+  passwordEnabled?: boolean;
+  password?: string;
 };
+
+/**
+ * Resolve the password hash update:
+ * - protection off → clear the hash
+ * - protection on + new password typed → re-hash
+ * - protection on + empty password → keep the existing hash (undefined = no change)
+ */
+function resolvePasswordHashUpdate(input: UpdateQrCodeInput): string | null | undefined {
+  if (input.passwordEnabled === undefined) return undefined;
+  if (!input.passwordEnabled) return null;
+  if (input.password) return hashQrPassword(input.password);
+  return undefined;
+}
 
 export async function updateQrCode(
   id: string,
@@ -118,6 +141,8 @@ export async function updateQrCode(
   });
   if (!existing) return null;
 
+  const passwordHash = resolvePasswordHashUpdate(input);
+
   const qr = await prisma.qrCode.update({
     where: { id },
     data: {
@@ -128,7 +153,27 @@ export async function updateQrCode(
       ...(input.design !== undefined && {
         design: input.design as unknown as Prisma.InputJsonValue,
       }),
+      ...(passwordHash !== undefined && { passwordHash }),
     },
+    include: QR_INCLUDE,
+  });
+  return serializeQrCode(qr);
+}
+
+export async function updateQrCodeStatus(
+  id: string,
+  companyId: string,
+  status: QrCodeStatus,
+): Promise<SerializedQrCode | null> {
+  const existing = await prisma.qrCode.findFirst({
+    where: { id, companyId },
+    select: { id: true },
+  });
+  if (!existing) return null;
+
+  const qr = await prisma.qrCode.update({
+    where: { id },
+    data: { status },
     include: QR_INCLUDE,
   });
   return serializeQrCode(qr);

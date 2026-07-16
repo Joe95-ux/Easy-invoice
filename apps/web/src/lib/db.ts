@@ -8,5 +8,6 @@ export {
   AuditAction,
   NotificationType,
   QrCodeType,
+  QrCodeStatus,
 } from "@easy-invoice/db";
 export type { Company, QrCode } from "@easy-invoice/db";

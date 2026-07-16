@@ -129,6 +129,10 @@ export function useListTable<T extends object>({
     sortKey,
     sortDirection,
     toggleSort,
+    setSort: (key: string, direction: SortDirection) => {
+      setSortKey(key);
+      setSortDirection(direction);
+    },
     page: pagination.page,
     setPage,
     pageSize,

@@ -42,6 +42,8 @@ export async function PATCH(request: Request, context: RouteContext) {
     name: parsed.data.name,
     content: parsed.data.content,
     design: parsed.data.design,
+    passwordEnabled: parsed.data.passwordEnabled,
+    password: parsed.data.password,
   });
   if (!qrCode) {
     return NextResponse.json({ error: "QR code not found" }, { status: 404 });

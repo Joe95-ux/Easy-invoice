@@ -8,18 +8,29 @@ import {
   CopyIcon,
   DownloadIcon,
   Loader2Icon,
+  SmartphoneIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
 import { FormCard } from "@/components/forms/form-card";
 import { FormField } from "@/components/forms/form-field";
 import { FormStepProgress, type FormStep } from "@/components/forms/form-step-progress";
 import { QrContentFields } from "@/features/qr-codes/components/qr-content-fields";
+import { QrPasswordField } from "@/features/qr-codes/components/qr-password-field";
 import { QrDesignPanel } from "@/features/qr-codes/components/qr-design-panel";
 import {
   QrCodePreview,
   type QrCodePreviewHandle,
 } from "@/features/qr-codes/components/qr-code-preview";
+import { QrPhonePreview } from "@/features/qr-codes/components/qr-phone-preview";
 import { QR_TYPE_META } from "@/features/qr-codes/components/qr-type-meta";
 import {
   buildQrContent,
@@ -111,6 +122,8 @@ export function QrCodeCreator({
         type: form.type,
         content: buildQrContent(form),
         design: form.design,
+        passwordEnabled: form.passwordEnabled,
+        password: form.passwordEnabled ? form.password : "",
       };
       const response = await fetch(
         mode === "edit" ? `/api/qr-codes/${initial?.id}` : "/api/qr-codes",
@@ -207,8 +220,36 @@ export function QrCodeCreator({
     );
   }
 
+  const previewPanel = (
+    <div className="flex flex-col items-center gap-4">
+      <QrPhonePreview
+        form={form}
+        qrElement={
+          <QrCodePreview
+            ref={previewRef}
+            value={previewValue}
+            design={form.design}
+            logoUrl={companyLogoUrl}
+            size={170}
+          />
+        }
+      />
+      {isLiveCode && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full max-w-[250px]"
+          onClick={handleDownload}
+        >
+          <DownloadIcon className="size-4" />
+          Download PNG
+        </Button>
+      )}
+    </div>
+  );
+
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_19rem]">
+    <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_19rem]">
       <FormCard
         footer={
           <div className="flex w-full items-center justify-between gap-2">
@@ -287,6 +328,11 @@ export function QrCodeCreator({
                 description="Only visible to your team — helps you find it later."
               />
               <QrContentFields form={form} onChange={update} />
+              <QrPasswordField
+                form={form}
+                alreadyProtected={Boolean(initial?.passwordProtected)}
+                onChange={update}
+              />
             </div>
           )}
 
@@ -300,35 +346,23 @@ export function QrCodeCreator({
         </div>
       </FormCard>
 
-      <div className="h-fit lg:sticky lg:top-6">
-        <div className="flex flex-col items-center gap-4 rounded-xl border border-border bg-card p-5 text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-            Preview
-          </p>
-          <QrCodePreview
-            ref={previewRef}
-            value={previewValue}
-            design={form.design}
-            logoUrl={companyLogoUrl}
-            size={190}
-          />
-          {isLiveCode ? (
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full"
-              onClick={handleDownload}
-            >
-              <DownloadIcon className="size-4" />
-              Download PNG
-            </Button>
-          ) : (
-            <p className="text-xs text-muted-foreground">
-              Colors and style preview. Your scannable code activates when you save.
-            </p>
-          )}
-        </div>
+      <div className="hidden h-fit flex-col items-center gap-4 lg:sticky lg:top-6 lg:flex">
+        {previewPanel}
       </div>
+
+      <Drawer direction="right">
+        <DrawerTrigger className="fixed bottom-6 right-6 z-40 inline-flex cursor-pointer items-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-medium text-primary-foreground shadow-lg transition-transform hover:scale-[1.03] active:scale-95 lg:hidden">
+          <SmartphoneIcon className="size-4" />
+          Preview
+        </DrawerTrigger>
+        <DrawerContent>
+          <DrawerHeader className="border-b">
+            <DrawerTitle>Live preview</DrawerTitle>
+            <DrawerDescription>See how your QR code looks when scanned.</DrawerDescription>
+          </DrawerHeader>
+          <div className="flex-1 overflow-y-auto px-3 py-4">{previewPanel}</div>
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 }

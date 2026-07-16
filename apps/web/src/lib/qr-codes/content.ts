@@ -1,5 +1,6 @@
 import type {
   EventContent,
+  QrCodeStatus,
   QrCodeType,
   VcardContent,
 } from "@/lib/qr-codes/types";
@@ -9,6 +10,21 @@ export const QR_TYPE_LABEL: Record<QrCodeType, string> = {
   PDF: "PDF",
   VCARD: "Business card",
   EVENT: "Event",
+};
+
+export const QR_STATUS_LABEL: Record<QrCodeStatus, string> = {
+  ACTIVE: "Active",
+  PAUSED: "Paused",
+  DELETED: "Deleted",
+};
+
+export const QR_STATUS_BADGE_VARIANT: Record<
+  QrCodeStatus,
+  "success" | "warning" | "secondary"
+> = {
+  ACTIVE: "success",
+  PAUSED: "warning",
+  DELETED: "secondary",
 };
 
 export const QR_TYPE_DESCRIPTION: Record<QrCodeType, string> = {

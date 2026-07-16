@@ -1,8 +1,10 @@
-import type { QrCodeType } from "@/lib/db";
+import type { QrCodeStatus, QrCodeType } from "@/lib/db";
 
-export type { QrCodeType };
+export type { QrCodeStatus, QrCodeType };
 
 export const QR_CODE_TYPES = ["LINK", "PDF", "VCARD", "EVENT"] as const;
+
+export const QR_CODE_STATUSES = ["ACTIVE", "PAUSED", "DELETED"] as const;
 
 export type LinkContent = {
   url: string;
@@ -54,7 +56,9 @@ export type SerializedQrCode = {
   id: string;
   name: string;
   type: QrCodeType;
+  status: QrCodeStatus;
   token: string;
+  passwordProtected: boolean;
   content: Record<string, unknown>;
   design: QrDesign;
   scanCount: number;

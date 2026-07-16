@@ -8,18 +8,20 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 type QrColorFieldProps = {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  className?: string;
 };
 
-export function QrColorField({ label, value, onChange }: QrColorFieldProps) {
+export function QrColorField({ label, value, onChange, className }: QrColorFieldProps) {
   const { resolvedTheme } = useTheme();
 
   return (
-    <div className="space-y-1.5">
+    <div className={cn("space-y-1.5", className)}>
       <p className="text-sm font-medium text-foreground">{label}</p>
       <Popover>
         <PopoverTrigger

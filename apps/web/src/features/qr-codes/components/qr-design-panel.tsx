@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckIcon } from "lucide-react";
+import { ArrowLeftRightIcon } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { QrColorField } from "@/features/qr-codes/components/qr-color-field";
 import {
@@ -25,9 +25,9 @@ export function QrDesignPanel({ design, onChange, companyLogoUrl }: QrDesignPane
 
   return (
     <div className="space-y-6">
-      <section className="space-y-2.5">
-        <p className="text-sm font-medium text-foreground">Color</p>
-        <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
+      <section className="space-y-3">
+        <p className="text-sm font-medium text-foreground">Color palette</p>
+        <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4">
           {QR_COLOR_PRESETS.map((preset) => {
             const active =
               preset.fgColor === design.fgColor && preset.bgColor === design.bgColor;
@@ -37,41 +37,52 @@ export function QrDesignPanel({ design, onChange, companyLogoUrl }: QrDesignPane
                 type="button"
                 title={preset.name}
                 aria-label={preset.name}
+                aria-pressed={active}
                 onClick={() =>
                   onChange({ ...design, fgColor: preset.fgColor, bgColor: preset.bgColor })
                 }
                 className={cn(
-                  "relative flex aspect-square items-center justify-center rounded-lg border transition-all",
+                  "flex gap-1.5 rounded-xl border bg-muted p-1.5 transition-all",
                   active
-                    ? "border-primary ring-2 ring-primary/30"
+                    ? "border-primary ring-2 ring-primary/40"
                     : "border-border/70 hover:border-primary/40",
                 )}
-                style={{ backgroundColor: preset.bgColor }}
               >
                 <span
-                  className="size-4 rounded-full"
+                  className="h-9 flex-1 rounded-md ring-1 ring-inset ring-black/5"
                   style={{ backgroundColor: preset.fgColor }}
                 />
-                {active && (
-                  <CheckIcon
-                    className="absolute right-1 top-1 size-3"
-                    style={{ color: preset.fgColor }}
-                  />
-                )}
+                <span
+                  className="h-9 flex-1 rounded-md ring-1 ring-inset ring-black/5"
+                  style={{ backgroundColor: preset.bgColor }}
+                />
               </button>
             );
           })}
         </div>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="flex items-end gap-2">
           <QrColorField
             label="Foreground"
             value={design.fgColor}
             onChange={(value) => set("fgColor", value)}
+            className="flex-1"
           />
+          <button
+            type="button"
+            aria-label="Swap foreground and background"
+            title="Swap colors"
+            onClick={() =>
+              onChange({ ...design, fgColor: design.bgColor, bgColor: design.fgColor })
+            }
+            className="mb-0.5 flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-border bg-muted text-muted-foreground shadow-sm transition-colors hover:border-primary/50 hover:text-foreground"
+          >
+            <ArrowLeftRightIcon className="size-4" />
+          </button>
           <QrColorField
             label="Background"
             value={design.bgColor}
             onChange={(value) => set("bgColor", value)}
+            className="flex-1"
           />
         </div>
       </section>
