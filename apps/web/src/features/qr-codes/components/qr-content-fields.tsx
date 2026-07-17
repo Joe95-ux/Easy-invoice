@@ -1,7 +1,14 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { FileTextIcon, Loader2Icon, UploadIcon, XIcon } from "lucide-react";
+import {
+  FileTextIcon,
+  Loader2Icon,
+  PlusIcon,
+  Trash2Icon,
+  UploadIcon,
+  XIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/forms/form-field";
@@ -11,9 +18,34 @@ import {
   FieldDescription,
   FieldLabel,
 } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { QrDateTimeField } from "@/features/qr-codes/components/qr-datetime-field";
-import type { QrFormState } from "@/features/qr-codes/components/qr-form";
+import {
+  emptyMenuItem,
+  emptySocialLink,
+  type QrFormState,
+} from "@/features/qr-codes/components/qr-form";
+import { DatePicker } from "@/components/forms/date-picker";
+import {
+  SOCIAL_PLATFORM_LABEL,
+  WIFI_ENCRYPTION_LABEL,
+} from "@/lib/qr-codes/content";
+import type {
+  MenuItem,
+  SocialLink,
+  SocialPlatform,
+  WifiEncryption,
+} from "@/lib/qr-codes/types";
+import { SOCIAL_PLATFORMS } from "@/lib/qr-codes/types";
 
 type QrContentFieldsProps = {
   form: QrFormState;
@@ -38,6 +70,22 @@ export function QrContentFields({ form, onChange }: QrContentFieldsProps) {
 
   if (form.type === "PDF") {
     return <PdfUploadField form={form} onChange={onChange} />;
+  }
+
+  if (form.type === "MENU") {
+    return <MenuFields form={form} onChange={onChange} />;
+  }
+
+  if (form.type === "WIFI") {
+    return <WifiFields form={form} onChange={onChange} />;
+  }
+
+  if (form.type === "SOCIAL") {
+    return <SocialFields form={form} onChange={onChange} />;
+  }
+
+  if (form.type === "COUPON") {
+    return <CouponFields form={form} onChange={onChange} />;
   }
 
   if (form.type === "VCARD") {
@@ -164,6 +212,372 @@ export function QrContentFields({ form, onChange }: QrContentFieldsProps) {
   );
 }
 
+function MenuFields({ form, onChange }: QrContentFieldsProps) {
+  function updateItem(index: number, patch: Partial<MenuItem>) {
+    const next = form.menuItems.map((item, i) =>
+      i === index ? { ...item, ...patch } : item,
+    );
+    onChange("menuItems", next);
+  }
+
+  function addItem() {
+    onChange("menuItems", [...form.menuItems, emptyMenuItem()]);
+  }
+
+  function removeItem(index: number) {
+    if (form.menuItems.length <= 1) {
+      onChange("menuItems", [emptyMenuItem()]);
+      return;
+    }
+    onChange(
+      "menuItems",
+      form.menuItems.filter((_, i) => i !== index),
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <FormField
+        id="qr-venue"
+        label="Venue name"
+        required
+        value={form.venueName}
+        onChange={(value) => onChange("venueName", value)}
+        placeholder="The Corner Bistro"
+      />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <FormField
+          id="qr-menu-subtitle"
+          label="Tagline"
+          value={form.menuSubtitle}
+          onChange={(value) => onChange("menuSubtitle", value)}
+          placeholder="Seasonal plates & natural wine"
+        />
+        <FormField
+          id="qr-menu-currency"
+          label="Currency symbol"
+          value={form.menuCurrency}
+          onChange={(value) => onChange("menuCurrency", value)}
+          placeholder="$"
+        />
+      </div>
+
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm font-medium">Menu items</p>
+          <Button type="button" variant="outline" size="sm" onClick={addItem}>
+            <PlusIcon className="size-4" />
+            Add item
+          </Button>
+        </div>
+        {form.menuItems.map((item, index) => (
+          <div
+            key={index}
+            className="space-y-3 rounded-xl border border-border bg-muted/20 p-3"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-xs font-medium text-muted-foreground">
+                Item {index + 1}
+              </p>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Remove item"
+                onClick={() => removeItem(index)}
+              >
+                <Trash2Icon className="size-4" />
+              </Button>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-[1fr_6rem]">
+              <FormField
+                id={`qr-item-name-${index}`}
+                label="Name"
+                required
+                value={item.name}
+                onChange={(value) => updateItem(index, { name: value })}
+                placeholder="Heirloom tomato salad"
+              />
+              <FormField
+                id={`qr-item-price-${index}`}
+                label="Price"
+                value={item.price ?? ""}
+                onChange={(value) => updateItem(index, { price: value })}
+                placeholder="14"
+              />
+            </div>
+            <FormField
+              id={`qr-item-section-${index}`}
+              label="Section"
+              value={item.section ?? ""}
+              onChange={(value) => updateItem(index, { section: value })}
+              placeholder="Starters"
+              description="Optional — groups items on the menu page."
+            />
+            <Field>
+              <FieldLabel htmlFor={`qr-item-desc-${index}`}>Description</FieldLabel>
+              <FieldContent>
+                <Textarea
+                  id={`qr-item-desc-${index}`}
+                  value={item.description ?? ""}
+                  onChange={(event) =>
+                    updateItem(index, { description: event.target.value })
+                  }
+                  placeholder="Optional short description"
+                  rows={2}
+                />
+              </FieldContent>
+            </Field>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function WifiFields({ form, onChange }: QrContentFieldsProps) {
+  const needsPassword = form.wifiEncryption !== "nopass";
+
+  return (
+    <div className="space-y-4">
+      <FormField
+        id="qr-wifi-ssid"
+        label="Network name (SSID)"
+        required
+        value={form.wifiSsid}
+        onChange={(value) => onChange("wifiSsid", value)}
+        placeholder="CornerBistro-Guest"
+      />
+      <Field>
+        <FieldLabel htmlFor="qr-wifi-encryption">Security</FieldLabel>
+        <FieldContent>
+          <Select
+            value={form.wifiEncryption}
+            onValueChange={(value) => {
+              if (!value) return;
+              onChange("wifiEncryption", value as WifiEncryption);
+              if (value === "nopass") onChange("wifiPassword", "");
+            }}
+          >
+            <SelectTrigger id="qr-wifi-encryption" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(Object.keys(WIFI_ENCRYPTION_LABEL) as WifiEncryption[]).map((key) => (
+                <SelectItem key={key} value={key}>
+                  {WIFI_ENCRYPTION_LABEL[key]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FieldContent>
+      </Field>
+      {needsPassword && (
+        <Field>
+          <FieldLabel htmlFor="qr-wifi-password">Password</FieldLabel>
+          <FieldContent>
+            <Input
+              id="qr-wifi-password"
+              type="text"
+              value={form.wifiPassword}
+              onChange={(event) => onChange("wifiPassword", event.target.value)}
+              placeholder="Network password"
+              autoComplete="off"
+            />
+            <FieldDescription>
+              Shown on the landing page so guests can copy and join.
+            </FieldDescription>
+          </FieldContent>
+        </Field>
+      )}
+      <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/20 px-4 py-3">
+        <div>
+          <p className="text-sm font-medium">Hidden network</p>
+          <p className="text-sm text-muted-foreground">
+            Enable if the SSID is not broadcast publicly.
+          </p>
+        </div>
+        <Switch
+          checked={form.wifiHidden}
+          onCheckedChange={(checked) => onChange("wifiHidden", checked)}
+        />
+      </div>
+    </div>
+  );
+}
+
+function SocialFields({ form, onChange }: QrContentFieldsProps) {
+  function updateLink(index: number, patch: Partial<SocialLink>) {
+    const next = form.socialLinks.map((link, i) =>
+      i === index ? { ...link, ...patch } : link,
+    );
+    onChange("socialLinks", next);
+  }
+
+  function addLink() {
+    onChange("socialLinks", [...form.socialLinks, emptySocialLink()]);
+  }
+
+  function removeLink(index: number) {
+    if (form.socialLinks.length <= 1) {
+      onChange("socialLinks", [emptySocialLink()]);
+      return;
+    }
+    onChange(
+      "socialLinks",
+      form.socialLinks.filter((_, i) => i !== index),
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <FormField
+        id="qr-social-title"
+        label="Page title"
+        required
+        value={form.socialTitle}
+        onChange={(value) => onChange("socialTitle", value)}
+        placeholder="Follow Acme Studio"
+      />
+      <FormField
+        id="qr-social-subtitle"
+        label="Tagline"
+        value={form.socialSubtitle}
+        onChange={(value) => onChange("socialSubtitle", value)}
+        placeholder="Find us on your favorite apps"
+      />
+
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm font-medium">Social links</p>
+          <Button type="button" variant="outline" size="sm" onClick={addLink}>
+            <PlusIcon className="size-4" />
+            Add link
+          </Button>
+        </div>
+        {form.socialLinks.map((link, index) => (
+          <div
+            key={index}
+            className="space-y-3 rounded-xl border border-border bg-muted/20 p-3"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-xs font-medium text-muted-foreground">
+                Link {index + 1}
+              </p>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Remove link"
+                onClick={() => removeLink(index)}
+              >
+                <Trash2Icon className="size-4" />
+              </Button>
+            </div>
+            <Field>
+              <FieldLabel htmlFor={`qr-social-platform-${index}`}>Platform</FieldLabel>
+              <FieldContent>
+                <Select
+                  value={link.platform}
+                  onValueChange={(value) => {
+                    if (!value) return;
+                    updateLink(index, { platform: value as SocialPlatform });
+                  }}
+                >
+                  <SelectTrigger id={`qr-social-platform-${index}`} className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SOCIAL_PLATFORMS.map((platform) => (
+                      <SelectItem key={platform} value={platform}>
+                        {SOCIAL_PLATFORM_LABEL[platform]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FieldContent>
+            </Field>
+            <FormField
+              id={`qr-social-url-${index}`}
+              label="Profile URL"
+              type="url"
+              required
+              value={link.url}
+              onChange={(value) => updateLink(index, { url: value })}
+              placeholder="https://instagram.com/yourbrand"
+            />
+            <FormField
+              id={`qr-social-label-${index}`}
+              label="Label"
+              value={link.label ?? ""}
+              onChange={(value) => updateLink(index, { label: value })}
+              placeholder="Optional custom label"
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CouponFields({ form, onChange }: QrContentFieldsProps) {
+  return (
+    <div className="space-y-4">
+      <FormField
+        id="qr-coupon-code"
+        label="Coupon code"
+        required
+        value={form.couponCode}
+        onChange={(value) => onChange("couponCode", value)}
+        placeholder="SAVE20"
+        description="Shown large on the landing page so guests can copy it."
+      />
+      <FormField
+        id="qr-coupon-title"
+        label="Offer title"
+        value={form.couponTitle}
+        onChange={(value) => onChange("couponTitle", value)}
+        placeholder="20% off your first order"
+      />
+      <Field>
+        <FieldLabel htmlFor="qr-coupon-desc">Description</FieldLabel>
+        <FieldContent>
+          <Textarea
+            id="qr-coupon-desc"
+            value={form.couponDescription}
+            onChange={(event) => onChange("couponDescription", event.target.value)}
+            placeholder="Valid on full-price items. One use per customer."
+            rows={2}
+          />
+        </FieldContent>
+      </Field>
+      <Field>
+        <FieldLabel>Expires</FieldLabel>
+        <FieldContent>
+          <DatePicker
+            value={form.couponExpiresAt || undefined}
+            onChange={(value) => onChange("couponExpiresAt", value)}
+            placeholder="No expiry"
+          />
+          <FieldDescription>Optional. Leave empty for no expiration date.</FieldDescription>
+        </FieldContent>
+      </Field>
+      <Field>
+        <FieldLabel htmlFor="qr-coupon-terms">Terms</FieldLabel>
+        <FieldContent>
+          <Textarea
+            id="qr-coupon-terms"
+            value={form.couponTerms}
+            onChange={(event) => onChange("couponTerms", event.target.value)}
+            placeholder="Cannot be combined with other offers."
+            rows={2}
+          />
+        </FieldContent>
+      </Field>
+    </div>
+  );
+}
+
 function PdfUploadField({ form, onChange }: QrContentFieldsProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -179,6 +593,13 @@ function PdfUploadField({ form, onChange }: QrContentFieldsProps) {
       if (!response.ok) throw new Error(data.error ?? "Upload failed");
       onChange("fileUrl", data.fileUrl);
       onChange("fileName", data.fileName ?? file.name);
+      onChange("filePublicId", data.filePublicId ?? "");
+      onChange(
+        "deliveryType",
+        data.deliveryType === "authenticated" || data.deliveryType === "upload"
+          ? data.deliveryType
+          : "authenticated",
+      );
       toast.success("PDF uploaded", { id: toastId });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not upload PDF", {
@@ -227,6 +648,8 @@ function PdfUploadField({ form, onChange }: QrContentFieldsProps) {
               onClick={() => {
                 onChange("fileUrl", "");
                 onChange("fileName", "");
+                onChange("filePublicId", "");
+                onChange("deliveryType", "");
               }}
             >
               <XIcon className="size-4" />

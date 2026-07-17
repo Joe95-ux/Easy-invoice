@@ -6,15 +6,33 @@ import { useTheme } from "next-themes";
 import {
   CalendarIcon,
   EyeIcon,
-  FileTextIcon,
   GlobeIcon,
   MailIcon,
   MapPinIcon,
   PhoneIcon,
+  Share2Icon,
+  TicketPercentIcon,
   UserRoundIcon,
+  UtensilsCrossedIcon,
   WifiIcon,
 } from "lucide-react";
 import type { QrFormState } from "@/features/qr-codes/components/qr-form";
+import {
+  CouponIllustration,
+  EventIllustration,
+  MenuIllustration,
+  PdfIllustration,
+  SocialIllustration,
+  VcardIllustration,
+  DiagonalDivider,
+  WaveDivider,
+  WifiIllustration,
+} from "@/features/qr-codes/components/qr-preview-art";
+import { QrSocialIcon } from "@/features/qr-codes/components/qr-social-icon";
+import {
+  SOCIAL_PLATFORM_LABEL,
+  WIFI_ENCRYPTION_LABEL,
+} from "@/lib/qr-codes/content";
 import { cn } from "@/lib/utils";
 
 type QrPhonePreviewProps = {
@@ -25,51 +43,66 @@ type QrPhonePreviewProps = {
 type Tab = "preview" | "qr";
 type StatusTone = "light" | "dark";
 
-// Fixed brand accent so the mocked hero sections read consistently.
-const ACCENT = "oklch(0.47 0.142 266)";
-const ACCENT_GRADIENT = `linear-gradient(135deg, ${ACCENT}, oklch(0.58 0.15 300))`;
-const CHIP_BG = "oklch(0.47 0.142 266 / 0.14)";
+const LINK_ACCENT = "oklch(0.47 0.142 266)";
+const LINK_GRADIENT = `linear-gradient(135deg, ${LINK_ACCENT}, oklch(0.58 0.15 300))`;
 
-type Palette = {
-  bg: string;
-  card: string;
-  ring: string;
-  title: string;
-  body: string;
-  muted: string;
-  faint: string;
-  rowBg: string;
-  rowBorder: string;
-  chip: string;
+// Distinct color stories per type (qr-code.io style).
+const PDF = {
+  hero: "linear-gradient(160deg, #F97316 0%, #EA580C 55%, #C2410C 100%)",
+  cta: "#EA580C",
+  bodyLight: "#FFF7ED",
+  bodyDark: "#1c1410",
+  cardLight: "#ffffff",
+  cardDark: "#2a211c",
 };
 
-function palette(dark: boolean): Palette {
-  return dark
-    ? {
-        bg: "bg-[#0b0e14]",
-        card: "bg-[#151a22]",
-        ring: "ring-white/10",
-        title: "text-neutral-100",
-        body: "text-neutral-200",
-        muted: "text-neutral-400",
-        faint: "text-neutral-500",
-        rowBg: "bg-white/5",
-        rowBorder: "border-white/10",
-        chip: "#c7d2fe",
-      }
-    : {
-        bg: "bg-neutral-50",
-        card: "bg-white",
-        ring: "ring-black/5",
-        title: "text-neutral-900",
-        body: "text-neutral-800",
-        muted: "text-neutral-500",
-        faint: "text-neutral-400",
-        rowBg: "bg-neutral-50",
-        rowBorder: "border-black/5",
-        chip: ACCENT,
-      };
-}
+const VCARD = {
+  hero: "linear-gradient(160deg, #0EA5E9 0%, #0284C7 55%, #0369A1 100%)",
+  cta: "#0284C7",
+  bodyLight: "#F0F9FF",
+  bodyDark: "#0b1520",
+  cardDark: "#122033",
+};
+
+const EVENT = {
+  hero: "linear-gradient(160deg, #A855F7 0%, #7C3AED 55%, #6D28D9 100%)",
+  cta: "#7C3AED",
+  bodyLight: "#FAF5FF",
+  bodyDark: "#120b1c",
+  cardDark: "#1c1430",
+};
+
+const MENU = {
+  hero: "linear-gradient(160deg, #F59E0B 0%, #D97706 55%, #B45309 100%)",
+  cta: "#D97706",
+  bodyLight: "#FFFBEB",
+  bodyDark: "#1a1408",
+  cardDark: "#241c0e",
+};
+
+const WIFI = {
+  hero: "linear-gradient(160deg, #10B981 0%, #059669 55%, #047857 100%)",
+  cta: "#059669",
+  bodyLight: "#ECFDF5",
+  bodyDark: "#0a1612",
+  cardDark: "#12241c",
+};
+
+const SOCIAL = {
+  hero: "linear-gradient(160deg, #0EA5E9 0%, #6366F1 55%, #EC4899 100%)",
+  cta: "#6366F1",
+  bodyLight: "#F0F9FF",
+  bodyDark: "#0b1220",
+  cardDark: "#151e30",
+};
+
+const COUPON = {
+  hero: "linear-gradient(160deg, #0EA5E9 0%, #0284C7 55%, #0369A1 100%)",
+  cta: "#0284C7",
+  bodyLight: "#F0F9FF",
+  bodyDark: "#0b1220",
+  cardDark: "#151e30",
+};
 
 function wallpaperStyle(isDark: boolean): CSSProperties {
   const base = isDark ? "#0d1117" : "#e9edf4";
@@ -88,8 +121,13 @@ export function QrPhonePreview({ form, qrElement }: QrPhonePreviewProps) {
   useEffect(() => setMounted(true), []);
   const isDark = mounted && resolvedTheme === "dark";
 
+  // Colored heroes always need a light (white) status bar; link/QR follow theme.
   const statusTone: StatusTone =
-    tab === "qr" || form.type === "LINK" ? (isDark ? "light" : "dark") : "light";
+    tab === "preview" && form.type !== "LINK"
+      ? "light"
+      : isDark
+        ? "light"
+        : "dark";
 
   return (
     <div className="flex flex-col items-center gap-4">
@@ -143,18 +181,21 @@ function PhoneFrame({
 }) {
   return (
     <div className="relative w-[250px] shrink-0">
-      {/* Side buttons */}
       <span className="absolute -left-[3px] top-24 h-8 w-[3px] rounded-l bg-neutral-700" />
       <span className="absolute -left-[3px] top-36 h-12 w-[3px] rounded-l bg-neutral-700" />
       <span className="absolute -right-[3px] top-32 h-16 w-[3px] rounded-r bg-neutral-700" />
       <div className="rounded-[2.75rem] border-[5px] border-neutral-800 bg-neutral-800 shadow-xl">
-        <div className="relative h-[520px] overflow-hidden rounded-[2.35rem] bg-neutral-900">
-          {/* Dynamic island */}
+        <div className="relative h-[520px] overflow-hidden rounded-[2.35rem]">
           <div className="absolute left-1/2 top-[9px] z-30 flex h-[26px] w-[92px] -translate-x-1/2 items-center justify-end rounded-full bg-black pr-2.5 shadow-sm">
             <span className="size-[7px] rounded-full bg-neutral-700 ring-1 ring-neutral-600/50" />
           </div>
           <StatusBar tone={statusTone} />
           <div className="no-scrollbar relative h-full overflow-y-auto">{children}</div>
+          {/* Home indicator — pill only, no strip so wallpaper/preview show through */}
+          <div
+            className="pointer-events-none absolute bottom-2 left-1/2 z-30 h-[4px] w-[108px] -translate-x-1/2 rounded-full bg-black/70 dark:bg-white/75"
+            aria-hidden
+          />
         </div>
       </div>
     </div>
@@ -214,69 +255,182 @@ function QrContentMobile({ form, dark }: { form: QrFormState; dark: boolean }) {
   if (form.type === "VCARD") return <VcardPage form={form} dark={dark} />;
   if (form.type === "EVENT") return <EventPage form={form} dark={dark} />;
   if (form.type === "PDF") return <PdfPage form={form} dark={dark} />;
+  if (form.type === "MENU") return <MenuPage form={form} dark={dark} />;
+  if (form.type === "WIFI") return <WifiPage form={form} dark={dark} />;
+  if (form.type === "SOCIAL") return <SocialPage form={form} dark={dark} />;
+  if (form.type === "COUPON") return <CouponPage form={form} dark={dark} />;
   return <LinkPage form={form} dark={dark} />;
 }
 
-function VcardPage({ form, dark }: { form: QrFormState; dark: boolean }) {
-  const p = palette(dark);
-  const hasContact = Boolean(form.phone || form.email || form.website || form.address);
+/* ------------------------------------------------------------------ */
+/*  PDF — warm orange landing (matches qr-code.io style)               */
+/* ------------------------------------------------------------------ */
+
+function PdfPage({ form, dark }: { form: QrFormState; dark: boolean }) {
+  const eyebrow = form.fileName?.replace(/\.pdf$/i, "") || "Acme Studio";
+  const title = form.name.trim() || "Q3 Growth Report";
+  const subtitle = form.fileName
+    ? "Your document is ready to view."
+    : "See how we turned insights into results this quarter.";
+  const body = dark ? PDF.bodyDark : PDF.bodyLight;
+  const card = dark ? PDF.cardDark : PDF.cardLight;
+
   return (
-    <div className={cn("min-h-full", p.bg)}>
-      <div className="px-5 pb-8 pt-12 text-center" style={{ background: ACCENT_GRADIENT }}>
-        <div className="mx-auto flex size-[76px] items-center justify-center rounded-full border-4 border-white/25 bg-white/15 text-white backdrop-blur-sm">
-          <UserRoundIcon className="size-9" strokeWidth={1.75} />
-        </div>
-        <p className="mt-3 font-heading text-[18px] font-semibold leading-tight text-white">
-          {form.fullName || "Your name"}
-        </p>
-        {(form.jobTitle || form.organization) && (
-          <p className="mt-0.5 text-[12px] text-white/80">
-            {[form.jobTitle, form.organization].filter(Boolean).join(" · ")}
+    <div className="flex min-h-full flex-col" style={{ backgroundColor: body }}>
+      {/* Hero + diagonal cut — card overlaps the slash */}
+      <div className="relative shrink-0" style={{ background: PDF.hero }}>
+        <div className="px-5 pb-14 pt-12 text-center">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/80">
+            {eyebrow}
           </p>
-        )}
-      </div>
-      <div className="p-4">
-        <p className={cn("mb-2 px-1 text-[10px] font-semibold uppercase tracking-wide", p.faint)}>
-          Contact
-        </p>
-        <div className="space-y-1.5">
-          {form.phone && <ContactRow dark={dark} icon={<PhoneIcon className="size-4" />} label="Phone" value={form.phone} />}
-          {form.email && <ContactRow dark={dark} icon={<MailIcon className="size-4" />} label="Email" value={form.email} />}
-          {form.website && <ContactRow dark={dark} icon={<GlobeIcon className="size-4" />} label="Website" value={form.website} />}
-          {form.address && <ContactRow dark={dark} icon={<MapPinIcon className="size-4" />} label="Address" value={form.address} />}
-          {!hasContact && (
-            <>
-              <ContactRow dark={dark} icon={<PhoneIcon className="size-4" />} label="Phone" value="+1 (555) 000-0000" muted />
-              <ContactRow dark={dark} icon={<MailIcon className="size-4" />} label="Email" value="you@company.com" muted />
-            </>
-          )}
+          <p className="mt-2 font-heading text-[22px] font-bold leading-tight text-white">
+            {title}
+          </p>
+          <p className="mx-auto mt-2 max-w-[90%] text-[12px] leading-relaxed text-white/90">
+            {subtitle}
+          </p>
         </div>
-        <AccentButton icon={<UserRoundIcon className="size-4" />}>Save contact</AccentButton>
+        <div className="absolute inset-x-0 bottom-0">
+          <DiagonalDivider fill={body} />
+        </div>
+      </div>
+
+      <div className="relative z-10 -mt-8 flex flex-1 flex-col px-4 pb-8">
+        <div
+          className="overflow-hidden rounded-2xl shadow-[0_12px_28px_-8px_rgba(0,0,0,0.28)]"
+          style={{ backgroundColor: card }}
+        >
+          <div className="px-3 pt-3">
+            <PdfIllustration className="w-full rounded-xl" />
+          </div>
+          <div className="p-3.5 pt-3">
+            <CtaButton color={PDF.cta} icon={<EyeIcon className="size-4" />}>
+              View PDF
+            </CtaButton>
+          </div>
+        </div>
+        {/* Fills leftover screen so no frame black shows through */}
+        <div className="flex-1" style={{ backgroundColor: body }} />
       </div>
     </div>
   );
 }
 
+/* ------------------------------------------------------------------ */
+/*  Business card — sky-blue networking page                           */
+/* ------------------------------------------------------------------ */
+
+function VcardPage({ form, dark }: { form: QrFormState; dark: boolean }) {
+  const name = form.fullName.trim() || "Alex Rivera";
+  const role =
+    [form.jobTitle, form.organization].filter(Boolean).join(" · ") ||
+    "Product Designer · Northwind";
+  const phone = form.phone.trim() || "+1 (415) 555-0148";
+  const email = form.email.trim() || "alex@northwind.co";
+  const website = form.website.trim() || "northwind.co";
+  const address = form.address.trim() || "San Francisco, CA";
+
+  return (
+    <div
+      className="min-h-full"
+      style={{ backgroundColor: dark ? VCARD.bodyDark : VCARD.bodyLight }}
+    >
+      <div className="px-5 pb-2 pt-12 text-center" style={{ background: VCARD.hero }}>
+        <div className="mx-auto flex size-[72px] items-center justify-center rounded-full border-[3px] border-white/40 bg-white/20 text-white shadow-md backdrop-blur-sm">
+          <UserRoundIcon className="size-9" strokeWidth={1.6} />
+        </div>
+        <p className="mt-3 font-heading text-[18px] font-semibold leading-tight text-white">
+          {name}
+        </p>
+        <p className="mt-0.5 text-[12px] text-white/85">{role}</p>
+      </div>
+      <WaveDivider fill={dark ? VCARD.bodyDark : VCARD.bodyLight} />
+
+      <div className="space-y-3 px-4 pb-6">
+        <div
+          className={cn(
+            "-mt-1 overflow-hidden rounded-2xl shadow-md ring-1",
+            dark ? "ring-white/10" : "bg-white ring-black/5",
+          )}
+          style={{ backgroundColor: dark ? VCARD.cardDark : "#fff" }}
+        >
+          <VcardIllustration className="w-full" />
+        </div>
+
+        <div className="grid grid-cols-3 gap-2">
+          <ActionChip dark={dark} color="#0284C7" icon={<PhoneIcon className="size-3.5" />} label="Call" />
+          <ActionChip dark={dark} color="#0284C7" icon={<MailIcon className="size-3.5" />} label="Email" />
+          <ActionChip dark={dark} color="#0284C7" icon={<GlobeIcon className="size-3.5" />} label="Web" />
+        </div>
+
+        <div className="space-y-1.5">
+          <DetailRow
+            dark={dark}
+            accent="#0284C7"
+            icon={<PhoneIcon className="size-3.5" />}
+            label="Phone"
+            value={phone}
+          />
+          <DetailRow
+            dark={dark}
+            accent="#0284C7"
+            icon={<MailIcon className="size-3.5" />}
+            label="Email"
+            value={email}
+          />
+          <DetailRow
+            dark={dark}
+            accent="#0284C7"
+            icon={<GlobeIcon className="size-3.5" />}
+            label="Website"
+            value={website}
+          />
+          <DetailRow
+            dark={dark}
+            accent="#0284C7"
+            icon={<MapPinIcon className="size-3.5" />}
+            label="Address"
+            value={address}
+          />
+        </div>
+
+        <CtaButton color={VCARD.cta} icon={<UserRoundIcon className="size-4" />}>
+          Save contact
+        </CtaButton>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Event — violet invite page                                         */
+/* ------------------------------------------------------------------ */
+
 function EventPage({ form, dark }: { form: QrFormState; dark: boolean }) {
-  const p = palette(dark);
   const start = form.startAt ? new Date(form.startAt) : null;
   const validStart = start && !Number.isNaN(start.getTime()) ? start : null;
   const month = validStart
     ? validStart.toLocaleDateString(undefined, { month: "short" }).toUpperCase()
-    : "MON";
-  const day = validStart ? validStart.getDate() : "00";
+    : "OCT";
+  const day = validStart ? validStart.getDate() : 24;
+  const title = form.title.trim() || "Product Launch Party";
+  const when = validStart ? formatEventDate(form.startAt) : "Sat, Oct 24 · 7:00 PM";
+  const where = form.location.trim() || "The Grand Hall, 5th Ave";
+  const description =
+    form.description.trim() ||
+    "Join us for an evening of demos, drinks, and early access to what's next.";
 
   return (
-    <div className={cn("min-h-full", p.bg)}>
+    <div
+      className="min-h-full"
+      style={{ backgroundColor: dark ? EVENT.bodyDark : EVENT.bodyLight }}
+    >
       <div
-        className="relative flex h-32 flex-col justify-end p-4 pt-12"
-        style={{ background: ACCENT_GRADIENT }}
+        className="relative px-5 pb-2 pt-12"
+        style={{ background: EVENT.hero }}
       >
         <div className="absolute right-4 top-11 flex w-12 flex-col overflow-hidden rounded-xl bg-white text-center shadow-md">
-          <span
-            className="py-0.5 text-[9px] font-bold uppercase tracking-wide text-white"
-            style={{ backgroundColor: ACCENT }}
-          >
+          <span className="bg-[#7C3AED] py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
             {month}
           </span>
           <span className="py-1 font-heading text-xl font-bold leading-none text-neutral-900">
@@ -286,85 +440,356 @@ function EventPage({ form, dark }: { form: QrFormState; dark: boolean }) {
         <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/80">
           You&apos;re invited
         </p>
-        <p className="mt-0.5 font-heading text-[17px] font-semibold leading-tight text-white">
-          {form.title || "Event title"}
+        <p className="mt-1 max-w-[75%] font-heading text-[18px] font-semibold leading-tight text-white">
+          {title}
         </p>
       </div>
-      <div className="space-y-1.5 p-4">
-        <ContactRow
-          dark={dark}
-          icon={<CalendarIcon className="size-4" />}
-          label="When"
-          value={validStart ? formatEventDate(form.startAt) : "Date & time"}
-          muted={!validStart}
-        />
-        <ContactRow
-          dark={dark}
-          icon={<MapPinIcon className="size-4" />}
-          label="Where"
-          value={form.location || "Location"}
-          muted={!form.location}
-        />
-        {form.eventUrl && (
-          <ContactRow dark={dark} icon={<GlobeIcon className="size-4" />} label="Link" value={form.eventUrl} />
-        )}
-        {form.description && (
-          <p className={cn("whitespace-pre-wrap px-1 pt-1 text-[12px] leading-relaxed", p.muted)}>
-            {form.description}
-          </p>
-        )}
-        <AccentButton icon={<CalendarIcon className="size-4" />}>Add to calendar</AccentButton>
+      <WaveDivider fill={dark ? EVENT.bodyDark : EVENT.bodyLight} />
+
+      <div className="space-y-3 px-4 pb-6">
+        <div
+          className={cn(
+            "-mt-1 overflow-hidden rounded-2xl shadow-md ring-1",
+            dark ? "ring-white/10" : "bg-white ring-black/5",
+          )}
+          style={{ backgroundColor: dark ? EVENT.cardDark : "#fff" }}
+        >
+          <EventIllustration className="w-full" />
+        </div>
+
+        <div className="space-y-1.5">
+          <DetailRow
+            dark={dark}
+            accent="#7C3AED"
+            icon={<CalendarIcon className="size-3.5" />}
+            label="When"
+            value={when}
+          />
+          <DetailRow
+            dark={dark}
+            accent="#7C3AED"
+            icon={<MapPinIcon className="size-3.5" />}
+            label="Where"
+            value={where}
+          />
+          {form.eventUrl.trim() && (
+            <DetailRow
+              dark={dark}
+              accent="#7C3AED"
+              icon={<GlobeIcon className="size-3.5" />}
+              label="Link"
+              value={form.eventUrl.trim()}
+            />
+          )}
+        </div>
+
+        <p
+          className={cn(
+            "px-1 text-[12px] leading-relaxed",
+            dark ? "text-neutral-400" : "text-neutral-600",
+          )}
+        >
+          {description}
+        </p>
+
+        <CtaButton color={EVENT.cta} icon={<CalendarIcon className="size-4" />}>
+          Add to calendar
+        </CtaButton>
       </div>
     </div>
   );
 }
 
-function PdfPage({ form, dark }: { form: QrFormState; dark: boolean }) {
-  const p = palette(dark);
+/* ------------------------------------------------------------------ */
+/*  Menu — amber digital menu                                          */
+/* ------------------------------------------------------------------ */
+
+function MenuPage({ form, dark }: { form: QrFormState; dark: boolean }) {
+  const venue = form.venueName.trim() || "The Corner Bistro";
+  const subtitle = form.menuSubtitle.trim() || "Seasonal plates & natural wine";
+  const currency = form.menuCurrency.trim() || "$";
+  const liveItems = form.menuItems.filter((item) => item.name.trim());
+  const items =
+    liveItems.length > 0
+      ? liveItems.slice(0, 4)
+      : [
+          { name: "Heirloom tomato salad", price: "14", section: "Starters", description: "" },
+          { name: "Wood-fired mushrooms", price: "16", section: "Starters", description: "" },
+          { name: "Day-boat catch", price: "28", section: "Mains", description: "" },
+          { name: "Olive oil cake", price: "12", section: "Dessert", description: "" },
+        ];
+
   return (
-    <div className={cn("min-h-full", p.bg)}>
-      <div className="px-5 pb-10 pt-12 text-center" style={{ background: ACCENT_GRADIENT }}>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/80">
-          PDF document
+    <div
+      className="min-h-full"
+      style={{ backgroundColor: dark ? MENU.bodyDark : MENU.bodyLight }}
+    >
+      <div className="px-5 pb-2 pt-12 text-center" style={{ background: MENU.hero }}>
+        <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-white/20 text-white">
+          <UtensilsCrossedIcon className="size-6" />
+        </div>
+        <p className="mt-2.5 font-heading text-[18px] font-semibold leading-tight text-white">
+          {venue}
         </p>
-        <p className="mt-2 font-heading text-[22px] font-bold leading-tight text-white">
-          {form.name || "Your document"}
-        </p>
-        <p className="mx-auto mt-2 max-w-[85%] text-[12px] leading-relaxed text-white/85">
-          Tap below to view the full document.
-        </p>
+        <p className="mt-0.5 text-[12px] text-white/85">{subtitle}</p>
       </div>
-      <div className="px-4">
-        <div className={cn("-mt-6 rounded-2xl p-3 shadow-lg ring-1", p.card, p.ring)}>
-          {/* White "paper" thumbnail — a PDF page reads white in any theme */}
-          <div className="rounded-md bg-white p-3 ring-1 ring-black/5">
-            <div className="h-2 w-3/5 rounded-full bg-neutral-300" />
-            <div className="mt-2.5 space-y-1.5">
-              <div className="h-1.5 w-full rounded-full bg-neutral-200" />
-              <div className="h-1.5 w-full rounded-full bg-neutral-200" />
-              <div className="h-1.5 w-4/5 rounded-full bg-neutral-200" />
+      <WaveDivider fill={dark ? MENU.bodyDark : MENU.bodyLight} />
+
+      <div className="space-y-3 px-4 pb-6">
+        <div
+          className={cn(
+            "-mt-1 overflow-hidden rounded-2xl shadow-md ring-1",
+            dark ? "ring-white/10" : "bg-white ring-black/5",
+          )}
+          style={{ backgroundColor: dark ? MENU.cardDark : "#fff" }}
+        >
+          <MenuIllustration className="w-full" />
+        </div>
+
+        <div className="space-y-2">
+          {items.map((item, index) => (
+            <div
+              key={`${item.name}-${index}`}
+              className={cn(
+                "flex items-start justify-between gap-2 rounded-xl border px-3 py-2",
+                dark ? "border-white/10 bg-white/5" : "border-black/5 bg-white/70",
+              )}
+            >
+              <div className="min-w-0">
+                {item.section && (
+                  <p
+                    className={cn(
+                      "text-[9px] font-semibold uppercase tracking-wide",
+                      dark ? "text-amber-400/80" : "text-amber-700/80",
+                    )}
+                  >
+                    {item.section}
+                  </p>
+                )}
+                <p
+                  className={cn(
+                    "truncate text-[12px] font-medium",
+                    dark ? "text-neutral-100" : "text-neutral-800",
+                  )}
+                >
+                  {item.name}
+                </p>
+              </div>
+              {item.price && (
+                <p
+                  className={cn(
+                    "shrink-0 text-[12px] font-semibold tabular-nums",
+                    dark ? "text-amber-300" : "text-amber-800",
+                  )}
+                >
+                  {currency}
+                  {item.price}
+                </p>
+              )}
             </div>
-            <div className="mt-3 h-12 rounded" style={{ backgroundColor: "oklch(0.47 0.142 266 / 0.08)" }} />
-            <div className="mt-3 space-y-1.5">
-              <div className="h-1.5 w-full rounded-full bg-neutral-200" />
-              <div className="h-1.5 w-5/6 rounded-full bg-neutral-200" />
-            </div>
-          </div>
+          ))}
         </div>
       </div>
-      <div className={cn("flex items-center gap-2 px-5 pt-3 text-[12px]", p.muted)}>
-        <FileTextIcon className="size-4 shrink-0" style={{ color: p.chip }} />
-        <span className="truncate">{form.fileName || "document.pdf"}</span>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Wi‑Fi — emerald connect page                                       */
+/* ------------------------------------------------------------------ */
+
+function WifiPage({ form, dark }: { form: QrFormState; dark: boolean }) {
+  const ssid = form.wifiSsid.trim() || "CornerBistro-Guest";
+  const password =
+    form.wifiEncryption === "nopass"
+      ? ""
+      : form.wifiPassword.trim() || "welcome-guests";
+  const encryptionLabel = WIFI_ENCRYPTION_LABEL[form.wifiEncryption];
+
+  return (
+    <div
+      className="min-h-full"
+      style={{ backgroundColor: dark ? WIFI.bodyDark : WIFI.bodyLight }}
+    >
+      <div className="px-5 pb-2 pt-12 text-center" style={{ background: WIFI.hero }}>
+        <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-white/20 text-white">
+          <WifiIcon className="size-6" />
+        </div>
+        <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/80">
+          Wi‑Fi access
+        </p>
+        <p className="mt-1 font-heading text-[18px] font-semibold leading-tight text-white">
+          {ssid}
+        </p>
+        <p className="mt-0.5 text-[11px] text-white/80">{encryptionLabel}</p>
       </div>
-      <div className="px-4 pb-6 pt-3">
-        <AccentButton icon={<EyeIcon className="size-4" />}>View PDF</AccentButton>
+      <WaveDivider fill={dark ? WIFI.bodyDark : WIFI.bodyLight} />
+
+      <div className="space-y-3 px-4 pb-6">
+        <div
+          className={cn(
+            "-mt-1 overflow-hidden rounded-2xl shadow-md ring-1",
+            dark ? "ring-white/10" : "bg-white ring-black/5",
+          )}
+          style={{ backgroundColor: dark ? WIFI.cardDark : "#fff" }}
+        >
+          <WifiIllustration className="w-full" />
+        </div>
+
+        <DetailRow
+          dark={dark}
+          accent="#059669"
+          icon={<WifiIcon className="size-3.5" />}
+          label="Network"
+          value={ssid}
+        />
+        <DetailRow
+          dark={dark}
+          accent="#059669"
+          icon={<GlobeIcon className="size-3.5" />}
+          label="Password"
+          value={password || "Open network"}
+        />
+
+        <CtaButton color={WIFI.cta} icon={<WifiIcon className="size-4" />}>
+          {password ? "Copy password" : "Open network"}
+        </CtaButton>
       </div>
     </div>
   );
 }
 
+/* ------------------------------------------------------------------ */
+/*  Socials — multi-link profile page                                  */
+/* ------------------------------------------------------------------ */
+
+function SocialPage({ form, dark }: { form: QrFormState; dark: boolean }) {
+  const title = form.socialTitle.trim() || "Follow us";
+  const subtitle = form.socialSubtitle.trim() || "Find us on your favorite apps";
+  const liveLinks = form.socialLinks.filter((link) => link.url.trim());
+  const links =
+    liveLinks.length > 0
+      ? liveLinks.slice(0, 4)
+      : [
+          { platform: "instagram" as const, url: "#", label: "Instagram" },
+          { platform: "x" as const, url: "#", label: "X" },
+          { platform: "linkedin" as const, url: "#", label: "LinkedIn" },
+        ];
+
+  return (
+    <div
+      className="min-h-full"
+      style={{ backgroundColor: dark ? SOCIAL.bodyDark : SOCIAL.bodyLight }}
+    >
+      <div className="px-5 pb-2 pt-12 text-center" style={{ background: SOCIAL.hero }}>
+        <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-white/20 text-white">
+          <Share2Icon className="size-6" />
+        </div>
+        <p className="mt-2.5 font-heading text-[18px] font-semibold leading-tight text-white">
+          {title}
+        </p>
+        <p className="mt-0.5 text-[12px] text-white/85">{subtitle}</p>
+      </div>
+      <WaveDivider fill={dark ? SOCIAL.bodyDark : SOCIAL.bodyLight} />
+
+      <div className="space-y-3 px-4 pb-6">
+        <div
+          className={cn(
+            "-mt-1 overflow-hidden rounded-2xl shadow-md ring-1",
+            dark ? "ring-white/10" : "bg-white ring-black/5",
+          )}
+          style={{ backgroundColor: dark ? SOCIAL.cardDark : "#fff" }}
+        >
+          <SocialIllustration className="w-full" />
+        </div>
+        <div className="space-y-1.5">
+          {links.map((link, index) => (
+            <div
+              key={`${link.platform}-${index}`}
+              className={cn(
+                "flex items-center gap-3 rounded-xl border px-3 py-2",
+                dark ? "border-white/10 bg-white/5" : "border-black/5 bg-white/70",
+              )}
+            >
+              <QrSocialIcon platform={link.platform} size={28} />
+              <p
+                className={cn(
+                  "truncate text-[12px] font-medium",
+                  dark ? "text-neutral-100" : "text-neutral-800",
+                )}
+              >
+                {link.label?.trim() || SOCIAL_PLATFORM_LABEL[link.platform]}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Coupon — promo code page                                           */
+/* ------------------------------------------------------------------ */
+
+function CouponPage({ form, dark }: { form: QrFormState; dark: boolean }) {
+  const code = form.couponCode.trim() || "SAVE20";
+  const title = form.couponTitle.trim() || "20% off your first order";
+  const description =
+    form.couponDescription.trim() || "Valid on full-price items. One use per customer.";
+
+  return (
+    <div
+      className="min-h-full"
+      style={{ backgroundColor: dark ? COUPON.bodyDark : COUPON.bodyLight }}
+    >
+      <div className="px-5 pb-2 pt-12 text-center" style={{ background: COUPON.hero }}>
+        <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-white/20 text-white">
+          <TicketPercentIcon className="size-6" />
+        </div>
+        <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/80">
+          Coupon
+        </p>
+        <p className="mt-1 font-heading text-[18px] font-semibold leading-tight text-white">
+          {title}
+        </p>
+        <p className="mt-1 text-[11px] text-white/85">{description}</p>
+      </div>
+      <WaveDivider fill={dark ? COUPON.bodyDark : COUPON.bodyLight} />
+
+      <div className="space-y-3 px-4 pb-6">
+        <div
+          className={cn(
+            "-mt-1 overflow-hidden rounded-2xl shadow-md ring-1",
+            dark ? "ring-white/10" : "bg-white ring-black/5",
+          )}
+          style={{ backgroundColor: dark ? COUPON.cardDark : "#fff" }}
+        >
+          <CouponIllustration className="w-full" />
+        </div>
+        <div
+          className={cn(
+            "rounded-xl border border-dashed px-3 py-3 text-center font-mono text-[16px] font-bold tracking-[0.18em]",
+            dark
+              ? "border-sky-400/40 bg-sky-500/10 text-sky-200"
+              : "border-sky-400/50 bg-sky-50 text-sky-800",
+          )}
+        >
+          {code}
+        </div>
+        <CtaButton color={COUPON.cta} icon={<TicketPercentIcon className="size-4" />}>
+          Copy code
+        </CtaButton>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Website / Link — unchanged skeleton approach                       */
+/* ------------------------------------------------------------------ */
+
 function LinkPage({ form, dark }: { form: QrFormState; dark: boolean }) {
-  const p = palette(dark);
   return (
     <div className={cn("min-h-full", dark ? "bg-[#0b0e14]" : "bg-white")}>
       <div
@@ -373,11 +798,15 @@ function LinkPage({ form, dark }: { form: QrFormState; dark: boolean }) {
           dark ? "border-white/10 bg-[#151a22]/95" : "border-black/5 bg-neutral-100/95",
         )}
       >
-        <GlobeIcon className={cn("size-3.5 shrink-0", p.faint)} />
+        <GlobeIcon
+          className={cn("size-3.5 shrink-0", dark ? "text-neutral-500" : "text-neutral-400")}
+        />
         <span
           className={cn(
             "truncate rounded-full px-2.5 py-1 text-[11px] ring-1",
-            dark ? "bg-white/10 text-neutral-300 ring-white/10" : "bg-white text-neutral-500 ring-black/5",
+            dark
+              ? "bg-white/10 text-neutral-300 ring-white/10"
+              : "bg-white text-neutral-500 ring-black/5",
           )}
         >
           {form.url || "https://your-site.com"}
@@ -399,7 +828,7 @@ function WebsiteSkeleton({ dark }: { dark: boolean }) {
           <Bar dark={dark} className="size-3 rounded-full" />
         </div>
       </div>
-      <div className="h-28 w-full rounded-xl" style={{ background: ACCENT_GRADIENT }} />
+      <div className="h-28 w-full rounded-xl" style={{ background: LINK_GRADIENT }} />
       <div className="space-y-2">
         <Bar dark={dark} className="h-4 w-3/4" />
         <Bar dark={dark} className="h-3 w-full" />
@@ -428,48 +857,120 @@ function WebsiteSkeleton({ dark }: { dark: boolean }) {
 
 function Bar({ className, dark }: { className?: string; dark: boolean }) {
   return (
-    <div className={cn("animate-pulse rounded", dark ? "bg-white/10" : "bg-neutral-200/90", className)} />
+    <div
+      className={cn(
+        "animate-pulse rounded",
+        dark ? "bg-white/10" : "bg-neutral-200/90",
+        className,
+      )}
+    />
   );
 }
 
-function ContactRow({
+/* ------------------------------------------------------------------ */
+/*  Shared atoms                                                       */
+/* ------------------------------------------------------------------ */
+
+function CtaButton({
+  color,
+  icon,
+  children,
+}: {
+  color: string;
+  icon?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      className="flex h-10 w-full items-center justify-center gap-1.5 rounded-xl text-[13px] font-semibold text-white shadow-sm"
+      style={{ backgroundColor: color }}
+    >
+      {icon}
+      {children}
+    </div>
+  );
+}
+
+function ActionChip({
+  color,
+  icon,
+  label,
+  dark,
+}: {
+  color: string;
+  icon: ReactNode;
+  label: string;
+  dark: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex flex-col items-center gap-1 rounded-xl py-2.5 shadow-sm ring-1",
+        dark ? "bg-white/5 ring-white/10" : "bg-white/80 ring-black/5",
+      )}
+    >
+      <span
+        className="flex size-7 items-center justify-center rounded-full text-white"
+        style={{ backgroundColor: color }}
+      >
+        {icon}
+      </span>
+      <span
+        className={cn(
+          "text-[10px] font-medium",
+          dark ? "text-neutral-300" : "text-neutral-600",
+        )}
+      >
+        {label}
+      </span>
+    </div>
+  );
+}
+
+function DetailRow({
   icon,
   label,
   value,
-  muted,
+  accent,
   dark,
 }: {
   icon: ReactNode;
   label: string;
   value: string;
-  muted?: boolean;
+  accent: string;
   dark: boolean;
 }) {
-  const p = palette(dark);
   return (
-    <div className={cn("flex items-center gap-3 rounded-xl border px-3 py-2", p.rowBg, p.rowBorder)}>
+    <div
+      className={cn(
+        "flex items-center gap-3 rounded-xl border px-3 py-2",
+        dark ? "border-white/10 bg-white/5" : "border-black/5 bg-white/70",
+      )}
+    >
       <span
-        className="flex size-8 shrink-0 items-center justify-center rounded-lg"
-        style={{ backgroundColor: CHIP_BG, color: p.chip }}
+        className="flex size-8 shrink-0 items-center justify-center rounded-lg text-white"
+        style={{ backgroundColor: accent }}
       >
         {icon}
       </span>
       <div className="min-w-0">
-        <p className={cn("text-[10px] font-medium uppercase tracking-wide", p.faint)}>{label}</p>
-        <p className={cn("truncate text-[12px]", muted ? p.faint : p.body)}>{value}</p>
+        <p
+          className={cn(
+            "text-[10px] font-medium uppercase tracking-wide",
+            dark ? "text-neutral-500" : "text-neutral-400",
+          )}
+        >
+          {label}
+        </p>
+        <p
+          className={cn(
+            "truncate text-[12px] font-medium",
+            dark ? "text-neutral-100" : "text-neutral-800",
+          )}
+        >
+          {value}
+        </p>
       </div>
-    </div>
-  );
-}
-
-function AccentButton({ icon, children }: { icon?: ReactNode; children: ReactNode }) {
-  return (
-    <div
-      className="mt-3 flex h-10 w-full items-center justify-center gap-1.5 rounded-xl text-[13px] font-semibold text-white shadow-sm"
-      style={{ backgroundColor: ACCENT }}
-    >
-      {icon}
-      {children}
     </div>
   );
 }

@@ -12,6 +12,7 @@ import { z } from "zod";
 
 const sendSchema = z.object({
   email: z.string().email().optional(),
+  message: z.string().trim().max(2000).optional(),
 });
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -53,14 +54,8 @@ export async function POST(request: Request, context: RouteContext) {
         "invoice",
         (await ensureInvoicePublicToken(id, member.companyId))!,
       ),
+      message: parsed.data.message,
     });
-
-    if (parsed.data.email && invoice.clientId) {
-      await prisma.client.update({
-        where: { id: invoice.clientId },
-        data: { email: parsed.data.email },
-      });
-    }
 
     const updated = await prisma.invoice.update({
       where: { id },
@@ -83,7 +78,10 @@ export async function POST(request: Request, context: RouteContext) {
       memberId: member.id,
       source: "SEND",
       summary: `Sent to ${recipientEmail}`,
-      metadata: { email: recipientEmail },
+      metadata: {
+        email: recipientEmail,
+        ...(parsed.data.message ? { message: parsed.data.message } : {}),
+      },
     });
 
     return NextResponse.json({ invoice: updated });

@@ -125,7 +125,8 @@ Structured payment methods (PayPal, Zelle, bank, etc.) in company settings; rend
 
 **Status:** Done
 
-Dynamic QR codes for links, PDFs, business cards (vCard), and events. The printed code
+Dynamic QR codes for links, PDFs, business cards (vCard), events, menus, Wi‑Fi,
+socials, and coupons. The printed code
 points to a stable short link (`/q/[token]`) so the destination can be edited and scans
 are counted without reprinting. Multi-step creator (type → content → design) with color
 presets, dot/corner styles, and optional center logo. Each code has a status —
@@ -140,11 +141,11 @@ short-lived httpOnly cookie lets them through (passwords are scrypt-hashed, neve
 | Schema | `QrCode` model + `QrCodeType` / `QrCodeStatus` enums |
 | Lib | `apps/web/src/lib/qr-codes/*` (service, design, content/vcard+ics, url) |
 | API | `GET/POST /api/qr-codes`, `GET/PATCH/DELETE /api/qr-codes/[id]`, `PATCH /api/qr-codes/[id]/status`, `POST /api/qr-codes/upload` |
-| Public | `/q/[token]` resolver (redirect, paused notice, password gate, or vCard/event landing), `/q/[token]/unlock`, `/q/[token]/vcf`, `/q/[token]/ics` |
+| Public | `/q/[token]` resolver (redirect, paused notice, password gate, or vCard/event/menu/wifi landing), `/q/[token]/unlock`, `/q/[token]/file` (gated PDF proxy), `/q/[token]/vcf`, `/q/[token]/ics` |
 | UI | `features/qr-codes/*`, pages `/qr-codes`, `/qr-codes/new`, `/qr-codes/[id]/edit` |
 | Sidebar | Collapsible **QR codes** group (Create QR code / QR codes) |
 
-Later: scan analytics over time, more types (menu, app store, wifi), frames/labels.
+Later: scan analytics over time, more types (app store), frames/labels.
 
 ---
 

@@ -99,17 +99,37 @@ export function validateQrPdfFile(file: File): string | null {
   return null;
 }
 
-export async function uploadQrPdf(companyId: string, buffer: Buffer): Promise<string> {
+export type QrPdfUploadResult = {
+  fileUrl: string;
+  filePublicId: string;
+  deliveryType: "authenticated";
+};
+
+/**
+ * Upload a QR PDF as an authenticated Cloudinary asset so it cannot be
+ * fetched without a signed URL (pause/delete/password actually matter).
+ */
+export async function uploadQrPdf(
+  companyId: string,
+  buffer: Buffer,
+): Promise<QrPdfUploadResult> {
+  if (!buffer.subarray(0, 5).toString("utf8").startsWith("%PDF")) {
+    throw new Error("File is not a valid PDF");
+  }
+
   const cld = configureCloudinary();
-  const publicId = `${randomBytes(8).toString("hex")}.pdf`;
+  const leafId = randomBytes(12).toString("hex");
+  const folder = `easy-invoice/qr/${companyId}`;
 
   const result = await new Promise<UploadApiResponse>((resolve, reject) => {
     const stream = cld.uploader.upload_stream(
       {
-        folder: `easy-invoice/qr/${companyId}`,
-        public_id: publicId,
+        folder,
+        public_id: leafId,
         resource_type: "raw",
+        type: "authenticated",
         overwrite: false,
+        format: "pdf",
       },
       (error, uploadResult) => {
         if (error || !uploadResult) {
@@ -123,7 +143,81 @@ export async function uploadQrPdf(companyId: string, buffer: Buffer): Promise<st
     stream.end(buffer);
   });
 
-  return result.secure_url;
+  return {
+    fileUrl: result.secure_url,
+    filePublicId: result.public_id,
+    deliveryType: "authenticated",
+  };
+}
+
+/**
+ * Build a short-lived signed URL for a QR PDF, then fetch bytes server-side
+ * so the browser never sees a durable Cloudinary link.
+ */
+export async function fetchQrPdfBytes(options: {
+  filePublicId?: string | null;
+  fileUrl?: string | null;
+  deliveryType?: "authenticated" | "upload";
+}): Promise<{ bytes: Buffer; contentType: string }> {
+  const cld = configureCloudinary();
+  const deliveryType = options.deliveryType ?? "authenticated";
+
+  let publicId = options.filePublicId?.trim() || null;
+  if (!publicId && options.fileUrl) {
+    publicId = publicIdFromCloudinaryUrl(options.fileUrl);
+  }
+  if (!publicId) {
+    throw new Error("Missing PDF public id");
+  }
+
+  // Prefer authenticated signed delivery; fall back to legacy public "upload" type.
+  const tryTypes: Array<"authenticated" | "upload"> =
+    deliveryType === "upload" ? ["upload", "authenticated"] : ["authenticated", "upload"];
+
+  let lastError: Error | null = null;
+  for (const type of tryTypes) {
+    try {
+      const signedUrl = cld.url(publicId, {
+        resource_type: "raw",
+        type,
+        sign_url: true,
+        secure: true,
+        expires_at: Math.floor(Date.now() / 1000) + 90,
+      });
+      const response = await fetch(signedUrl);
+      if (!response.ok) {
+        lastError = new Error(`Cloudinary fetch failed (${response.status})`);
+        continue;
+      }
+      const bytes = Buffer.from(await response.arrayBuffer());
+      if (!bytes.subarray(0, 5).toString("utf8").startsWith("%PDF")) {
+        lastError = new Error("Fetched asset is not a PDF");
+        continue;
+      }
+      return {
+        bytes,
+        contentType: response.headers.get("content-type") || "application/pdf",
+      };
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error("Fetch failed");
+    }
+  }
+
+  // Last resort for legacy public URLs still stored as fileUrl.
+  if (options.fileUrl) {
+    const response = await fetch(options.fileUrl);
+    if (response.ok) {
+      const bytes = Buffer.from(await response.arrayBuffer());
+      if (bytes.subarray(0, 5).toString("utf8").startsWith("%PDF")) {
+        return {
+          bytes,
+          contentType: response.headers.get("content-type") || "application/pdf",
+        };
+      }
+    }
+  }
+
+  throw lastError ?? new Error("Unable to fetch PDF");
 }
 
 export function publicIdFromCloudinaryUrl(url: string): string | null {

@@ -8,6 +8,20 @@ function getResend() {
   return new Resend(apiKey);
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function formatPersonalMessage(message?: string): string {
+  const trimmed = message?.trim();
+  if (!trimmed) return "";
+  return `<p>${escapeHtml(trimmed).replace(/\n/g, "<br />")}</p>`;
+}
+
 export function isEmailConfigured(): boolean {
   return Boolean(process.env.RESEND_API_KEY);
 }
@@ -19,6 +33,7 @@ type SendInvoiceEmailInput = {
   total: string;
   pdfBuffer: Buffer;
   viewUrl?: string;
+  message?: string;
 };
 
 export async function sendInvoiceEmail(input: SendInvoiceEmailInput) {
@@ -28,6 +43,7 @@ export async function sendInvoiceEmail(input: SendInvoiceEmailInput) {
   const viewLink = input.viewUrl
     ? `<p><a href="${input.viewUrl}">View invoice online</a></p>`
     : "";
+  const personalMessage = formatPersonalMessage(input.message);
 
   const { data, error } = await resend.emails.send({
     from,
@@ -35,6 +51,7 @@ export async function sendInvoiceEmail(input: SendInvoiceEmailInput) {
     subject: `Invoice ${input.invoiceNumber} from ${input.companyName}`,
     html: `
       <p>Hello,</p>
+      ${personalMessage}
       <p>Please find attached invoice <strong>${input.invoiceNumber}</strong> from <strong>${input.companyName}</strong>.</p>
       <p>Total due: <strong>${input.total}</strong></p>
       ${viewLink}
@@ -62,6 +79,7 @@ type SendEstimateEmailInput = {
   total: string;
   pdfBuffer: Buffer;
   viewUrl?: string;
+  message?: string;
 };
 
 export async function sendEstimateEmail(input: SendEstimateEmailInput) {
@@ -71,6 +89,7 @@ export async function sendEstimateEmail(input: SendEstimateEmailInput) {
   const viewLink = input.viewUrl
     ? `<p><a href="${input.viewUrl}">View estimate online</a></p>`
     : "";
+  const personalMessage = formatPersonalMessage(input.message);
 
   const { data, error } = await resend.emails.send({
     from,
@@ -78,6 +97,7 @@ export async function sendEstimateEmail(input: SendEstimateEmailInput) {
     subject: `Estimate ${input.estimateNumber} from ${input.companyName}`,
     html: `
       <p>Hello,</p>
+      ${personalMessage}
       <p>Please find attached estimate <strong>${input.estimateNumber}</strong> from <strong>${input.companyName}</strong>.</p>
       <p>Total estimate: <strong>${input.total}</strong></p>
       ${viewLink}

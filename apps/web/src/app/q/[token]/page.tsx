@@ -9,15 +9,36 @@ import {
   MapPinIcon,
   PauseCircleIcon,
   PhoneIcon,
+  Share2Icon,
+  TicketPercentIcon,
+  UtensilsCrossedIcon,
+  WifiIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { QrCouponCopy } from "@/features/qr-codes/components/qr-coupon-copy";
 import { QrPasswordGate } from "@/features/qr-codes/components/qr-password-gate";
 import { QrPublicThemeToggle } from "@/features/qr-codes/components/qr-public-theme-toggle";
-import { resolveRedirectUrl } from "@/lib/qr-codes/content";
+import { QrSocialIcon } from "@/features/qr-codes/components/qr-social-icon";
+import { QrWifiConnect } from "@/features/qr-codes/components/qr-wifi-connect";
+import {
+  SOCIAL_PLATFORM_LABEL,
+  WIFI_ENCRYPTION_LABEL,
+  resolveRedirectUrl,
+} from "@/lib/qr-codes/content";
 import { qrUnlockCookieName, qrUnlockToken } from "@/lib/qr-codes/password";
 import { getQrCodeByToken, recordQrScan } from "@/lib/qr-codes/service";
-import type { EventContent, VcardContent } from "@/lib/qr-codes/types";
+import type {
+  CouponContent,
+  EventContent,
+  MenuContent,
+  MenuItem,
+  SocialContent,
+  SocialPlatform,
+  VcardContent,
+  WifiContent,
+} from "@/lib/qr-codes/types";
+import { SOCIAL_PLATFORMS } from "@/lib/qr-codes/types";
 
 type PageProps = { params: Promise<{ token: string }> };
 
@@ -58,10 +79,16 @@ export default async function QrScanPage({ params }: PageProps) {
   if (qr.passwordHash) {
     const cookieStore = await cookies();
     const unlocked =
-      cookieStore.get(qrUnlockCookieName(qr.id))?.value === qrUnlockToken(qr.passwordHash);
+      cookieStore.get(qrUnlockCookieName(qr.id))?.value ===
+      qrUnlockToken(qr.id, qr.passwordHash);
     if (!unlocked) {
       return <QrPasswordGate token={token} name={qr.name} />;
     }
+  }
+
+  // PDF is served through a gated proxy so CDN URLs can't bypass controls.
+  if (qr.type === "PDF") {
+    redirect(`/q/${token}/file`);
   }
 
   await recordQrScan(qr.id);
@@ -193,7 +220,231 @@ export default async function QrScanPage({ params }: PageProps) {
     );
   }
 
+  if (qr.type === "MENU") {
+    const menu = content as unknown as MenuContent;
+    const currency = menu.currency?.trim() || "$";
+    const sections = groupMenuItems(menu.items ?? []);
+
+    return (
+      <div className="space-y-3">
+        <div className="flex justify-end">
+          <QrPublicThemeToggle />
+        </div>
+        <Card className="gap-0 overflow-hidden py-0">
+          <CardHeader className="items-center gap-3 border-b bg-gradient-to-br from-amber-500/15 via-orange-500/5 to-transparent py-8 text-center">
+            <div className="flex size-16 items-center justify-center rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-400">
+              <UtensilsCrossedIcon className="size-7" />
+            </div>
+            <div>
+              <h1 className="font-heading text-xl font-semibold tracking-tight">
+                {menu.venueName}
+              </h1>
+              {menu.subtitle && (
+                <p className="mt-1 text-sm text-muted-foreground">{menu.subtitle}</p>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-5 py-5">
+            {sections.map((section) => (
+              <div key={section.title} className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-amber-700 dark:text-amber-400">
+                  {section.title}
+                </p>
+                <div className="space-y-2">
+                  {section.items.map((item, index) => (
+                    <div
+                      key={`${section.title}-${item.name}-${index}`}
+                      className="flex items-start justify-between gap-3 rounded-lg px-1 py-1.5"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium">{item.name}</p>
+                        {item.description && (
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            {item.description}
+                          </p>
+                        )}
+                      </div>
+                      {item.price && (
+                        <p className="shrink-0 text-sm font-semibold tabular-nums">
+                          {currency}
+                          {item.price}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (qr.type === "WIFI") {
+    const wifi = content as unknown as WifiContent;
+    const encryptionLabel =
+      WIFI_ENCRYPTION_LABEL[wifi.encryption] ?? wifi.encryption;
+
+    return (
+      <div className="space-y-3">
+        <div className="flex justify-end">
+          <QrPublicThemeToggle />
+        </div>
+        <Card className="gap-0 overflow-hidden py-0">
+          <CardHeader className="items-center gap-3 border-b bg-gradient-to-br from-emerald-500/15 via-teal-500/5 to-transparent py-8 text-center">
+            <div className="flex size-16 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">
+              <WifiIcon className="size-7" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-700 dark:text-emerald-400">
+                Wi‑Fi access
+              </p>
+              <h1 className="mt-1 font-heading text-xl font-semibold tracking-tight">
+                {wifi.ssid}
+              </h1>
+              <p className="mt-1 text-sm text-muted-foreground">{encryptionLabel}</p>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4 py-5">
+            <QrWifiConnect ssid={wifi.ssid} password={wifi.password} />
+            {wifi.hidden && (
+              <p className="text-center text-xs text-muted-foreground">
+                This is a hidden network — choose “Other…” and enter the name manually.
+              </p>
+            )}
+            <p className="text-center text-xs text-muted-foreground">
+              Open your Wi‑Fi settings, select the network, and paste the password.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (qr.type === "SOCIAL") {
+    const social = content as unknown as SocialContent;
+    const links = (social.links ?? []).filter((link) => link?.url?.trim());
+
+    return (
+      <div className="space-y-3">
+        <div className="flex justify-end">
+          <QrPublicThemeToggle />
+        </div>
+        <Card className="gap-0 overflow-hidden py-0">
+          <CardHeader className="justify-items-center gap-3 border-b bg-gradient-to-br from-sky-500/15 via-indigo-500/5 to-transparent py-8 text-center">
+            <div className="flex size-16 items-center justify-center rounded-full bg-sky-500/15 text-sky-700 dark:text-sky-400">
+              <Share2Icon className="size-7" />
+            </div>
+            <div>
+              <h1 className="font-heading text-xl font-semibold tracking-tight">
+                {social.title}
+              </h1>
+              {social.subtitle && (
+                <p className="mt-1 text-sm text-muted-foreground">{social.subtitle}</p>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-2 py-5">
+            {links.map((link, index) => {
+              const platform = (
+                SOCIAL_PLATFORMS.includes(link.platform as SocialPlatform)
+                  ? link.platform
+                  : "other"
+              ) as SocialPlatform;
+              const label =
+                link.label?.trim() || SOCIAL_PLATFORM_LABEL[platform] || "Open link";
+              return (
+                <a
+                  key={`${link.url}-${index}`}
+                  href={link.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-3 rounded-xl border border-border bg-muted/30 px-3 py-3 text-sm font-medium transition-colors hover:bg-muted/60"
+                >
+                  <QrSocialIcon platform={platform} size={36} />
+                  <span className="min-w-0 flex-1 truncate">{label}</span>
+                  <GlobeIcon className="size-4 shrink-0 text-muted-foreground" />
+                </a>
+              );
+            })}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (qr.type === "COUPON") {
+    const coupon = content as unknown as CouponContent;
+    const expiresLabel = formatCouponExpiry(coupon.expiresAt);
+
+    return (
+      <div className="space-y-3">
+        <div className="flex justify-end">
+          <QrPublicThemeToggle />
+        </div>
+        <Card className="gap-0 overflow-hidden py-0 shadow-sm">
+          <CardHeader className="justify-items-center gap-3 border-b bg-gradient-to-br from-sky-500/20 via-sky-500/5 to-transparent py-8 text-center">
+            <div className="flex size-16 items-center justify-center rounded-full bg-sky-600/15 text-sky-700 dark:bg-sky-400/15 dark:text-sky-300">
+              <TicketPercentIcon className="size-7" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-sky-700 dark:text-sky-300">
+                Coupon
+              </p>
+              <h1 className="mt-1 font-heading text-xl font-semibold tracking-tight">
+                {coupon.title?.trim() || "Your offer"}
+              </h1>
+              {coupon.description && (
+                <p className="mt-1 text-sm text-muted-foreground">{coupon.description}</p>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4 py-5">
+            <QrCouponCopy code={coupon.code} />
+            {expiresLabel && (
+              <p className="text-center text-sm text-muted-foreground">
+                Expires {expiresLabel}
+              </p>
+            )}
+            {coupon.terms && (
+              <p className="whitespace-pre-wrap rounded-lg bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                {coupon.terms}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   notFound();
+}
+
+function formatCouponExpiry(value?: string): string {
+  if (!value) return "";
+  const date = new Date(value.length <= 10 ? `${value}T12:00:00` : value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString(undefined, { dateStyle: "medium" });
+}
+
+function groupMenuItems(items: MenuItem[]) {
+  const sections: { title: string; items: MenuItem[] }[] = [];
+  const indexByTitle = new Map<string, number>();
+
+  for (const item of items) {
+    if (!item?.name?.trim()) continue;
+    const title = item.section?.trim() || "Menu";
+    const existing = indexByTitle.get(title);
+    if (existing === undefined) {
+      indexByTitle.set(title, sections.length);
+      sections.push({ title, items: [item] });
+    } else {
+      sections[existing]!.items.push(item);
+    }
+  }
+
+  return sections;
 }
 
 function ContactRow({

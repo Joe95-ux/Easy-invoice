@@ -15,7 +15,10 @@ export async function GET(_request: Request, context: RouteContext) {
 
   if (qr.passwordHash) {
     const cookieStore = await cookies();
-    if (cookieStore.get(qrUnlockCookieName(qr.id))?.value !== qrUnlockToken(qr.passwordHash)) {
+    if (
+      cookieStore.get(qrUnlockCookieName(qr.id))?.value !==
+      qrUnlockToken(qr.id, qr.passwordHash)
+    ) {
       return new Response("Not found", { status: 404 });
     }
   }

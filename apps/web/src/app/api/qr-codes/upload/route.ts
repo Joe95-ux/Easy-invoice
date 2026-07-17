@@ -36,10 +36,19 @@ export async function POST(request: Request) {
 
   try {
     const buffer = Buffer.from(await file.arrayBuffer());
-    const fileUrl = await uploadQrPdf(member.companyId, buffer);
-    return NextResponse.json({ fileUrl, fileName: file.name });
+    const uploaded = await uploadQrPdf(member.companyId, buffer);
+    return NextResponse.json({
+      fileUrl: uploaded.fileUrl,
+      filePublicId: uploaded.filePublicId,
+      deliveryType: uploaded.deliveryType,
+      fileName: file.name,
+    });
   } catch (error) {
     console.error("QR PDF upload failed:", error);
+    const message = error instanceof Error ? error.message : "";
+    if (message.includes("not a valid PDF")) {
+      return NextResponse.json({ error: "File must be a valid PDF" }, { status: 400 });
+    }
     return NextResponse.json({ error: "Failed to upload PDF" }, { status: 500 });
   }
 }

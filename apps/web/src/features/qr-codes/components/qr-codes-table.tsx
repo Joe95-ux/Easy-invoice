@@ -222,11 +222,11 @@ export function QrCodesTable({ qrCodes, origin, companyLogoUrl }: QrCodesTablePr
             )}
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-60">
-            <DropdownMenuLabel>Status</DropdownMenuLabel>
             <DropdownMenuRadioGroup
               value={statusFilter}
               onValueChange={(value) => setStatusFilter(value as StatusFilter)}
             >
+              <DropdownMenuLabel>Status</DropdownMenuLabel>
               {STATUS_FILTER_OPTIONS.map((option) => (
                 <DropdownMenuRadioItem key={option.value} value={option.value}>
                   {option.label}
@@ -234,11 +234,11 @@ export function QrCodesTable({ qrCodes, origin, companyLogoUrl }: QrCodesTablePr
               ))}
             </DropdownMenuRadioGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuLabel>Type</DropdownMenuLabel>
             <DropdownMenuRadioGroup
               value={typeFilter}
               onValueChange={(value) => setTypeFilter(value as TypeFilter)}
             >
+              <DropdownMenuLabel>Type</DropdownMenuLabel>
               {TYPE_FILTER_OPTIONS.map((option) => (
                 <DropdownMenuRadioItem key={option.value} value={option.value}>
                   {option.label}
@@ -262,11 +262,11 @@ export function QrCodesTable({ qrCodes, origin, companyLogoUrl }: QrCodesTablePr
             <ArrowUpDownIcon className="size-4" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52">
-            <DropdownMenuLabel>Sort by</DropdownMenuLabel>
             <DropdownMenuRadioGroup
               value={sortValue}
               onValueChange={(value) => applySort(value as SortValue)}
             >
+              <DropdownMenuLabel>Sort by</DropdownMenuLabel>
               {SORT_OPTIONS.map((option) => (
                 <DropdownMenuRadioItem key={option.value} value={option.value}>
                   {option.label}

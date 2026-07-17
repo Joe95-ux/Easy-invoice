@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import type { InvoiceStatus } from "@easy-invoice/db";
 
 type InvoiceSendDialogProps = {
@@ -38,10 +39,14 @@ export function InvoiceSendDialog({
 }: InvoiceSendDialogProps) {
   const router = useRouter();
   const [email, setEmail] = useState(clientEmail ?? "");
+  const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
 
   useEffect(() => {
-    if (open) setEmail(clientEmail ?? "");
+    if (open) {
+      setEmail(clientEmail ?? "");
+      setMessage("");
+    }
   }, [open, clientEmail]);
 
   const canSend = status !== "CANCELLED" && status !== "PAID";
@@ -53,7 +58,10 @@ export function InvoiceSendDialog({
       const response = await fetch(`/api/invoices/${invoiceId}/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({
+          email,
+          message: message.trim() || undefined,
+        }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Failed to send");
@@ -75,19 +83,34 @@ export function InvoiceSendDialog({
         <DialogHeader>
           <DialogTitle>Send invoice</DialogTitle>
           <DialogDescription>
-            Email {invoiceNumber} as a PDF attachment to your client.
+            Email {invoiceNumber} as a PDF attachment. This does not change the client&apos;s email
+            on file.
           </DialogDescription>
         </DialogHeader>
-        <DialogBody className="space-y-2">
-          <Label htmlFor="invoice-send-email">Client email</Label>
-          <Input
-            id="invoice-send-email"
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            placeholder="client@example.com"
-            disabled={!canSend}
-          />
+        <DialogBody className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="invoice-send-email">Recipient email</Label>
+            <Input
+              id="invoice-send-email"
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="client@example.com"
+              disabled={!canSend}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="invoice-send-dialog-message">Personal message (optional)</Label>
+            <Textarea
+              id="invoice-send-dialog-message"
+              value={message}
+              onChange={(event) => setMessage(event.target.value)}
+              placeholder="Add a short note for your client…"
+              rows={3}
+              maxLength={2000}
+              disabled={!canSend}
+            />
+          </div>
           {!canSend && (
             <p className="text-xs text-muted-foreground">
               This invoice cannot be sent in its current status.

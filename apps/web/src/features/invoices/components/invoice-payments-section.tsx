@@ -2,8 +2,26 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { BanknoteIcon, DownloadIcon, Loader2Icon, MailIcon, SendIcon } from "lucide-react";
+import {
+  BanknoteIcon,
+  DownloadIcon,
+  Loader2Icon,
+  MailIcon,
+  MoreHorizontalIcon,
+  SendIcon,
+  Trash2Icon,
+} from "lucide-react";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,15 +34,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
   TableBody,
@@ -37,7 +56,7 @@ import type { InvoiceStatus, PaymentMethod, ReminderDeliveryStatus } from "@easy
 import { formatDate, formatDateTime, formatMoney } from "@/lib/invoices";
 import { PAYMENT_METHOD_LABELS } from "@/lib/invoice-payments-utils";
 import { downloadReceiptPdf } from "@/lib/receipt-pdf-client";
-import { showPaymentRecordedFeedback } from "@/lib/celebrate-invoice-paid";
+import { RecordPaymentDialog } from "@/features/invoices/components/record-payment-dialog";
 
 type InstallmentRow = {
   id: string;
@@ -84,8 +103,6 @@ type InvoicePaymentsSectionProps = {
   celebrateInvoicePaid?: boolean;
 };
 
-const METHOD_OPTIONS = Object.entries(PAYMENT_METHOD_LABELS) as [PaymentMethod, string][];
-
 export function InvoicePaymentsSection({
   invoiceId,
   invoiceNumber,
@@ -101,19 +118,18 @@ export function InvoicePaymentsSection({
 }: InvoicePaymentsSectionProps) {
   const router = useRouter();
   const [recordOpen, setRecordOpen] = useState(false);
+  const [recordInitialAmount, setRecordInitialAmount] = useState<number | undefined>(undefined);
   const [sendOpen, setSendOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [amount, setAmount] = useState("");
-  const [paidAt, setPaidAt] = useState(new Date().toISOString().slice(0, 10));
-  const [method, setMethod] = useState<PaymentMethod>("OTHER");
-  const [reference, setReference] = useState("");
-  const [note, setNote] = useState("");
   const [email, setEmail] = useState(clientEmail ?? "");
+  const [message, setMessage] = useState("");
   const [downloadingReceiptId, setDownloadingReceiptId] = useState<string | null>(null);
   const [resendOpen, setResendOpen] = useState(false);
   const [resendPayment, setResendPayment] = useState<PaymentRow | null>(null);
   const [resendEmail, setResendEmail] = useState(clientEmail ?? "");
   const [resending, setResending] = useState(false);
+  const [deletePayment, setDeletePayment] = useState<PaymentRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const confirmationLog = payments.flatMap((payment) =>
     payment.confirmationEmails.map((confirmation) => ({
@@ -132,53 +148,31 @@ export function InvoicePaymentsSection({
     status !== "DRAFT" && status !== "CANCELLED" && amountPaid > 0.001;
 
   function openRecordDialog(presetAmount?: number) {
-    setAmount(presetAmount ? String(presetAmount) : String(balanceDue));
-    setPaidAt(new Date().toISOString().slice(0, 10));
-    setMethod("OTHER");
-    setReference("");
-    setNote("");
+    setRecordInitialAmount(presetAmount);
     setRecordOpen(true);
   }
 
-  async function handleRecordPayment() {
-    setLoading(true);
+  async function handleDeletePayment() {
+    if (!deletePayment) return;
+
+    setDeleting(true);
     try {
-      const response = await fetch(`/api/invoices/${invoiceId}/payments`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: Number(amount),
-          paidAt: new Date(paidAt).toISOString(),
-          method,
-          reference: reference || undefined,
-          note: note || undefined,
-        }),
-      });
+      const response = await fetch(
+        `/api/invoices/${invoiceId}/payments/${deletePayment.id}`,
+        { method: "DELETE" },
+      );
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? "Failed to record payment");
+      if (!response.ok) throw new Error(data.error ?? "Failed to delete payment");
 
-      showPaymentRecordedFeedback({
-        invoiceNumber,
-        status: data.invoice?.status ?? status,
-        celebrateInvoicePaid,
+      toast.success("Payment deleted", {
+        description: `${formatMoney(deletePayment.amount, currency)} removed from ${invoiceNumber}. The invoice status and balance were recalculated.`,
       });
-
-      if (data.confirmationEmail?.sent) {
-        toast.success("Payment confirmation emailed", {
-          description: `Receipt and updated invoice sent to ${data.confirmationEmail.toEmail}.`,
-        });
-      } else if (data.confirmationEmail?.error) {
-        toast.warning("Payment recorded, but confirmation email failed", {
-          description: data.confirmationEmail.error,
-        });
-      }
-
-      setRecordOpen(false);
+      setDeletePayment(null);
       router.refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not record payment");
+      toast.error(error instanceof Error ? error.message : "Could not delete payment");
     } finally {
-      setLoading(false);
+      setDeleting(false);
     }
   }
 
@@ -231,13 +225,17 @@ export function InvoicePaymentsSection({
       const response = await fetch(`/api/invoices/${invoiceId}/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email || undefined }),
+        body: JSON.stringify({
+          email: email || undefined,
+          message: message.trim() || undefined,
+        }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Failed to send invoice");
 
       toast.success(`Updated invoice sent to ${email}`);
       setSendOpen(false);
+      setMessage("");
       router.refresh();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to send invoice");
@@ -272,6 +270,7 @@ export function InvoicePaymentsSection({
                 variant="outline"
                 onClick={() => {
                   setEmail(clientEmail ?? "");
+                  setMessage("");
                   setSendOpen(true);
                 }}
               >
@@ -397,37 +396,53 @@ export function InvoicePaymentsSection({
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          {payment.receiptNumber && status !== "DRAFT" && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              aria-label={`Resend confirmation for ${payment.receiptNumber}`}
-                              title="Resend payment confirmation"
-                              disabled={resending}
-                              onClick={() => openResendDialog(payment)}
-                            >
-                              <MailIcon className="size-4" />
-                            </Button>
-                          )}
-                          {payment.receiptNumber && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              aria-label={`Download receipt ${payment.receiptNumber}`}
-                              disabled={downloadingReceiptId === payment.id}
-                              onClick={() => void handleDownloadReceipt(payment)}
-                            >
-                              {downloadingReceiptId === payment.id ? (
-                                <Loader2Icon className="size-4 animate-spin" />
-                              ) : (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger
+                            render={
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label={`Payment actions${payment.receiptNumber ? ` for ${payment.receiptNumber}` : ""}`}
+                              />
+                            }
+                          >
+                            {downloadingReceiptId === payment.id ? (
+                              <Loader2Icon className="size-4 animate-spin" />
+                            ) : (
+                              <MoreHorizontalIcon className="size-4" />
+                            )}
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="min-w-52">
+                            {payment.receiptNumber && status !== "DRAFT" && (
+                              <DropdownMenuItem
+                                disabled={resending}
+                                onClick={() => openResendDialog(payment)}
+                              >
+                                <MailIcon className="size-4" />
+                                Resend confirmation
+                              </DropdownMenuItem>
+                            )}
+                            {payment.receiptNumber && (
+                              <DropdownMenuItem
+                                disabled={downloadingReceiptId === payment.id}
+                                onClick={() => void handleDownloadReceipt(payment)}
+                              >
                                 <DownloadIcon className="size-4" />
-                              )}
-                            </Button>
-                          )}
-                        </div>
+                                Download receipt
+                              </DropdownMenuItem>
+                            )}
+                            {payment.receiptNumber && <DropdownMenuSeparator />}
+                            <DropdownMenuItem
+                              variant="destructive"
+                              disabled={deleting}
+                              onClick={() => setDeletePayment(payment)}
+                            >
+                              <Trash2Icon className="size-4" />
+                              Delete payment
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                     );
@@ -475,113 +490,84 @@ export function InvoicePaymentsSection({
 
           {payments.length === 0 && installments.length === 0 && status === "DRAFT" && (
             <p className="text-sm text-muted-foreground">
-              Send this invoice to start recording payments. Add a payment schedule while editing
-              the draft if you need multiple due dates.
+              Mark this invoice as sent (or email it) to start recording payments. Use{" "}
+              <span className="font-medium text-foreground">Mark as sent</span> when you deliver
+              outside Invoice Desk. Add a payment schedule while editing the draft if you need
+              multiple due dates.
             </p>
           )}
         </CardContent>
       </Card>
 
-      <Dialog open={recordOpen} onOpenChange={setRecordOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Record payment</DialogTitle>
-            <DialogDescription>
-              Record a payment for {invoiceNumber}. Balance due: {formatMoney(balanceDue, currency)}.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogBody className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="payment-amount">Amount</Label>
-              <Input
-                id="payment-amount"
-                type="number"
-                min={0}
-                step="0.01"
-                max={balanceDue}
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="payment-date">Payment date</Label>
-              <Input
-                id="payment-date"
-                type="date"
-                value={paidAt}
-                onChange={(e) => setPaidAt(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Method</Label>
-              <Select
-                value={method}
-                onValueChange={(value) => value && setMethod(value as PaymentMethod)}
-                items={METHOD_OPTIONS.map(([value, label]) => ({ value, label }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {METHOD_OPTIONS.map(([value, label]) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="payment-reference">Reference</Label>
-              <Input
-                id="payment-reference"
-                value={reference}
-                onChange={(e) => setReference(e.target.value)}
-                placeholder="Check #, transaction ID, etc."
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="payment-note">Note</Label>
-              <Input
-                id="payment-note"
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="Optional note"
-              />
-            </div>
-          </DialogBody>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRecordOpen(false)} disabled={loading}>
-              Cancel
-            </Button>
-            <Button
-              onClick={() => void handleRecordPayment()}
-              disabled={loading || !amount || Number(amount) <= 0}
-            >
-              {loading && <Loader2Icon className="size-4 animate-spin" />}
-              Record payment
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <RecordPaymentDialog
+        open={recordOpen}
+        onOpenChange={setRecordOpen}
+        invoiceId={invoiceId}
+        invoiceNumber={invoiceNumber}
+        status={status}
+        currency={currency}
+        balanceDue={balanceDue}
+        initialAmount={recordInitialAmount}
+        celebrateInvoicePaid={celebrateInvoicePaid}
+      />
+
+      <AlertDialog
+        open={deletePayment !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeletePayment(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete payment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes the {deletePayment ? formatMoney(deletePayment.amount, currency) : ""}{" "}
+              payment
+              {deletePayment?.receiptNumber ? ` (receipt ${deletePayment.receiptNumber})` : ""} from{" "}
+              {invoiceNumber} and recalculates the balance and status. Use this to reverse a payment
+              recorded by mistake. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void handleDeletePayment()} disabled={deleting}>
+              {deleting ? "Deleting..." : "Delete payment"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={sendOpen} onOpenChange={setSendOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Send updated invoice</DialogTitle>
             <DialogDescription>
-              Email an updated PDF showing payments received and the remaining balance.
+              Email an updated PDF showing payments received and the remaining balance. This does
+              not change the client&apos;s email on file.
             </DialogDescription>
           </DialogHeader>
-          <DialogBody className="space-y-2">
-            <Label htmlFor="update-client-email">Client email</Label>
-            <Input
-              id="update-client-email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="client@example.com"
-            />
+          <DialogBody className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="update-client-email">Recipient email</Label>
+              <Input
+                id="update-client-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="client@example.com"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="update-invoice-message">Personal message (optional)</Label>
+              <Textarea
+                id="update-invoice-message"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="Add a short note for your client…"
+                rows={3}
+                maxLength={2000}
+              />
+            </div>
           </DialogBody>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSendOpen(false)} disabled={loading}>

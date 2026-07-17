@@ -4,7 +4,11 @@ import {
   requireApiMember,
   validationError,
 } from "@/lib/api/validation";
-import { qrCodeSchema } from "@/lib/schemas/qr-code";
+import {
+  accessPasswordMissing,
+  qrCodeSchema,
+} from "@/lib/schemas/qr-code";
+import { isQrAccessPasswordStrong } from "@/lib/qr-codes/password";
 import { createQrCode, getQrCodesForCompany } from "@/lib/qr-codes/service";
 
 export async function GET() {
@@ -24,6 +28,16 @@ export async function POST(request: Request) {
 
   const parsed = qrCodeSchema.safeParse(body);
   if (!parsed.success) return validationError(parsed.error);
+
+  if (parsed.data.passwordEnabled) {
+    const password = parsed.data.password?.trim() ?? "";
+    if (accessPasswordMissing(parsed.data) || !isQrAccessPasswordStrong(password)) {
+      return NextResponse.json(
+        { error: "Set a password of at least 8 characters to protect this QR code." },
+        { status: 400 },
+      );
+    }
+  }
 
   const qrCode = await createQrCode({
     companyId: member.companyId,

@@ -92,7 +92,9 @@ type CreateQrCodeInput = {
 export async function createQrCode(input: CreateQrCodeInput): Promise<SerializedQrCode> {
   const token = await generateUniqueQrToken();
   const passwordHash =
-    input.passwordEnabled && input.password ? hashQrPassword(input.password) : null;
+    input.passwordEnabled && input.password
+      ? await hashQrPassword(input.password)
+      : null;
   const qr = await prisma.qrCode.create({
     data: {
       companyId: input.companyId,
@@ -123,7 +125,9 @@ type UpdateQrCodeInput = {
  * - protection on + new password typed → re-hash
  * - protection on + empty password → keep the existing hash (undefined = no change)
  */
-function resolvePasswordHashUpdate(input: UpdateQrCodeInput): string | null | undefined {
+async function resolvePasswordHashUpdate(
+  input: UpdateQrCodeInput,
+): Promise<string | null | undefined> {
   if (input.passwordEnabled === undefined) return undefined;
   if (!input.passwordEnabled) return null;
   if (input.password) return hashQrPassword(input.password);
@@ -137,11 +141,15 @@ export async function updateQrCode(
 ): Promise<SerializedQrCode | null> {
   const existing = await prisma.qrCode.findFirst({
     where: { id, companyId },
-    select: { id: true },
+    select: { id: true, passwordHash: true },
   });
   if (!existing) return null;
 
-  const passwordHash = resolvePasswordHashUpdate(input);
+  if (input.passwordEnabled && !input.password && !existing.passwordHash) {
+    throw new Error("PASSWORD_REQUIRED");
+  }
+
+  const passwordHash = await resolvePasswordHashUpdate(input);
 
   const qr = await prisma.qrCode.update({
     where: { id },

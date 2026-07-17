@@ -6,6 +6,7 @@ import { useState } from "react";
 import {
   createLucideIcon,
   BellRingIcon,
+  CheckCheckIcon,
   CopyIcon,
   DownloadIcon,
   LinkIcon,
@@ -53,13 +54,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { formatMoney } from "@/lib/invoices";
+import { Textarea } from "@/components/ui/textarea";
 import { pageHeaderActionClass } from "@/components/app-shell/page-header";
 import { DocumentShareButton } from "@/components/document-share-button";
+import { RecordPaymentDialog } from "@/features/invoices/components/record-payment-dialog";
 import { usePdfDownload } from "@/hooks/use-pdf-download";
 import { cn } from "@/lib/utils";
 import type { InvoiceStatus } from "@easy-invoice/db";
-import { showPaymentRecordedFeedback } from "@/lib/celebrate-invoice-paid";
 
 type InvoiceActionsProps = {
   invoiceId: string;
@@ -94,11 +95,12 @@ export function InvoiceActions({
   const [shareOpen, setShareOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
-  const [paymentAmount, setPaymentAmount] = useState("");
   const [email, setEmail] = useState(clientEmail ?? "");
+  const [message, setMessage] = useState("");
   const [reminderEmail, setReminderEmail] = useState(clientEmail ?? "");
 
   const canSend = status !== "CANCELLED" && status !== "PAID";
+  const canMarkAsSent = status === "DRAFT";
   const canRecordPayment =
     status !== "DRAFT" && status !== "CANCELLED" && status !== "PAID" && balanceDue > 0.001;
   const canRemind =
@@ -124,16 +126,42 @@ export function InvoiceActions({
       const response = await fetch(`/api/invoices/${invoiceId}/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email || undefined }),
+        body: JSON.stringify({
+          email: email || undefined,
+          message: message.trim() || undefined,
+        }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Failed to send");
 
       toast.success(`Invoice sent to ${email}`);
       setSendOpen(false);
+      setMessage("");
       router.refresh();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to send invoice");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function handleMarkAsSent() {
+    setLoading("mark-sent");
+    try {
+      const response = await fetch(`/api/invoices/${invoiceId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "SENT" }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Failed to mark as sent");
+
+      toast.success("Invoice marked as sent", {
+        description: "You can now record payments and share the invoice without emailing.",
+      });
+      router.refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not mark invoice as sent");
     } finally {
       setLoading(null);
     }
@@ -155,42 +183,6 @@ export function InvoiceActions({
       router.refresh();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to send reminder");
-    } finally {
-      setLoading(null);
-    }
-  }
-
-  async function handleRecordPayment() {
-    setLoading("payment");
-    try {
-      const response = await fetch(`/api/invoices/${invoiceId}/payments`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: Number(paymentAmount) }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? "Failed to record payment");
-
-      showPaymentRecordedFeedback({
-        invoiceNumber,
-        status: data.invoice?.status ?? status,
-        celebrateInvoicePaid,
-      });
-
-      if (data.confirmationEmail?.sent) {
-        toast.success("Payment confirmation emailed", {
-          description: `Receipt and updated invoice sent to ${data.confirmationEmail.toEmail}.`,
-        });
-      } else if (data.confirmationEmail?.error) {
-        toast.warning("Payment recorded, but confirmation email failed", {
-          description: data.confirmationEmail.error,
-        });
-      }
-
-      setPaymentOpen(false);
-      router.refresh();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not record payment");
     } finally {
       setLoading(null);
     }
@@ -251,6 +243,7 @@ export function InvoiceActions({
               className="flex-1 text-primary hover:text-primary sm:flex-none"
               onClick={() => {
                 setEmail(clientEmail ?? "");
+                setMessage("");
                 setSendOpen(true);
               }}
               disabled={isBusy}
@@ -314,6 +307,12 @@ export function InvoiceActions({
                   Share link
                 </DropdownMenuItem>
               )}
+              {canMarkAsSent && (
+                <DropdownMenuItem onClick={() => void handleMarkAsSent()} disabled={isBusy}>
+                  <CheckCheckIcon className="size-4" />
+                  {loading === "mark-sent" ? "Marking..." : "Mark as sent"}
+                </DropdownMenuItem>
+              )}
               {!canSend && (
                 <DropdownMenuItem onClick={handleDownloadPdf}>
                   <DownloadIcon className="size-4" />
@@ -321,12 +320,7 @@ export function InvoiceActions({
                 </DropdownMenuItem>
               )}
               {canRecordPayment && (
-                <DropdownMenuItem
-                  onClick={() => {
-                    setPaymentAmount(String(balanceDue));
-                    setPaymentOpen(true);
-                  }}
-                >
+                <DropdownMenuItem onClick={() => setPaymentOpen(true)}>
                   <BanknoteCheckIcon className="size-4" />
                   Record payment
                 </DropdownMenuItem>
@@ -386,18 +380,32 @@ export function InvoiceActions({
           <DialogHeader>
             <DialogTitle>Send invoice</DialogTitle>
             <DialogDescription>
-              Email {invoiceNumber} as a PDF attachment to your client.
+              Email {invoiceNumber} as a PDF attachment. This does not change the client&apos;s
+              email on file.
             </DialogDescription>
           </DialogHeader>
-          <DialogBody className="space-y-2">
-            <Label htmlFor="client-email">Client email</Label>
-            <Input
-              id="client-email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="client@example.com"
-            />
+          <DialogBody className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="client-email">Recipient email</Label>
+              <Input
+                id="client-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="client@example.com"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="invoice-send-message">Personal message (optional)</Label>
+              <Textarea
+                id="invoice-send-message"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="Add a short note for your client…"
+                rows={3}
+                maxLength={2000}
+              />
+            </div>
           </DialogBody>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSendOpen(false)}>
@@ -439,40 +447,16 @@ export function InvoiceActions({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={paymentOpen} onOpenChange={setPaymentOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Record payment</DialogTitle>
-            <DialogDescription>
-              Record a payment for {invoiceNumber}. Balance due:{" "}
-              {formatMoney(balanceDue, currency)}.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogBody className="space-y-2">
-            <Label htmlFor="quick-payment-amount">Amount</Label>
-            <Input
-              id="quick-payment-amount"
-              type="number"
-              min={0}
-              step="0.01"
-              max={balanceDue}
-              value={paymentAmount}
-              onChange={(e) => setPaymentAmount(e.target.value)}
-            />
-          </DialogBody>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPaymentOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleRecordPayment}
-              disabled={!paymentAmount || Number(paymentAmount) <= 0 || loading === "payment"}
-            >
-              {loading === "payment" ? "Saving..." : "Record payment"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <RecordPaymentDialog
+        open={paymentOpen}
+        onOpenChange={setPaymentOpen}
+        invoiceId={invoiceId}
+        invoiceNumber={invoiceNumber}
+        status={status}
+        currency={currency}
+        balanceDue={balanceDue}
+        celebrateInvoicePaid={celebrateInvoicePaid}
+      />
 
       {pdfDownloadDialog}
     </>

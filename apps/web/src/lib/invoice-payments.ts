@@ -216,3 +216,106 @@ export async function recordInvoicePayment(input: {
 
   return { invoice: updated, confirmationEmail };
 }
+
+export async function deleteInvoicePayment(input: {
+  invoiceId: string;
+  paymentId: string;
+  companyId: string;
+  memberId: string;
+}) {
+  const payment = await prisma.invoicePayment.findFirst({
+    where: {
+      id: input.paymentId,
+      invoiceId: input.invoiceId,
+      invoice: { companyId: input.companyId },
+    },
+    include: { invoice: { select: { number: true, currency: true, status: true } } },
+  });
+  if (!payment) throw new Error("Payment not found");
+  if (payment.invoice.status === "CANCELLED") {
+    throw new Error("Cancelled invoices cannot be modified");
+  }
+
+  const beforeSnapshot = await loadInvoiceSnapshot(input.companyId, input.invoiceId);
+
+  // Confirmation email log rows cascade with the payment.
+  await prisma.invoicePayment.delete({ where: { id: input.paymentId } });
+
+  const invoice = await prisma.invoice.findFirst({
+    where: { id: input.invoiceId, companyId: input.companyId },
+    include: {
+      payments: { select: { amount: true } },
+      installments: { orderBy: { sortOrder: "asc" } },
+    },
+  });
+  if (!invoice) throw new Error("Invoice not found");
+
+  const summary = buildInvoicePaymentSummary(invoice);
+  let nextStatus: InvoiceStatus = invoice.status;
+  if (invoice.status !== "DRAFT" && invoice.status !== "CANCELLED") {
+    nextStatus = deriveInvoiceStatusAfterPayment(
+      invoice.status,
+      invoice.total,
+      summary.amountPaid,
+      summary,
+    );
+    // With no payments left, a formerly paid/partially-paid invoice returns to unpaid.
+    if (summary.amountPaid <= 0.001 && nextStatus !== "OVERDUE") {
+      const isOverdue =
+        invoice.dueDate !== null &&
+        invoice.dueDate < new Date(new Date().setHours(0, 0, 0, 0));
+      nextStatus = isOverdue ? "OVERDUE" : invoice.viewedAt ? "VIEWED" : "SENT";
+    }
+  }
+
+  const updated = await prisma.invoice.update({
+    where: { id: input.invoiceId },
+    data: {
+      status: nextStatus,
+      paidAt: nextStatus === "PAID" ? invoice.paidAt : null,
+    },
+    include: {
+      client: true,
+      company: true,
+      template: true,
+      items: { orderBy: { sortOrder: "asc" } },
+      payments: { orderBy: { paidAt: "desc" } },
+      installments: { orderBy: { sortOrder: "asc" } },
+    },
+  });
+
+  const afterSnapshot = await loadInvoiceSnapshot(input.companyId, input.invoiceId);
+  if (afterSnapshot) {
+    await recordInvoiceContentRevision(
+      input.companyId,
+      input.invoiceId,
+      input.memberId,
+      beforeSnapshot,
+      afterSnapshot,
+      "STATUS",
+      {
+        deletedPaymentAmount: payment.amount,
+        deletedReceiptNumber: payment.receiptNumber,
+        amountPaid: summary.amountPaid,
+      },
+    );
+  }
+
+  const memberIds = (
+    await prisma.companyMember.findMany({
+      where: { companyId: input.companyId },
+      select: { id: true },
+    })
+  ).map((m) => m.id);
+
+  await createNotification({
+    companyId: input.companyId,
+    recipientMemberIds: memberIds,
+    type: "PAYMENT_RECEIVED",
+    title: "Payment deleted",
+    body: `${payment.amount.toFixed(2)} ${payment.invoice.currency} payment${payment.receiptNumber ? ` (receipt ${payment.receiptNumber})` : ""} removed from invoice ${payment.invoice.number}`,
+    linkUrl: `/invoices/${input.invoiceId}`,
+  }).catch(() => undefined);
+
+  return { invoice: updated };
+}

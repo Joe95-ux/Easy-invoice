@@ -31,6 +31,10 @@ export function QrPasswordGate({ token, name }: QrPasswordGateProps) {
         window.location.reload();
         return;
       }
+      if (response.status === 429) {
+        setError("Too many attempts. Please wait and try again.");
+        return;
+      }
       setError(response.status === 401 ? "Incorrect password. Try again." : "Something went wrong.");
     } catch {
       setError("Something went wrong.");

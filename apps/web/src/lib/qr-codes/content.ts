@@ -2,7 +2,9 @@ import type {
   EventContent,
   QrCodeStatus,
   QrCodeType,
+  SocialPlatform,
   VcardContent,
+  WifiContent,
 } from "@/lib/qr-codes/types";
 
 export const QR_TYPE_LABEL: Record<QrCodeType, string> = {
@@ -10,6 +12,10 @@ export const QR_TYPE_LABEL: Record<QrCodeType, string> = {
   PDF: "PDF",
   VCARD: "Business card",
   EVENT: "Event",
+  MENU: "Menu",
+  WIFI: "Wi‑Fi",
+  SOCIAL: "Socials",
+  COUPON: "Coupon",
 };
 
 export const QR_STATUS_LABEL: Record<QrCodeStatus, string> = {
@@ -32,6 +38,28 @@ export const QR_TYPE_DESCRIPTION: Record<QrCodeType, string> = {
   PDF: "Share a document that opens on any phone.",
   VCARD: "Save your business contact in one tap.",
   EVENT: "Add an event straight to a calendar.",
+  MENU: "Show a digital menu guests can browse.",
+  WIFI: "Let guests join your network instantly.",
+  SOCIAL: "Share your social profiles in one place.",
+  COUPON: "Hand out a promo code people can copy.",
+};
+
+export const WIFI_ENCRYPTION_LABEL: Record<WifiContent["encryption"], string> = {
+  WPA: "WPA / WPA2",
+  WEP: "WEP",
+  nopass: "None (open)",
+};
+
+export const SOCIAL_PLATFORM_LABEL: Record<SocialPlatform, string> = {
+  instagram: "Instagram",
+  facebook: "Facebook",
+  x: "X (Twitter)",
+  linkedin: "LinkedIn",
+  youtube: "YouTube",
+  tiktok: "TikTok",
+  threads: "Threads",
+  whatsapp: "WhatsApp",
+  other: "Other",
 };
 
 /** Short, human label describing where a code points — used in tables. */
@@ -50,6 +78,14 @@ export function qrDestinationSummary(
       return typeof content.fullName === "string" ? content.fullName : "Contact";
     case "EVENT":
       return typeof content.title === "string" ? content.title : "Event";
+    case "MENU":
+      return typeof content.venueName === "string" ? content.venueName : "Menu";
+    case "WIFI":
+      return typeof content.ssid === "string" ? content.ssid : "Wi‑Fi";
+    case "SOCIAL":
+      return typeof content.title === "string" ? content.title : "Socials";
+    case "COUPON":
+      return typeof content.code === "string" ? content.code : "Coupon";
     default:
       return "—";
   }
@@ -57,15 +93,28 @@ export function qrDestinationSummary(
 
 /**
  * Resolves a redirect target for types that jump straight to a URL.
- * Returns null for types that render a landing page instead (VCARD, EVENT).
+ * PDF is intentionally excluded — it must go through `/q/[token]/file`
+ * so pause / delete / password gates cannot be bypassed via a durable CDN link.
  */
 export function resolveRedirectUrl(
   type: QrCodeType,
   content: Record<string, unknown>,
 ): string | null {
   if (type === "LINK" && typeof content.url === "string") return content.url;
-  if (type === "PDF" && typeof content.fileUrl === "string") return content.fileUrl;
   return null;
+}
+
+/** Standard WIFI: URI used by camera apps for one-tap join. */
+export function buildWifiUri(content: WifiContent): string {
+  const escape = (value: string) =>
+    value.replace(/([\\;,:"])/g, "\\$1");
+  const type = content.encryption === "nopass" ? "nopass" : content.encryption;
+  const password =
+    content.encryption === "nopass" || !content.password
+      ? ""
+      : `P:${escape(content.password)};`;
+  const hidden = content.hidden ? "H:true;" : "";
+  return `WIFI:T:${type};S:${escape(content.ssid)};${password}${hidden};`;
 }
 
 function escapeText(value: string): string {

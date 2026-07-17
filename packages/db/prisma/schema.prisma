@@ -53,6 +53,10 @@ enum QrCodeType {
   PDF
   VCARD
   EVENT
+  MENU
+  WIFI
+  SOCIAL
+  COUPON
 }
 
 enum QrCodeStatus {

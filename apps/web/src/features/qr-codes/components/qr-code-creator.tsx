@@ -39,6 +39,7 @@ import {
   isContentComplete,
   type QrFormState,
 } from "@/features/qr-codes/components/qr-form";
+import { QR_ACCESS_PASSWORD_MIN_LENGTH } from "@/lib/qr-codes/password";
 import { qrScanUrl } from "@/lib/qr-codes/url";
 import type { SerializedQrCode } from "@/lib/qr-codes/types";
 import { cn } from "@/lib/utils";
@@ -96,10 +97,21 @@ export function QrCodeCreator({
   const stepValid = useMemo(() => {
     if (currentStepId === "type") return true;
     if (currentStepId === "content") {
-      return form.name.trim().length > 0 && isContentComplete(form);
+      if (!(form.name.trim().length > 0 && isContentComplete(form))) return false;
+      if (form.passwordEnabled) {
+        const password = form.password.trim();
+        const alreadyProtected = Boolean(initial?.passwordProtected);
+        if (!alreadyProtected && password.length < QR_ACCESS_PASSWORD_MIN_LENGTH) {
+          return false;
+        }
+        if (password.length > 0 && password.length < QR_ACCESS_PASSWORD_MIN_LENGTH) {
+          return false;
+        }
+      }
+      return true;
     }
     return true;
-  }, [currentStepId, form]);
+  }, [currentStepId, form, initial?.passwordProtected]);
 
   function goNext() {
     if (!stepValid) {
