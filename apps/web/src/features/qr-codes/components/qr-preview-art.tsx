@@ -1,32 +1,5 @@
 /** Decorative SVG scenes used in the phone mockup type previews. */
 
-export function PdfIllustration({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 200 140" fill="none" className={className} aria-hidden>
-      <rect width="200" height="140" rx="16" fill="#FFF4E8" />
-      <rect x="18" y="22" width="78" height="96" rx="8" fill="#fff" stroke="#FDBA74" strokeWidth="1.5" />
-      <rect x="28" y="34" width="42" height="6" rx="3" fill="#FDBA74" />
-      <rect x="28" y="48" width="58" height="4" rx="2" fill="#FED7AA" />
-      <rect x="28" y="58" width="52" height="4" rx="2" fill="#FED7AA" />
-      <rect x="28" y="68" width="56" height="4" rx="2" fill="#FED7AA" />
-      <rect x="28" y="84" width="40" height="22" rx="4" fill="#FFEDD5" />
-      {/* Magnifying glass */}
-      <circle cx="128" cy="58" r="22" fill="#FB923C" opacity="0.2" />
-      <circle cx="128" cy="58" r="14" stroke="#EA580C" strokeWidth="3.5" />
-      <path d="M138 68L150 80" stroke="#EA580C" strokeWidth="3.5" strokeLinecap="round" />
-      {/* Chart bars */}
-      <rect x="108" y="96" width="10" height="22" rx="2" fill="#FDBA74" />
-      <rect x="122" y="84" width="10" height="34" rx="2" fill="#FB923C" />
-      <rect x="136" y="90" width="10" height="28" rx="2" fill="#EA580C" />
-      <rect x="150" y="78" width="10" height="40" rx="2" fill="#C2410C" />
-      {/* Target */}
-      <circle cx="168" cy="40" r="14" fill="#fff" stroke="#FB923C" strokeWidth="2" />
-      <circle cx="168" cy="40" r="8" fill="#FDBA74" />
-      <circle cx="168" cy="40" r="3.5" fill="#EA580C" />
-    </svg>
-  );
-}
-
 export function VcardIllustration({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 200 140" fill="none" className={className} aria-hidden>
@@ -146,30 +119,21 @@ export function WifiIllustration({ className }: { className?: string }) {
   );
 }
 
-export function SocialIllustration({ className }: { className?: string }) {
+export function SocialIllustration({
+  className,
+  dark = false,
+}: {
+  className?: string;
+  dark?: boolean;
+}) {
   return (
     <svg viewBox="0 0 200 140" fill="none" className={className} aria-hidden>
-      <rect width="200" height="140" rx="16" fill="#E0F2FE" />
+      <rect width="200" height="140" rx="16" fill={dark ? "#1e293b" : "#E0F2FE"} />
       <circle cx="70" cy="70" r="22" fill="#38BDF8" />
       <circle cx="100" cy="52" r="18" fill="#818CF8" />
       <circle cx="130" cy="70" r="20" fill="#F472B6" />
       <circle cx="100" cy="92" r="16" fill="#34D399" />
       <path d="M70 70h30M100 52v40M100 70h30" stroke="#fff" strokeWidth="3" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-export function CouponIllustration({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 200 140" fill="none" className={className} aria-hidden>
-      <rect width="200" height="140" rx="16" fill="#E0F2FE" />
-      <rect x="36" y="42" width="128" height="56" rx="12" fill="#fff" stroke="#38BDF8" strokeWidth="2" />
-      <circle cx="36" cy="70" r="10" fill="#E0F2FE" />
-      <circle cx="164" cy="70" r="10" fill="#E0F2FE" />
-      <path d="M100 48v44" stroke="#BAE6FD" strokeWidth="2" strokeDasharray="4 4" />
-      <rect x="52" y="58" width="36" height="8" rx="4" fill="#0284C7" />
-      <rect x="52" y="74" width="28" height="6" rx="3" fill="#7DD3FC" />
-      <rect x="116" y="62" width="32" height="16" rx="4" fill="#0EA5E9" />
     </svg>
   );
 }

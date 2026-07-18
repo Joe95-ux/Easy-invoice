@@ -1,17 +1,31 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import {
-  CheckCircle2Icon,
+  CheckIcon,
   CopyIcon,
   DownloadIcon,
-  Loader2Icon,
+  FileCodeIcon,
+  FileImageIcon,
+  FileTextIcon,
+  FileTypeIcon,
+  ImageIcon,
+  PrinterIcon,
+  Share2Icon,
   SmartphoneIcon,
+  XIcon,
+  type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Drawer,
   DrawerContent,
@@ -31,6 +45,7 @@ import {
   type QrCodePreviewHandle,
 } from "@/features/qr-codes/components/qr-code-preview";
 import { QrPhonePreview } from "@/features/qr-codes/components/qr-phone-preview";
+import { QrScanOverlay } from "@/features/qr-codes/components/qr-scan-overlay";
 import { QR_TYPE_META } from "@/features/qr-codes/components/qr-type-meta";
 import {
   buildQrContent,
@@ -39,6 +54,7 @@ import {
   isContentComplete,
   type QrFormState,
 } from "@/features/qr-codes/components/qr-form";
+import { exportQrCanvas, type QrExportFormat } from "@/lib/qr-codes/export";
 import { QR_ACCESS_PASSWORD_MIN_LENGTH } from "@/lib/qr-codes/password";
 import { qrScanUrl } from "@/lib/qr-codes/url";
 import type { SerializedQrCode } from "@/lib/qr-codes/types";
@@ -49,6 +65,8 @@ type QrCodeCreatorProps = {
   origin: string;
   companyLogoUrl?: string | null;
   initial?: SerializedQrCode;
+  /** Page back link + heading, hidden on the post-creation screen. */
+  header?: ReactNode;
 };
 
 const CREATE_STEPS: FormStep[] = [
@@ -62,6 +80,26 @@ const EDIT_STEPS: FormStep[] = [
   { id: "design", title: "Design", description: "Adjust colors and style." },
 ];
 
+const EXPORT_FORMAT_OPTIONS: {
+  value: QrExportFormat;
+  label: string;
+  icon: LucideIcon;
+}[] = [
+  { value: "png", label: "PNG", icon: ImageIcon },
+  { value: "jpeg", label: "JPEG", icon: FileImageIcon },
+  { value: "svg", label: "SVG", icon: FileCodeIcon },
+  { value: "pdf", label: "PDF", icon: FileTextIcon },
+  { value: "eps", label: "EPS", icon: FileTypeIcon },
+  { value: "print", label: "Print", icon: PrinterIcon },
+];
+
+const EXPORT_SIZE_OPTIONS: { value: string; label: string; px: number }[] = [
+  { value: "default", label: "Default (1024 px)", px: 1024 },
+  { value: "512", label: "512 × 512 px", px: 512 },
+  { value: "2048", label: "2048 × 2048 px", px: 2048 },
+  { value: "4096", label: "4096 × 4096 px", px: 4096 },
+];
+
 function slugForFile(name: string): string {
   return name.trim().replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "qr-code";
 }
@@ -71,6 +109,7 @@ export function QrCodeCreator({
   origin,
   companyLogoUrl,
   initial,
+  header,
 }: QrCodeCreatorProps) {
   const router = useRouter();
   const steps = mode === "edit" ? EDIT_STEPS : CREATE_STEPS;
@@ -81,6 +120,8 @@ export function QrCodeCreator({
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [created, setCreated] = useState<SerializedQrCode | null>(null);
+  const [exportFormat, setExportFormat] = useState<QrExportFormat>("png");
+  const [exportSize, setExportSize] = useState("default");
 
   const previewRef = useRef<QrCodePreviewHandle>(null);
 
@@ -93,11 +134,13 @@ export function QrCodeCreator({
   const previewToken = created?.token ?? initial?.token ?? "preview";
   const previewValue = qrScanUrl(origin, previewToken);
   const isLiveCode = Boolean(created?.token ?? initial?.token);
+  const qrPreviewEnabled =
+    form.name.trim().length > 0 && isContentComplete(form);
 
   const stepValid = useMemo(() => {
     if (currentStepId === "type") return true;
     if (currentStepId === "content") {
-      if (!(form.name.trim().length > 0 && isContentComplete(form))) return false;
+      if (!qrPreviewEnabled) return false;
       if (form.passwordEnabled) {
         const password = form.password.trim();
         const alreadyProtected = Boolean(initial?.passwordProtected);
@@ -111,7 +154,7 @@ export function QrCodeCreator({
       return true;
     }
     return true;
-  }, [currentStepId, form, initial?.passwordProtected]);
+  }, [currentStepId, form, initial?.passwordProtected, qrPreviewEnabled]);
 
   function goNext() {
     if (!stepValid) {
@@ -127,7 +170,6 @@ export function QrCodeCreator({
 
   async function handleSubmit() {
     setSubmitting(true);
-    const toastId = toast.loading(mode === "edit" ? "Saving…" : "Creating QR code…");
     try {
       const payload = {
         name: form.name.trim(),
@@ -149,18 +191,16 @@ export function QrCodeCreator({
       if (!response.ok) throw new Error(data.error ?? "Something went wrong");
 
       if (mode === "edit") {
-        toast.success("QR code updated", { id: toastId });
+        toast.success("QR code updated");
         router.push("/qr-codes");
         router.refresh();
       } else {
-        toast.success("QR code created", { id: toastId });
+        toast.success("QR code created");
         setCreated(data.qrCode as SerializedQrCode);
         router.refresh();
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Something went wrong", {
-        id: toastId,
-      });
+      toast.error(error instanceof Error ? error.message : "Something went wrong");
     } finally {
       setSubmitting(false);
     }
@@ -179,55 +219,190 @@ export function QrCodeCreator({
     }
   }
 
+  function handleExport() {
+    const canvas = previewRef.current?.getCanvas();
+    if (!canvas) {
+      toast.error("QR code is not ready yet");
+      return;
+    }
+    try {
+      exportQrCanvas(canvas, exportFormat, slugForFile(created?.name ?? form.name));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not export QR code");
+    }
+  }
+
+  async function handleShare() {
+    if (typeof navigator.share === "function") {
+      try {
+        await navigator.share({ title: created?.name ?? "QR code", url: previewValue });
+        return;
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+      }
+    }
+    await handleCopyLink();
+  }
+
   if (created) {
+    const exportPx =
+      EXPORT_SIZE_OPTIONS.find((option) => option.value === exportSize)?.px ?? 1024;
+    const isPrint = exportFormat === "print";
+
     return (
-      <div className="mx-auto max-w-lg">
-        <FormCard>
-          <div className="flex flex-col items-center gap-5 py-4 text-center">
-            <div className="flex items-center gap-2 text-sm font-medium text-emerald-600 dark:text-emerald-400">
-              <CheckCircle2Icon className="size-5" />
-              QR code is ready
-            </div>
+      <div className="relative mx-auto max-w-2xl pt-2 duration-300 animate-in fade-in-0 zoom-in-95">
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Close"
+          className="absolute -top-1 right-0 rounded-full text-muted-foreground hover:text-foreground"
+          onClick={() => router.push("/qr-codes")}
+        >
+          <XIcon className="size-5" />
+        </Button>
+
+        {/* Hidden canvas rendered at the selected export resolution. */}
+        <div className="hidden" aria-hidden>
+          <QrCodePreview
+            ref={previewRef}
+            value={previewValue}
+            design={form.design}
+            logoUrl={companyLogoUrl}
+            size={exportPx}
+            frame={false}
+          />
+        </div>
+
+        <div className="flex flex-col items-center gap-6 px-2 pb-6 pt-8 text-center sm:px-6">
+          <div className="flex flex-col items-center gap-5">
             <QrCodePreview
-              ref={previewRef}
               value={previewValue}
               design={form.design}
               logoUrl={companyLogoUrl}
-              size={220}
+              size={208}
+              className="shadow-md"
             />
             <div>
-              <p className="font-heading text-lg font-semibold">{created.name}</p>
-              <p className="mt-0.5 break-all text-xs text-muted-foreground">{previewValue}</p>
-            </div>
-            <div className="flex w-full flex-col gap-2 sm:flex-row">
-              <Button className="flex-1" onClick={handleDownload}>
-                <DownloadIcon className="size-4" />
-                Download PNG
-              </Button>
-              <Button variant="outline" className="flex-1" onClick={handleCopyLink}>
-                <CopyIcon className="size-4" />
-                Copy link
-              </Button>
-            </div>
-            <div className="flex items-center gap-4 text-sm">
-              <button
-                type="button"
-                className="cursor-pointer font-medium text-primary hover:underline"
-                onClick={() => {
-                  setCreated(null);
-                  setForm(emptyQrForm());
-                  setStep(0);
-                }}
-              >
-                Create another
-              </button>
-              <span className="text-border">·</span>
-              <Link href="/qr-codes" className="font-medium text-primary hover:underline">
-                View all QR codes
-              </Link>
+              <p className="font-heading text-2xl font-semibold tracking-tight">
+                Last Step:
+              </p>
+              <p className="font-heading text-2xl font-semibold tracking-tight">
+                Download Your QR Code
+              </p>
+              <p className="mx-auto mt-2 max-w-md truncate text-sm text-muted-foreground">
+                {created.name} · {previewValue}
+              </p>
             </div>
           </div>
-        </FormCard>
+
+          <div className="w-full border-t border-border" />
+
+            <div className="grid w-full grid-cols-3 gap-2 sm:grid-cols-6">
+              {EXPORT_FORMAT_OPTIONS.map((option) => {
+                const active = exportFormat === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setExportFormat(option.value)}
+                    aria-pressed={active}
+                    className={cn(
+                      "relative flex cursor-pointer flex-col items-center gap-2 rounded-xl border px-2 pb-3 pt-8 transition-colors",
+                      active
+                        ? "border-primary bg-primary/5 ring-1 ring-primary/30"
+                        : "border-border hover:border-primary/40 hover:bg-muted/40",
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "absolute left-2 top-2 flex size-5 items-center justify-center rounded-full border transition-colors",
+                        active
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border bg-background",
+                      )}
+                    >
+                      {active && <CheckIcon className="size-3" strokeWidth={3} />}
+                    </span>
+                    <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                      <option.icon className="size-6" strokeWidth={1.8} />
+                    </span>
+                    <span className="text-xs font-semibold">{option.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="w-full border-t border-border" />
+
+            <div className="w-full space-y-1.5">
+              <p className="text-left text-xs font-medium text-muted-foreground">
+                File size
+              </p>
+              <div className="flex w-full flex-col gap-2 sm:flex-row">
+                <Select
+                  value={exportSize}
+                  onValueChange={(value) => {
+                    if (value) setExportSize(value);
+                  }}
+                >
+                  <SelectTrigger
+                    className="sm:w-52"
+                    aria-label="File size"
+                    disabled={isPrint}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {EXPORT_SIZE_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button size="lg" className="flex-1" onClick={handleExport}>
+                  {isPrint ? (
+                    <PrinterIcon className="size-4" />
+                  ) : (
+                    <DownloadIcon className="size-4" />
+                  )}
+                  {isPrint ? "Print" : "Download"}
+                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon-lg"
+                    aria-label="Share"
+                    onClick={handleShare}
+                  >
+                    <Share2Icon className="size-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon-lg"
+                    aria-label="Copy link"
+                    onClick={handleCopyLink}
+                  >
+                    <CopyIcon className="size-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="cursor-pointer text-sm font-medium text-primary hover:underline"
+              onClick={() => {
+                setCreated(null);
+                setForm(emptyQrForm());
+                setStep(0);
+                setExportFormat("png");
+                setExportSize("default");
+              }}
+            >
+              Create another QR code
+            </button>
+        </div>
       </div>
     );
   }
@@ -236,6 +411,7 @@ export function QrCodeCreator({
     <div className="flex flex-col items-center gap-4">
       <QrPhonePreview
         form={form}
+        qrEnabled={qrPreviewEnabled}
         qrElement={
           <QrCodePreview
             ref={previewRef}
@@ -261,7 +437,14 @@ export function QrCodeCreator({
   );
 
   return (
-    <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_19rem]">
+    <>
+      {header}
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_19rem]">
+      <QrScanOverlay
+        open={submitting}
+        label={mode === "edit" ? "Saving QR code…" : "Creating QR code…"}
+      />
+
       <FormCard
         footer={
           <div className="flex w-full items-center justify-between gap-2">
@@ -277,7 +460,6 @@ export function QrCodeCreator({
               <span />
             )}
             <Button onClick={goNext} disabled={submitting || !stepValid}>
-              {submitting && <Loader2Icon className="size-4 animate-spin" />}
               {isLastStep
                 ? mode === "edit"
                   ? "Save changes"
@@ -375,6 +557,7 @@ export function QrCodeCreator({
           <div className="flex-1 overflow-y-auto px-3 py-4">{previewPanel}</div>
         </DrawerContent>
       </Drawer>
-    </div>
+      </div>
+    </>
   );
 }

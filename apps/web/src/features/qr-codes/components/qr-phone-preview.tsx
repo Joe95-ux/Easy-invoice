@@ -5,6 +5,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { useTheme } from "next-themes";
 import {
   CalendarIcon,
+  ChevronRightIcon,
   EyeIcon,
   GlobeIcon,
   MailIcon,
@@ -18,10 +19,8 @@ import {
 } from "lucide-react";
 import type { QrFormState } from "@/features/qr-codes/components/qr-form";
 import {
-  CouponIllustration,
   EventIllustration,
   MenuIllustration,
-  PdfIllustration,
   SocialIllustration,
   VcardIllustration,
   DiagonalDivider,
@@ -38,6 +37,8 @@ import { cn } from "@/lib/utils";
 type QrPhonePreviewProps = {
   form: QrFormState;
   qrElement: ReactNode;
+  /** When false, the QR code tab stays visible but cannot be selected. */
+  qrEnabled?: boolean;
 };
 
 type Tab = "preview" | "qr";
@@ -114,12 +115,20 @@ function wallpaperStyle(isDark: boolean): CSSProperties {
   };
 }
 
-export function QrPhonePreview({ form, qrElement }: QrPhonePreviewProps) {
+export function QrPhonePreview({
+  form,
+  qrElement,
+  qrEnabled = true,
+}: QrPhonePreviewProps) {
   const [tab, setTab] = useState<Tab>("preview");
   const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const isDark = mounted && resolvedTheme === "dark";
+
+  useEffect(() => {
+    if (!qrEnabled && tab === "qr") setTab("preview");
+  }, [qrEnabled, tab]);
 
   // Colored heroes always need a light (white) status bar; link/QR follow theme.
   const statusTone: StatusTone =
@@ -134,19 +143,30 @@ export function QrPhonePreview({ form, qrElement }: QrPhonePreviewProps) {
       <div className="inline-flex rounded-full border border-border bg-muted p-[0.1rem]">
         {(
           [
-            { id: "preview", label: "Preview" },
-            { id: "qr", label: "QR code" },
+            { id: "preview", label: "Preview", disabled: false },
+            { id: "qr", label: "QR code", disabled: !qrEnabled },
           ] as const
         ).map((item) => (
           <button
             key={item.id}
             type="button"
-            onClick={() => setTab(item.id)}
+            disabled={item.disabled}
+            title={
+              item.disabled
+                ? "Fill in all required content fields to preview the QR code"
+                : undefined
+            }
+            onClick={() => {
+              if (!item.disabled) setTab(item.id);
+            }}
             className={cn(
-              "cursor-pointer rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
-              tab === item.id
+              "rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
+              item.disabled
+                ? "cursor-not-allowed text-muted-foreground/50"
+                : "cursor-pointer",
+              !item.disabled && tab === item.id
                 ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
+                : !item.disabled && "text-muted-foreground hover:text-foreground",
             )}
           >
             {item.label}
@@ -155,12 +175,12 @@ export function QrPhonePreview({ form, qrElement }: QrPhonePreviewProps) {
       </div>
 
       <PhoneFrame statusTone={statusTone}>
-        <div className={cn("min-h-full", tab !== "preview" && "hidden")}>
+        <div className={cn("h-full", tab !== "preview" && "hidden")}>
           <QrContentMobile form={form} dark={isDark} />
         </div>
         <div
           className={cn(
-            "flex min-h-full flex-col items-center justify-center gap-4 p-6",
+            "flex h-full min-h-full flex-col items-center justify-center gap-4 p-6",
             tab !== "qr" && "hidden",
           )}
           style={wallpaperStyle(isDark)}
@@ -276,7 +296,7 @@ function PdfPage({ form, dark }: { form: QrFormState; dark: boolean }) {
   const card = dark ? PDF.cardDark : PDF.cardLight;
 
   return (
-    <div className="flex min-h-full flex-col" style={{ backgroundColor: body }}>
+    <div className="flex h-full min-h-full flex-col" style={{ backgroundColor: body }}>
       {/* Hero + diagonal cut — card overlaps the slash */}
       <div className="relative shrink-0" style={{ background: PDF.hero }}>
         <div className="px-5 pb-14 pt-12 text-center">
@@ -295,13 +315,18 @@ function PdfPage({ form, dark }: { form: QrFormState; dark: boolean }) {
         </div>
       </div>
 
-      <div className="relative z-10 -mt-8 flex flex-1 flex-col px-4 pb-8">
+      <div className="relative z-10 -mt-8 flex flex-1 flex-col px-4 pb-10">
         <div
           className="overflow-hidden rounded-2xl shadow-[0_12px_28px_-8px_rgba(0,0,0,0.28)]"
           style={{ backgroundColor: card }}
         >
           <div className="px-3 pt-3">
-            <PdfIllustration className="w-full rounded-xl" />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/pdf.png"
+              alt=""
+              className="aspect-10/7 w-full rounded-xl bg-white object-cover"
+            />
           </div>
           <div className="p-3.5 pt-3">
             <CtaButton color={PDF.cta} icon={<EyeIcon className="size-4" />}>
@@ -309,8 +334,6 @@ function PdfPage({ form, dark }: { form: QrFormState; dark: boolean }) {
             </CtaButton>
           </div>
         </div>
-        {/* Fills leftover screen so no frame black shows through */}
-        <div className="flex-1" style={{ backgroundColor: body }} />
       </div>
     </div>
   );
@@ -669,12 +692,14 @@ function SocialPage({ form, dark }: { form: QrFormState; dark: boolean }) {
   const liveLinks = form.socialLinks.filter((link) => link.url.trim());
   const links =
     liveLinks.length > 0
-      ? liveLinks.slice(0, 4)
+      ? liveLinks.slice(0, 8)
       : [
           { platform: "instagram" as const, url: "#", label: "Instagram" },
+          { platform: "facebook" as const, url: "#", label: "Facebook" },
           { platform: "x" as const, url: "#", label: "X" },
           { platform: "linkedin" as const, url: "#", label: "LinkedIn" },
         ];
+  const coverImage = form.socialImageUrl.trim();
 
   return (
     <div
@@ -700,26 +725,41 @@ function SocialPage({ form, dark }: { form: QrFormState; dark: boolean }) {
           )}
           style={{ backgroundColor: dark ? SOCIAL.cardDark : "#fff" }}
         >
-          <SocialIllustration className="w-full" />
+          {coverImage ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={coverImage}
+              alt=""
+              className="aspect-10/7 w-full object-cover"
+            />
+          ) : (
+            <SocialIllustration className="w-full" dark={dark} />
+          )}
         </div>
         <div className="space-y-1.5">
           {links.map((link, index) => (
             <div
               key={`${link.platform}-${index}`}
               className={cn(
-                "flex items-center gap-3 rounded-xl border px-3 py-2",
+                "flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2",
                 dark ? "border-white/10 bg-white/5" : "border-black/5 bg-white/70",
               )}
             >
               <QrSocialIcon platform={link.platform} size={28} />
               <p
                 className={cn(
-                  "truncate text-[12px] font-medium",
+                  "min-w-0 flex-1 truncate text-[12px] font-medium",
                   dark ? "text-neutral-100" : "text-neutral-800",
                 )}
               >
                 {link.label?.trim() || SOCIAL_PLATFORM_LABEL[link.platform]}
               </p>
+              <ChevronRightIcon
+                className={cn(
+                  "size-4 shrink-0",
+                  dark ? "text-neutral-400" : "text-neutral-400",
+                )}
+              />
             </div>
           ))}
         </div>
@@ -737,13 +777,11 @@ function CouponPage({ form, dark }: { form: QrFormState; dark: boolean }) {
   const title = form.couponTitle.trim() || "20% off your first order";
   const description =
     form.couponDescription.trim() || "Valid on full-price items. One use per customer.";
+  const body = dark ? COUPON.bodyDark : COUPON.bodyLight;
 
   return (
-    <div
-      className="min-h-full"
-      style={{ backgroundColor: dark ? COUPON.bodyDark : COUPON.bodyLight }}
-    >
-      <div className="px-5 pb-2 pt-12 text-center" style={{ background: COUPON.hero }}>
+    <div className="flex h-full min-h-full flex-col" style={{ backgroundColor: body }}>
+      <div className="shrink-0 px-5 pb-2 pt-12 text-center" style={{ background: COUPON.hero }}>
         <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-white/20 text-white">
           <TicketPercentIcon className="size-6" />
         </div>
@@ -755,9 +793,9 @@ function CouponPage({ form, dark }: { form: QrFormState; dark: boolean }) {
         </p>
         <p className="mt-1 text-[11px] text-white/85">{description}</p>
       </div>
-      <WaveDivider fill={dark ? COUPON.bodyDark : COUPON.bodyLight} />
+      <WaveDivider fill={body} />
 
-      <div className="space-y-3 px-4 pb-6">
+      <div className="flex flex-1 flex-col space-y-3 px-4 pb-10">
         <div
           className={cn(
             "-mt-1 overflow-hidden rounded-2xl shadow-md ring-1",
@@ -765,7 +803,12 @@ function CouponPage({ form, dark }: { form: QrFormState; dark: boolean }) {
           )}
           style={{ backgroundColor: dark ? COUPON.cardDark : "#fff" }}
         >
-          <CouponIllustration className="w-full" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/coupon.png"
+            alt=""
+            className="aspect-10/7 w-full bg-white object-cover"
+          />
         </div>
         <div
           className={cn(

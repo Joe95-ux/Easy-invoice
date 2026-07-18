@@ -48,6 +48,7 @@ export type QrFormState = {
   // SOCIAL
   socialTitle: string;
   socialSubtitle: string;
+  socialImageUrl: string;
   socialLinks: SocialLink[];
   // COUPON
   couponCode: string;
@@ -65,8 +66,8 @@ export function emptyMenuItem(): MenuItem {
   return { name: "", description: "", price: "", section: "" };
 }
 
-export function emptySocialLink(): SocialLink {
-  return { platform: "instagram", url: "", label: "" };
+export function emptySocialLink(platform: SocialPlatform = "instagram"): SocialLink {
+  return { platform, url: "", label: "" };
 }
 
 export function emptyQrForm(type: QrCodeType = "LINK"): QrFormState {
@@ -101,7 +102,8 @@ export function emptyQrForm(type: QrCodeType = "LINK"): QrFormState {
     wifiHidden: false,
     socialTitle: "",
     socialSubtitle: "",
-    socialLinks: [emptySocialLink()],
+    socialImageUrl: "",
+    socialLinks: [],
     couponCode: "",
     couponTitle: "",
     couponDescription: "",
@@ -154,7 +156,7 @@ function parseMenuItems(value: unknown): MenuItem[] {
 }
 
 function parseSocialLinks(value: unknown): SocialLink[] {
-  if (!Array.isArray(value) || value.length === 0) return [emptySocialLink()];
+  if (!Array.isArray(value) || value.length === 0) return [];
   return value.map((item) => {
     const row = (item ?? {}) as Record<string, unknown>;
     const platform = str(row.platform) as SocialPlatform;
@@ -208,6 +210,7 @@ export function formFromSerialized(qr: SerializedQrCode): QrFormState {
     wifiHidden: Boolean(content.hidden),
     socialTitle: str(content.title),
     socialSubtitle: str(content.subtitle),
+    socialImageUrl: str(content.imageUrl),
     socialLinks: parseSocialLinks(content.links),
     couponCode: str(content.code),
     couponTitle: str(content.title),
@@ -299,7 +302,10 @@ export function buildQrContent(form: QrFormState): Record<string, unknown> {
     case "SOCIAL":
       return {
         title: form.socialTitle.trim(),
-        ...withValues({ subtitle: form.socialSubtitle }),
+        ...withValues({
+          subtitle: form.socialSubtitle,
+          imageUrl: form.socialImageUrl,
+        }),
         links: form.socialLinks
           .filter((link) => link.url.trim())
           .map((link) => ({

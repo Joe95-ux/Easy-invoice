@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import {
   BuildingIcon,
   CalendarIcon,
+  ChevronRightIcon,
   DownloadIcon,
   GlobeIcon,
   MailIcon,
@@ -325,6 +326,8 @@ export default async function QrScanPage({ params }: PageProps) {
   if (qr.type === "SOCIAL") {
     const social = content as unknown as SocialContent;
     const links = (social.links ?? []).filter((link) => link?.url?.trim());
+    const coverImage =
+      typeof social.imageUrl === "string" ? social.imageUrl.trim() : "";
 
     return (
       <div className="space-y-3">
@@ -346,6 +349,16 @@ export default async function QrScanPage({ params }: PageProps) {
             </div>
           </CardHeader>
           <CardContent className="space-y-2 py-5">
+            {coverImage ? (
+              <div className="mb-3 overflow-hidden rounded-2xl border border-border">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={coverImage}
+                  alt=""
+                  className="aspect-10/7 w-full object-cover"
+                />
+              </div>
+            ) : null}
             {links.map((link, index) => {
               const platform = (
                 SOCIAL_PLATFORMS.includes(link.platform as SocialPlatform)
@@ -360,11 +373,11 @@ export default async function QrScanPage({ params }: PageProps) {
                   href={link.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center gap-3 rounded-xl border border-border bg-muted/30 px-3 py-3 text-sm font-medium transition-colors hover:bg-muted/60"
+                  className="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-muted/30 px-3 py-3 text-sm font-medium transition-colors hover:bg-muted/60"
                 >
                   <QrSocialIcon platform={platform} size={36} />
                   <span className="min-w-0 flex-1 truncate">{label}</span>
-                  <GlobeIcon className="size-4 shrink-0 text-muted-foreground" />
+                  <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" />
                 </a>
               );
             })}

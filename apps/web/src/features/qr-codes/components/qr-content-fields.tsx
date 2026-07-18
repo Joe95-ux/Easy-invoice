@@ -2,7 +2,10 @@
 
 import { useRef, useState } from "react";
 import {
+  ChevronDownIcon,
+  ChevronUpIcon,
   FileTextIcon,
+  ImageIcon,
   Loader2Icon,
   PlusIcon,
   Trash2Icon,
@@ -34,6 +37,7 @@ import {
   emptySocialLink,
   type QrFormState,
 } from "@/features/qr-codes/components/qr-form";
+import { QrSocialIcon } from "@/features/qr-codes/components/qr-social-icon";
 import { DatePicker } from "@/components/forms/date-picker";
 import {
   SOCIAL_PLATFORM_LABEL,
@@ -45,7 +49,8 @@ import type {
   SocialPlatform,
   WifiEncryption,
 } from "@/lib/qr-codes/types";
-import { SOCIAL_PLATFORMS } from "@/lib/qr-codes/types";
+import { MAX_SOCIAL_LINKS, SOCIAL_PLATFORMS } from "@/lib/qr-codes/types";
+import { cn } from "@/lib/utils";
 
 type QrContentFieldsProps = {
   form: QrFormState;
@@ -407,6 +412,10 @@ function WifiFields({ form, onChange }: QrContentFieldsProps) {
 }
 
 function SocialFields({ form, onChange }: QrContentFieldsProps) {
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const atLinkLimit = form.socialLinks.length >= MAX_SOCIAL_LINKS;
+
   function updateLink(index: number, patch: Partial<SocialLink>) {
     const next = form.socialLinks.map((link, i) =>
       i === index ? { ...link, ...patch } : link,
@@ -414,19 +423,51 @@ function SocialFields({ form, onChange }: QrContentFieldsProps) {
     onChange("socialLinks", next);
   }
 
-  function addLink() {
-    onChange("socialLinks", [...form.socialLinks, emptySocialLink()]);
+  function addLink(platform: SocialPlatform) {
+    if (atLinkLimit) {
+      toast.error(`You can add up to ${MAX_SOCIAL_LINKS} social links`);
+      return;
+    }
+    onChange("socialLinks", [...form.socialLinks, emptySocialLink(platform)]);
   }
 
   function removeLink(index: number) {
-    if (form.socialLinks.length <= 1) {
-      onChange("socialLinks", [emptySocialLink()]);
-      return;
-    }
     onChange(
       "socialLinks",
       form.socialLinks.filter((_, i) => i !== index),
     );
+  }
+
+  function moveLink(index: number, direction: -1 | 1) {
+    const target = index + direction;
+    if (target < 0 || target >= form.socialLinks.length) return;
+    const next = [...form.socialLinks];
+    const [item] = next.splice(index, 1);
+    next.splice(target, 0, item!);
+    onChange("socialLinks", next);
+  }
+
+  async function handleImageUpload(file: File) {
+    setUploadingImage(true);
+    const toastId = toast.loading("Uploading photo…");
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const response = await fetch("/api/qr-codes/upload-image", {
+        method: "POST",
+        body,
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Upload failed");
+      onChange("socialImageUrl", data.imageUrl ?? "");
+      toast.success("Photo uploaded", { id: toastId });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not upload photo", {
+        id: toastId,
+      });
+    } finally {
+      setUploadingImage(false);
+    }
   }
 
   return (
@@ -447,74 +488,174 @@ function SocialFields({ form, onChange }: QrContentFieldsProps) {
         placeholder="Find us on your favorite apps"
       />
 
+      <Field>
+        <FieldLabel>Cover photo</FieldLabel>
+        <FieldContent>
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) void handleImageUpload(file);
+              event.target.value = "";
+            }}
+          />
+          {form.socialImageUrl ? (
+            <div className="overflow-hidden rounded-xl border border-border bg-muted/20">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={form.socialImageUrl}
+                alt="Social cover"
+                className="aspect-10/7 w-full object-cover"
+              />
+              <div className="flex items-center justify-end gap-1 border-t border-border px-2 py-1.5">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => imageInputRef.current?.click()}
+                  disabled={uploadingImage}
+                >
+                  Replace
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Remove photo"
+                  onClick={() => onChange("socialImageUrl", "")}
+                >
+                  <XIcon className="size-4" />
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => imageInputRef.current?.click()}
+              disabled={uploadingImage}
+              className="flex w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-muted/20 px-6 py-8 text-center transition-colors hover:border-primary/50 hover:bg-muted/40 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {uploadingImage ? (
+                <Loader2Icon className="size-6 animate-spin text-muted-foreground" />
+              ) : (
+                <ImageIcon className="size-6 text-muted-foreground" />
+              )}
+              <span className="text-sm font-medium">
+                {uploadingImage ? "Uploading…" : "Upload a photo"}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                Replaces the graphic above your links. JPEG, PNG, WebP, or GIF · up to 2 MB
+              </span>
+            </button>
+          )}
+        </FieldContent>
+      </Field>
+
       <div className="space-y-3">
-        <div className="flex items-center justify-between gap-2">
+        <div>
           <p className="text-sm font-medium">Social links</p>
-          <Button type="button" variant="outline" size="sm" onClick={addLink}>
-            <PlusIcon className="size-4" />
-            Add link
-          </Button>
+          <p className="text-xs text-muted-foreground">
+            Click a platform to add a link. Up to {MAX_SOCIAL_LINKS}.
+          </p>
         </div>
+
         {form.socialLinks.map((link, index) => (
           <div
-            key={index}
+            key={`${link.platform}-${index}`}
             className="space-y-3 rounded-xl border border-border bg-muted/20 p-3"
           >
-            <div className="flex items-start justify-between gap-2">
-              <p className="text-xs font-medium text-muted-foreground">
-                Link {index + 1}
-              </p>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Remove link"
-                onClick={() => removeLink(index)}
-              >
-                <Trash2Icon className="size-4" />
-              </Button>
-            </div>
-            <Field>
-              <FieldLabel htmlFor={`qr-social-platform-${index}`}>Platform</FieldLabel>
-              <FieldContent>
-                <Select
-                  value={link.platform}
-                  onValueChange={(value) => {
-                    if (!value) return;
-                    updateLink(index, { platform: value as SocialPlatform });
-                  }}
+            <div className="flex items-center justify-between gap-2">
+              <QrSocialIcon platform={link.platform} size={36} />
+              <div className="flex items-center gap-1.5">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon-sm"
+                  aria-label="Move link up"
+                  disabled={index === 0}
+                  onClick={() => moveLink(index, -1)}
+                  className="border-sky-500/40 text-sky-700 hover:bg-sky-500/10 dark:text-sky-300"
                 >
-                  <SelectTrigger id={`qr-social-platform-${index}`} className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SOCIAL_PLATFORMS.map((platform) => (
-                      <SelectItem key={platform} value={platform}>
-                        {SOCIAL_PLATFORM_LABEL[platform]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </FieldContent>
-            </Field>
-            <FormField
-              id={`qr-social-url-${index}`}
-              label="Profile URL"
-              type="url"
-              required
-              value={link.url}
-              onChange={(value) => updateLink(index, { url: value })}
-              placeholder="https://instagram.com/yourbrand"
-            />
-            <FormField
-              id={`qr-social-label-${index}`}
-              label="Label"
-              value={link.label ?? ""}
-              onChange={(value) => updateLink(index, { label: value })}
-              placeholder="Optional custom label"
-            />
+                  <ChevronUpIcon className="size-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon-sm"
+                  aria-label="Move link down"
+                  disabled={index === form.socialLinks.length - 1}
+                  onClick={() => moveLink(index, 1)}
+                  className="border-sky-500/40 text-sky-700 hover:bg-sky-500/10 dark:text-sky-300"
+                >
+                  <ChevronDownIcon className="size-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon-sm"
+                  aria-label="Remove link"
+                  onClick={() => removeLink(index)}
+                  className="border-destructive/40 text-destructive hover:bg-destructive/10"
+                >
+                  <Trash2Icon className="size-4" />
+                </Button>
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <FormField
+                id={`qr-social-url-${index}`}
+                label="URL"
+                type="url"
+                required
+                value={link.url}
+                onChange={(value) => updateLink(index, { url: value })}
+                placeholder="E.g. https://socialnetworks.com/"
+              />
+              <FormField
+                id={`qr-social-label-${index}`}
+                label="Text"
+                value={link.label ?? ""}
+                onChange={(value) => updateLink(index, { label: value })}
+                placeholder="E.g. Follow us"
+              />
+            </div>
           </div>
         ))}
+
+        <div
+          className={cn(
+            "rounded-xl border border-border bg-muted/10 p-2.5",
+            atLinkLimit && "opacity-60",
+          )}
+        >
+          <div className="grid grid-cols-5 gap-1.5 sm:grid-cols-6 md:grid-cols-8">
+            {SOCIAL_PLATFORMS.map((platform) => (
+              <button
+                key={platform}
+                type="button"
+                disabled={atLinkLimit}
+                title={SOCIAL_PLATFORM_LABEL[platform]}
+                aria-label={`Add ${SOCIAL_PLATFORM_LABEL[platform]}`}
+                onClick={() => addLink(platform)}
+                className={cn(
+                  "flex cursor-pointer items-center justify-center rounded-lg border border-border/70 bg-background p-2 transition-colors",
+                  "hover:border-primary/40 hover:bg-muted/50",
+                  "disabled:cursor-not-allowed disabled:hover:border-border/70 disabled:hover:bg-background",
+                )}
+              >
+                <QrSocialIcon platform={platform} size={28} />
+              </button>
+            ))}
+          </div>
+          {atLinkLimit ? (
+            <p className="mt-2 text-center text-xs text-muted-foreground">
+              Maximum of {MAX_SOCIAL_LINKS} links reached. Remove one to add another.
+            </p>
+          ) : null}
+        </div>
       </div>
     </div>
   );

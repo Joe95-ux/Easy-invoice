@@ -51,6 +51,7 @@ export const WIFI_ENCRYPTION_LABEL: Record<WifiContent["encryption"], string> = 
 };
 
 export const SOCIAL_PLATFORM_LABEL: Record<SocialPlatform, string> = {
+  other: "Website",
   instagram: "Instagram",
   facebook: "Facebook",
   x: "X (Twitter)",
@@ -59,7 +60,28 @@ export const SOCIAL_PLATFORM_LABEL: Record<SocialPlatform, string> = {
   tiktok: "TikTok",
   threads: "Threads",
   whatsapp: "WhatsApp",
-  other: "Other",
+  telegram: "Telegram",
+  snapchat: "Snapchat",
+  pinterest: "Pinterest",
+  reddit: "Reddit",
+  github: "GitHub",
+  gitlab: "GitLab",
+  discord: "Discord",
+  twitch: "Twitch",
+  spotify: "Spotify",
+  soundcloud: "SoundCloud",
+  dribbble: "Dribbble",
+  tumblr: "Tumblr",
+  flickr: "Flickr",
+  vimeo: "Vimeo",
+  yelp: "Yelp",
+  patreon: "Patreon",
+  wechat: "WeChat",
+  line: "LINE",
+  google: "Google",
+  vk: "VK",
+  xing: "Xing",
+  onlyfans: "OnlyFans",
 };
 
 /** Short, human label describing where a code points — used in tables. */

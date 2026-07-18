@@ -10,15 +10,19 @@ export default async function NewQrCodePage() {
 
   return (
     <PageScroll>
-      <PageBackLink href="/qr-codes">Back to QR codes</PageBackLink>
-      <PageHeader
-        title="Create QR code"
-        description="Pick a type, add your details, and style it to match your brand."
-      />
       <QrCodeCreator
         mode="create"
         origin={origin}
         companyLogoUrl={member.company.logoUrl}
+        header={
+          <>
+            <PageBackLink href="/qr-codes">Back to QR codes</PageBackLink>
+            <PageHeader
+              title="Create QR code"
+              description="Pick a type, add your details, and style it to match your brand."
+            />
+          </>
+        }
       />
     </PageScroll>
   );

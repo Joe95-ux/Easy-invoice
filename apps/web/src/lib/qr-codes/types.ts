@@ -19,6 +19,7 @@ export const WIFI_ENCRYPTIONS = ["WPA", "WEP", "nopass"] as const;
 export type WifiEncryption = (typeof WIFI_ENCRYPTIONS)[number];
 
 export const SOCIAL_PLATFORMS = [
+  "other",
   "instagram",
   "facebook",
   "x",
@@ -27,9 +28,32 @@ export const SOCIAL_PLATFORMS = [
   "tiktok",
   "threads",
   "whatsapp",
-  "other",
+  "telegram",
+  "snapchat",
+  "pinterest",
+  "reddit",
+  "github",
+  "gitlab",
+  "discord",
+  "twitch",
+  "spotify",
+  "soundcloud",
+  "dribbble",
+  "tumblr",
+  "flickr",
+  "vimeo",
+  "yelp",
+  "patreon",
+  "wechat",
+  "line",
+  "google",
+  "vk",
+  "xing",
+  "onlyfans",
 ] as const;
 export type SocialPlatform = (typeof SOCIAL_PLATFORMS)[number];
+
+export const MAX_SOCIAL_LINKS = 8;
 
 export type LinkContent = {
   url: string;
@@ -92,6 +116,8 @@ export type SocialLink = {
 export type SocialContent = {
   title: string;
   subtitle?: string;
+  /** Optional photo shown above the social links (replaces the default graphic). */
+  imageUrl?: string;
   links: SocialLink[];
 };
 

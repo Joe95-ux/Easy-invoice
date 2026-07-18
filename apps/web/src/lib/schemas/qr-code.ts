@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MAX_SOCIAL_LINKS, SOCIAL_PLATFORMS } from "@/lib/qr-codes/types";
 
 const hexColor = z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Use a valid hex color");
 
@@ -92,17 +93,7 @@ const wifiContent = z
   });
 
 const socialLinkSchema = z.object({
-  platform: z.enum([
-    "instagram",
-    "facebook",
-    "x",
-    "linkedin",
-    "youtube",
-    "tiktok",
-    "threads",
-    "whatsapp",
-    "other",
-  ]),
+  platform: z.enum(SOCIAL_PLATFORMS),
   url: z.string().trim().url("Enter a valid profile URL"),
   label: z.string().trim().max(80).optional(),
 });
@@ -110,7 +101,11 @@ const socialLinkSchema = z.object({
 const socialContent = z.object({
   title: z.string().trim().min(1, "Title is required").max(120),
   subtitle: z.string().trim().max(200).optional(),
-  links: z.array(socialLinkSchema).min(1, "Add at least one social link"),
+  imageUrl: optionalUrl,
+  links: z
+    .array(socialLinkSchema)
+    .min(1, "Add at least one social link")
+    .max(MAX_SOCIAL_LINKS, `You can add up to ${MAX_SOCIAL_LINKS} social links`),
 });
 
 const optionalDateString = z

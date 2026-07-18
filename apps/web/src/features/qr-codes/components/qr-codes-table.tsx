@@ -10,6 +10,7 @@ import {
   DownloadIcon,
   ExternalLinkIcon,
   ListFilterIcon,
+  Loader2Icon,
   LockIcon,
   MoreHorizontalIcon,
   PauseIcon,
@@ -24,6 +25,16 @@ import { Input } from "@/components/ui/input";
 import { SortableTableHead } from "@/components/data-table/sortable-table-head";
 import { TablePagination } from "@/components/data-table/table-pagination";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -33,6 +44,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -66,16 +89,17 @@ import { cn } from "@/lib/utils";
 type StatusFilter = "all" | QrCodeStatus;
 type TypeFilter = "all" | QrCodeType;
 type SortValue = "recent" | "scans" | "modified" | "name";
+type RowAction = "pause" | "activate" | "delete" | "restore" | "deleteForever";
 
 const STATUS_FILTER_OPTIONS: { value: StatusFilter; label: string }[] = [
-  { value: "all", label: "All (excludes deleted)" },
+  { value: "all", label: "All Statuses" },
   { value: "ACTIVE", label: "Active" },
   { value: "PAUSED", label: "Paused" },
   { value: "DELETED", label: "Deleted" },
 ];
 
 const TYPE_FILTER_OPTIONS: { value: TypeFilter; label: string }[] = [
-  { value: "all", label: "All types" },
+  { value: "all", label: "All Types" },
   ...QR_CODE_TYPES.map((type) => ({ value: type, label: QR_TYPE_LABEL[type] })),
 ];
 
@@ -95,6 +119,11 @@ function slugForFile(name: string): string {
   return name.trim().replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "qr-code";
 }
 
+type PendingDelete = {
+  qr: SerializedQrCode;
+  mode: "soft" | "permanent";
+};
+
 type QrCodesTableProps = {
   qrCodes: SerializedQrCode[];
   origin: string;
@@ -103,13 +132,19 @@ type QrCodesTableProps = {
 
 export function QrCodesTable({ qrCodes, origin, companyLogoUrl }: QrCodesTableProps) {
   const router = useRouter();
-  const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [loadingAction, setLoadingAction] = useState<{
+    id: string;
+    action: RowAction;
+  } | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [sortValue, setSortValue] = useState<SortValue>("recent");
   const previewRefs = useRef<Record<string, QrCodePreviewHandle | null>>({});
 
   const filtersActive = statusFilter !== "all" || typeFilter !== "all";
+  const deleting =
+    loadingAction?.action === "delete" || loadingAction?.action === "deleteForever";
 
   const visibleData = useMemo(
     () =>
@@ -161,8 +196,13 @@ export function QrCodesTable({ qrCodes, origin, companyLogoUrl }: QrCodesTablePr
     }
   }
 
-  async function handleStatus(qr: SerializedQrCode, status: QrCodeStatus, message: string) {
-    setLoadingId(qr.id);
+  async function handleStatus(
+    qr: SerializedQrCode,
+    status: QrCodeStatus,
+    action: RowAction,
+    message: string,
+  ): Promise<boolean> {
+    setLoadingAction({ id: qr.id, action });
     try {
       const response = await fetch(`/api/qr-codes/${qr.id}/status`, {
         method: "PATCH",
@@ -172,26 +212,41 @@ export function QrCodesTable({ qrCodes, origin, companyLogoUrl }: QrCodesTablePr
       if (!response.ok) throw new Error("Failed to update");
       toast.success(message);
       router.refresh();
+      return true;
     } catch {
       toast.error("Could not update QR code");
+      return false;
     } finally {
-      setLoadingId(null);
+      setLoadingAction(null);
     }
   }
 
-  async function handleDeleteForever(qr: SerializedQrCode) {
-    if (!confirm(`Permanently delete "${qr.name}"? This cannot be undone.`)) return;
-    setLoadingId(qr.id);
+  async function handleDeleteForever(qr: SerializedQrCode): Promise<boolean> {
+    setLoadingAction({ id: qr.id, action: "deleteForever" });
     try {
       const response = await fetch(`/api/qr-codes/${qr.id}`, { method: "DELETE" });
       if (!response.ok) throw new Error("Failed to delete");
-      toast.success("QR code deleted");
+      toast.success("QR code deleted permanently");
+      setPendingDelete(null);
       router.refresh();
+      return true;
     } catch {
       toast.error("Could not delete QR code");
+      return false;
     } finally {
-      setLoadingId(null);
+      setLoadingAction(null);
     }
+  }
+
+  async function confirmPendingDelete() {
+    if (!pendingDelete) return;
+    const { qr, mode } = pendingDelete;
+    if (mode === "permanent") {
+      await handleDeleteForever(qr);
+      return;
+    }
+    const ok = await handleStatus(qr, "DELETED", "delete", "QR code deleted");
+    if (ok) setPendingDelete(null);
   }
 
   return (
@@ -208,8 +263,8 @@ export function QrCodesTable({ qrCodes, origin, companyLogoUrl }: QrCodesTablePr
           />
         </div>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger
+        <Popover>
+          <PopoverTrigger
             className={cn(
               "relative inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
               filtersActive ? "border-primary/50 text-foreground" : "border-border",
@@ -220,39 +275,63 @@ export function QrCodesTable({ qrCodes, origin, companyLogoUrl }: QrCodesTablePr
             {filtersActive && (
               <span className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-primary" />
             )}
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-60">
-            <DropdownMenuRadioGroup
-              value={statusFilter}
-              onValueChange={(value) => setStatusFilter(value as StatusFilter)}
-            >
-              <DropdownMenuLabel>Status</DropdownMenuLabel>
-              {STATUS_FILTER_OPTIONS.map((option) => (
-                <DropdownMenuRadioItem key={option.value} value={option.value}>
-                  {option.label}
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuRadioGroup
-              value={typeFilter}
-              onValueChange={(value) => setTypeFilter(value as TypeFilter)}
-            >
-              <DropdownMenuLabel>Type</DropdownMenuLabel>
-              {TYPE_FILTER_OPTIONS.map((option) => (
-                <DropdownMenuRadioItem key={option.value} value={option.value}>
-                  {option.label}
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-auto max-w-[calc(100vw-2rem)] p-3">
+            <div className="flex items-end gap-3 overflow-x-auto">
+              <div className="w-44 shrink-0 space-y-1.5">
+                <p className="text-xs font-medium text-muted-foreground">Status</p>
+                <Select
+                  value={statusFilter}
+                  onValueChange={(value) => {
+                    if (value) setStatusFilter(value as StatusFilter);
+                  }}
+                  items={STATUS_FILTER_OPTIONS}
+                >
+                  <SelectTrigger size="sm" aria-label="Filter by status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STATUS_FILTER_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="w-44 shrink-0 space-y-1.5">
+                <p className="text-xs font-medium text-muted-foreground">Type</p>
+                <Select
+                  value={typeFilter}
+                  onValueChange={(value) => {
+                    if (value) setTypeFilter(value as TypeFilter);
+                  }}
+                  items={TYPE_FILTER_OPTIONS}
+                >
+                  <SelectTrigger size="sm" aria-label="Filter by type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TYPE_FILTER_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
             {filtersActive && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={resetFilters}>Reset filters</DropdownMenuItem>
-              </>
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="cursor-pointer self-start text-xs font-medium text-primary hover:underline"
+              >
+                Reset filters
+              </button>
             )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+          </PopoverContent>
+        </Popover>
 
         <DropdownMenu>
           <DropdownMenuTrigger
@@ -388,24 +467,37 @@ export function QrCodesTable({ qrCodes, origin, companyLogoUrl }: QrCodesTablePr
                     <DropdownMenu>
                       <DropdownMenuTrigger
                         className="inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border border-transparent text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
-                        disabled={loadingId === qr.id}
+                        disabled={loadingAction?.id === qr.id}
                         aria-label="QR code actions"
                       >
-                        <MoreHorizontalIcon className="size-4" />
+                        {loadingAction?.id === qr.id ? (
+                          <Loader2Icon className="size-4 animate-spin" />
+                        ) : (
+                          <MoreHorizontalIcon className="size-4" />
+                        )}
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="min-w-48 w-52">
                         {isDeleted ? (
                           <>
                             <DropdownMenuItem
-                              onClick={() => handleStatus(qr, "ACTIVE", "QR code restored")}
+                              disabled={loadingAction?.id === qr.id}
+                              onClick={() =>
+                                void handleStatus(qr, "ACTIVE", "restore", "QR code restored")
+                              }
                             >
-                              <RotateCcwIcon className="size-4" />
+                              {loadingAction?.id === qr.id &&
+                              loadingAction.action === "restore" ? (
+                                <Loader2Icon className="size-4 animate-spin" />
+                              ) : (
+                                <RotateCcwIcon className="size-4" />
+                              )}
                               Restore
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               variant="destructive"
-                              onClick={() => handleDeleteForever(qr)}
+                              disabled={loadingAction?.id === qr.id}
+                              onClick={() => setPendingDelete({ qr, mode: "permanent" })}
                             >
                               <Trash2Icon className="size-4" />
                               Delete permanently
@@ -440,22 +532,44 @@ export function QrCodesTable({ qrCodes, origin, companyLogoUrl }: QrCodesTablePr
                             <DropdownMenuSeparator />
                             {qr.status === "ACTIVE" ? (
                               <DropdownMenuItem
-                                onClick={() => handleStatus(qr, "PAUSED", "QR code paused")}
+                                disabled={loadingAction?.id === qr.id}
+                                onClick={() =>
+                                  void handleStatus(qr, "PAUSED", "pause", "QR code paused")
+                                }
                               >
-                                <PauseIcon className="size-4" />
+                                {loadingAction?.id === qr.id &&
+                                loadingAction.action === "pause" ? (
+                                  <Loader2Icon className="size-4 animate-spin" />
+                                ) : (
+                                  <PauseIcon className="size-4" />
+                                )}
                                 Pause
                               </DropdownMenuItem>
                             ) : (
                               <DropdownMenuItem
-                                onClick={() => handleStatus(qr, "ACTIVE", "QR code activated")}
+                                disabled={loadingAction?.id === qr.id}
+                                onClick={() =>
+                                  void handleStatus(
+                                    qr,
+                                    "ACTIVE",
+                                    "activate",
+                                    "QR code activated",
+                                  )
+                                }
                               >
-                                <PlayIcon className="size-4" />
+                                {loadingAction?.id === qr.id &&
+                                loadingAction.action === "activate" ? (
+                                  <Loader2Icon className="size-4 animate-spin" />
+                                ) : (
+                                  <PlayIcon className="size-4" />
+                                )}
                                 Activate
                               </DropdownMenuItem>
                             )}
                             <DropdownMenuItem
                               variant="destructive"
-                              onClick={() => handleStatus(qr, "DELETED", "QR code deleted")}
+                              disabled={loadingAction?.id === qr.id}
+                              onClick={() => setPendingDelete({ qr, mode: "soft" })}
                             >
                               <Trash2Icon className="size-4" />
                               Delete
@@ -483,6 +597,63 @@ export function QrCodesTable({ qrCodes, origin, companyLogoUrl }: QrCodesTablePr
         onPageChange={table.setPage}
         onPageSizeChange={table.setPageSize}
       />
+
+      <AlertDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => {
+          if (!open && !deleting) setPendingDelete(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {pendingDelete?.mode === "permanent"
+                ? "Delete permanently?"
+                : "Delete QR code?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingDelete?.mode === "permanent" ? (
+                <>
+                  This permanently removes{" "}
+                  <span className="font-medium text-foreground">
+                    {pendingDelete.qr.name}
+                  </span>
+                  . This action cannot be undone.
+                </>
+              ) : (
+                <>
+                  <span className="font-medium text-foreground">
+                    {pendingDelete?.qr.name}
+                  </span>{" "}
+                  will be moved to deleted. You can restore it later from the Deleted filter.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={deleting}
+              onClick={(event) => {
+                event.preventDefault();
+                void confirmPendingDelete();
+              }}
+            >
+              {deleting ? (
+                <>
+                  <Loader2Icon className="size-4 animate-spin" />
+                  Deleting…
+                </>
+              ) : pendingDelete?.mode === "permanent" ? (
+                "Delete permanently"
+              ) : (
+                "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

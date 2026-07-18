@@ -7,6 +7,8 @@ import type { QrDesign } from "@/lib/qr-codes/types";
 
 export type QrCodePreviewHandle = {
   download: (fileName: string) => void;
+  /** Raw canvas element, used for multi-format exports. */
+  getCanvas: () => HTMLCanvasElement | null;
 };
 
 type QrCodePreviewProps = {
@@ -21,9 +23,11 @@ type QrCodePreviewProps = {
 export const QrCodePreview = forwardRef<QrCodePreviewHandle, QrCodePreviewProps>(
   function QrCodePreview({ value, design, logoUrl, size = 220, frame = true, className }, ref) {
     const qrRef = useRef<QRCode>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
 
     useImperativeHandle(ref, () => ({
       download: (fileName: string) => qrRef.current?.download("png", fileName),
+      getCanvas: () => containerRef.current?.querySelector("canvas") ?? null,
     }));
 
     const useLogo = design.logoEnabled && Boolean(logoUrl);
@@ -31,6 +35,7 @@ export const QrCodePreview = forwardRef<QrCodePreviewHandle, QrCodePreviewProps>
 
     return (
       <div
+        ref={containerRef}
         className={cn(
           "inline-flex items-center justify-center overflow-hidden",
           frame ? "rounded-xl p-3 shadow-sm ring-1 ring-border/60" : "rounded-md",

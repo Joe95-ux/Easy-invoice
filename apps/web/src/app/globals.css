@@ -121,11 +121,58 @@ body {
   animation: float 4s ease-in-out infinite;
 }
 
+@keyframes qr-scan-line {
+  0% {
+    top: 12%;
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  92% {
+    opacity: 1;
+  }
+  100% {
+    top: 88%;
+    opacity: 0;
+  }
+}
+
+@keyframes qr-loader-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.qr-scan-line {
+  animation: qr-scan-line 1.8s ease-in-out infinite;
+}
+
+.qr-loader-modules rect:nth-child(3n) {
+  animation: qr-loader-pulse 1.6s ease-in-out infinite;
+}
+
+.qr-loader-modules rect:nth-child(3n + 1) {
+  animation: qr-loader-pulse 1.6s ease-in-out 0.35s infinite;
+}
+
+.qr-loader-modules rect:nth-child(3n + 2) {
+  animation: qr-loader-pulse 1.6s ease-in-out 0.7s infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
   }
   .animate-float {
+    animation: none;
+  }
+  .qr-scan-line,
+  .qr-loader-modules rect {
     animation: none;
   }
 }

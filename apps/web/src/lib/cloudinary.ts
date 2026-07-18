@@ -44,6 +44,16 @@ export function validateLogoFile(file: File): string | null {
   return null;
 }
 
+export function validateQrSocialImageFile(file: File): string | null {
+  if (!ALLOWED_MIME_TYPES.has(file.type)) {
+    return "Photo must be a JPEG, PNG, WebP, or GIF image";
+  }
+  if (file.size > MAX_LOGO_BYTES) {
+    return "Photo must be under 2 MB";
+  }
+  return null;
+}
+
 export async function uploadCompanyLogo(
   companyId: string,
   buffer: Buffer,
@@ -71,6 +81,46 @@ export async function uploadCompanyLogo(
   });
 
   return result.secure_url;
+}
+
+export type QrSocialImageUploadResult = {
+  imageUrl: string;
+  publicId: string;
+};
+
+/** Public image used as the graphic above social QR links. */
+export async function uploadQrSocialImage(
+  companyId: string,
+  buffer: Buffer,
+): Promise<QrSocialImageUploadResult> {
+  const cld = configureCloudinary();
+  const leafId = randomBytes(12).toString("hex");
+  const folder = `easy-invoice/qr/${companyId}/social`;
+
+  const result = await new Promise<UploadApiResponse>((resolve, reject) => {
+    const stream = cld.uploader.upload_stream(
+      {
+        folder,
+        public_id: leafId,
+        resource_type: "image",
+        overwrite: false,
+      },
+      (error, uploadResult) => {
+        if (error || !uploadResult) {
+          reject(error ?? new Error("Upload failed"));
+          return;
+        }
+        resolve(uploadResult);
+      },
+    );
+
+    stream.end(buffer);
+  });
+
+  return {
+    imageUrl: result.secure_url,
+    publicId: result.public_id,
+  };
 }
 
 export async function uploadCompanyLogoFromUrl(
