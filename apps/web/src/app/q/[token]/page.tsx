@@ -365,18 +365,26 @@ export default async function QrScanPage({ params }: PageProps) {
                   ? link.platform
                   : "other"
               ) as SocialPlatform;
-              const label =
-                link.label?.trim() || SOCIAL_PLATFORM_LABEL[platform] || "Open link";
+              const text = link.label?.trim();
               return (
                 <a
                   key={`${link.url}-${index}`}
                   href={link.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-muted/30 px-3 py-3 text-sm font-medium transition-colors hover:bg-muted/60"
+                  className="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-muted/30 px-3 py-3 transition-colors hover:bg-muted/60"
                 >
                   <QrSocialIcon platform={platform} size={36} />
-                  <span className="min-w-0 flex-1 truncate">{label}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium">
+                      {SOCIAL_PLATFORM_LABEL[platform] || "Open link"}
+                    </span>
+                    {text && (
+                      <span className="block truncate text-xs text-muted-foreground">
+                        {text}
+                      </span>
+                    )}
+                  </span>
                   <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" />
                 </a>
               );

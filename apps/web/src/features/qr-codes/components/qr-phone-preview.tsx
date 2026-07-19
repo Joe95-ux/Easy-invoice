@@ -694,10 +694,10 @@ function SocialPage({ form, dark }: { form: QrFormState; dark: boolean }) {
     liveLinks.length > 0
       ? liveLinks.slice(0, 8)
       : [
-          { platform: "instagram" as const, url: "#", label: "Instagram" },
-          { platform: "facebook" as const, url: "#", label: "Facebook" },
-          { platform: "x" as const, url: "#", label: "X" },
-          { platform: "linkedin" as const, url: "#", label: "LinkedIn" },
+          { platform: "instagram" as const, url: "#", label: "Follow us" },
+          { platform: "facebook" as const, url: "#", label: "Like our page" },
+          { platform: "x" as const, url: "#", label: "Join the conversation" },
+          { platform: "linkedin" as const, url: "#", label: "Connect with us" },
         ];
   const coverImage = form.socialImageUrl.trim();
 
@@ -746,14 +746,26 @@ function SocialPage({ form, dark }: { form: QrFormState; dark: boolean }) {
               )}
             >
               <QrSocialIcon platform={link.platform} size={28} />
-              <p
-                className={cn(
-                  "min-w-0 flex-1 truncate text-[12px] font-medium",
-                  dark ? "text-neutral-100" : "text-neutral-800",
+              <div className="min-w-0 flex-1 text-left">
+                <p
+                  className={cn(
+                    "truncate text-[12px] font-medium",
+                    dark ? "text-neutral-100" : "text-neutral-800",
+                  )}
+                >
+                  {SOCIAL_PLATFORM_LABEL[link.platform]}
+                </p>
+                {link.label?.trim() && (
+                  <p
+                    className={cn(
+                      "truncate text-[10px]",
+                      dark ? "text-neutral-400" : "text-neutral-500",
+                    )}
+                  >
+                    {link.label.trim()}
+                  </p>
                 )}
-              >
-                {link.label?.trim() || SOCIAL_PLATFORM_LABEL[link.platform]}
-              </p>
+              </div>
               <ChevronRightIcon
                 className={cn(
                   "size-4 shrink-0",
