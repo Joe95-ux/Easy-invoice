@@ -25,7 +25,15 @@ export async function GET(_request: Request, context: RouteContext) {
 
   const content = (qr.content ?? {}) as unknown as VcardContent;
   const vcard = buildVcard(content);
-  const fileName = (content.fullName || "contact").replace(/[^a-z0-9]+/gi, "-").toLowerCase();
+  const fileName = (
+    content.contactName ||
+    content.companyName ||
+    content.organization ||
+    content.fullName ||
+    "contact"
+  )
+    .replace(/[^a-z0-9]+/gi, "-")
+    .toLowerCase();
 
   return new Response(vcard, {
     headers: {

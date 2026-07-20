@@ -1,3 +1,9 @@
+import { emptyOpeningHours } from "@/lib/qr-codes/business";
+import type {
+  BusinessFacility,
+  OpeningHours,
+} from "@/lib/qr-codes/business";
+import { BUSINESS_FACILITIES } from "@/lib/qr-codes/business";
 import { DEFAULT_QR_DESIGN } from "@/lib/qr-codes/design";
 import type {
   MenuItem,
@@ -20,14 +26,28 @@ export type QrFormState = {
   fileName: string;
   filePublicId: string;
   deliveryType: "authenticated" | "upload" | "";
-  // VCARD
-  fullName: string;
-  organization: string;
-  jobTitle: string;
+  // VCARD / Business
+  companyName: string;
+  businessTitle: string;
+  businessSubtitle: string;
+  vcardImageUrl: string;
+  ctaLabel: string;
+  ctaUrl: string;
+  openingHours: OpeningHours;
+  locationLat: string;
+  locationLng: string;
+  contactName: string;
   phone: string;
   email: string;
   website: string;
   address: string;
+  businessLinks: SocialLink[];
+  aboutCompany: string;
+  facilities: BusinessFacility[];
+  /** Legacy VCARD fields kept for older payloads. */
+  fullName: string;
+  organization: string;
+  jobTitle: string;
   // EVENT
   title: string;
   location: string;
@@ -79,13 +99,26 @@ export function emptyQrForm(type: QrCodeType = "LINK"): QrFormState {
     fileName: "",
     filePublicId: "",
     deliveryType: "",
-    fullName: "",
-    organization: "",
-    jobTitle: "",
+    companyName: "",
+    businessTitle: "",
+    businessSubtitle: "",
+    vcardImageUrl: "",
+    ctaLabel: "",
+    ctaUrl: "",
+    openingHours: emptyOpeningHours(),
+    locationLat: "",
+    locationLng: "",
+    contactName: "",
     phone: "",
     email: "",
     website: "",
     address: "",
+    businessLinks: [],
+    aboutCompany: "",
+    facilities: [],
+    fullName: "",
+    organization: "",
+    jobTitle: "",
     title: "",
     location: "",
     description: "",
@@ -168,10 +201,50 @@ function parseSocialLinks(value: unknown): SocialLink[] {
   });
 }
 
+function parseOpeningHours(value: unknown): OpeningHours {
+  const base = emptyOpeningHours();
+  if (!value || typeof value !== "object") return base;
+  const source = value as Record<string, unknown>;
+  for (const day of Object.keys(base) as (keyof OpeningHours)[]) {
+    const row = source[day];
+    if (!row || typeof row !== "object") continue;
+    const dayRow = row as Record<string, unknown>;
+    const slotsRaw = Array.isArray(dayRow.slots) ? dayRow.slots : [];
+    const slots = slotsRaw
+      .map((slot) => {
+        const item = (slot ?? {}) as Record<string, unknown>;
+        return { open: str(item.open) || "09:00", close: str(item.close) || "17:00" };
+      })
+      .slice(0, 2);
+    base[day] = {
+      closed: Boolean(dayRow.closed),
+      slots: slots.length > 0 ? slots : [{ open: "09:00", close: "17:00" }],
+    };
+  }
+  return base;
+}
+
+function parseFacilities(value: unknown): BusinessFacility[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(
+    (item): item is BusinessFacility =>
+      typeof item === "string" &&
+      (BUSINESS_FACILITIES as readonly string[]).includes(item),
+  );
+}
+
+function parseOptionalNumber(value: unknown): string {
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  if (typeof value === "string" && value.trim()) return value.trim();
+  return "";
+}
+
 export function formFromSerialized(qr: SerializedQrCode): QrFormState {
   const base = emptyQrForm(qr.type);
   const content = qr.content;
   const encryption = str(content.encryption);
+  const companyName =
+    str(content.companyName) || str(content.organization) || str(content.fullName);
   return {
     ...base,
     name: qr.name,
@@ -184,13 +257,26 @@ export function formFromSerialized(qr: SerializedQrCode): QrFormState {
       content.deliveryType === "authenticated" || content.deliveryType === "upload"
         ? content.deliveryType
         : "",
-    fullName: str(content.fullName),
-    organization: str(content.organization),
-    jobTitle: str(content.jobTitle),
+    companyName,
+    businessTitle: str(content.title) || str(content.jobTitle),
+    businessSubtitle: str(content.subtitle),
+    vcardImageUrl: str(content.imageUrl),
+    ctaLabel: str(content.ctaLabel),
+    ctaUrl: str(content.ctaUrl),
+    openingHours: parseOpeningHours(content.openingHours),
+    locationLat: parseOptionalNumber(content.locationLat),
+    locationLng: parseOptionalNumber(content.locationLng),
+    contactName: str(content.contactName) || str(content.fullName),
     phone: str(content.phone),
     email: str(content.email),
     website: str(content.website),
     address: str(content.address),
+    businessLinks: parseSocialLinks(content.links),
+    aboutCompany: str(content.about),
+    facilities: parseFacilities(content.facilities),
+    fullName: str(content.fullName),
+    organization: str(content.organization),
+    jobTitle: str(content.jobTitle),
     title: str(content.title),
     location: str(content.location),
     description: str(content.description),
@@ -248,16 +334,44 @@ export function buildQrContent(form: QrFormState): Record<string, unknown> {
       }
       return pdf;
     }
-    case "VCARD":
-      return withValues({
-        fullName: form.fullName,
-        organization: form.organization,
-        jobTitle: form.jobTitle,
-        phone: form.phone,
-        email: form.email,
-        website: form.website,
-        address: form.address,
-      });
+    case "VCARD": {
+      const companyName =
+        form.companyName.trim() || form.organization.trim() || form.fullName.trim();
+      const contactName = form.contactName.trim() || form.fullName.trim();
+      const content: Record<string, unknown> = {
+        companyName,
+        ...withValues({
+          title: form.businessTitle,
+          subtitle: form.businessSubtitle,
+          imageUrl: form.vcardImageUrl,
+          ctaLabel: form.ctaLabel,
+          ctaUrl: form.ctaUrl,
+          address: form.address,
+          contactName,
+          phone: form.phone,
+          email: form.email,
+          website: form.website,
+          about: form.aboutCompany,
+          // Legacy mirrors so older consumers still work.
+          fullName: contactName || companyName,
+          organization: companyName,
+        }),
+        openingHours: form.openingHours,
+        links: form.businessLinks
+          .filter((link) => link.url.trim())
+          .map((link) => ({
+            platform: link.platform,
+            url: link.url.trim(),
+            ...withValues({ label: link.label ?? "" }),
+          })),
+        facilities: form.facilities,
+      };
+      const lat = Number(form.locationLat);
+      const lng = Number(form.locationLng);
+      if (Number.isFinite(lat) && form.locationLat.trim()) content.locationLat = lat;
+      if (Number.isFinite(lng) && form.locationLng.trim()) content.locationLng = lng;
+      return content;
+    }
     case "EVENT": {
       const content: Record<string, unknown> = {
         title: form.title.trim(),
@@ -341,7 +455,11 @@ export function isContentComplete(form: QrFormState): boolean {
     case "PDF":
       return form.fileUrl.trim().length > 0;
     case "VCARD":
-      return form.fullName.trim().length > 0;
+      return (
+        form.companyName.trim().length > 0 ||
+        form.organization.trim().length > 0 ||
+        form.fullName.trim().length > 0
+      );
     case "EVENT":
       return form.title.trim().length > 0 && form.startAt.trim().length > 0;
     case "MENU":

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { BUSINESS_FACILITIES } from "@/lib/qr-codes/business";
 import { MAX_SOCIAL_LINKS, SOCIAL_PLATFORMS } from "@/lib/qr-codes/types";
 
 const hexColor = z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Use a valid hex color");
@@ -42,15 +43,72 @@ const pdfContent = z.object({
   deliveryType: z.enum(["authenticated", "upload"]).optional(),
 });
 
-const vcardContent = z.object({
-  fullName: z.string().trim().min(1, "Name is required").max(120),
-  organization: z.string().trim().max(120).optional(),
-  jobTitle: z.string().trim().max(120).optional(),
-  phone: z.string().trim().max(40).optional(),
-  email: optionalEmail,
-  website: optionalUrl,
-  address: z.string().trim().max(300).optional(),
+const timeSlotSchema = z.object({
+  open: z.string().trim().max(5),
+  close: z.string().trim().max(5),
 });
+
+const dayHoursSchema = z.object({
+  closed: z.boolean(),
+  slots: z.array(timeSlotSchema).max(2),
+});
+
+const openingHoursSchema = z.object({
+  monday: dayHoursSchema,
+  tuesday: dayHoursSchema,
+  wednesday: dayHoursSchema,
+  thursday: dayHoursSchema,
+  friday: dayHoursSchema,
+  saturday: dayHoursSchema,
+  sunday: dayHoursSchema,
+});
+
+const businessFacilitySchema = z.enum(BUSINESS_FACILITIES);
+
+const socialLinkSchema = z.object({
+  platform: z.enum(SOCIAL_PLATFORMS),
+  url: z.string().trim().url("Enter a valid profile URL"),
+  label: z.string().trim().max(80).optional(),
+});
+
+const vcardContent = z
+  .object({
+    companyName: z.string().trim().max(120).optional(),
+    title: z.string().trim().max(160).optional(),
+    subtitle: z.string().trim().max(300).optional(),
+    imageUrl: optionalUrl,
+    ctaLabel: z.string().trim().max(80).optional(),
+    ctaUrl: optionalUrl,
+    openingHours: openingHoursSchema.optional(),
+    address: z.string().trim().max(300).optional(),
+    locationLat: z.number().min(-90).max(90).optional(),
+    locationLng: z.number().min(-180).max(180).optional(),
+    contactName: z.string().trim().max(120).optional(),
+    phone: z.string().trim().max(40).optional(),
+    email: optionalEmail,
+    website: optionalUrl,
+    links: z.array(socialLinkSchema).max(MAX_SOCIAL_LINKS).optional(),
+    about: z.string().trim().max(2000).optional(),
+    facilities: z.array(businessFacilitySchema).max(15).optional(),
+    /** Legacy fields still accepted when reading older codes. */
+    fullName: z.string().trim().max(120).optional(),
+    organization: z.string().trim().max(120).optional(),
+    jobTitle: z.string().trim().max(120).optional(),
+  })
+  .superRefine((value, ctx) => {
+    const company =
+      value.companyName?.trim() ||
+      value.organization?.trim() ||
+      value.fullName?.trim() ||
+      value.contactName?.trim();
+    if (!company) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Company name is required",
+        path: ["companyName"],
+      });
+    }
+  });
 
 const eventContent = z.object({
   title: z.string().trim().min(1, "Event title is required").max(160),
@@ -91,12 +149,6 @@ const wifiContent = z
       });
     }
   });
-
-const socialLinkSchema = z.object({
-  platform: z.enum(SOCIAL_PLATFORMS),
-  url: z.string().trim().url("Enter a valid profile URL"),
-  label: z.string().trim().max(80).optional(),
-});
 
 const socialContent = z.object({
   title: z.string().trim().min(1, "Title is required").max(120),

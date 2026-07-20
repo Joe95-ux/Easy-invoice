@@ -1,6 +1,17 @@
 import type { QrCodeStatus, QrCodeType } from "@/lib/db";
+import type {
+  BusinessFacility,
+  OpeningHours,
+} from "@/lib/qr-codes/business";
 
 export type { QrCodeStatus, QrCodeType };
+export type {
+  BusinessFacility,
+  DayHours,
+  OpeningHours,
+  TimeSlot,
+  Weekday,
+} from "@/lib/qr-codes/business";
 
 export const QR_CODE_TYPES = [
   "LINK",
@@ -67,14 +78,39 @@ export type PdfContent = {
   deliveryType?: "authenticated" | "upload";
 };
 
+export type SocialLink = {
+  platform: SocialPlatform;
+  url: string;
+  label?: string;
+};
+
 export type VcardContent = {
-  fullName: string;
-  organization?: string;
-  jobTitle?: string;
+  /** Company / venue name (required for new business pages). */
+  companyName: string;
+  /** Hero headline shown above the company card. */
+  title?: string;
+  subtitle?: string;
+  imageUrl?: string;
+  ctaLabel?: string;
+  ctaUrl?: string;
+  openingHours?: OpeningHours;
+  address?: string;
+  locationLat?: number;
+  locationLng?: number;
+  /** Primary contact at the company. */
+  contactName?: string;
   phone?: string;
   email?: string;
   website?: string;
-  address?: string;
+  links?: SocialLink[];
+  about?: string;
+  facilities?: BusinessFacility[];
+  /** @deprecated Prefer companyName — kept for older QR payloads. */
+  fullName?: string;
+  /** @deprecated Prefer companyName. */
+  organization?: string;
+  /** @deprecated Prefer title. */
+  jobTitle?: string;
 };
 
 export type EventContent = {
@@ -105,12 +141,6 @@ export type WifiContent = {
   password?: string;
   encryption: WifiEncryption;
   hidden?: boolean;
-};
-
-export type SocialLink = {
-  platform: SocialPlatform;
-  url: string;
-  label?: string;
 };
 
 export type SocialContent = {

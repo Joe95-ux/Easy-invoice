@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { BusinessFields } from "@/features/qr-codes/components/qr-business-fields";
 import { QrDateTimeField } from "@/features/qr-codes/components/qr-datetime-field";
 import {
   emptyMenuItem,
@@ -94,70 +95,7 @@ export function QrContentFields({ form, onChange }: QrContentFieldsProps) {
   }
 
   if (form.type === "VCARD") {
-    return (
-      <div className="space-y-4">
-        <FormField
-          id="qr-fullname"
-          label="Full name"
-          required
-          value={form.fullName}
-          onChange={(value) => onChange("fullName", value)}
-          placeholder="Jane Cooper"
-        />
-        <div className="grid gap-4 sm:grid-cols-2">
-          <FormField
-            id="qr-org"
-            label="Company"
-            value={form.organization}
-            onChange={(value) => onChange("organization", value)}
-            placeholder="Acme Studio"
-          />
-          <FormField
-            id="qr-title"
-            label="Job title"
-            value={form.jobTitle}
-            onChange={(value) => onChange("jobTitle", value)}
-            placeholder="Design Lead"
-          />
-          <FormField
-            id="qr-phone"
-            label="Phone"
-            type="tel"
-            value={form.phone}
-            onChange={(value) => onChange("phone", value)}
-            placeholder="+1 555 010 0100"
-          />
-          <FormField
-            id="qr-email"
-            label="Email"
-            type="email"
-            value={form.email}
-            onChange={(value) => onChange("email", value)}
-            placeholder="jane@acme.com"
-          />
-        </div>
-        <FormField
-          id="qr-website"
-          label="Website"
-          type="url"
-          value={form.website}
-          onChange={(value) => onChange("website", value)}
-          placeholder="https://acme.com"
-        />
-        <Field>
-          <FieldLabel htmlFor="qr-address">Address</FieldLabel>
-          <FieldContent>
-            <Textarea
-              id="qr-address"
-              value={form.address}
-              onChange={(event) => onChange("address", event.target.value)}
-              placeholder="123 Market St, San Francisco, CA"
-              rows={2}
-            />
-          </FieldContent>
-        </Field>
-      </div>
-    );
+    return <BusinessFields form={form} onChange={onChange} />;
   }
 
   // EVENT

@@ -1,11 +1,11 @@
 import {
+  Building2Icon,
   CalendarIcon,
   FileTextIcon,
   LinkIcon,
   Share2Icon,
   TicketPercentIcon,
   UtensilsCrossedIcon,
-  UserRoundIcon,
   WifiIcon,
   type LucideIcon,
 } from "lucide-react";
@@ -15,7 +15,7 @@ import { QR_CODE_TYPES, type QrCodeType } from "@/lib/qr-codes/types";
 export const QR_TYPE_ICON: Record<QrCodeType, LucideIcon> = {
   LINK: LinkIcon,
   PDF: FileTextIcon,
-  VCARD: UserRoundIcon,
+  VCARD: Building2Icon,
   EVENT: CalendarIcon,
   MENU: UtensilsCrossedIcon,
   WIFI: WifiIcon,

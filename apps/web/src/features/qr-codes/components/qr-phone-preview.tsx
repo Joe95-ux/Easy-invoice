@@ -6,28 +6,45 @@ import { useTheme } from "next-themes";
 import {
   CalendarIcon,
   ChevronRightIcon,
+  ClockIcon,
   EyeIcon,
   GlobeIcon,
+  InfoIcon,
   MailIcon,
   MapPinIcon,
   PhoneIcon,
   Share2Icon,
   TicketPercentIcon,
-  UserRoundIcon,
   UtensilsCrossedIcon,
   WifiIcon,
 } from "lucide-react";
 import type { QrFormState } from "@/features/qr-codes/components/qr-form";
+import { BusinessActionsFab } from "@/features/qr-codes/components/qr-business-actions";
 import {
   EventIllustration,
   MenuIllustration,
   SocialIllustration,
-  VcardIllustration,
   DiagonalDivider,
   WaveDivider,
   WifiIllustration,
 } from "@/features/qr-codes/components/qr-preview-art";
 import { QrSocialIcon } from "@/features/qr-codes/components/qr-social-icon";
+import {
+  hasOpeningHoursCustomization,
+  isPreviewSampleMode,
+  previewText,
+  showPreviewSection,
+} from "@/features/qr-codes/preview-sample";
+import {
+  BUSINESS_FACILITY_META,
+  WEEKDAY_LABEL,
+  formatTimeLabel,
+  isOpenNow,
+} from "@/lib/qr-codes/business";
+import {
+  relativeLuminance,
+  resolveBusinessLandingColors,
+} from "@/lib/qr-codes/design";
 import {
   SOCIAL_PLATFORM_LABEL,
   WIFI_ENCRYPTION_LABEL,
@@ -58,9 +75,7 @@ const PDF = {
 };
 
 const VCARD = {
-  hero: "linear-gradient(160deg, #0EA5E9 0%, #0284C7 55%, #0369A1 100%)",
-  cta: "#0284C7",
-  bodyLight: "#F0F9FF",
+  bodyLight: "#F8FAFC",
   bodyDark: "#0b1520",
   cardDark: "#122033",
 };
@@ -130,13 +145,23 @@ export function QrPhonePreview({
     if (!qrEnabled && tab === "qr") setTab("preview");
   }, [qrEnabled, tab]);
 
-  // Colored heroes always need a light (white) status bar; link/QR follow theme.
+  // Colored heroes need a light status bar; Business uses the design palette
+  // so status icons follow hero luminance. Link/QR follow the app theme.
+  const businessHeroIsLight =
+    form.type === "VCARD" &&
+    relativeLuminance(
+      resolveBusinessLandingColors(form.design.fgColor, form.design.bgColor).heroBg,
+    ) > 0.55;
   const statusTone: StatusTone =
-    tab === "preview" && form.type !== "LINK"
-      ? "light"
-      : isDark
+    tab === "preview" && form.type === "VCARD"
+      ? businessHeroIsLight
+        ? "dark"
+        : "light"
+      : tab === "preview" && form.type !== "LINK"
         ? "light"
-        : "dark";
+        : isDark
+          ? "light"
+          : "dark";
 
   return (
     <div className="flex flex-col items-center gap-4">
@@ -213,7 +238,7 @@ function PhoneFrame({
           <div className="no-scrollbar relative h-full overflow-y-auto">{children}</div>
           {/* Home indicator — pill only, no strip so wallpaper/preview show through */}
           <div
-            className="pointer-events-none absolute bottom-2 left-1/2 z-30 h-[4px] w-[108px] -translate-x-1/2 rounded-full bg-black/70 dark:bg-white/75"
+            className="pointer-events-none absolute bottom-2 left-1/2 z-50 h-[4px] w-[108px] -translate-x-1/2 rounded-full bg-black/70 dark:bg-white/75"
             aria-hidden
           />
         </div>
@@ -287,11 +312,20 @@ function QrContentMobile({ form, dark }: { form: QrFormState; dark: boolean }) {
 /* ------------------------------------------------------------------ */
 
 function PdfPage({ form, dark }: { form: QrFormState; dark: boolean }) {
-  const eyebrow = form.fileName?.replace(/\.pdf$/i, "") || "Acme Studio";
-  const title = form.name.trim() || "Q3 Growth Report";
-  const subtitle = form.fileName
-    ? "Your document is ready to view."
-    : "See how we turned insights into results this quarter.";
+  const isSample = isPreviewSampleMode(form);
+  const eyebrow = previewText(
+    isSample,
+    form.fileName?.replace(/\.pdf$/i, "") || "",
+    "Acme Studio",
+  );
+  const title = previewText(isSample, form.name, "Q3 Growth Report");
+  const subtitle = isSample
+    ? form.fileName
+      ? "Your document is ready to view."
+      : "See how we turned insights into results this quarter."
+    : form.fileName.trim()
+      ? "Your document is ready to view."
+      : "";
   const body = dark ? PDF.bodyDark : PDF.bodyLight;
   const card = dark ? PDF.cardDark : PDF.cardLight;
 
@@ -300,15 +334,21 @@ function PdfPage({ form, dark }: { form: QrFormState; dark: boolean }) {
       {/* Hero + diagonal cut — card overlaps the slash */}
       <div className="relative shrink-0" style={{ background: PDF.hero }}>
         <div className="px-5 pb-14 pt-12 text-center">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/80">
-            {eyebrow}
-          </p>
-          <p className="mt-2 font-heading text-[22px] font-bold leading-tight text-white">
-            {title}
-          </p>
-          <p className="mx-auto mt-2 max-w-[90%] text-[12px] leading-relaxed text-white/90">
-            {subtitle}
-          </p>
+          {eyebrow && (
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/80">
+              {eyebrow}
+            </p>
+          )}
+          {title && (
+            <p className="mt-2 font-heading text-[22px] font-bold leading-tight text-white">
+              {title}
+            </p>
+          )}
+          {subtitle && (
+            <p className="mx-auto mt-2 max-w-[90%] text-[12px] leading-relaxed text-white/90">
+              {subtitle}
+            </p>
+          )}
         </div>
         <div className="absolute inset-x-0 bottom-0">
           <DiagonalDivider fill={body} />
@@ -340,87 +380,458 @@ function PdfPage({ form, dark }: { form: QrFormState; dark: boolean }) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Business card — sky-blue networking page                           */
+/*  Business — landing page                                            */
 /* ------------------------------------------------------------------ */
 
+const BUSINESS_SECTION =
+  "rounded-[10px] border px-3 py-3 shadow-none";
+const BUSINESS_COVER_FALLBACK = "/business-cover.jpg";
+const BUSINESS_PREVIEW_LINKS = [
+  { platform: "linkedin" as const, label: "Company page" },
+  { platform: "facebook" as const, label: "Follow us" },
+  { platform: "instagram" as const, label: "@yourbusiness" },
+];
+const BUSINESS_PREVIEW_FACILITIES = ["wifi", "parking", "seating", "accessible"] as const;
+
+function BusinessIconChip({
+  children,
+  dark,
+}: {
+  children: ReactNode;
+  dark: boolean;
+}) {
+  return (
+    <span
+      className={cn(
+        "flex size-7 shrink-0 items-center justify-center rounded-[8px] [&_svg]:size-3.5",
+        dark ? "bg-white/10 text-neutral-200" : "bg-neutral-100 text-neutral-600",
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
 function VcardPage({ form, dark }: { form: QrFormState; dark: boolean }) {
-  const name = form.fullName.trim() || "Alex Rivera";
-  const role =
-    [form.jobTitle, form.organization].filter(Boolean).join(" · ") ||
-    "Product Designer · Northwind";
-  const phone = form.phone.trim() || "+1 (415) 555-0148";
-  const email = form.email.trim() || "alex@northwind.co";
-  const website = form.website.trim() || "northwind.co";
-  const address = form.address.trim() || "San Francisco, CA";
+  const isSample = isPreviewSampleMode(form);
+  const companyName = previewText(
+    isSample,
+    form.companyName.trim() || form.organization.trim() || form.fullName.trim(),
+    "Acme Consulting",
+  );
+  const headline = previewText(
+    isSample,
+    form.businessTitle.trim() || form.jobTitle.trim(),
+    "Professional services for growing businesses",
+  );
+  const subtitle = previewText(
+    isSample,
+    form.businessSubtitle.trim(),
+    "Clear advice, reliable support, and results your team can count on.",
+  );
+  const coverImage = form.vcardImageUrl.trim() || (isSample ? BUSINESS_COVER_FALLBACK : "");
+  const ctaLabel = previewText(isSample, form.ctaLabel.trim(), "Book a consultation");
+  const ctaUrl = form.ctaUrl.trim();
+  const palette = resolveBusinessLandingColors(
+    form.design.fgColor,
+    form.design.bgColor,
+  );
+  const openNow = isOpenNow(form.openingHours);
+  const weekdayToday =
+    (["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"] as const)[
+      new Date().getDay()
+    ]!;
+  const todayHours = form.openingHours[weekdayToday];
+  const liveLinks = form.businessLinks.filter((link) => link.url.trim());
+  const previewLinks = isSample
+    ? BUSINESS_PREVIEW_LINKS.map((link) => ({
+        platform: link.platform,
+        url: "#",
+        label: link.label,
+      }))
+    : liveLinks.slice(0, 4);
+  const selectedFacilities = form.facilities
+    .map((id) => BUSINESS_FACILITY_META.find((item) => item.id === id))
+    .filter(Boolean);
+  const facilities = isSample
+    ? BUSINESS_PREVIEW_FACILITIES.map((id) =>
+        BUSINESS_FACILITY_META.find((item) => item.id === id),
+      ).filter(Boolean)
+    : selectedFacilities;
+  const address = previewText(
+    isSample,
+    form.address.trim(),
+    "123 Market Street, Suite 200, San Francisco, CA",
+  );
+  const about = previewText(
+    isSample,
+    form.aboutCompany.trim(),
+    "We help small businesses streamline operations, strengthen client relationships, and grow with confidence.",
+  );
+  const contactName = previewText(isSample, form.contactName.trim(), "Alex Morgan");
+  const phone = previewText(isSample, form.phone.trim(), "+1 (555) 014-2200");
+  const email = previewText(isSample, form.email.trim(), "hello@acmeconsulting.com");
+  const website = previewText(isSample, form.website.trim(), "www.acmeconsulting.com");
+  const showHero = isSample || Boolean(headline);
+  const showCard =
+    isSample ||
+    Boolean(companyName || subtitle || coverImage || ctaLabel);
+  const showHours = showPreviewSection(
+    isSample,
+    hasOpeningHoursCustomization(form.openingHours),
+  );
+  const showAddress = showPreviewSection(isSample, Boolean(form.address.trim()));
+  const showFacilities = showPreviewSection(isSample, form.facilities.length > 0);
+  const showLinks = showPreviewSection(isSample, liveLinks.length > 0);
+  const showAbout = showPreviewSection(isSample, Boolean(form.aboutCompany.trim()));
+  const hasContact =
+    Boolean(form.contactName.trim()) ||
+    Boolean(form.phone.trim()) ||
+    Boolean(form.email.trim()) ||
+    Boolean(form.website.trim());
+  const showContact = showPreviewSection(isSample, hasContact);
+  const body = dark ? VCARD.bodyDark : VCARD.bodyLight;
+  const card = dark ? VCARD.cardDark : "#fff";
+  const sectionCls = cn(
+    BUSINESS_SECTION,
+    dark ? "border-white/10 bg-white/5" : "border-black/5 bg-white",
+  );
 
   return (
     <div
-      className="min-h-full"
-      style={{ backgroundColor: dark ? VCARD.bodyDark : VCARD.bodyLight }}
+      className="relative h-full min-h-full overflow-hidden"
+      style={{ backgroundColor: body }}
     >
-      <div className="px-5 pb-2 pt-12 text-center" style={{ background: VCARD.hero }}>
-        <div className="mx-auto flex size-[72px] items-center justify-center rounded-full border-[3px] border-white/40 bg-white/20 text-white shadow-md backdrop-blur-sm">
-          <UserRoundIcon className="size-9" strokeWidth={1.6} />
-        </div>
-        <p className="mt-3 font-heading text-[18px] font-semibold leading-tight text-white">
-          {name}
-        </p>
-        <p className="mt-0.5 text-[12px] text-white/85">{role}</p>
-      </div>
-      <WaveDivider fill={dark ? VCARD.bodyDark : VCARD.bodyLight} />
+      <div className="no-scrollbar h-full overflow-y-auto">
+        {showHero && (
+          <div className="relative shrink-0" style={{ backgroundColor: palette.heroBg }}>
+            <div className="px-5 pb-28 pt-14 text-center">
+              <p
+                className="font-heading text-[18px] font-bold leading-tight"
+                style={{ color: palette.heroText }}
+              >
+                {headline}
+              </p>
+            </div>
+            <div className="absolute inset-x-0 bottom-0">
+              <DiagonalDivider fill={body} />
+            </div>
+          </div>
+        )}
 
-      <div className="space-y-3 px-4 pb-6">
         <div
           className={cn(
-            "-mt-1 overflow-hidden rounded-2xl shadow-md ring-1",
-            dark ? "ring-white/10" : "bg-white ring-black/5",
+            "relative z-10 flex flex-col gap-3 px-4 pb-12",
+            showHero ? "-mt-[5.25rem]" : "pt-4",
           )}
-          style={{ backgroundColor: dark ? VCARD.cardDark : "#fff" }}
         >
-          <VcardIllustration className="w-full" />
-        </div>
+          {showCard && (
+            <div
+              className={cn(
+                "overflow-hidden rounded-[10px] ring-1",
+                dark ? "ring-white/10" : "ring-black/5",
+              )}
+              style={{ backgroundColor: card }}
+            >
+              {coverImage ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={coverImage}
+                  alt=""
+                  className="aspect-10/7 w-full object-cover"
+                />
+              ) : null}
+              <div className="space-y-3 p-3.5">
+                {companyName && (
+                  <div>
+                    <p
+                      className={cn(
+                        "font-heading text-[16px] font-bold leading-tight",
+                        dark ? "text-white" : "text-neutral-900",
+                      )}
+                    >
+                      {companyName}
+                    </p>
+                    {subtitle && (
+                      <p
+                        className={cn(
+                          "mt-1 text-[11px] leading-relaxed",
+                          dark ? "text-neutral-300" : "text-neutral-500",
+                        )}
+                      >
+                        {subtitle}
+                      </p>
+                    )}
+                  </div>
+                )}
+                {ctaLabel &&
+                  (ctaUrl ? (
+                    <a
+                      href={ctaUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex h-10 w-full cursor-pointer items-center justify-center rounded-[10px] text-[13px] font-semibold"
+                      style={{
+                        backgroundColor: palette.ctaBg,
+                        color: palette.ctaText,
+                      }}
+                    >
+                      {ctaLabel}
+                    </a>
+                  ) : (
+                    <div
+                      className="flex h-10 w-full cursor-pointer items-center justify-center rounded-[10px] text-[13px] font-semibold"
+                      style={{
+                        backgroundColor: palette.ctaBg,
+                        color: palette.ctaText,
+                      }}
+                    >
+                      {ctaLabel}
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
 
-        <div className="grid grid-cols-3 gap-2">
-          <ActionChip dark={dark} color="#0284C7" icon={<PhoneIcon className="size-3.5" />} label="Call" />
-          <ActionChip dark={dark} color="#0284C7" icon={<MailIcon className="size-3.5" />} label="Email" />
-          <ActionChip dark={dark} color="#0284C7" icon={<GlobeIcon className="size-3.5" />} label="Web" />
-        </div>
+          {showHours && (
+            <div className={sectionCls}>
+              <div className="flex items-center gap-2.5">
+                <BusinessIconChip dark={dark}>
+                  <ClockIcon />
+                </BusinessIconChip>
+                <p className={cn("text-[12px]", dark ? "text-neutral-200" : "text-neutral-700")}>
+                  Open hours —{" "}
+                  <span
+                    className="font-semibold"
+                    style={{ color: openNow ? palette.accent : undefined }}
+                  >
+                    {openNow
+                      ? "Open now"
+                      : todayHours.closed
+                        ? "Closed today"
+                        : isSample
+                          ? "Mon–Fri · 9:00 AM – 5:00 PM"
+                          : "See hours"}
+                  </span>
+                </p>
+              </div>
+              <div className="mt-2 space-y-0.5 pl-[2.375rem]">
+                <p
+                  className={cn(
+                    "text-[11px] font-medium",
+                    dark ? "text-neutral-300" : "text-neutral-600",
+                  )}
+                >
+                  {WEEKDAY_LABEL[weekdayToday]}:
+                </p>
+                {!todayHours.closed && todayHours.slots.length > 0 ? (
+                  todayHours.slots.map((slot, index) => (
+                    <p
+                      key={index}
+                      className={cn(
+                        "text-[11px]",
+                        dark ? "text-neutral-400" : "text-neutral-500",
+                      )}
+                    >
+                      {formatTimeLabel(slot.open)} - {formatTimeLabel(slot.close)}
+                    </p>
+                  ))
+                ) : (
+                  <p
+                    className={cn(
+                      "text-[11px]",
+                      dark ? "text-neutral-400" : "text-neutral-500",
+                    )}
+                  >
+                    {todayHours.closed ? "Closed" : "9:00 AM - 5:00 PM"}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
 
-        <div className="space-y-1.5">
-          <DetailRow
-            dark={dark}
-            accent="#0284C7"
-            icon={<PhoneIcon className="size-3.5" />}
-            label="Phone"
-            value={phone}
-          />
-          <DetailRow
-            dark={dark}
-            accent="#0284C7"
-            icon={<MailIcon className="size-3.5" />}
-            label="Email"
-            value={email}
-          />
-          <DetailRow
-            dark={dark}
-            accent="#0284C7"
-            icon={<GlobeIcon className="size-3.5" />}
-            label="Website"
-            value={website}
-          />
-          <DetailRow
-            dark={dark}
-            accent="#0284C7"
-            icon={<MapPinIcon className="size-3.5" />}
-            label="Address"
-            value={address}
-          />
-        </div>
+          {showAddress && address && (
+            <div className={cn(sectionCls, "flex cursor-pointer items-start gap-2.5")}>
+              <BusinessIconChip dark={dark}>
+                <MapPinIcon />
+              </BusinessIconChip>
+              <p
+                className={cn(
+                  "pt-1 text-[11px] leading-relaxed",
+                  dark ? "text-neutral-300" : "text-neutral-600",
+                )}
+              >
+                {address}
+              </p>
+            </div>
+          )}
 
-        <CtaButton color={VCARD.cta} icon={<UserRoundIcon className="size-4" />}>
-          Save contact
-        </CtaButton>
+          {showFacilities && facilities.length > 0 && (
+            <div className={sectionCls}>
+              <p
+                className={cn(
+                  "mb-2 text-[11px] font-semibold",
+                  dark ? "text-neutral-200" : "text-neutral-700",
+                )}
+              >
+                Facilities
+              </p>
+              <div className="grid grid-cols-5 gap-2">
+                {facilities.map((facility) =>
+                  facility ? (
+                    <div
+                      key={facility.id}
+                      className="flex cursor-pointer flex-col items-center gap-1"
+                      title={facility.label}
+                    >
+                      <span
+                        className={cn(
+                          "flex size-9 items-center justify-center rounded-[10px]",
+                          dark
+                            ? "bg-white/10 text-neutral-100"
+                            : "bg-neutral-100 text-neutral-700",
+                        )}
+                      >
+                        <facility.icon className="size-4" strokeWidth={1.75} />
+                      </span>
+                    </div>
+                  ) : null,
+                )}
+              </div>
+            </div>
+          )}
+
+          {showLinks && previewLinks.length > 0 && (
+            <div className="space-y-1.5">
+              {previewLinks.map((link, index) => (
+                <div
+                  key={`${link.platform}-${index}`}
+                  className={cn(
+                    "flex cursor-pointer items-center gap-3 rounded-[10px] border px-3 py-2",
+                    dark ? "border-white/10 bg-white/5" : "border-black/5 bg-white",
+                  )}
+                >
+                  <QrSocialIcon platform={link.platform} size={26} />
+                  <div className="min-w-0 flex-1">
+                    <p
+                      className={cn(
+                        "truncate text-[11px] font-medium",
+                        dark ? "text-neutral-100" : "text-neutral-800",
+                      )}
+                    >
+                      {SOCIAL_PLATFORM_LABEL[link.platform]}
+                    </p>
+                    {link.label?.trim() && (
+                      <p
+                        className={cn(
+                          "truncate text-[10px]",
+                          dark ? "text-neutral-400" : "text-neutral-500",
+                        )}
+                      >
+                        {link.label.trim()}
+                      </p>
+                    )}
+                  </div>
+                  <ChevronRightIcon
+                    className={cn(
+                      "size-4 shrink-0",
+                      dark ? "text-neutral-400" : "text-neutral-400",
+                    )}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {showAbout && about && (
+            <div className={sectionCls}>
+              <div className="mb-1.5 flex items-center gap-1.5">
+                <InfoIcon
+                  className={cn(
+                    "size-3.5",
+                    dark ? "text-neutral-300" : "text-neutral-500",
+                  )}
+                />
+                <p
+                  className={cn(
+                    "text-[11px] font-semibold",
+                    dark ? "text-neutral-200" : "text-neutral-700",
+                  )}
+                >
+                  About Us
+                </p>
+              </div>
+              <p
+                className={cn(
+                  "text-[11px] leading-relaxed",
+                  dark ? "text-neutral-300" : "text-neutral-600",
+                )}
+              >
+                {about}
+              </p>
+            </div>
+          )}
+
+          {showContact && (
+            <div className={cn(sectionCls, "space-y-2")}>
+              {contactName && (
+                <p
+                  className={cn(
+                    "text-[11px] font-semibold",
+                    dark ? "text-neutral-200" : "text-neutral-700",
+                  )}
+                >
+                  {contactName}
+                </p>
+              )}
+              {phone && (
+                <PreviewContactLine dark={dark} icon={<PhoneIcon />} value={phone} />
+              )}
+              {email && (
+                <PreviewContactLine dark={dark} icon={<MailIcon />} value={email} />
+              )}
+              {website && (
+                <PreviewContactLine dark={dark} icon={<GlobeIcon />} value={website} />
+              )}
+            </div>
+          )}
+        </div>
       </div>
+
+      <BusinessActionsFab
+        contained
+        dark={dark}
+        phone={isSample ? "+1 (555) 014-2200" : form.phone.trim()}
+        email={isSample ? "hello@acmeconsulting.com" : form.email.trim()}
+        website={isSample ? "www.acmeconsulting.com" : form.website.trim()}
+        companyName={companyName || "Business"}
+        actionBg={palette.heroBg}
+        actionText={palette.heroText}
+      />
+    </div>
+  );
+}
+
+function PreviewContactLine({
+  icon,
+  value,
+  dark,
+}: {
+  icon: ReactNode;
+  value: string;
+  dark: boolean;
+}) {
+  return (
+    <div className="flex cursor-pointer items-center gap-2.5">
+      <BusinessIconChip dark={dark}>{icon}</BusinessIconChip>
+      <span
+        className={cn(
+          "truncate text-[11px]",
+          dark ? "text-neutral-300" : "text-neutral-600",
+        )}
+      >
+        {value}
+      </span>
     </div>
   );
 }
@@ -430,18 +841,28 @@ function VcardPage({ form, dark }: { form: QrFormState; dark: boolean }) {
 /* ------------------------------------------------------------------ */
 
 function EventPage({ form, dark }: { form: QrFormState; dark: boolean }) {
+  const isSample = isPreviewSampleMode(form);
   const start = form.startAt ? new Date(form.startAt) : null;
   const validStart = start && !Number.isNaN(start.getTime()) ? start : null;
   const month = validStart
     ? validStart.toLocaleDateString(undefined, { month: "short" }).toUpperCase()
-    : "OCT";
-  const day = validStart ? validStart.getDate() : 24;
-  const title = form.title.trim() || "Product Launch Party";
-  const when = validStart ? formatEventDate(form.startAt) : "Sat, Oct 24 · 7:00 PM";
-  const where = form.location.trim() || "The Grand Hall, 5th Ave";
-  const description =
-    form.description.trim() ||
-    "Join us for an evening of demos, drinks, and early access to what's next.";
+    : isSample
+      ? "OCT"
+      : "";
+  const day = validStart ? validStart.getDate() : isSample ? 24 : null;
+  const title = previewText(isSample, form.title.trim(), "Product Launch Party");
+  const when = validStart
+    ? formatEventDate(form.startAt)
+    : isSample
+      ? "Sat, Oct 24 · 7:00 PM"
+      : "";
+  const where = previewText(isSample, form.location.trim(), "The Grand Hall, 5th Ave");
+  const description = previewText(
+    isSample,
+    form.description.trim(),
+    "Join us for an evening of demos, drinks, and early access to what's next.",
+  );
+  const showDateBadge = isSample || Boolean(validStart);
 
   return (
     <div
@@ -452,20 +873,24 @@ function EventPage({ form, dark }: { form: QrFormState; dark: boolean }) {
         className="relative px-5 pb-2 pt-12"
         style={{ background: EVENT.hero }}
       >
-        <div className="absolute right-4 top-11 flex w-12 flex-col overflow-hidden rounded-xl bg-white text-center shadow-md">
-          <span className="bg-[#7C3AED] py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
-            {month}
-          </span>
-          <span className="py-1 font-heading text-xl font-bold leading-none text-neutral-900">
-            {day}
-          </span>
-        </div>
+        {showDateBadge && day !== null && month && (
+          <div className="absolute right-4 top-11 flex w-12 flex-col overflow-hidden rounded-xl bg-white text-center shadow-md">
+            <span className="bg-[#7C3AED] py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
+              {month}
+            </span>
+            <span className="py-1 font-heading text-xl font-bold leading-none text-neutral-900">
+              {day}
+            </span>
+          </div>
+        )}
         <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/80">
           You&apos;re invited
         </p>
-        <p className="mt-1 max-w-[75%] font-heading text-[18px] font-semibold leading-tight text-white">
-          {title}
-        </p>
+        {title && (
+          <p className="mt-1 max-w-[75%] font-heading text-[18px] font-semibold leading-tight text-white">
+            {title}
+          </p>
+        )}
       </div>
       <WaveDivider fill={dark ? EVENT.bodyDark : EVENT.bodyLight} />
 
@@ -481,20 +906,24 @@ function EventPage({ form, dark }: { form: QrFormState; dark: boolean }) {
         </div>
 
         <div className="space-y-1.5">
-          <DetailRow
-            dark={dark}
-            accent="#7C3AED"
-            icon={<CalendarIcon className="size-3.5" />}
-            label="When"
-            value={when}
-          />
-          <DetailRow
-            dark={dark}
-            accent="#7C3AED"
-            icon={<MapPinIcon className="size-3.5" />}
-            label="Where"
-            value={where}
-          />
+          {when && (
+            <DetailRow
+              dark={dark}
+              accent="#7C3AED"
+              icon={<CalendarIcon className="size-3.5" />}
+              label="When"
+              value={when}
+            />
+          )}
+          {where && (
+            <DetailRow
+              dark={dark}
+              accent="#7C3AED"
+              icon={<MapPinIcon className="size-3.5" />}
+              label="Where"
+              value={where}
+            />
+          )}
           {form.eventUrl.trim() && (
             <DetailRow
               dark={dark}
@@ -506,14 +935,16 @@ function EventPage({ form, dark }: { form: QrFormState; dark: boolean }) {
           )}
         </div>
 
-        <p
-          className={cn(
-            "px-1 text-[12px] leading-relaxed",
-            dark ? "text-neutral-400" : "text-neutral-600",
-          )}
-        >
-          {description}
-        </p>
+        {description && (
+          <p
+            className={cn(
+              "px-1 text-[12px] leading-relaxed",
+              dark ? "text-neutral-400" : "text-neutral-600",
+            )}
+          >
+            {description}
+          </p>
+        )}
 
         <CtaButton color={EVENT.cta} icon={<CalendarIcon className="size-4" />}>
           Add to calendar
@@ -528,19 +959,23 @@ function EventPage({ form, dark }: { form: QrFormState; dark: boolean }) {
 /* ------------------------------------------------------------------ */
 
 function MenuPage({ form, dark }: { form: QrFormState; dark: boolean }) {
-  const venue = form.venueName.trim() || "The Corner Bistro";
-  const subtitle = form.menuSubtitle.trim() || "Seasonal plates & natural wine";
-  const currency = form.menuCurrency.trim() || "$";
+  const isSample = isPreviewSampleMode(form);
+  const venue = previewText(isSample, form.venueName.trim(), "The Corner Bistro");
+  const subtitle = previewText(
+    isSample,
+    form.menuSubtitle.trim(),
+    "Seasonal plates & natural wine",
+  );
+  const currency = form.menuCurrency.trim() || (isSample ? "$" : "");
   const liveItems = form.menuItems.filter((item) => item.name.trim());
-  const items =
-    liveItems.length > 0
-      ? liveItems.slice(0, 4)
-      : [
-          { name: "Heirloom tomato salad", price: "14", section: "Starters", description: "" },
-          { name: "Wood-fired mushrooms", price: "16", section: "Starters", description: "" },
-          { name: "Day-boat catch", price: "28", section: "Mains", description: "" },
-          { name: "Olive oil cake", price: "12", section: "Dessert", description: "" },
-        ];
+  const items = isSample
+    ? [
+        { name: "Heirloom tomato salad", price: "14", section: "Starters", description: "" },
+        { name: "Wood-fired mushrooms", price: "16", section: "Starters", description: "" },
+        { name: "Day-boat catch", price: "28", section: "Mains", description: "" },
+        { name: "Olive oil cake", price: "12", section: "Dessert", description: "" },
+      ]
+    : liveItems.slice(0, 8);
 
   return (
     <div
@@ -551,10 +986,14 @@ function MenuPage({ form, dark }: { form: QrFormState; dark: boolean }) {
         <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-white/20 text-white">
           <UtensilsCrossedIcon className="size-6" />
         </div>
-        <p className="mt-2.5 font-heading text-[18px] font-semibold leading-tight text-white">
-          {venue}
-        </p>
-        <p className="mt-0.5 text-[12px] text-white/85">{subtitle}</p>
+        {venue && (
+          <p className="mt-2.5 font-heading text-[18px] font-semibold leading-tight text-white">
+            {venue}
+          </p>
+        )}
+        {subtitle && (
+          <p className="mt-0.5 text-[12px] text-white/85">{subtitle}</p>
+        )}
       </div>
       <WaveDivider fill={dark ? MENU.bodyDark : MENU.bodyLight} />
 
@@ -569,49 +1008,51 @@ function MenuPage({ form, dark }: { form: QrFormState; dark: boolean }) {
           <MenuIllustration className="w-full" />
         </div>
 
-        <div className="space-y-2">
-          {items.map((item, index) => (
-            <div
-              key={`${item.name}-${index}`}
-              className={cn(
-                "flex items-start justify-between gap-2 rounded-xl border px-3 py-2",
-                dark ? "border-white/10 bg-white/5" : "border-black/5 bg-white/70",
-              )}
-            >
-              <div className="min-w-0">
-                {item.section && (
+        {items.length > 0 && (
+          <div className="space-y-2">
+            {items.map((item, index) => (
+              <div
+                key={`${item.name}-${index}`}
+                className={cn(
+                  "flex items-start justify-between gap-2 rounded-xl border px-3 py-2",
+                  dark ? "border-white/10 bg-white/5" : "border-black/5 bg-white/70",
+                )}
+              >
+                <div className="min-w-0">
+                  {item.section && (
+                    <p
+                      className={cn(
+                        "text-[9px] font-semibold uppercase tracking-wide",
+                        dark ? "text-amber-400/80" : "text-amber-700/80",
+                      )}
+                    >
+                      {item.section}
+                    </p>
+                  )}
                   <p
                     className={cn(
-                      "text-[9px] font-semibold uppercase tracking-wide",
-                      dark ? "text-amber-400/80" : "text-amber-700/80",
+                      "truncate text-[12px] font-medium",
+                      dark ? "text-neutral-100" : "text-neutral-800",
                     )}
                   >
-                    {item.section}
+                    {item.name}
+                  </p>
+                </div>
+                {item.price && currency && (
+                  <p
+                    className={cn(
+                      "shrink-0 text-[12px] font-semibold tabular-nums",
+                      dark ? "text-amber-300" : "text-amber-800",
+                    )}
+                  >
+                    {currency}
+                    {item.price}
                   </p>
                 )}
-                <p
-                  className={cn(
-                    "truncate text-[12px] font-medium",
-                    dark ? "text-neutral-100" : "text-neutral-800",
-                  )}
-                >
-                  {item.name}
-                </p>
               </div>
-              {item.price && (
-                <p
-                  className={cn(
-                    "shrink-0 text-[12px] font-semibold tabular-nums",
-                    dark ? "text-amber-300" : "text-amber-800",
-                  )}
-                >
-                  {currency}
-                  {item.price}
-                </p>
-              )}
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -622,12 +1063,14 @@ function MenuPage({ form, dark }: { form: QrFormState; dark: boolean }) {
 /* ------------------------------------------------------------------ */
 
 function WifiPage({ form, dark }: { form: QrFormState; dark: boolean }) {
-  const ssid = form.wifiSsid.trim() || "CornerBistro-Guest";
-  const password =
-    form.wifiEncryption === "nopass"
-      ? ""
-      : form.wifiPassword.trim() || "welcome-guests";
+  const isSample = isPreviewSampleMode(form);
+  const ssid = previewText(isSample, form.wifiSsid.trim(), "CornerBistro-Guest");
+  const livePassword =
+    form.wifiEncryption === "nopass" ? "" : form.wifiPassword.trim();
+  const password = isSample ? livePassword || "welcome-guests" : livePassword;
   const encryptionLabel = WIFI_ENCRYPTION_LABEL[form.wifiEncryption];
+  const showPasswordRow =
+    isSample || form.wifiEncryption === "nopass" || Boolean(livePassword);
 
   return (
     <div
@@ -641,9 +1084,11 @@ function WifiPage({ form, dark }: { form: QrFormState; dark: boolean }) {
         <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/80">
           Wi‑Fi access
         </p>
-        <p className="mt-1 font-heading text-[18px] font-semibold leading-tight text-white">
-          {ssid}
-        </p>
+        {ssid && (
+          <p className="mt-1 font-heading text-[18px] font-semibold leading-tight text-white">
+            {ssid}
+          </p>
+        )}
         <p className="mt-0.5 text-[11px] text-white/80">{encryptionLabel}</p>
       </div>
       <WaveDivider fill={dark ? WIFI.bodyDark : WIFI.bodyLight} />
@@ -659,20 +1104,28 @@ function WifiPage({ form, dark }: { form: QrFormState; dark: boolean }) {
           <WifiIllustration className="w-full" />
         </div>
 
-        <DetailRow
-          dark={dark}
-          accent="#059669"
-          icon={<WifiIcon className="size-3.5" />}
-          label="Network"
-          value={ssid}
-        />
-        <DetailRow
-          dark={dark}
-          accent="#059669"
-          icon={<GlobeIcon className="size-3.5" />}
-          label="Password"
-          value={password || "Open network"}
-        />
+        {ssid && (
+          <DetailRow
+            dark={dark}
+            accent="#059669"
+            icon={<WifiIcon className="size-3.5" />}
+            label="Network"
+            value={ssid}
+          />
+        )}
+        {showPasswordRow && (
+          <DetailRow
+            dark={dark}
+            accent="#059669"
+            icon={<GlobeIcon className="size-3.5" />}
+            label="Password"
+            value={
+              form.wifiEncryption === "nopass"
+                ? "Open network"
+                : password || "Open network"
+            }
+          />
+        )}
 
         <CtaButton color={WIFI.cta} icon={<WifiIcon className="size-4" />}>
           {password ? "Copy password" : "Open network"}
@@ -687,19 +1140,24 @@ function WifiPage({ form, dark }: { form: QrFormState; dark: boolean }) {
 /* ------------------------------------------------------------------ */
 
 function SocialPage({ form, dark }: { form: QrFormState; dark: boolean }) {
-  const title = form.socialTitle.trim() || "Follow us";
-  const subtitle = form.socialSubtitle.trim() || "Find us on your favorite apps";
+  const isSample = isPreviewSampleMode(form);
+  const title = previewText(isSample, form.socialTitle.trim(), "Follow us");
+  const subtitle = previewText(
+    isSample,
+    form.socialSubtitle.trim(),
+    "Find us on your favorite apps",
+  );
   const liveLinks = form.socialLinks.filter((link) => link.url.trim());
-  const links =
-    liveLinks.length > 0
-      ? liveLinks.slice(0, 8)
-      : [
-          { platform: "instagram" as const, url: "#", label: "Follow us" },
-          { platform: "facebook" as const, url: "#", label: "Like our page" },
-          { platform: "x" as const, url: "#", label: "Join the conversation" },
-          { platform: "linkedin" as const, url: "#", label: "Connect with us" },
-        ];
+  const links = isSample
+    ? [
+        { platform: "instagram" as const, url: "#", label: "Follow us" },
+        { platform: "facebook" as const, url: "#", label: "Like our page" },
+        { platform: "x" as const, url: "#", label: "Join the conversation" },
+        { platform: "linkedin" as const, url: "#", label: "Connect with us" },
+      ]
+    : liveLinks.slice(0, 8);
   const coverImage = form.socialImageUrl.trim();
+  const showCover = isSample || Boolean(coverImage);
 
   return (
     <div
@@ -710,71 +1168,79 @@ function SocialPage({ form, dark }: { form: QrFormState; dark: boolean }) {
         <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-white/20 text-white">
           <Share2Icon className="size-6" />
         </div>
-        <p className="mt-2.5 font-heading text-[18px] font-semibold leading-tight text-white">
-          {title}
-        </p>
-        <p className="mt-0.5 text-[12px] text-white/85">{subtitle}</p>
+        {title && (
+          <p className="mt-2.5 font-heading text-[18px] font-semibold leading-tight text-white">
+            {title}
+          </p>
+        )}
+        {subtitle && (
+          <p className="mt-0.5 text-[12px] text-white/85">{subtitle}</p>
+        )}
       </div>
       <WaveDivider fill={dark ? SOCIAL.bodyDark : SOCIAL.bodyLight} />
 
       <div className="space-y-3 px-4 pb-6">
-        <div
-          className={cn(
-            "-mt-1 overflow-hidden rounded-2xl shadow-md ring-1",
-            dark ? "ring-white/10" : "bg-white ring-black/5",
-          )}
-          style={{ backgroundColor: dark ? SOCIAL.cardDark : "#fff" }}
-        >
-          {coverImage ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={coverImage}
-              alt=""
-              className="aspect-10/7 w-full object-cover"
-            />
-          ) : (
-            <SocialIllustration className="w-full" dark={dark} />
-          )}
-        </div>
-        <div className="space-y-1.5">
-          {links.map((link, index) => (
-            <div
-              key={`${link.platform}-${index}`}
-              className={cn(
-                "flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2",
-                dark ? "border-white/10 bg-white/5" : "border-black/5 bg-white/70",
-              )}
-            >
-              <QrSocialIcon platform={link.platform} size={28} />
-              <div className="min-w-0 flex-1 text-left">
-                <p
-                  className={cn(
-                    "truncate text-[12px] font-medium",
-                    dark ? "text-neutral-100" : "text-neutral-800",
-                  )}
-                >
-                  {SOCIAL_PLATFORM_LABEL[link.platform]}
-                </p>
-                {link.label?.trim() && (
+        {showCover && (
+          <div
+            className={cn(
+              "-mt-1 overflow-hidden rounded-2xl shadow-md ring-1",
+              dark ? "ring-white/10" : "bg-white ring-black/5",
+            )}
+            style={{ backgroundColor: dark ? SOCIAL.cardDark : "#fff" }}
+          >
+            {coverImage ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={coverImage}
+                alt=""
+                className="aspect-10/7 w-full object-cover"
+              />
+            ) : (
+              <SocialIllustration className="w-full" dark={dark} />
+            )}
+          </div>
+        )}
+        {links.length > 0 && (
+          <div className="space-y-1.5">
+            {links.map((link, index) => (
+              <div
+                key={`${link.platform}-${index}`}
+                className={cn(
+                  "flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2",
+                  dark ? "border-white/10 bg-white/5" : "border-black/5 bg-white/70",
+                )}
+              >
+                <QrSocialIcon platform={link.platform} size={28} />
+                <div className="min-w-0 flex-1 text-left">
                   <p
                     className={cn(
-                      "truncate text-[10px]",
-                      dark ? "text-neutral-400" : "text-neutral-500",
+                      "truncate text-[12px] font-medium",
+                      dark ? "text-neutral-100" : "text-neutral-800",
                     )}
                   >
-                    {link.label.trim()}
+                    {SOCIAL_PLATFORM_LABEL[link.platform]}
                   </p>
-                )}
+                  {link.label?.trim() && (
+                    <p
+                      className={cn(
+                        "truncate text-[10px]",
+                        dark ? "text-neutral-400" : "text-neutral-500",
+                      )}
+                    >
+                      {link.label.trim()}
+                    </p>
+                  )}
+                </div>
+                <ChevronRightIcon
+                  className={cn(
+                    "size-4 shrink-0",
+                    dark ? "text-neutral-400" : "text-neutral-400",
+                  )}
+                />
               </div>
-              <ChevronRightIcon
-                className={cn(
-                  "size-4 shrink-0",
-                  dark ? "text-neutral-400" : "text-neutral-400",
-                )}
-              />
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -785,10 +1251,14 @@ function SocialPage({ form, dark }: { form: QrFormState; dark: boolean }) {
 /* ------------------------------------------------------------------ */
 
 function CouponPage({ form, dark }: { form: QrFormState; dark: boolean }) {
-  const code = form.couponCode.trim() || "SAVE20";
-  const title = form.couponTitle.trim() || "20% off your first order";
-  const description =
-    form.couponDescription.trim() || "Valid on full-price items. One use per customer.";
+  const isSample = isPreviewSampleMode(form);
+  const code = previewText(isSample, form.couponCode.trim(), "SAVE20");
+  const title = previewText(isSample, form.couponTitle.trim(), "20% off your first order");
+  const description = previewText(
+    isSample,
+    form.couponDescription.trim(),
+    "Valid on full-price items. One use per customer.",
+  );
   const body = dark ? COUPON.bodyDark : COUPON.bodyLight;
 
   return (
@@ -800,10 +1270,14 @@ function CouponPage({ form, dark }: { form: QrFormState; dark: boolean }) {
         <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/80">
           Coupon
         </p>
-        <p className="mt-1 font-heading text-[18px] font-semibold leading-tight text-white">
-          {title}
-        </p>
-        <p className="mt-1 text-[11px] text-white/85">{description}</p>
+        {title && (
+          <p className="mt-1 font-heading text-[18px] font-semibold leading-tight text-white">
+            {title}
+          </p>
+        )}
+        {description && (
+          <p className="mt-1 text-[11px] text-white/85">{description}</p>
+        )}
       </div>
       <WaveDivider fill={body} />
 
@@ -822,16 +1296,18 @@ function CouponPage({ form, dark }: { form: QrFormState; dark: boolean }) {
             className="aspect-10/7 w-full bg-white object-cover"
           />
         </div>
-        <div
-          className={cn(
-            "rounded-xl border border-dashed px-3 py-3 text-center font-mono text-[16px] font-bold tracking-[0.18em]",
-            dark
-              ? "border-sky-400/40 bg-sky-500/10 text-sky-200"
-              : "border-sky-400/50 bg-sky-50 text-sky-800",
-          )}
-        >
-          {code}
-        </div>
+        {code && (
+          <div
+            className={cn(
+              "rounded-xl border border-dashed px-3 py-3 text-center font-mono text-[16px] font-bold tracking-[0.18em]",
+              dark
+                ? "border-sky-400/40 bg-sky-500/10 text-sky-200"
+                : "border-sky-400/50 bg-sky-50 text-sky-800",
+            )}
+          >
+            {code}
+          </div>
+        )}
         <CtaButton color={COUPON.cta} icon={<TicketPercentIcon className="size-4" />}>
           Copy code
         </CtaButton>
@@ -845,6 +1321,9 @@ function CouponPage({ form, dark }: { form: QrFormState; dark: boolean }) {
 /* ------------------------------------------------------------------ */
 
 function LinkPage({ form, dark }: { form: QrFormState; dark: boolean }) {
+  const isSample = isPreviewSampleMode(form);
+  const url = previewText(isSample, form.url.trim(), "https://your-site.com");
+
   return (
     <div className={cn("min-h-full", dark ? "bg-[#0b0e14]" : "bg-white")}>
       <div
@@ -856,16 +1335,18 @@ function LinkPage({ form, dark }: { form: QrFormState; dark: boolean }) {
         <GlobeIcon
           className={cn("size-3.5 shrink-0", dark ? "text-neutral-500" : "text-neutral-400")}
         />
-        <span
-          className={cn(
-            "truncate rounded-full px-2.5 py-1 text-[11px] ring-1",
-            dark
-              ? "bg-white/10 text-neutral-300 ring-white/10"
-              : "bg-white text-neutral-500 ring-black/5",
-          )}
-        >
-          {form.url || "https://your-site.com"}
-        </span>
+        {url && (
+          <span
+            className={cn(
+              "truncate rounded-full px-2.5 py-1 text-[11px] ring-1",
+              dark
+                ? "bg-white/10 text-neutral-300 ring-white/10"
+                : "bg-white text-neutral-500 ring-black/5",
+            )}
+          >
+            {url}
+          </span>
+        )}
       </div>
       <WebsiteSkeleton dark={dark} />
     </div>
@@ -942,42 +1423,6 @@ function CtaButton({
     >
       {icon}
       {children}
-    </div>
-  );
-}
-
-function ActionChip({
-  color,
-  icon,
-  label,
-  dark,
-}: {
-  color: string;
-  icon: ReactNode;
-  label: string;
-  dark: boolean;
-}) {
-  return (
-    <div
-      className={cn(
-        "flex flex-col items-center gap-1 rounded-xl py-2.5 shadow-sm ring-1",
-        dark ? "bg-white/5 ring-white/10" : "bg-white/80 ring-black/5",
-      )}
-    >
-      <span
-        className="flex size-7 items-center justify-center rounded-full text-white"
-        style={{ backgroundColor: color }}
-      >
-        {icon}
-      </span>
-      <span
-        className={cn(
-          "text-[10px] font-medium",
-          dark ? "text-neutral-300" : "text-neutral-600",
-        )}
-      >
-        {label}
-      </span>
     </div>
   );
 }

@@ -1,11 +1,12 @@
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import {
-  BuildingIcon,
   CalendarIcon,
   ChevronRightIcon,
+  ClockIcon,
   DownloadIcon,
   GlobeIcon,
+  InfoIcon,
   MailIcon,
   MapPinIcon,
   PauseCircleIcon,
@@ -18,15 +19,26 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { QrCouponCopy } from "@/features/qr-codes/components/qr-coupon-copy";
+import { BusinessActionsFab } from "@/features/qr-codes/components/qr-business-actions";
 import { QrPasswordGate } from "@/features/qr-codes/components/qr-password-gate";
 import { QrPublicThemeToggle } from "@/features/qr-codes/components/qr-public-theme-toggle";
 import { QrSocialIcon } from "@/features/qr-codes/components/qr-social-icon";
 import { QrWifiConnect } from "@/features/qr-codes/components/qr-wifi-connect";
 import {
+  BUSINESS_FACILITY_META,
+  WEEKDAY_LABEL,
+  formatTimeLabel,
+  isOpenNow,
+  type Weekday,
+} from "@/lib/qr-codes/business";
+import {
   SOCIAL_PLATFORM_LABEL,
   WIFI_ENCRYPTION_LABEL,
   resolveRedirectUrl,
 } from "@/lib/qr-codes/content";
+import {
+  resolveBusinessLandingColors,
+} from "@/lib/qr-codes/design";
 import { qrUnlockCookieName, qrUnlockToken } from "@/lib/qr-codes/password";
 import { getQrCodeByToken, recordQrScan } from "@/lib/qr-codes/service";
 import type {
@@ -40,6 +52,7 @@ import type {
   WifiContent,
 } from "@/lib/qr-codes/types";
 import { SOCIAL_PLATFORMS } from "@/lib/qr-codes/types";
+import { cn } from "@/lib/utils";
 
 type PageProps = { params: Promise<{ token: string }> };
 
@@ -100,54 +113,275 @@ export default async function QrScanPage({ params }: PageProps) {
 
   if (qr.type === "VCARD") {
     const vcard = content as unknown as VcardContent;
+    const companyName =
+      vcard.companyName?.trim() ||
+      vcard.organization?.trim() ||
+      vcard.fullName?.trim() ||
+      "Business";
+    const headline = vcard.title?.trim() || vcard.jobTitle?.trim() || companyName;
+    const subtitle = vcard.subtitle?.trim();
+    const coverImage = vcard.imageUrl?.trim() || "/business-cover.jpg";
+    const ctaLabel = vcard.ctaLabel?.trim();
+    const ctaUrl = vcard.ctaUrl?.trim();
+    const openNow = isOpenNow(vcard.openingHours);
+    const weekdayToday = (
+      ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"] as const
+    )[new Date().getDay()] as Weekday;
+    const todayHours = vcard.openingHours?.[weekdayToday];
+    const facilities = (vcard.facilities ?? [])
+      .map((id) => BUSINESS_FACILITY_META.find((item) => item.id === id))
+      .filter(Boolean);
+    const links = (vcard.links ?? []).filter((link) => link?.url?.trim());
+    const mapsUrl =
+      vcard.locationLat != null && vcard.locationLng != null
+        ? `https://www.google.com/maps/search/?api=1&query=${vcard.locationLat},${vcard.locationLng}`
+        : vcard.address?.trim()
+          ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(vcard.address.trim())}`
+          : null;
+    const sectionCls = "rounded-[10px] border border-border bg-muted/20 px-3 py-3 shadow-none";
+    const palette = resolveBusinessLandingColors(
+      qr.design.fgColor,
+      qr.design.bgColor,
+    );
+
     return (
       <div className="space-y-3">
         <div className="flex justify-end">
           <QrPublicThemeToggle />
         </div>
-        <Card className="gap-0 overflow-hidden py-0">
-        <CardHeader className="items-center gap-3 border-b bg-muted/30 py-8 text-center">
-          <div className="flex size-16 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <BuildingIcon className="size-7" />
-          </div>
-          <div>
-            <h1 className="font-heading text-xl font-semibold tracking-tight">
-              {vcard.fullName}
+        <Card className="gap-0 overflow-hidden rounded-[10px] py-0 shadow-none">
+          <div
+            className="px-5 pb-28 pt-10 text-center"
+            style={{ backgroundColor: palette.heroBg }}
+          >
+            <h1
+              className="font-heading text-xl font-semibold tracking-tight"
+              style={{ color: palette.heroText }}
+            >
+              {headline}
             </h1>
-            {(vcard.jobTitle || vcard.organization) && (
-              <p className="text-sm text-muted-foreground">
-                {[vcard.jobTitle, vcard.organization].filter(Boolean).join(" · ")}
-              </p>
-            )}
           </div>
-        </CardHeader>
-        <CardContent className="space-y-1 py-4">
-          {vcard.phone && (
-            <ContactRow icon={<PhoneIcon className="size-4" />} href={`tel:${vcard.phone}`}>
-              {vcard.phone}
-            </ContactRow>
-          )}
-          {vcard.email && (
-            <ContactRow icon={<MailIcon className="size-4" />} href={`mailto:${vcard.email}`}>
-              {vcard.email}
-            </ContactRow>
-          )}
-          {vcard.website && (
-            <ContactRow icon={<GlobeIcon className="size-4" />} href={vcard.website}>
-              {vcard.website}
-            </ContactRow>
-          )}
-          {vcard.address && (
-            <ContactRow icon={<MapPinIcon className="size-4" />}>{vcard.address}</ContactRow>
-          )}
-          <div className="pt-3">
-            <Button className="w-full" render={<a href={`/q/${token}/vcf`} />}>
+          <CardContent className="relative z-10 -mt-[5.25rem] space-y-3 px-4 pb-12">
+            <div className="overflow-hidden rounded-[10px] border border-border bg-card">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={coverImage}
+                alt=""
+                className="aspect-10/7 w-full object-cover"
+              />
+              <div className="space-y-3 p-4">
+                <div>
+                  <h2 className="font-heading text-lg font-semibold tracking-tight">
+                    {companyName}
+                  </h2>
+                  {subtitle && (
+                    <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
+                  )}
+                </div>
+                {ctaLabel && ctaUrl ? (
+                  <Button
+                    className="w-full cursor-pointer rounded-[10px] hover:opacity-90"
+                    style={{
+                      backgroundColor: palette.ctaBg,
+                      color: palette.ctaText,
+                    }}
+                    render={<a href={ctaUrl} target="_blank" rel="noreferrer" />}
+                  >
+                    {ctaLabel}
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+
+            {todayHours && (
+              <div className={sectionCls}>
+                <div className="flex items-center gap-2.5">
+                  <span className="flex size-7 shrink-0 items-center justify-center rounded-[8px] bg-muted text-muted-foreground [&_svg]:size-3.5">
+                    <ClockIcon />
+                  </span>
+                  <p className="text-sm">
+                    Open hours —{" "}
+                    <span
+                      className="font-semibold"
+                      style={
+                        openNow
+                          ? { color: palette.accent }
+                          : undefined
+                      }
+                    >
+                      {openNow ? "Open now" : todayHours.closed ? "Closed today" : "See hours"}
+                    </span>
+                  </p>
+                </div>
+                {!todayHours.closed && todayHours.slots.length > 0 && (
+                  <div className="mt-2 space-y-0.5 pl-[2.375rem] text-sm text-muted-foreground">
+                    <p className="font-medium text-foreground/80">
+                      {WEEKDAY_LABEL[weekdayToday]}:
+                    </p>
+                    {todayHours.slots.map((slot, index) => (
+                      <p key={index}>
+                        {formatTimeLabel(slot.open)} - {formatTimeLabel(slot.close)}
+                      </p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {vcard.address?.trim() && (
+              <div className={cn(sectionCls, "flex items-start gap-2.5")}>
+                <span className="flex size-7 shrink-0 items-center justify-center rounded-[8px] bg-muted text-muted-foreground [&_svg]:size-3.5">
+                  <MapPinIcon />
+                </span>
+                {mapsUrl ? (
+                  <a
+                    href={mapsUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="cursor-pointer pt-1 text-sm leading-relaxed text-muted-foreground underline-offset-2 hover:underline"
+                  >
+                    {vcard.address.trim()}
+                  </a>
+                ) : (
+                  <p className="pt-1 text-sm leading-relaxed text-muted-foreground">
+                    {vcard.address.trim()}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {facilities.length > 0 && (
+              <div className={sectionCls}>
+                <p className="mb-2 text-sm font-medium">Facilities</p>
+                <div className="grid grid-cols-5 gap-2">
+                  {facilities.map((facility) =>
+                    facility ? (
+                      <div
+                        key={facility.id}
+                        className="flex cursor-pointer flex-col items-center gap-1"
+                        title={facility.label}
+                      >
+                        <span className="flex size-10 items-center justify-center rounded-[10px] bg-muted text-foreground">
+                          <facility.icon className="size-4" strokeWidth={1.75} />
+                        </span>
+                      </div>
+                    ) : null,
+                  )}
+                </div>
+              </div>
+            )}
+
+            {links.length > 0 && (
+              <div className="space-y-2">
+                {links.map((link, index) => {
+                  const platform = (
+                    SOCIAL_PLATFORMS.includes(link.platform as SocialPlatform)
+                      ? link.platform
+                      : "other"
+                  ) as SocialPlatform;
+                  const text = link.label?.trim();
+                  return (
+                    <a
+                      key={`${link.url}-${index}`}
+                      href={link.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex cursor-pointer items-center gap-3 rounded-[10px] border border-border bg-muted/30 px-3 py-3 transition-colors hover:bg-muted/60"
+                    >
+                      <QrSocialIcon platform={platform} size={36} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium">
+                          {SOCIAL_PLATFORM_LABEL[platform]}
+                        </span>
+                        {text && (
+                          <span className="block truncate text-xs text-muted-foreground">
+                            {text}
+                          </span>
+                        )}
+                      </span>
+                      <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" />
+                    </a>
+                  );
+                })}
+              </div>
+            )}
+
+            {vcard.about?.trim() && (
+              <div className={sectionCls}>
+                <div className="mb-1.5 flex items-center gap-1.5 text-sm font-medium">
+                  <InfoIcon className="size-4 text-muted-foreground" />
+                  About Us
+                </div>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  {vcard.about.trim()}
+                </p>
+              </div>
+            )}
+
+            {(vcard.contactName?.trim() ||
+              vcard.phone?.trim() ||
+              vcard.email?.trim() ||
+              vcard.website?.trim()) && (
+              <div className={cn(sectionCls, "space-y-2")}>
+                {vcard.contactName?.trim() && (
+                  <p className="text-sm font-medium">{vcard.contactName.trim()}</p>
+                )}
+                {vcard.phone?.trim() && (
+                  <a
+                    href={`tel:${vcard.phone}`}
+                    className="flex cursor-pointer items-center gap-2.5 text-sm text-muted-foreground"
+                  >
+                    <span className="flex size-7 shrink-0 items-center justify-center rounded-[8px] bg-muted text-muted-foreground [&_svg]:size-3.5">
+                      <PhoneIcon />
+                    </span>
+                    {vcard.phone}
+                  </a>
+                )}
+                {vcard.email?.trim() && (
+                  <a
+                    href={`mailto:${vcard.email}`}
+                    className="flex cursor-pointer items-center gap-2.5 text-sm text-muted-foreground"
+                  >
+                    <span className="flex size-7 shrink-0 items-center justify-center rounded-[8px] bg-muted text-muted-foreground [&_svg]:size-3.5">
+                      <MailIcon />
+                    </span>
+                    {vcard.email}
+                  </a>
+                )}
+                {vcard.website?.trim() && (
+                  <a
+                    href={
+                      /^https?:\/\//i.test(vcard.website.trim())
+                        ? vcard.website.trim()
+                        : `https://${vcard.website.trim()}`
+                    }
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex cursor-pointer items-center gap-2.5 text-sm text-muted-foreground"
+                  >
+                    <span className="flex size-7 shrink-0 items-center justify-center rounded-[8px] bg-muted text-muted-foreground [&_svg]:size-3.5">
+                      <GlobeIcon />
+                    </span>
+                    {vcard.website}
+                  </a>
+                )}
+              </div>
+            )}
+
+            <Button className="w-full cursor-pointer rounded-[10px]" variant="outline" render={<a href={`/q/${token}/vcf`} />}>
               <DownloadIcon className="size-4" />
               Save contact
             </Button>
-          </div>
-        </CardContent>
+          </CardContent>
         </Card>
+        <BusinessActionsFab
+          phone={vcard.phone?.trim() || ""}
+          email={vcard.email?.trim() || ""}
+          website={vcard.website?.trim() || ""}
+          companyName={companyName}
+          actionBg={palette.heroBg}
+          actionText={palette.heroText}
+        />
       </div>
     );
   }

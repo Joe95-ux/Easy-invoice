@@ -10,7 +10,7 @@ import type {
 export const QR_TYPE_LABEL: Record<QrCodeType, string> = {
   LINK: "Website / Link",
   PDF: "PDF",
-  VCARD: "Business card",
+  VCARD: "Business",
   EVENT: "Event",
   MENU: "Menu",
   WIFI: "Wi‑Fi",
@@ -36,7 +36,7 @@ export const QR_STATUS_BADGE_VARIANT: Record<
 export const QR_TYPE_DESCRIPTION: Record<QrCodeType, string> = {
   LINK: "Send scanners to any web address.",
   PDF: "Share a document that opens on any phone.",
-  VCARD: "Save your business contact in one tap.",
+  VCARD: "Share a business landing page with hours, location, and more.",
   EVENT: "Add an event straight to a calendar.",
   MENU: "Show a digital menu guests can browse.",
   WIFI: "Let guests join your network instantly.",
@@ -97,7 +97,13 @@ export function qrDestinationSummary(
         ? content.fileName
         : "PDF document";
     case "VCARD":
-      return typeof content.fullName === "string" ? content.fullName : "Contact";
+      return typeof content.companyName === "string" && content.companyName
+        ? content.companyName
+        : typeof content.organization === "string" && content.organization
+          ? content.organization
+          : typeof content.fullName === "string" && content.fullName
+            ? content.fullName
+            : "Business";
     case "EVENT":
       return typeof content.title === "string" ? content.title : "Event";
     case "MENU":
@@ -147,20 +153,36 @@ function escapeText(value: string): string {
     .replace(/;/g, "\\;");
 }
 
+export function resolveVcardDisplayName(content: VcardContent): string {
+  return (
+    content.contactName?.trim() ||
+    content.companyName?.trim() ||
+    content.organization?.trim() ||
+    content.fullName?.trim() ||
+    "Contact"
+  );
+}
+
 export function buildVcard(content: VcardContent): string {
-  const nameParts = content.fullName.trim().split(/\s+/);
+  const displayName = resolveVcardDisplayName(content);
+  const nameParts = displayName.split(/\s+/);
   const last = nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
   const first = nameParts[0] ?? "";
+  const organization =
+    content.companyName?.trim() || content.organization?.trim() || "";
 
   const lines = [
     "BEGIN:VCARD",
     "VERSION:3.0",
     `N:${escapeText(last)};${escapeText(first)};;;`,
-    `FN:${escapeText(content.fullName)}`,
+    `FN:${escapeText(displayName)}`,
   ];
 
-  if (content.organization) lines.push(`ORG:${escapeText(content.organization)}`);
-  if (content.jobTitle) lines.push(`TITLE:${escapeText(content.jobTitle)}`);
+  if (organization) lines.push(`ORG:${escapeText(organization)}`);
+  if (content.title?.trim()) lines.push(`TITLE:${escapeText(content.title.trim())}`);
+  else if (content.jobTitle?.trim()) {
+    lines.push(`TITLE:${escapeText(content.jobTitle.trim())}`);
+  }
   if (content.phone) lines.push(`TEL;TYPE=CELL:${escapeText(content.phone)}`);
   if (content.email) lines.push(`EMAIL;TYPE=INTERNET:${escapeText(content.email)}`);
   if (content.website) lines.push(`URL:${escapeText(content.website)}`);
