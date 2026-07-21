@@ -54,9 +54,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { pageHeaderActionClass } from "@/components/app-shell/page-header";
 import { DocumentShareButton } from "@/components/document-share-button";
+import { InvoiceSendDialog } from "@/features/invoices/components/invoice-send-dialog";
 import { RecordPaymentDialog } from "@/features/invoices/components/record-payment-dialog";
 import { usePdfDownload } from "@/hooks/use-pdf-download";
 import { cn } from "@/lib/utils";
@@ -70,6 +70,7 @@ type InvoiceActionsProps = {
   currency: string;
   balanceDue: number;
   clientEmail?: string | null;
+  clientName?: string | null;
   dueDate?: string | null;
   sentAt?: string | null;
   celebrateInvoicePaid?: boolean;
@@ -83,6 +84,7 @@ export function InvoiceActions({
   currency,
   balanceDue,
   clientEmail,
+  clientName,
   dueDate,
   sentAt,
   celebrateInvoicePaid = false,
@@ -95,8 +97,6 @@ export function InvoiceActions({
   const [shareOpen, setShareOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
-  const [email, setEmail] = useState(clientEmail ?? "");
-  const [message, setMessage] = useState("");
   const [reminderEmail, setReminderEmail] = useState(clientEmail ?? "");
 
   const canSend = status !== "CANCELLED" && status !== "PAID";
@@ -118,31 +118,6 @@ export function InvoiceActions({
       documentNumber: invoiceNumber,
       companyName,
     });
-  }
-
-  async function handleSend() {
-    setLoading("send");
-    try {
-      const response = await fetch(`/api/invoices/${invoiceId}/send`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: email || undefined,
-          message: message.trim() || undefined,
-        }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? "Failed to send");
-
-      toast.success(`Invoice sent to ${email}`);
-      setSendOpen(false);
-      setMessage("");
-      router.refresh();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to send invoice");
-    } finally {
-      setLoading(null);
-    }
   }
 
   async function handleMarkAsSent() {
@@ -241,11 +216,7 @@ export function InvoiceActions({
             <Button
               variant="outline"
               className="flex-1 text-primary hover:text-primary sm:flex-none"
-              onClick={() => {
-                setEmail(clientEmail ?? "");
-                setMessage("");
-                setSendOpen(true);
-              }}
+              onClick={() => setSendOpen(true)}
               disabled={isBusy}
             >
               <SendIcon />
@@ -375,48 +346,16 @@ export function InvoiceActions({
         </AlertDialogContent>
       </AlertDialog>
 
-      <Dialog open={sendOpen} onOpenChange={setSendOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Send invoice</DialogTitle>
-            <DialogDescription>
-              Email {invoiceNumber} as a PDF attachment. This does not change the client&apos;s
-              email on file.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogBody className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="client-email">Recipient email</Label>
-              <Input
-                id="client-email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="client@example.com"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="invoice-send-message">Personal message (optional)</Label>
-              <Textarea
-                id="invoice-send-message"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                placeholder="Add a short note for your client…"
-                rows={3}
-                maxLength={2000}
-              />
-            </div>
-          </DialogBody>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setSendOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSend} disabled={!email || loading === "send"}>
-              {loading === "send" ? "Sending..." : "Send"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <InvoiceSendDialog
+        open={sendOpen}
+        onOpenChange={setSendOpen}
+        invoiceId={invoiceId}
+        invoiceNumber={invoiceNumber}
+        status={status}
+        clientEmail={clientEmail}
+        companyName={companyName}
+        clientName={clientName}
+      />
 
       <Dialog open={remindOpen} onOpenChange={setRemindOpen}>
         <DialogContent>

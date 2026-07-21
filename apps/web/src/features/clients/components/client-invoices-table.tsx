@@ -232,6 +232,7 @@ export function ClientInvoicesTable({
           invoiceNumber={sendInvoice.number}
           status={sendInvoice.status}
           clientEmail={clientEmail}
+          companyName={companyName}
         />
       )}
 

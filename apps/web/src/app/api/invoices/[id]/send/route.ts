@@ -13,6 +13,7 @@ import { z } from "zod";
 const sendSchema = z.object({
   email: z.string().email().optional(),
   message: z.string().trim().max(2000).optional(),
+  subject: z.string().trim().max(200).optional(),
 });
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -55,6 +56,7 @@ export async function POST(request: Request, context: RouteContext) {
         (await ensureInvoicePublicToken(id, member.companyId))!,
       ),
       message: parsed.data.message,
+      subject: parsed.data.subject,
     });
 
     const updated = await prisma.invoice.update({

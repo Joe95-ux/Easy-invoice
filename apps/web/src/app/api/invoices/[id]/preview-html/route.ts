@@ -27,6 +27,8 @@ export async function GET(_request: Request, context: RouteContext) {
       number: invoice.number,
       status: invoice.status,
       clientEmail: invoice.client?.email ?? null,
+      clientName: invoice.client?.name ?? null,
+      companyName: invoice.company.name,
     },
   });
 }

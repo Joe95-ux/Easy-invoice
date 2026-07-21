@@ -34,6 +34,7 @@ type SendInvoiceEmailInput = {
   pdfBuffer: Buffer;
   viewUrl?: string;
   message?: string;
+  subject?: string;
 };
 
 export async function sendInvoiceEmail(input: SendInvoiceEmailInput) {
@@ -44,11 +45,14 @@ export async function sendInvoiceEmail(input: SendInvoiceEmailInput) {
     ? `<p><a href="${input.viewUrl}">View invoice online</a></p>`
     : "";
   const personalMessage = formatPersonalMessage(input.message);
+  const subject =
+    input.subject?.trim() ||
+    `Invoice ${input.invoiceNumber} from ${input.companyName}`;
 
   const { data, error } = await resend.emails.send({
     from,
     to: input.to,
-    subject: `Invoice ${input.invoiceNumber} from ${input.companyName}`,
+    subject,
     html: `
       <p>Hello,</p>
       ${personalMessage}

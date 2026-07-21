@@ -29,6 +29,8 @@ type PreviewInvoice = {
   number: string;
   status: InvoiceStatus;
   clientEmail: string | null;
+  clientName: string | null;
+  companyName: string;
 };
 
 type InvoicePreviewSheetProps = {
@@ -211,6 +213,8 @@ export function InvoicePreviewSheet({
           invoiceNumber={invoice.number}
           status={invoice.status}
           clientEmail={resolvedEmail}
+          companyName={invoice.companyName}
+          clientName={invoice.clientName}
         />
       )}
     </>

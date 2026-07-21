@@ -10,6 +10,7 @@ import {
   Share2Icon,
   XIcon,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export type BusinessActionsProps = {
@@ -17,7 +18,7 @@ export type BusinessActionsProps = {
   email: string;
   website: string;
   companyName: string;
-  /** Matches hero / CTA palette */
+  /** Floating trigger only — matches hero / CTA palette */
   actionBg: string;
   actionText: string;
   dark?: boolean;
@@ -76,11 +77,11 @@ export function BusinessActionsFab({
 
   const sheetSurface = dark
     ? "border-white/10 bg-[#122033] text-white"
-    : "border-black/5 bg-white text-neutral-900";
+    : "border-border bg-background text-foreground";
 
   const cancelCls = dark
     ? "text-neutral-300 hover:text-white"
-    : "text-neutral-500 hover:text-neutral-800";
+    : "text-muted-foreground hover:text-foreground";
 
   return (
     <>
@@ -125,7 +126,7 @@ export function BusinessActionsFab({
             <div className="mb-3 flex items-center justify-between gap-3">
               <p
                 id="business-actions-title"
-                className="font-heading text-[15px] font-semibold"
+                className="font-heading text-[15px] font-semibold text-foreground"
               >
                 Actions
               </p>
@@ -134,10 +135,7 @@ export function BusinessActionsFab({
                 aria-label="Close actions"
                 onClick={() => setOpen(false)}
                 className={cn(
-                  "flex size-8 cursor-pointer items-center justify-center rounded-full transition-colors",
-                  dark
-                    ? "text-neutral-300 hover:bg-white/10"
-                    : "text-neutral-500 hover:bg-neutral-100",
+                  "flex size-8 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
                 )}
               >
                 <XIcon className="size-4" />
@@ -148,31 +146,23 @@ export function BusinessActionsFab({
               <ActionPill
                 href={phoneHref || undefined}
                 disabled={!phoneHref}
-                accent={actionBg}
-                dark={dark}
                 icon={<PhoneIcon className="size-4" />}
                 label="Call"
               />
               <ActionPill
                 href={emailHref || undefined}
                 disabled={!emailHref}
-                accent={actionBg}
-                dark={dark}
                 icon={<MailIcon className="size-4" />}
                 label="Email"
               />
               <ActionPill
                 href={websiteHref || undefined}
                 disabled={!websiteHref}
-                accent={actionBg}
-                dark={dark}
                 icon={<GlobeIcon className="size-4" />}
                 label="Website"
                 external
               />
               <ActionPill
-                accent={actionBg}
-                dark={dark}
                 icon={<Share2Icon className="size-4" />}
                 label="Share"
                 onClick={() => {
@@ -201,55 +191,49 @@ export function BusinessActionsFab({
 function ActionPill({
   label,
   icon,
-  accent,
   href,
   onClick,
   disabled,
   external,
-  dark,
 }: {
   label: string;
   icon: ReactNode;
-  accent: string;
   href?: string;
   onClick?: () => void;
   disabled?: boolean;
   external?: boolean;
-  dark?: boolean;
 }) {
-  const className = cn(
-    "flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-[55px] border bg-transparent text-[13px] font-semibold transition-colors",
-    dark ? "hover:bg-white/5" : "hover:bg-neutral-50",
-    disabled && "pointer-events-none cursor-not-allowed opacity-40",
-  );
-  const style = { borderColor: accent, color: accent };
+  const className =
+    "h-11 w-full gap-2 rounded-[55px] border border-border text-[13px] font-semibold text-foreground";
 
   if (href && !disabled) {
     return (
-      <a
-        href={href}
+      <Button
+        variant="ghost"
         className={className}
-        style={style}
-        {...(external
-          ? { target: "_blank", rel: "noreferrer" }
-          : undefined)}
+        render={
+          <a
+            href={href}
+            {...(external ? { target: "_blank", rel: "noreferrer" } : undefined)}
+          />
+        }
       >
         {icon}
         {label}
-      </a>
+      </Button>
     );
   }
 
   return (
-    <button
+    <Button
       type="button"
+      variant="ghost"
       className={className}
-      style={style}
       disabled={disabled}
       onClick={onClick}
     >
       {icon}
       {label}
-    </button>
+    </Button>
   );
 }
