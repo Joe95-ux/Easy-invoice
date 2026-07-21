@@ -477,6 +477,14 @@ model Estimate {
   sentAt        DateTime?
   acceptedAt    DateTime?
   viewedAt      DateTime?
+  /// Who accepted via public e-sign (typed name). Null if staff-marked.
+  signerName         String?
+  /// Optional drawn signature as a PNG data URL.
+  signatureDataUrl   String?  @db.Text
+  acceptedIp         String?
+  acceptedUserAgent  String?
+  /// TYPED | DRAWN | STAFF_MARKED
+  acceptanceMethod   String?
   publicToken   String?        @unique
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt

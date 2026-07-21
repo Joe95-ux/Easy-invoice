@@ -169,6 +169,64 @@ export default async function EstimateDetailPage({ params }: PageProps) {
         </Card>
       </div>
 
+      {estimate.status === "ACCEPTED" && (
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              E-signature
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 text-sm">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <p className="text-xs text-muted-foreground">Signed by</p>
+                <p className="font-medium">
+                  {estimate.signerName?.trim() ||
+                    (estimate.acceptanceMethod === "STAFF_MARKED"
+                      ? "Marked accepted by team"
+                      : "—")}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Accepted</p>
+                <p className="font-medium">
+                  {estimate.acceptedAt ? formatDate(estimate.acceptedAt) : "—"}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Method</p>
+                <p className="font-medium">
+                  {estimate.acceptanceMethod === "DRAWN"
+                    ? "Typed name + drawn signature"
+                    : estimate.acceptanceMethod === "TYPED"
+                      ? "Typed name"
+                      : estimate.acceptanceMethod === "STAFF_MARKED"
+                        ? "Staff marked accepted"
+                        : "—"}
+                </p>
+              </div>
+              {estimate.acceptedIp && (
+                <div>
+                  <p className="text-xs text-muted-foreground">IP address</p>
+                  <p className="font-medium tabular-nums">{estimate.acceptedIp}</p>
+                </div>
+              )}
+            </div>
+            {estimate.signatureDataUrl && (
+              <div>
+                <p className="mb-2 text-xs text-muted-foreground">Signature</p>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={estimate.signatureDataUrl}
+                  alt={`Signature of ${estimate.signerName ?? "signer"}`}
+                  className="max-h-28 w-full max-w-md rounded-lg border border-border bg-white object-contain p-2"
+                />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       <Card className="mt-6">
         <CardHeader className="flex-row items-center justify-between">
           <CardTitle>Line items</CardTitle>

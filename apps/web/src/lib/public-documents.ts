@@ -194,6 +194,12 @@ export async function markEstimateViewed(estimateId: string, currentStatus: Esti
 export async function respondToPublicEstimate(
   token: string,
   action: "accept" | "decline",
+  evidence?: {
+    signerName?: string;
+    signatureDataUrl?: string;
+    ip?: string | null;
+    userAgent?: string | null;
+  },
 ) {
   const estimate = await getEstimateByPublicToken(token);
   if (!estimate) return null;
@@ -203,16 +209,30 @@ export async function respondToPublicEstimate(
   }
 
   const status = action === "accept" ? "ACCEPTED" : "DECLINED";
+  const acceptanceMethod =
+    action === "accept"
+      ? evidence?.signatureDataUrl
+        ? "DRAWN"
+        : "TYPED"
+      : undefined;
+
   const updated = await prisma.estimate.update({
     where: { id: estimate.id },
     data: {
       status,
-      ...(action === "accept" && { acceptedAt: new Date() }),
+      ...(action === "accept" && {
+        acceptedAt: new Date(),
+        signerName: evidence?.signerName?.trim() || null,
+        signatureDataUrl: evidence?.signatureDataUrl || null,
+        acceptedIp: evidence?.ip || null,
+        acceptedUserAgent: evidence?.userAgent || null,
+        acceptanceMethod,
+      }),
     },
     include: ESTIMATE_INCLUDE,
   });
 
-  const clientName = estimate.client?.name ?? "Client";
+  const clientName = evidence?.signerName?.trim() || estimate.client?.name || "Client";
   const memberIds = await getCompanyMemberIds(estimate.companyId);
   const verb = action === "accept" ? "accepted" : "declined";
   await createNotification({
@@ -220,8 +240,31 @@ export async function respondToPublicEstimate(
     recipientMemberIds: memberIds,
     type: action === "accept" ? "ESTIMATE_ACCEPTED" : "ESTIMATE_DECLINED",
     title: `Estimate ${verb}`,
-    body: `${clientName} ${verb} estimate ${estimate.number}`,
+    body:
+      action === "accept"
+        ? `${clientName} signed and accepted estimate ${estimate.number}`
+        : `${clientName} declined estimate ${estimate.number}`,
     linkUrl: `/estimates/${estimate.id}`,
+  }).catch(() => undefined);
+
+  await recordDocumentRevision({
+    companyId: estimate.companyId,
+    documentType: "ESTIMATE",
+    documentId: estimate.id,
+    source: "STATUS",
+    summary:
+      action === "accept"
+        ? `Signed & accepted by ${clientName}`
+        : `Declined by client`,
+    metadata: {
+      action,
+      ...(action === "accept" && {
+        signerName: evidence?.signerName?.trim() || null,
+        acceptanceMethod,
+        hasSignature: Boolean(evidence?.signatureDataUrl),
+        ip: evidence?.ip || null,
+      }),
+    },
   }).catch(() => undefined);
 
   return { estimate: updated, error: null };

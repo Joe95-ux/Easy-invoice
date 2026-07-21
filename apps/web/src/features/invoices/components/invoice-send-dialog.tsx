@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   FileTextIcon,
   Loader2Icon,
@@ -65,6 +65,7 @@ export function InvoiceSendDialog({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  const messageRef = useRef<HTMLTextAreaElement>(null);
 
   const canSend = status !== "CANCELLED" && status !== "PAID";
   const attachmentName = `${invoiceNumber}.pdf`;
@@ -76,6 +77,10 @@ export function InvoiceSendDialog({
     setMessage("");
     setPreviewOpen(false);
     setPreviewError(null);
+    const frame = window.requestAnimationFrame(() => {
+      messageRef.current?.focus();
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, [open, clientEmail, invoiceNumber, companyName]);
 
   useEffect(() => {
@@ -244,20 +249,21 @@ export function InvoiceSendDialog({
                     onChange={(event) => setSubject(event.target.value)}
                     placeholder={defaultSubject(invoiceNumber, companyName)}
                     disabled={!canSend}
-                    className="h-9 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
+                    className="h-9 border-0 bg-transparent px-1 shadow-none focus-visible:ring-0"
                   />
                 </ComposeField>
 
-                <div className="relative flex min-h-0 flex-1 flex-col px-4 pt-3">
+                <div className="relative flex min-h-0 flex-1 flex-col">
                   <Textarea
+                    ref={messageRef}
                     value={message}
                     onChange={(event) => setMessage(event.target.value)}
                     placeholder="Write a short note for your client…"
                     maxLength={2000}
                     disabled={!canSend}
-                    className="min-h-[160px] flex-1 resize-none border-0 bg-transparent p-0 shadow-none focus-visible:ring-0"
+                    className="min-h-[160px] flex-1 resize-none rounded-none border-0 bg-transparent p-2 shadow-none focus-visible:ring-0 sm:p-4"
                   />
-                  <div className="flex flex-wrap items-center gap-2 py-3">
+                  <div className="flex flex-wrap items-center gap-2 px-2 py-3 sm:px-4">
                     <Button
                       type="button"
                       variant="outline"
@@ -271,7 +277,7 @@ export function InvoiceSendDialog({
                       ) : (
                         <SparklesIcon className="size-3.5" />
                       )}
-                      {drafting ? "Drafting…" : "AI draft"}
+                      {drafting ? "Drafting…" : "Draft with AI"}
                     </Button>
                     <span className="text-[11px] text-muted-foreground">
                       {message.length}/2000
@@ -288,7 +294,7 @@ export function InvoiceSendDialog({
                       previewOpen && "border-primary/40 bg-primary/5",
                     )}
                   >
-                    <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-red-500/10 text-red-600 dark:text-red-400">
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-sky-500/10 text-sky-700 dark:text-sky-400">
                       <FileTextIcon className="size-4" />
                     </span>
                     <span className="min-w-0 flex-1">

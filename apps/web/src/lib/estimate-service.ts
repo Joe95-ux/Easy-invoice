@@ -101,7 +101,11 @@ export async function convertEstimateToInvoice(estimateId: string, companyId: st
     if (estimate.status !== "ACCEPTED") {
       await tx.estimate.update({
         where: { id: estimate.id },
-        data: { status: "ACCEPTED", acceptedAt: estimate.acceptedAt ?? new Date() },
+        data: {
+          status: "ACCEPTED",
+          acceptedAt: estimate.acceptedAt ?? new Date(),
+          acceptanceMethod: estimate.acceptanceMethod ?? "STAFF_MARKED",
+        },
       });
     }
 

@@ -143,7 +143,10 @@ export async function PATCH(request: Request, context: RouteContext) {
       }),
       ...(clientId !== undefined && { clientId }),
       ...totalsUpdate,
-      ...(data.status === "ACCEPTED" && { acceptedAt: new Date() }),
+      ...(data.status === "ACCEPTED" && {
+        acceptedAt: existing.acceptedAt ?? new Date(),
+        acceptanceMethod: existing.acceptanceMethod ?? "STAFF_MARKED",
+      }),
       ...(data.status === "SENT" && !existing.sentAt && { sentAt: new Date() }),
     },
     include: {

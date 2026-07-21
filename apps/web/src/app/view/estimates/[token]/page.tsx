@@ -43,7 +43,11 @@ export default async function PublicEstimatePage({ params }: PageProps) {
       </div>
 
       <div className="rounded-xl border border-border bg-card p-4 sm:p-5">
-        <EstimateRespondActions token={token} initialStatus={estimate.status} />
+        <EstimateRespondActions
+          token={token}
+          initialStatus={estimate.status}
+          clientName={estimate.client?.name}
+        />
       </div>
 
       <div className="flex justify-center">
