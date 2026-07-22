@@ -172,6 +172,18 @@ export type QrContent =
 
 export type QrDotStyle = "squares" | "dots" | "fluid";
 
+export type QrFrameId =
+  | "none"
+  | "border"
+  | "soft"
+  | "badge"
+  | "caption"
+  | "pill"
+  | "dashed"
+  | "double"
+  | "brackets"
+  | "circle";
+
 export type QrDesign = {
   fgColor: string;
   bgColor: string;
@@ -180,6 +192,10 @@ export type QrDesign = {
   eyeRadius: number;
   /** Overlay the company logo in the center of the code. */
   logoEnabled: boolean;
+  /** Decorative outer frame around the QR. */
+  frameId: QrFrameId;
+  /** Short caption for caption/pill frames (max ~20 chars). */
+  frameLabel: string;
 };
 
 export type SerializedQrCode = {

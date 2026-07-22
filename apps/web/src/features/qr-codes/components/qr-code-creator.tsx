@@ -269,7 +269,7 @@ export function QrCodeCreator({
             design={form.design}
             logoUrl={companyLogoUrl}
             size={exportPx}
-            frame={false}
+            chrome={false}
           />
         </div>
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { CheckIcon, PenLineIcon, XIcon } from "lucide-react";
 import { toast } from "sonner";
@@ -31,6 +32,7 @@ export function EstimateRespondActions({
   initialStatus,
   clientName,
 }: EstimateRespondActionsProps) {
+  const router = useRouter();
   const [status, setStatus] = useState(initialStatus);
   const [loading, setLoading] = useState<"accept" | "decline" | null>(null);
   const [acceptOpen, setAcceptOpen] = useState(false);
@@ -83,7 +85,10 @@ export function EstimateRespondActions({
       }
       setStatus(data.estimate.status);
       setAcceptOpen(false);
-      toast.success("Estimate signed and accepted");
+      toast.success("Estimate signed and accepted", {
+        description: "A confirmation email with your signed copy is on its way if an email is on file.",
+      });
+      router.refresh();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Something went wrong");
     } finally {
@@ -103,7 +108,7 @@ export function EstimateRespondActions({
         </span>
         <p className="text-sm text-muted-foreground">
           {status === "ACCEPTED"
-            ? "You signed and accepted this estimate. The sender has been notified."
+            ? "You signed and accepted this estimate. The sender has been notified, and a confirmation was emailed to you if an address is on file."
             : status === "DECLINED"
               ? "You declined this estimate."
               : "This estimate is no longer open for a response."}

@@ -9,6 +9,10 @@ import { ensureSystemTemplates, getDefaultTemplateId, getTemplateById } from "@/
 export function estimateToHtmlData(
   estimate: NonNullable<Awaited<ReturnType<typeof getEstimateForMember>>>,
 ): InvoiceHtmlData {
+  const accepted =
+    estimate.status === "ACCEPTED" &&
+    (estimate.signerName || estimate.signatureDataUrl || estimate.acceptedAt);
+
   return {
     documentKind: "estimate",
     company: {
@@ -43,6 +47,16 @@ export function estimateToHtmlData(
       unitPrice: Number(item.unitPrice),
       amount: Number(item.amount),
     })),
+    ...(accepted
+      ? {
+          acceptance: {
+            signerName: estimate.signerName,
+            signatureDataUrl: estimate.signatureDataUrl,
+            acceptedAt: estimate.acceptedAt,
+            acceptanceMethod: estimate.acceptanceMethod,
+          },
+        }
+      : {}),
   };
 }
 

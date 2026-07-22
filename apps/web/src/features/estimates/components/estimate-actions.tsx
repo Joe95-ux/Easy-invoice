@@ -28,26 +28,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import {
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { pageHeaderActionClass } from "@/components/app-shell/page-header";
 import { DocumentShareButton } from "@/components/document-share-button";
+import { EstimateSendDialog } from "@/features/estimates/components/estimate-send-dialog";
 import { usePdfDownload } from "@/hooks/use-pdf-download";
 import { cn } from "@/lib/utils";
 import type { EstimateStatus } from "@easy-invoice/db";
@@ -58,6 +47,7 @@ type EstimateActionsProps = {
   companyName: string;
   status: EstimateStatus;
   clientEmail?: string | null;
+  clientName?: string | null;
   convertedInvoiceId?: string | null;
   convertedInvoiceNumber?: string | null;
 };
@@ -70,6 +60,7 @@ export function EstimateActions({
   companyName,
   status,
   clientEmail,
+  clientName,
   convertedInvoiceId,
   convertedInvoiceNumber,
 }: EstimateActionsProps) {
@@ -79,8 +70,6 @@ export function EstimateActions({
   const [sendOpen, setSendOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [email, setEmail] = useState(clientEmail ?? "");
-  const [message, setMessage] = useState("");
 
   const isTerminal = TERMINAL_STATUSES.includes(status);
   const canSend = !isTerminal;
@@ -96,31 +85,6 @@ export function EstimateActions({
       documentNumber: estimateNumber,
       companyName,
     });
-  }
-
-  async function handleSend() {
-    setLoading("send");
-    try {
-      const response = await fetch(`/api/estimates/${estimateId}/send`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: email || undefined,
-          message: message.trim() || undefined,
-        }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? "Failed to send");
-
-      toast.success(`Estimate sent to ${email}`);
-      setSendOpen(false);
-      setMessage("");
-      router.refresh();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to send estimate");
-    } finally {
-      setLoading(null);
-    }
   }
 
   async function handleMarkAsSent() {
@@ -284,11 +248,7 @@ export function EstimateActions({
             <Button
               variant="outline"
               className="flex-1 text-primary hover:text-primary sm:flex-none"
-              onClick={() => {
-                setEmail(clientEmail ?? "");
-                setMessage("");
-                setSendOpen(true);
-              }}
+              onClick={() => setSendOpen(true)}
               disabled={isBusy}
             >
               <SendIcon />
@@ -422,48 +382,16 @@ export function EstimateActions({
         </AlertDialogContent>
       </AlertDialog>
 
-      <Dialog open={sendOpen} onOpenChange={setSendOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Send estimate</DialogTitle>
-            <DialogDescription>
-              Email {estimateNumber} as a PDF attachment. This does not change the client&apos;s
-              email on file.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogBody className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="client-email">Recipient email</Label>
-              <Input
-                id="client-email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="client@example.com"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="estimate-send-message">Personal message (optional)</Label>
-              <Textarea
-                id="estimate-send-message"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                placeholder="Add a short note for your client…"
-                rows={3}
-                maxLength={2000}
-              />
-            </div>
-          </DialogBody>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setSendOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSend} disabled={!email || loading === "send"}>
-              {loading === "send" ? "Sending..." : "Send"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <EstimateSendDialog
+        open={sendOpen}
+        onOpenChange={setSendOpen}
+        estimateId={estimateId}
+        estimateNumber={estimateNumber}
+        status={status}
+        clientEmail={clientEmail}
+        companyName={companyName}
+        clientName={clientName}
+      />
 
       {pdfDownloadDialog}
     </>

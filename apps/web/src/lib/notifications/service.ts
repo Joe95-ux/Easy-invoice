@@ -1,9 +1,18 @@
 import "server-only";
 import { Prisma, type NotificationType } from "@easy-invoice/db";
+import { getAppOrigin } from "@/lib/app-url";
 import { prisma } from "@/lib/db";
+import { isEmailConfigured, sendTeamNotificationEmail } from "@/lib/email";
+import { resolveMemberLoginEmails } from "@/lib/member-email";
 import { getPusher, memberChannel } from "@/lib/pusher";
 import { getBeamsClient, beamsUserInterest } from "@/lib/pusher-beams";
 import { NOTIFICATION_TYPE_TO_PREF } from "@/lib/notifications/types";
+
+/** Notification types that also email team members (respecting prefs). */
+const EMAIL_NOTIFICATION_TYPES = new Set<NotificationType>([
+  "ESTIMATE_ACCEPTED",
+  "ESTIMATE_DECLINED",
+]);
 
 type CreateNotificationInput = {
   companyId: string;
@@ -26,7 +35,7 @@ export async function createNotification(input: CreateNotificationInput) {
       companyId: input.companyId,
       [prefField]: true,
     },
-    select: { id: true },
+    select: { id: true, clerkId: true, email: true },
   });
 
   if (recipients.length === 0) return;
@@ -86,7 +95,62 @@ export async function createNotification(input: CreateNotificationInput) {
     );
   }
 
+  if (EMAIL_NOTIFICATION_TYPES.has(input.type) && isEmailConfigured()) {
+    void sendNotificationEmails({
+      companyId: input.companyId,
+      recipients,
+      title: input.title,
+      body: input.body,
+      linkUrl: input.linkUrl,
+    });
+  }
+
   return notifications;
+}
+
+async function sendNotificationEmails(input: {
+  companyId: string;
+  recipients: Array<{ id: string; clerkId: string; email: string }>;
+  title: string;
+  body: string;
+  linkUrl?: string;
+}) {
+  try {
+    const [company, withEmails, origin] = await Promise.all([
+      prisma.company.findUnique({
+        where: { id: input.companyId },
+        select: { name: true },
+      }),
+      resolveMemberLoginEmails(input.recipients),
+      getAppOrigin(),
+    ]);
+    if (!company) return;
+
+    const emails = [
+      ...new Set(
+        withEmails
+          .map((m) => m.email.trim().toLowerCase())
+          .filter(Boolean),
+      ),
+    ];
+    if (emails.length === 0) return;
+
+    const absoluteLink = input.linkUrl
+      ? input.linkUrl.startsWith("http")
+        ? input.linkUrl
+        : `${origin}${input.linkUrl.startsWith("/") ? "" : "/"}${input.linkUrl}`
+      : null;
+
+    await sendTeamNotificationEmail({
+      to: emails,
+      companyName: company.name,
+      title: input.title,
+      body: input.body,
+      linkUrl: absoluteLink,
+    });
+  } catch {
+    // In-app notification already succeeded
+  }
 }
 
 export async function listNotifications(

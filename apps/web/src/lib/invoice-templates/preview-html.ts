@@ -61,6 +61,13 @@ export type PreviewInstallment = {
   isPaid?: boolean;
 };
 
+export type PreviewAcceptance = {
+  signerName?: string | null;
+  signatureDataUrl?: string | null;
+  acceptedAt?: string | null;
+  acceptanceMethod?: string | null;
+};
+
 export type BuildDocumentHtmlOptions = {
   kind: DocumentKind;
   templateSlug?: string;
@@ -83,6 +90,7 @@ export type BuildDocumentHtmlOptions = {
   installments?: PreviewInstallment[];
   amountPaid?: number;
   balanceDue?: number;
+  acceptance?: PreviewAcceptance | null;
 };
 
 export function pickTemplate(slug?: string) {
@@ -170,6 +178,16 @@ export function buildDocumentHtml(options: BuildDocumentHtmlOptions): string {
     },
     items,
     ...(installments.length > 0 ? { installments } : {}),
+    ...(options.acceptance
+      ? {
+          acceptance: {
+            signerName: options.acceptance.signerName,
+            signatureDataUrl: options.acceptance.signatureDataUrl,
+            acceptedAt: parseDate(options.acceptance.acceptedAt ?? undefined),
+            acceptanceMethod: options.acceptance.acceptanceMethod,
+          },
+        }
+      : {}),
   };
 
   return renderFromTemplate(template.html, template.css, data);

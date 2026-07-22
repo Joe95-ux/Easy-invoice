@@ -43,6 +43,41 @@ html, body {
   margin: 0;
   padding: 0;
 }
+.acceptance-block {
+  margin-top: 32px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+  max-width: 280px;
+}
+.acceptance-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #374151;
+  margin-bottom: 10px;
+}
+.acceptance-signature {
+  display: block;
+  max-width: 240px;
+  max-height: 80px;
+  margin-bottom: 8px;
+  object-fit: contain;
+}
+.acceptance-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+  border-bottom: 1px solid #111827;
+  padding-bottom: 4px;
+  display: inline-block;
+  min-width: 160px;
+}
+.acceptance-meta {
+  margin-top: 6px;
+  font-size: 11px;
+  color: #6b7280;
+}
 `.trim();
 
 const IMPORT_RULE_RE = /@import(?:\s+url\([^)]+\)|\s+"[^"]+")[^;]*;/gi;
@@ -304,6 +339,7 @@ function buildSections(data: InvoiceHtmlData) {
       ? `<div class="watermark"><img src="${escapeHtml(company.logoUrl)}" alt="" /></div>`
       : "";
 
+  const acceptance = buildAcceptanceHtml(data);
   const invoiceFooter = `<div class="invoice-footer">${labels.footerPrefix} ${escapeHtml(company.name)}</div>`;
 
   return {
@@ -322,8 +358,32 @@ function buildSections(data: InvoiceHtmlData) {
     payment_info,
     terms_notes: termsNotes,
     watermark,
-    invoice_footer: invoiceFooter,
+    invoice_footer: `${acceptance}${invoiceFooter}`,
   };
+}
+
+function buildAcceptanceHtml(data: InvoiceHtmlData): string {
+  const acceptance = data.acceptance;
+  if (!acceptance) return "";
+
+  const signer =
+    acceptance.signerName?.trim() ||
+    (acceptance.acceptanceMethod === "STAFF_MARKED" ? "Accepted by company" : null);
+  if (!signer && !acceptance.signatureDataUrl) return "";
+
+  const signedAt = acceptance.acceptedAt
+    ? `<div class="acceptance-meta">Signed ${formatDate(acceptance.acceptedAt)}</div>`
+    : "";
+  const signature = acceptance.signatureDataUrl
+    ? `<img class="acceptance-signature" src="${escapeHtml(acceptance.signatureDataUrl)}" alt="Signature of ${escapeHtml(signer ?? "signer")}" />`
+    : "";
+
+  return `<div class="acceptance-block">
+    <div class="acceptance-label">Authorized signature</div>
+    ${signature}
+    <div class="acceptance-name">${escapeHtml(signer ?? "—")}</div>
+    ${signedAt}
+  </div>`;
 }
 
 export function renderFromTemplate(

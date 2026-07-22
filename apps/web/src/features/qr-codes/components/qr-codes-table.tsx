@@ -420,7 +420,7 @@ export function QrCodesTable({ qrCodes, origin, companyLogoUrl }: QrCodesTablePr
                         design={qr.design}
                         logoUrl={companyLogoUrl}
                         size={40}
-                        frame={false}
+                        chrome={false}
                         className="shrink-0 ring-1 ring-border/60"
                       />
                       <span className="flex min-w-0 items-center gap-1.5">

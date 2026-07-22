@@ -34,7 +34,7 @@ export function AppHeader({ memberId, title, description }: AppHeaderProps) {
         </div>
         <div className="flex items-center gap-1 sm:gap-2">
           <TimerHeaderChip className="hidden lg:inline-flex" />
-          <NotificationBell memberId={memberId} />
+          <NotificationBell key={memberId} memberId={memberId} />
           <Button variant="ghost" size="sm" render={<Link href="/#pricing" />}>
             Pricing
           </Button>

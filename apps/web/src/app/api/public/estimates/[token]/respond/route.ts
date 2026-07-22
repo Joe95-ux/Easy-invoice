@@ -35,7 +35,11 @@ function clientIp(request: Request): string | null {
     if (first) return first.slice(0, 100);
   }
   const realIp = request.headers.get("x-real-ip")?.trim();
-  return realIp ? realIp.slice(0, 100) : null;
+  if (realIp) return realIp.slice(0, 100);
+  // Next.js / local proxies sometimes expose the peer via these headers.
+  const vercel = request.headers.get("x-vercel-forwarded-for")?.split(",")[0]?.trim();
+  if (vercel) return vercel.slice(0, 100);
+  return null;
 }
 
 export async function POST(request: Request, context: RouteContext) {

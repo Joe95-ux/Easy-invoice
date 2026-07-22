@@ -61,4 +61,11 @@ export type InvoiceHtmlData = {
     reference?: string | null;
     receiptNumber?: string | null;
   }>;
+  /** Present on accepted estimates with e-sign evidence. */
+  acceptance?: {
+    signerName?: string | null;
+    signatureDataUrl?: string | null;
+    acceptedAt?: Date | null;
+    acceptanceMethod?: string | null;
+  } | null;
 };

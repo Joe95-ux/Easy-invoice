@@ -4,7 +4,7 @@ import type {
   OpeningHours,
 } from "@/lib/qr-codes/business";
 import { BUSINESS_FACILITIES } from "@/lib/qr-codes/business";
-import { DEFAULT_QR_DESIGN } from "@/lib/qr-codes/design";
+import { DEFAULT_QR_DESIGN, normalizeQrDesign } from "@/lib/qr-codes/design";
 import type {
   MenuItem,
   QrCodeType,
@@ -303,7 +303,7 @@ export function formFromSerialized(qr: SerializedQrCode): QrFormState {
     couponDescription: str(content.description),
     couponTerms: str(content.terms),
     couponExpiresAt: toDateInput(content.expiresAt),
-    design: qr.design,
+    design: normalizeQrDesign(qr.design),
     passwordEnabled: qr.passwordProtected,
     password: "",
   };

@@ -84,6 +84,7 @@ type SendEstimateEmailInput = {
   pdfBuffer: Buffer;
   viewUrl?: string;
   message?: string;
+  subject?: string;
 };
 
 export async function sendEstimateEmail(input: SendEstimateEmailInput) {
@@ -94,11 +95,14 @@ export async function sendEstimateEmail(input: SendEstimateEmailInput) {
     ? `<p><a href="${input.viewUrl}">View estimate online</a></p>`
     : "";
   const personalMessage = formatPersonalMessage(input.message);
+  const subject =
+    input.subject?.trim() ||
+    `Estimate ${input.estimateNumber} from ${input.companyName}`;
 
   const { data, error } = await resend.emails.send({
     from,
     to: input.to,
-    subject: `Estimate ${input.estimateNumber} from ${input.companyName}`,
+    subject,
     html: `
       <p>Hello,</p>
       ${personalMessage}
@@ -113,6 +117,52 @@ export async function sendEstimateEmail(input: SendEstimateEmailInput) {
         content: input.pdfBuffer,
       },
     ],
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
+type SendEstimateAcceptedEmailInput = {
+  to: string;
+  companyName: string;
+  estimateNumber: string;
+  signerName: string;
+  viewUrl?: string;
+  pdfBuffer?: Buffer;
+};
+
+export async function sendEstimateAcceptedEmail(input: SendEstimateAcceptedEmailInput) {
+  const from = process.env.RESEND_FROM_EMAIL ?? "Easy Invoice <onboarding@resend.dev>";
+  const resend = getResend();
+
+  const viewLink = input.viewUrl
+    ? `<p><a href="${input.viewUrl}">View signed estimate online</a></p>`
+    : "";
+  const attachments = input.pdfBuffer
+    ? [
+        {
+          filename: `${input.estimateNumber}-signed.pdf`,
+          content: input.pdfBuffer,
+        },
+      ]
+    : undefined;
+
+  const { data, error } = await resend.emails.send({
+    from,
+    to: input.to,
+    subject: `You signed estimate ${input.estimateNumber} from ${input.companyName}`,
+    html: `
+      <p>Hello${input.signerName ? ` ${escapeHtml(input.signerName)}` : ""},</p>
+      <p>This confirms that you signed and accepted estimate <strong>${escapeHtml(input.estimateNumber)}</strong> from <strong>${escapeHtml(input.companyName)}</strong>.</p>
+      ${input.pdfBuffer ? "<p>A copy of the signed estimate is attached for your records.</p>" : ""}
+      ${viewLink}
+      <p>If you did not intend to accept this estimate, please contact ${escapeHtml(input.companyName)} directly.</p>
+    `,
+    ...(attachments ? { attachments } : {}),
   });
 
   if (error) {
@@ -321,6 +371,42 @@ export async function sendAuditAlertEmail(input: SendAuditAlertEmailInput) {
       <p><strong>By:</strong> ${input.actorLabel}</p>
       <p><strong>When:</strong> ${occurredAt}</p>
       <p><a href="${input.activityUrl}">View activity log</a></p>
+    `,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
+type SendTeamNotificationEmailInput = {
+  to: string[];
+  companyName: string;
+  title: string;
+  body: string;
+  linkUrl?: string | null;
+};
+
+export async function sendTeamNotificationEmail(input: SendTeamNotificationEmailInput) {
+  if (input.to.length === 0) return null;
+
+  const from = process.env.RESEND_FROM_EMAIL ?? "Easy Invoice <onboarding@resend.dev>";
+  const resend = getResend();
+
+  const link = input.linkUrl
+    ? `<p><a href="${escapeHtml(input.linkUrl)}">Open in Invoice Desk</a></p>`
+    : "";
+
+  const { data, error } = await resend.emails.send({
+    from,
+    to: input.to,
+    subject: `[${input.companyName}] ${input.title}`,
+    html: `
+      <p><strong>${escapeHtml(input.title)}</strong></p>
+      <p>${escapeHtml(input.body)}</p>
+      ${link}
     `,
   });
 

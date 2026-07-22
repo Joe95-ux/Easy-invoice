@@ -2,6 +2,7 @@ import type { EstimateStatus, InvoiceStatus } from "@easy-invoice/db";
 import { prisma } from "@/lib/db";
 import { generatePublicToken } from "@/lib/document-tokens";
 import { recordDocumentRevision } from "@/lib/document-revisions/service";
+import { isEmailConfigured, sendEstimateAcceptedEmail } from "@/lib/email";
 import { createNotification } from "@/lib/notifications/service";
 
 const INVOICE_INCLUDE = {
@@ -267,7 +268,48 @@ export async function respondToPublicEstimate(
     },
   }).catch(() => undefined);
 
+  if (action === "accept" && estimate.client?.email && isEmailConfigured()) {
+    void sendClientAcceptanceConfirmation({
+      estimateId: estimate.id,
+      companyId: estimate.companyId,
+      companyName: estimate.company.name,
+      estimateNumber: estimate.number,
+      to: estimate.client.email,
+      signerName: clientName,
+      publicToken: estimate.publicToken,
+    });
+  }
+
   return { estimate: updated, error: null };
+}
+
+async function sendClientAcceptanceConfirmation(input: {
+  estimateId: string;
+  companyId: string;
+  companyName: string;
+  estimateNumber: string;
+  to: string;
+  signerName: string;
+  publicToken: string | null;
+}) {
+  try {
+    const { getAppOrigin } = await import("@/lib/app-url");
+    const { publicDocumentUrl } = await import("@/lib/document-tokens");
+    const { generateEstimatePdfBuffer } = await import("@/lib/estimate-service");
+    const pdf = await generateEstimatePdfBuffer(input.estimateId, input.companyId);
+    const origin = await getAppOrigin();
+    const token = input.publicToken ?? (await ensureEstimatePublicToken(input.estimateId, input.companyId));
+    await sendEstimateAcceptedEmail({
+      to: input.to,
+      companyName: input.companyName,
+      estimateNumber: input.estimateNumber,
+      signerName: input.signerName,
+      viewUrl: token ? publicDocumentUrl(origin, "estimate", token) : undefined,
+      pdfBuffer: pdf?.pdfBuffer,
+    });
+  } catch {
+    // Non-blocking — staff notification already succeeded
+  }
 }
 
 async function getCompanyMemberIds(companyId: string): Promise<string[]> {

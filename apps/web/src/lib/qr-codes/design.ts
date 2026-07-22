@@ -1,4 +1,9 @@
 import type { QrDesign, QrDotStyle } from "@/lib/qr-codes/types";
+import {
+  DEFAULT_FRAME_LABEL,
+  isQrFrameId,
+  normalizeFrameLabel,
+} from "@/lib/qr-codes/frames";
 
 export const DEFAULT_QR_DESIGN: QrDesign = {
   fgColor: "#1e3a5f",
@@ -6,6 +11,8 @@ export const DEFAULT_QR_DESIGN: QrDesign = {
   dotStyle: "squares",
   eyeRadius: 0,
   logoEnabled: false,
+  frameId: "none",
+  frameLabel: DEFAULT_FRAME_LABEL,
 };
 
 export const QR_DOT_STYLES: { value: QrDotStyle; label: string }[] = [
@@ -140,5 +147,7 @@ export function normalizeQrDesign(raw: unknown): QrDesign {
       ? Math.min(50, Math.max(0, Math.round(eyeRadiusRaw)))
       : DEFAULT_QR_DESIGN.eyeRadius,
     logoEnabled: source.logoEnabled === true,
+    frameId: isQrFrameId(source.frameId) ? source.frameId : DEFAULT_QR_DESIGN.frameId,
+    frameLabel: normalizeFrameLabel(source.frameLabel ?? DEFAULT_FRAME_LABEL),
   };
 }

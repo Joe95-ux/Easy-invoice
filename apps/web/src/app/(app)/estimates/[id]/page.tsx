@@ -35,6 +35,14 @@ import { getTemplatesForCompany } from "@/lib/templates";
 
 type PageProps = { params: Promise<{ id: string }> };
 
+function formatAuditIp(ip: string): string {
+  const trimmed = ip.trim();
+  if (trimmed === "::1" || trimmed === "127.0.0.1" || trimmed === "::ffff:127.0.0.1") {
+    return `Localhost (${trimmed})`;
+  }
+  return trimmed;
+}
+
 export default async function EstimateDetailPage({ params }: PageProps) {
   const member = await requireMember();
 
@@ -79,6 +87,7 @@ export default async function EstimateDetailPage({ params }: PageProps) {
             companyName={estimate.company.name}
             status={estimate.status}
             clientEmail={estimate.client?.email}
+            clientName={estimate.client?.name}
             convertedInvoiceId={estimate.convertedInvoice?.id}
             convertedInvoiceNumber={estimate.convertedInvoice?.number}
           />
@@ -128,6 +137,17 @@ export default async function EstimateDetailPage({ params }: PageProps) {
               },
               taxRate: Number(estimate.taxRate) * 100,
               discount: Number(estimate.discount),
+              ...(estimate.status === "ACCEPTED" &&
+              (estimate.signerName || estimate.signatureDataUrl || estimate.acceptedAt)
+                ? {
+                    acceptance: {
+                      signerName: estimate.signerName,
+                      signatureDataUrl: estimate.signatureDataUrl,
+                      acceptedAt: estimate.acceptedAt?.toISOString() ?? null,
+                      acceptanceMethod: estimate.acceptanceMethod,
+                    },
+                  }
+                : {}),
             }}
           />
         </CardContent>
@@ -207,8 +227,10 @@ export default async function EstimateDetailPage({ params }: PageProps) {
               </div>
               {estimate.acceptedIp && (
                 <div>
-                  <p className="text-xs text-muted-foreground">IP address</p>
-                  <p className="font-medium tabular-nums">{estimate.acceptedIp}</p>
+                  <p className="text-xs text-muted-foreground">IP (audit trail)</p>
+                  <p className="font-medium tabular-nums">
+                    {formatAuditIp(estimate.acceptedIp)}
+                  </p>
                 </div>
               )}
             </div>

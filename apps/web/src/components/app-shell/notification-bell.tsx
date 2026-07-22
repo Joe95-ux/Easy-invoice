@@ -46,9 +46,12 @@ export function NotificationBell({ memberId }: NotificationBellProps) {
     setNotifications(data.notifications);
     setTotalCount(data.totalCount);
     setUnreadCount(data.unreadCount);
-  }, []);
+  }, [memberId]);
 
   useEffect(() => {
+    setNotifications([]);
+    setTotalCount(0);
+    setUnreadCount(0);
     void fetchNotifications();
   }, [fetchNotifications]);
 

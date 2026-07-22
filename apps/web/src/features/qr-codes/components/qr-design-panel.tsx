@@ -1,13 +1,27 @@
 "use client";
 
-import { ArrowLeftRightIcon } from "lucide-react";
+import { useState } from "react";
+import { ArrowLeftRightIcon, ChevronDownIcon } from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { QrColorField } from "@/features/qr-codes/components/qr-color-field";
+import { QrFrameCarousel } from "@/features/qr-codes/components/qr-frame-carousel";
 import {
   QR_COLOR_PRESETS,
   QR_DOT_STYLES,
   QR_EYE_STYLES,
 } from "@/lib/qr-codes/design";
+import {
+  FRAME_LABEL_MAX,
+  frameUsesLabel,
+  getQrFrame,
+} from "@/lib/qr-codes/frames";
 import type { QrDesign } from "@/lib/qr-codes/types";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +36,8 @@ export function QrDesignPanel({ design, onChange, companyLogoUrl }: QrDesignPane
     onChange({ ...design, [key]: value });
 
   const hasLogo = Boolean(companyLogoUrl);
+  const frameMeta = getQrFrame(design.frameId);
+  const [framesOpen, setFramesOpen] = useState(design.frameId !== "none");
 
   return (
     <div className="space-y-6">
@@ -116,6 +132,53 @@ export function QrDesignPanel({ design, onChange, companyLogoUrl }: QrDesignPane
           ))}
         </div>
       </section>
+
+      <Collapsible
+        open={framesOpen}
+        onOpenChange={setFramesOpen}
+        className="rounded-xl border border-border"
+      >
+        <CollapsibleTrigger className="flex w-full cursor-pointer items-center gap-3 px-3.5 py-3 text-left transition-colors hover:bg-muted/40">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-foreground">Frame</p>
+            <p className="truncate text-xs text-muted-foreground">
+              {frameMeta.name}
+              {frameMeta.id !== "none" ? ` · ${frameMeta.description}` : " · Optional border styles"}
+            </p>
+          </div>
+          <ChevronDownIcon
+            className={cn(
+              "size-4 shrink-0 text-muted-foreground transition-transform",
+              framesOpen && "rotate-180",
+            )}
+          />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="border-t border-border px-3 pb-3 pt-2">
+          <QrFrameCarousel
+            design={design}
+            value={design.frameId}
+            onChange={(frameId) => {
+              onChange({ ...design, frameId });
+              if (frameId !== "none") setFramesOpen(true);
+            }}
+          />
+          {frameUsesLabel(design.frameId) && (
+            <div className="mt-3 space-y-1.5">
+              <Label htmlFor="qr-frame-label">Caption text</Label>
+              <Input
+                id="qr-frame-label"
+                value={design.frameLabel}
+                maxLength={FRAME_LABEL_MAX}
+                onChange={(event) => set("frameLabel", event.target.value.slice(0, FRAME_LABEL_MAX))}
+                placeholder="Scan me"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                {design.frameLabel.length}/{FRAME_LABEL_MAX}
+              </p>
+            </div>
+          )}
+        </CollapsibleContent>
+      </Collapsible>
 
       <section className="flex items-start justify-between gap-4 rounded-lg border border-border/70 px-3.5 py-3">
         <div className="space-y-0.5">

@@ -91,6 +91,7 @@ export function DocumentPreviewDrawer(props: DocumentPreviewDrawerProps) {
       JSON.stringify(buildOptions.items),
       JSON.stringify(buildOptions.company),
       JSON.stringify(buildOptions.installments),
+      JSON.stringify(buildOptions.acceptance),
     ],
   );
 

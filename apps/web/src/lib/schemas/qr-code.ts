@@ -30,6 +30,21 @@ export const qrDesignSchema = z.object({
   dotStyle: z.enum(["squares", "dots", "fluid"]),
   eyeRadius: z.number().min(0).max(50),
   logoEnabled: z.boolean(),
+  frameId: z
+    .enum([
+      "none",
+      "border",
+      "soft",
+      "badge",
+      "caption",
+      "pill",
+      "dashed",
+      "double",
+      "brackets",
+      "circle",
+    ])
+    .default("none"),
+  frameLabel: z.string().trim().max(20).default("Scan me"),
 });
 
 const linkContent = z.object({
