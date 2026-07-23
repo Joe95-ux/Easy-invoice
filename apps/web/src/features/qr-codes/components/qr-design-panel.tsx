@@ -1,7 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { ArrowLeftRightIcon, ChevronDownIcon } from "lucide-react";
+import { useRef, useState } from "react";
+import {
+  ArrowLeftRightIcon,
+  ChevronDownIcon,
+  ImageIcon,
+  Loader2Icon,
+  XIcon,
+} from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import {
   Collapsible,
   CollapsibleContent,
@@ -16,6 +24,7 @@ import {
   QR_COLOR_PRESETS,
   QR_DOT_STYLES,
   QR_EYE_STYLES,
+  resolveQrCenterLogoUrl,
 } from "@/lib/qr-codes/design";
 import {
   FRAME_LABEL_MAX,
@@ -35,9 +44,40 @@ export function QrDesignPanel({ design, onChange, companyLogoUrl }: QrDesignPane
   const set = <K extends keyof QrDesign>(key: K, value: QrDesign[K]) =>
     onChange({ ...design, [key]: value });
 
-  const hasLogo = Boolean(companyLogoUrl);
   const frameMeta = getQrFrame(design.frameId);
   const [framesOpen, setFramesOpen] = useState(design.frameId !== "none");
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const companyLogo = companyLogoUrl?.trim() || null;
+  const customLogo = design.logoUrl?.trim() || null;
+  const activeLogo = resolveQrCenterLogoUrl(design, companyLogoUrl);
+  const usingCustom = Boolean(customLogo);
+
+  async function handleLogoUpload(file: File) {
+    setUploading(true);
+    const toastId = toast.loading("Uploading logo…");
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const response = await fetch("/api/qr-codes/upload-image", {
+        method: "POST",
+        body,
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Upload failed");
+      const imageUrl = typeof data.imageUrl === "string" ? data.imageUrl : "";
+      if (!imageUrl) throw new Error("Upload failed");
+      onChange({ ...design, logoEnabled: true, logoUrl: imageUrl });
+      toast.success("Logo uploaded", { id: toastId });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not upload logo", {
+        id: toastId,
+      });
+    } finally {
+      setUploading(false);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -161,6 +201,7 @@ export function QrDesignPanel({ design, onChange, companyLogoUrl }: QrDesignPane
               onChange({ ...design, frameId });
               if (frameId !== "none") setFramesOpen(true);
             }}
+            logoUrl={activeLogo}
           />
           {frameUsesLabel(design.frameId) && (
             <div className="mt-3 space-y-1.5">
@@ -180,20 +221,129 @@ export function QrDesignPanel({ design, onChange, companyLogoUrl }: QrDesignPane
         </CollapsibleContent>
       </Collapsible>
 
-      <section className="flex items-start justify-between gap-4 rounded-lg border border-border/70 px-3.5 py-3">
-        <div className="space-y-0.5">
-          <p className="text-sm font-medium text-foreground">Center logo</p>
-          <p className="text-xs text-muted-foreground">
-            {hasLogo
-              ? "Place your company logo in the middle of the code."
-              : "Add a company logo in Settings to use this."}
-          </p>
+      <section className="space-y-3 rounded-lg border border-border/70 px-3.5 py-3">
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-0.5">
+            <p className="text-sm font-medium text-foreground">Center logo</p>
+            <p className="text-xs text-muted-foreground">
+              Use your company logo or upload a different one for this QR.
+            </p>
+          </div>
+          <Switch
+            checked={design.logoEnabled}
+            onCheckedChange={(checked) => {
+              if (checked && !companyLogo && !customLogo) {
+                onChange({ ...design, logoEnabled: true });
+                fileInputRef.current?.click();
+                return;
+              }
+              set("logoEnabled", checked);
+            }}
+          />
         </div>
-        <Switch
-          checked={hasLogo && design.logoEnabled}
-          disabled={!hasLogo}
-          onCheckedChange={(checked) => set("logoEnabled", checked)}
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif"
+          className="hidden"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file) void handleLogoUpload(file);
+            event.target.value = "";
+          }}
         />
+
+        {design.logoEnabled && (
+          <div className="space-y-3 border-t border-border/70 pt-3">
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={!companyLogo}
+                onClick={() =>
+                  onChange({ ...design, logoEnabled: true, logoUrl: null })
+                }
+                className={cn(
+                  "cursor-pointer rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors",
+                  !usingCustom && companyLogo
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border/70 text-muted-foreground hover:border-primary/40 hover:text-foreground",
+                  !companyLogo && "cursor-not-allowed opacity-50",
+                )}
+              >
+                Company logo
+              </button>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className={cn(
+                  "cursor-pointer rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors",
+                  usingCustom
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border/70 text-muted-foreground hover:border-primary/40 hover:text-foreground",
+                )}
+              >
+                {uploading ? "Uploading…" : usingCustom ? "Replace upload" : "Upload logo"}
+              </button>
+            </div>
+
+            {activeLogo ? (
+              <div className="flex items-center gap-3 rounded-lg border border-border/70 bg-muted/20 p-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={activeLogo}
+                  alt="QR center logo"
+                  className="size-12 rounded-md bg-white object-contain p-1 ring-1 ring-border/60"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-medium text-foreground">
+                    {usingCustom ? "Custom logo" : "Company logo"}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Shown in the center of the code
+                  </p>
+                </div>
+                {usingCustom && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Remove custom logo"
+                    className="cursor-pointer"
+                    onClick={() =>
+                      onChange({
+                        ...design,
+                        logoUrl: null,
+                        logoEnabled: Boolean(companyLogo),
+                      })
+                    }
+                  >
+                    <XIcon className="size-4" />
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="flex w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-muted/20 px-4 py-6 text-center transition-colors hover:border-primary/50 hover:bg-muted/40 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {uploading ? (
+                  <Loader2Icon className="size-5 animate-spin text-muted-foreground" />
+                ) : (
+                  <ImageIcon className="size-5 text-muted-foreground" />
+                )}
+                <span className="text-xs text-muted-foreground">
+                  {companyLogo
+                    ? "Select company logo above, or upload a custom image"
+                    : "Upload a PNG, JPEG, WebP, or GIF (max 2 MB)"}
+                </span>
+              </button>
+            )}
+          </div>
+        )}
       </section>
     </div>
   );

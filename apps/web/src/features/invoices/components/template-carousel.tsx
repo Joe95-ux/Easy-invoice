@@ -219,21 +219,11 @@ export function TemplateCarousel({
   }, [templates, kind, currency, JSON.stringify(company)]);
 
   const isMobile = useIsMobile();
-  const orderedTemplates = useMemo(() => {
-    if (!value) return templates;
-    const selectedIndex = templates.findIndex((template) => template.id === value);
-    if (selectedIndex <= 0) return templates;
-    const selected = templates[selectedIndex]!;
-    return [selected, ...templates.slice(0, selectedIndex), ...templates.slice(selectedIndex + 1)];
-  }, [templates, value]);
-  const selectedName = orderedTemplates.find((template) => template.id === value)?.name;
-  const enableLoop = orderedTemplates.length > 3;
+  const selectedName = templates.find((template) => template.id === value)?.name;
+  const enableLoop = templates.length > 3;
 
   return (
-    <Carousel
-      key={value || "templates"}
-      opts={{ loop: enableLoop, align: "start", containScroll: "trimSnaps" }}
-    >
+    <Carousel opts={{ loop: enableLoop, align: "start", containScroll: "trimSnaps" }}>
       <div className="mb-3 flex items-end justify-between gap-3">
         <div>
           <span className="text-sm font-medium text-foreground">{label}</span>
@@ -247,7 +237,7 @@ export function TemplateCarousel({
         </div>
       </div>
       <CarouselContent className="-ml-3">
-        {orderedTemplates.map((template) => (
+        {templates.map((template) => (
           <CarouselItem
             key={template.id}
             className={cn(

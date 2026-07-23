@@ -54,6 +54,7 @@ import {
   isContentComplete,
   type QrFormState,
 } from "@/features/qr-codes/components/qr-form";
+import { resolveQrCenterLogoUrl } from "@/lib/qr-codes/design";
 import { exportQrCanvas, type QrExportFormat } from "@/lib/qr-codes/export";
 import { QR_ACCESS_PASSWORD_MIN_LENGTH } from "@/lib/qr-codes/password";
 import { qrScanUrl } from "@/lib/qr-codes/url";
@@ -134,6 +135,7 @@ export function QrCodeCreator({
   const previewToken = created?.token ?? initial?.token ?? "preview";
   const previewValue = qrScanUrl(origin, previewToken);
   const isLiveCode = Boolean(created?.token ?? initial?.token);
+  const centerLogoUrl = resolveQrCenterLogoUrl(form.design, companyLogoUrl);
   const qrPreviewEnabled =
     form.name.trim().length > 0 && isContentComplete(form);
 
@@ -267,7 +269,7 @@ export function QrCodeCreator({
             ref={previewRef}
             value={previewValue}
             design={form.design}
-            logoUrl={companyLogoUrl}
+            logoUrl={centerLogoUrl}
             size={exportPx}
             chrome={false}
           />
@@ -278,7 +280,7 @@ export function QrCodeCreator({
             <QrCodePreview
               value={previewValue}
               design={form.design}
-              logoUrl={companyLogoUrl}
+              logoUrl={centerLogoUrl}
               size={208}
               className="shadow-md"
             />
@@ -417,8 +419,9 @@ export function QrCodeCreator({
             ref={previewRef}
             value={previewValue}
             design={form.design}
-            logoUrl={companyLogoUrl}
+            logoUrl={centerLogoUrl}
             size={170}
+            chrome={false}
           />
         }
       />

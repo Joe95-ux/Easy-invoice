@@ -30,6 +30,17 @@ export const qrDesignSchema = z.object({
   dotStyle: z.enum(["squares", "dots", "fluid"]),
   eyeRadius: z.number().min(0).max(50),
   logoEnabled: z.boolean(),
+  logoUrl: z
+    .string()
+    .trim()
+    .max(2000)
+    .nullable()
+    .optional()
+    .transform((value) => {
+      if (!value) return null;
+      if (/^(https?:|data:)/i.test(value) || value.startsWith("/")) return value;
+      return null;
+    }),
   frameId: z
     .enum([
       "none",
@@ -41,7 +52,11 @@ export const qrDesignSchema = z.object({
       "dashed",
       "double",
       "brackets",
-      "circle",
+      "banner-bottom",
+      "banner-top",
+      "balloon-bottom",
+      "balloon-top",
+      "ribbon-bottom",
     ])
     .default("none"),
   frameLabel: z.string().trim().max(20).default("Scan me"),

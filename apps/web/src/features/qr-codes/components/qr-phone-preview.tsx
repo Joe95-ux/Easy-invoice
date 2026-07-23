@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { useTheme } from "next-themes";
 import {
@@ -205,14 +205,84 @@ export function QrPhonePreview({
         </div>
         <div
           className={cn(
-            "flex h-full min-h-full flex-col items-center justify-center gap-4 p-6",
+            "flex h-full min-h-full flex-col items-center justify-center gap-4 px-5 pb-8 pt-6",
             tab !== "qr" && "hidden",
           )}
           style={wallpaperStyle(isDark)}
         >
-          {qrElement}
+          <QrFitBox
+            key={`${form.design.frameId}-${form.design.frameLabel}-${form.design.logoEnabled}`}
+            className="max-h-[340px] w-full max-w-[180px]"
+          >
+            {qrElement}
+          </QrFitBox>
         </div>
       </PhoneFrame>
+    </div>
+  );
+}
+
+/** Scales oversized framed QR previews to fit the phone mockup padding. */
+function QrFitBox({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  const outerRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
+  const [metrics, setMetrics] = useState({ width: 0, height: 0, scale: 1 });
+
+  useLayoutEffect(() => {
+    const outer = outerRef.current;
+    const inner = innerRef.current;
+    if (!outer || !inner) return;
+
+    const update = () => {
+      const maxW = outer.clientWidth;
+      const maxH = outer.clientHeight;
+      const width = inner.offsetWidth;
+      const height = inner.offsetHeight;
+      if (width < 1 || height < 1 || maxW < 1 || maxH < 1) return;
+      const scale = Math.min(1, maxW / width, maxH / height);
+      setMetrics({ width, height, scale });
+    };
+
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(outer);
+    observer.observe(inner);
+    return () => observer.disconnect();
+  }, [children]);
+
+  return (
+    <div
+      ref={outerRef}
+      className={cn("flex items-center justify-center overflow-hidden", className)}
+    >
+      <div
+        className="relative shrink-0"
+        style={{
+          width: metrics.width > 0 ? metrics.width * metrics.scale : undefined,
+          height: metrics.height > 0 ? metrics.height * metrics.scale : undefined,
+        }}
+      >
+        <div
+          ref={innerRef}
+          className="inline-flex"
+          style={
+            metrics.scale < 1
+              ? {
+                  transform: `scale(${metrics.scale})`,
+                  transformOrigin: "top left",
+                }
+              : undefined
+          }
+        >
+          {children}
+        </div>
+      </div>
     </div>
   );
 }

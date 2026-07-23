@@ -2,7 +2,7 @@
 
 import type { CSSProperties, ReactNode } from "react";
 import {
-  frameUsesLabel,
+  frameLabelPlacement,
   getFrameLayout,
   normalizeFrameLabel,
 } from "@/lib/qr-codes/frames";
@@ -11,9 +11,7 @@ import { cn } from "@/lib/utils";
 
 type QrFrameShellProps = {
   design: QrDesign;
-  /** QR module size in px (QRCode `size` prop). */
   qrSize: number;
-  /** Quiet zone in px on each side (QRCode `quietZone`). */
   quietZone: number;
   children: ReactNode;
   className?: string;
@@ -37,6 +35,7 @@ export function QrFrameShell({
   const bg = design.bgColor;
   const label = normalizeFrameLabel(design.frameLabel);
   const id = design.frameId;
+  const placement = frameLabelPlacement(id);
 
   if (id === "none") {
     return (
@@ -46,6 +45,18 @@ export function QrFrameShell({
     );
   }
 
+  const topCaption = placement === "top" ? layout.captionHeight : 0;
+  const bottomCaption = placement === "bottom" ? layout.captionHeight : 0;
+  // balloon layouts include extra in height beyond captionHeight
+  const extraBottom =
+    id === "balloon-bottom"
+      ? Math.max(0, layout.height - (canvasSize + layout.pad * 2 + layout.captionHeight))
+      : 0;
+  const extraTop =
+    id === "balloon-top"
+      ? Math.max(0, layout.height - (canvasSize + layout.pad * 2 + layout.captionHeight))
+      : 0;
+
   const shellStyle: CSSProperties = {
     backgroundColor: bg,
     color: fg,
@@ -54,19 +65,24 @@ export function QrFrameShell({
     display: "inline-flex",
     flexDirection: "column",
     alignItems: "center",
-    paddingTop: layout.pad,
+    paddingTop: layout.pad + topCaption + extraTop,
     paddingLeft: layout.pad,
     paddingRight: layout.pad,
-    paddingBottom: layout.pad + (frameUsesLabel(id) ? layout.captionHeight : 0),
-    borderRadius: id === "circle" ? "50%" : layout.radius,
+    paddingBottom: layout.pad + bottomCaption + extraBottom,
+    borderRadius: layout.radius,
     overflow: "hidden",
-    ...(id === "circle"
-      ? { width: layout.width, height: layout.height, justifyContent: "center" }
-      : {}),
   };
 
   const borderStyle: CSSProperties =
-    id === "border" || id === "soft" || id === "caption" || id === "pill"
+    id === "border" ||
+    id === "soft" ||
+    id === "caption" ||
+    id === "pill" ||
+    id === "banner-bottom" ||
+    id === "banner-top" ||
+    id === "ribbon-bottom" ||
+    id === "balloon-bottom" ||
+    id === "balloon-top"
       ? {
           boxShadow:
             id === "soft"
@@ -84,12 +100,31 @@ export function QrFrameShell({
             ? {
                 boxShadow: `inset 0 0 0 ${stroke}px ${fg}, inset 0 0 0 ${stroke * 4.2}px ${bg}, inset 0 0 0 ${stroke * 5.2}px ${fg}`,
               }
-            : id === "circle"
-              ? { boxShadow: `inset 0 0 0 ${stroke * 1.6}px ${fg}` }
-              : {};
+            : {};
 
   return (
     <div className={cn("inline-flex", className)} style={{ ...shellStyle, ...borderStyle }}>
+      {id === "banner-top" && (
+        <BannerLabel
+          label={label}
+          fg={fg}
+          bg={bg}
+          height={layout.captionHeight}
+          notch="down"
+          style={{ top: 0, left: 0, right: 0 }}
+        />
+      )}
+      {id === "balloon-top" && (
+        <BalloonLabel
+          label={label}
+          fg={fg}
+          bg={bg}
+          height={layout.captionHeight}
+          placement="top"
+          style={{ top: layout.pad * 0.2, left: "8%", right: "8%" }}
+        />
+      )}
+
       <div className="relative shrink-0 leading-none [&>canvas]:block [&_canvas]:block">
         {children}
         {id === "brackets" && (
@@ -98,43 +133,242 @@ export function QrFrameShell({
       </div>
 
       {id === "caption" && (
+        <BarLabel
+          label={label}
+          fg={fg}
+          bg={bg}
+          height={layout.captionHeight + layout.pad * 0.35}
+          style={{ bottom: 0, left: 0, right: 0 }}
+        />
+      )}
+      {id === "pill" && (
+        <PillLabel
+          label={label}
+          fg={fg}
+          bg={bg}
+          height={layout.captionHeight}
+          style={{ bottom: layout.pad * 0.35, left: 0, right: 0 }}
+        />
+      )}
+      {id === "banner-bottom" && (
+        <BannerLabel
+          label={label}
+          fg={fg}
+          bg={bg}
+          height={layout.captionHeight}
+          notch="up"
+          style={{ bottom: 0, left: 0, right: 0 }}
+        />
+      )}
+      {id === "balloon-bottom" && (
+        <BalloonLabel
+          label={label}
+          fg={fg}
+          bg={bg}
+          height={layout.captionHeight}
+          placement="bottom"
+          style={{ bottom: layout.pad * 0.15, left: "8%", right: "8%" }}
+        />
+      )}
+      {id === "ribbon-bottom" && (
+        <RibbonLabel
+          label={label}
+          fg={fg}
+          bg={bg}
+          height={layout.captionHeight * 0.78}
+          style={{ bottom: layout.pad * 0.35, left: "6%", right: "6%" }}
+        />
+      )}
+    </div>
+  );
+}
+
+function BarLabel({
+  label,
+  fg,
+  bg,
+  height,
+  style,
+}: {
+  label: string;
+  fg: string;
+  bg: string;
+  height: number;
+  style: CSSProperties;
+}) {
+  return (
+    <div
+      className="absolute flex items-center justify-center px-2"
+      style={{
+        ...style,
+        height,
+        backgroundColor: fg,
+        color: bg,
+        fontSize: Math.max(10, height * 0.42),
+        fontWeight: 600,
+      }}
+    >
+      <span className="truncate">{label}</span>
+    </div>
+  );
+}
+
+function PillLabel({
+  label,
+  fg,
+  bg,
+  height,
+  style,
+}: {
+  label: string;
+  fg: string;
+  bg: string;
+  height: number;
+  style: CSSProperties;
+}) {
+  return (
+    <div className="absolute flex justify-center px-2" style={{ ...style, height }}>
+      <span
+        className="flex max-w-[72%] items-center justify-center truncate px-3"
+        style={{
+          backgroundColor: fg,
+          color: bg,
+          borderRadius: 999,
+          height: height * 0.72,
+          fontSize: Math.max(10, height * 0.32),
+          fontWeight: 600,
+        }}
+      >
+        {label}
+      </span>
+    </div>
+  );
+}
+
+function BannerLabel({
+  label,
+  fg,
+  bg,
+  height,
+  notch,
+  style,
+}: {
+  label: string;
+  fg: string;
+  bg: string;
+  height: number;
+  notch: "up" | "down";
+  style: CSSProperties;
+}) {
+  const clip =
+    notch === "up"
+      ? "polygon(0 28%, 42% 28%, 50% 0, 58% 28%, 100% 28%, 100% 100%, 0 100%)"
+      : "polygon(0 0, 100% 0, 100% 72%, 58% 72%, 50% 100%, 42% 72%, 0 72%)";
+
+  return (
+    <div
+      className="absolute flex items-center justify-center px-2"
+      style={{
+        ...style,
+        height,
+        backgroundColor: fg,
+        color: bg,
+        clipPath: clip,
+        fontSize: Math.max(10, height * 0.36),
+        fontWeight: 700,
+        letterSpacing: "0.02em",
+        paddingTop: notch === "up" ? height * 0.12 : 0,
+        paddingBottom: notch === "down" ? height * 0.12 : 0,
+      }}
+    >
+      <span className="truncate uppercase">{label}</span>
+    </div>
+  );
+}
+
+function BalloonLabel({
+  label,
+  fg,
+  bg,
+  height,
+  placement,
+  style,
+}: {
+  label: string;
+  fg: string;
+  bg: string;
+  height: number;
+  placement: "top" | "bottom";
+  style: CSSProperties;
+}) {
+  return (
+    <div className="absolute flex justify-center" style={style}>
+      <div className="relative w-full max-w-full">
         <div
-          className="absolute inset-x-0 bottom-0 flex items-center justify-center px-2"
+          className="flex items-center justify-center truncate px-3"
           style={{
-            height: layout.captionHeight + layout.pad * 0.35,
             backgroundColor: fg,
             color: bg,
-            fontSize: Math.max(10, layout.captionHeight * 0.42),
-            fontWeight: 600,
+            borderRadius: height * 0.35,
+            height,
+            fontSize: Math.max(10, height * 0.38),
+            fontWeight: 700,
           }}
         >
           <span className="truncate">{label}</span>
         </div>
-      )}
-
-      {id === "pill" && (
-        <div
-          className="absolute inset-x-0 flex justify-center px-2"
+        <span
+          aria-hidden
+          className="absolute left-1/2 -translate-x-1/2"
           style={{
-            bottom: layout.pad * 0.35,
-            height: layout.captionHeight,
+            width: 0,
+            height: 0,
+            borderLeft: `${height * 0.22}px solid transparent`,
+            borderRight: `${height * 0.22}px solid transparent`,
+            ...(placement === "bottom"
+              ? {
+                  top: -height * 0.28,
+                  borderBottom: `${height * 0.3}px solid ${fg}`,
+                }
+              : {
+                  bottom: -height * 0.28,
+                  borderTop: `${height * 0.3}px solid ${fg}`,
+                }),
           }}
-        >
-          <span
-            className="flex max-w-[72%] items-center justify-center truncate px-3"
-            style={{
-              backgroundColor: fg,
-              color: bg,
-              borderRadius: 999,
-              height: layout.captionHeight * 0.72,
-              fontSize: Math.max(10, layout.captionHeight * 0.32),
-              fontWeight: 600,
-            }}
-          >
-            {label}
-          </span>
-        </div>
-      )}
+        />
+      </div>
+    </div>
+  );
+}
+
+function RibbonLabel({
+  label,
+  fg,
+  bg,
+  height,
+  style,
+}: {
+  label: string;
+  fg: string;
+  bg: string;
+  height: number;
+  style: CSSProperties;
+}) {
+  return (
+    <div
+      className="absolute flex items-center justify-center px-4"
+      style={{
+        ...style,
+        height,
+        backgroundColor: fg,
+        color: bg,
+        clipPath:
+          "polygon(8% 0, 92% 0, 100% 50%, 92% 100%, 8% 100%, 0 50%)",
+        fontSize: Math.max(10, height * 0.4),
+        fontWeight: 700,
+      }}
+    >
+      <span className="truncate">{label}</span>
     </div>
   );
 }

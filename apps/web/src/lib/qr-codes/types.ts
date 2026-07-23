@@ -182,7 +182,11 @@ export type QrFrameId =
   | "dashed"
   | "double"
   | "brackets"
-  | "circle";
+  | "banner-bottom"
+  | "banner-top"
+  | "balloon-bottom"
+  | "balloon-top"
+  | "ribbon-bottom";
 
 export type QrDesign = {
   fgColor: string;
@@ -190,8 +194,12 @@ export type QrDesign = {
   dotStyle: QrDotStyle;
   /** Corner (eye) radius as a percentage 0–50. */
   eyeRadius: number;
-  /** Overlay the company logo in the center of the code. */
+  /** Overlay a logo in the center of the code. */
   logoEnabled: boolean;
+  /**
+   * Custom center logo URL. When null/empty and logoEnabled, the company logo is used.
+   */
+  logoUrl: string | null;
   /** Decorative outer frame around the QR. */
   frameId: QrFrameId;
   /** Short caption for caption/pill frames (max ~20 chars). */

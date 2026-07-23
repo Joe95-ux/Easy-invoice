@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import { CheckIcon } from "lucide-react";
 import {
   Carousel,
@@ -9,234 +8,89 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
-import { QR_FRAMES, getFrameLayout, type QrFrameDefinition } from "@/lib/qr-codes/frames";
+import { QrCodePreview } from "@/features/qr-codes/components/qr-code-preview";
+import { QR_FRAMES, getFrameLayout } from "@/lib/qr-codes/frames";
 import type { QrDesign, QrFrameId } from "@/lib/qr-codes/types";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
+
+/** Stable payload so every thumb encodes the same code. */
+const FRAME_THUMB_VALUE = "https://invoicedesk.app";
+const THUMB_QR_SIZE = 96;
+/** Max side of the scaled preview inside the square card. */
+const THUMB_FIT = 118;
 
 type QrFrameCarouselProps = {
   design: QrDesign;
   value: QrFrameId;
   onChange: (frameId: QrFrameId) => void;
+  logoUrl?: string | null;
 };
 
 function FrameThumb({
   frame,
   design,
   selected,
+  logoUrl,
 }: {
   frame: QrFrameDefinition;
   design: QrDesign;
   selected: boolean;
+  logoUrl?: string | null;
 }) {
-  const fg = design.fgColor;
-  const bg = design.bgColor;
-  // Tiny fake QR for the thumb
-  const qr = 56;
-  const quiet = 4;
-  const canvas = qr + quiet * 2;
-  const layout = getFrameLayout(canvas, frame.id);
-  const scale = 72 / Math.max(layout.width, layout.height);
+  const quietZone = Math.round(THUMB_QR_SIZE * 0.05);
+  const canvasSize = THUMB_QR_SIZE + quietZone * 2;
+  const layout = getFrameLayout(canvasSize, frame.id);
+  const scale = THUMB_FIT / Math.max(layout.width, layout.height);
+
+  const thumbDesign: QrDesign = {
+    ...design,
+    frameId: frame.id,
+  };
 
   return (
     <div
       className={cn(
-        "flex aspect-square items-center justify-center overflow-hidden rounded-lg border bg-muted/40",
-        selected ? "border-primary" : "border-border/70",
+        "flex aspect-square items-center justify-center overflow-hidden rounded-t-[11px] bg-muted/40",
+        selected && "bg-primary/5",
       )}
     >
       <div
+        className="pointer-events-none"
         style={{
-          width: layout.width,
-          height: layout.height,
           transform: `scale(${scale})`,
           transformOrigin: "center center",
         }}
       >
-        <MiniFrame frameId={frame.id} fg={fg} bg={bg} qr={canvas} layout={layout} />
-      </div>
-    </div>
-  );
-}
-
-function MiniFrame({
-  frameId,
-  fg,
-  bg,
-  qr,
-  layout,
-}: {
-  frameId: QrFrameId;
-  fg: string;
-  bg: string;
-  qr: number;
-  layout: ReturnType<typeof getFrameLayout>;
-}) {
-  const stroke = Math.max(1, qr * 0.03);
-  const modules = (
-    <div
-      className="grid grid-cols-5 gap-px"
-      style={{
-        width: qr * 0.7,
-        height: qr * 0.7,
-        margin: qr * 0.15,
-        backgroundColor: bg,
-      }}
-    >
-      {Array.from({ length: 25 }, (_, i) => (
-        <span
-          key={i}
-          style={{
-            backgroundColor:
-              [0, 1, 2, 4, 5, 6, 10, 12, 14, 18, 20, 21, 22, 24].includes(i) ? fg : bg,
-          }}
+        <QrCodePreview
+          value={FRAME_THUMB_VALUE}
+          design={thumbDesign}
+          logoUrl={logoUrl}
+          size={THUMB_QR_SIZE}
+          chrome={false}
+          className="rounded-none p-0 shadow-none ring-0"
         />
-      ))}
-    </div>
-  );
-
-  if (frameId === "none") {
-    return (
-      <div style={{ width: layout.width, height: layout.height, backgroundColor: bg }}>
-        {modules}
       </div>
-    );
-  }
-
-  const radius = frameId === "circle" ? "50%" : layout.radius;
-  const boxShadow =
-    frameId === "soft"
-      ? `inset 0 0 0 ${stroke}px color-mix(in srgb, ${fg} 55%, transparent)`
-      : frameId === "badge"
-        ? `inset 0 0 0 ${stroke * 2}px ${fg}`
-        : frameId === "double"
-          ? `inset 0 0 0 ${stroke}px ${fg}, inset 0 0 0 ${stroke * 3.5}px ${bg}, inset 0 0 0 ${stroke * 4.5}px ${fg}`
-          : frameId === "circle" ||
-              frameId === "border" ||
-              frameId === "caption" ||
-              frameId === "pill"
-            ? `inset 0 0 0 ${stroke}px ${fg}`
-            : undefined;
-
-  return (
-    <div
-      style={{
-        width: layout.width,
-        height: layout.height,
-        backgroundColor: bg,
-        borderRadius: radius,
-        boxShadow,
-        outline: frameId === "dashed" ? `${stroke}px dashed ${fg}` : undefined,
-        outlineOffset: frameId === "dashed" ? -stroke : undefined,
-        position: "relative",
-        overflow: "hidden",
-        padding: layout.pad,
-        paddingBottom: layout.pad + layout.captionHeight,
-        boxSizing: "border-box",
-      }}
-    >
-      <div className="relative" style={{ width: qr, height: qr }}>
-        {modules}
-        {frameId === "brackets" && (
-          <>
-            <span
-              className="absolute"
-              style={{
-                top: 0,
-                left: 0,
-                width: 10,
-                height: 10,
-                borderColor: fg,
-                borderStyle: "solid",
-                borderWidth: "2px 0 0 2px",
-              }}
-            />
-            <span
-              className="absolute"
-              style={{
-                top: 0,
-                right: 0,
-                width: 10,
-                height: 10,
-                borderColor: fg,
-                borderStyle: "solid",
-                borderWidth: "2px 2px 0 0",
-              }}
-            />
-            <span
-              className="absolute"
-              style={{
-                bottom: 0,
-                left: 0,
-                width: 10,
-                height: 10,
-                borderColor: fg,
-                borderStyle: "solid",
-                borderWidth: "0 0 2px 2px",
-              }}
-            />
-            <span
-              className="absolute"
-              style={{
-                bottom: 0,
-                right: 0,
-                width: 10,
-                height: 10,
-                borderColor: fg,
-                borderStyle: "solid",
-                borderWidth: "0 2px 2px 0",
-              }}
-            />
-          </>
-        )}
-      </div>
-      {(frameId === "caption" || frameId === "pill") && (
-        <div
-          className="absolute inset-x-1 flex items-center justify-center"
-          style={{
-            bottom: 2,
-            height: Math.max(10, layout.captionHeight * 0.7),
-            backgroundColor: frameId === "caption" ? fg : undefined,
-          }}
-        >
-          <span
-            style={{
-              backgroundColor: frameId === "pill" ? fg : undefined,
-              color: bg,
-              borderRadius: frameId === "pill" ? 999 : 0,
-              fontSize: 7,
-              fontWeight: 700,
-              padding: frameId === "pill" ? "1px 6px" : 0,
-            }}
-          >
-            SCAN
-          </span>
-        </div>
-      )}
     </div>
   );
 }
 
-export function QrFrameCarousel({ design, value, onChange }: QrFrameCarouselProps) {
+export function QrFrameCarousel({
+  design,
+  value,
+  onChange,
+  logoUrl,
+}: QrFrameCarouselProps) {
   const isMobile = useIsMobile();
-  const ordered = useMemo(() => {
-    const selectedIndex = QR_FRAMES.findIndex((frame) => frame.id === value);
-    if (selectedIndex <= 0) return QR_FRAMES;
-    const selected = QR_FRAMES[selectedIndex]!;
-    return [selected, ...QR_FRAMES.slice(0, selectedIndex), ...QR_FRAMES.slice(selectedIndex + 1)];
-  }, [value]);
 
   return (
-    <Carousel
-      key={value}
-      opts={{ loop: false, align: "start", containScroll: "trimSnaps" }}
-    >
+    <Carousel opts={{ loop: false, align: "start", containScroll: "trimSnaps" }}>
       <div className="mb-2 flex items-center justify-end gap-1.5">
         <CarouselPrevious className="static size-7 translate-x-0 translate-y-0" />
         <CarouselNext className="static size-7 translate-x-0 translate-y-0" />
       </div>
       <CarouselContent className="-ml-2">
-        {ordered.map((frame) => {
+        {QR_FRAMES.map((frame) => {
           const selected = frame.id === value;
           return (
             <CarouselItem
@@ -254,7 +108,12 @@ export function QrFrameCarousel({ design, value, onChange }: QrFrameCarouselProp
                     : "border-border hover:border-foreground/20",
                 )}
               >
-                <FrameThumb frame={frame} design={design} selected={selected} />
+                <FrameThumb
+                  frame={frame}
+                  design={design}
+                  selected={selected}
+                  logoUrl={logoUrl}
+                />
                 {selected && (
                   <span className="absolute right-1.5 top-1.5 flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
                     <CheckIcon className="size-3" />

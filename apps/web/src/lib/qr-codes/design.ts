@@ -11,6 +11,7 @@ export const DEFAULT_QR_DESIGN: QrDesign = {
   dotStyle: "squares",
   eyeRadius: 0,
   logoEnabled: false,
+  logoUrl: null,
   frameId: "none",
   frameLabel: DEFAULT_FRAME_LABEL,
 };
@@ -135,6 +136,15 @@ function safeDotStyle(value: unknown): QrDotStyle {
     : DEFAULT_QR_DESIGN.dotStyle;
 }
 
+function safeLogoUrl(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (/^(https?:|data:)/i.test(trimmed)) return trimmed.slice(0, 2000);
+  if (trimmed.startsWith("/")) return trimmed.slice(0, 2000);
+  return null;
+}
+
 export function normalizeQrDesign(raw: unknown): QrDesign {
   const source = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   const eyeRadiusRaw = Number(source.eyeRadius);
@@ -147,7 +157,19 @@ export function normalizeQrDesign(raw: unknown): QrDesign {
       ? Math.min(50, Math.max(0, Math.round(eyeRadiusRaw)))
       : DEFAULT_QR_DESIGN.eyeRadius,
     logoEnabled: source.logoEnabled === true,
+    logoUrl: safeLogoUrl(source.logoUrl),
     frameId: isQrFrameId(source.frameId) ? source.frameId : DEFAULT_QR_DESIGN.frameId,
     frameLabel: normalizeFrameLabel(source.frameLabel ?? DEFAULT_FRAME_LABEL),
   };
+}
+
+/** Logo shown in the QR center: custom upload, else company logo. */
+export function resolveQrCenterLogoUrl(
+  design: Pick<QrDesign, "logoEnabled" | "logoUrl">,
+  companyLogoUrl?: string | null,
+): string | null {
+  if (!design.logoEnabled) return null;
+  if (design.logoUrl?.trim()) return design.logoUrl.trim();
+  const company = companyLogoUrl?.trim();
+  return company || null;
 }

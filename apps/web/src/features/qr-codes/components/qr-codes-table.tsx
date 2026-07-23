@@ -77,6 +77,7 @@ import {
   QR_TYPE_LABEL,
   qrDestinationSummary,
 } from "@/lib/qr-codes/content";
+import { resolveQrCenterLogoUrl } from "@/lib/qr-codes/design";
 import { qrScanUrl } from "@/lib/qr-codes/url";
 import {
   QR_CODE_TYPES,
@@ -418,7 +419,7 @@ export function QrCodesTable({ qrCodes, origin, companyLogoUrl }: QrCodesTablePr
                         }}
                         value={qrScanUrl(origin, qr.token)}
                         design={qr.design}
-                        logoUrl={companyLogoUrl}
+                        logoUrl={resolveQrCenterLogoUrl(qr.design, companyLogoUrl)}
                         size={40}
                         chrome={false}
                         className="shrink-0 ring-1 ring-border/60"

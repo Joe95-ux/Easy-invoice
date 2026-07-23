@@ -8,6 +8,8 @@ export type QrFrameDefinition = {
   usesLabel: boolean;
 };
 
+export type FrameLabelPlacement = "none" | "top" | "bottom";
+
 export const QR_FRAMES: QrFrameDefinition[] = [
   { id: "none", name: "None", description: "Just the code", usesLabel: false },
   { id: "border", name: "Border", description: "Thin rounded stroke", usesLabel: false },
@@ -18,7 +20,11 @@ export const QR_FRAMES: QrFrameDefinition[] = [
   { id: "dashed", name: "Dashed", description: "Craft-style stroke", usesLabel: false },
   { id: "double", name: "Double", description: "Formal double line", usesLabel: false },
   { id: "brackets", name: "Brackets", description: "Open corner marks", usesLabel: false },
-  { id: "circle", name: "Circle", description: "Round stamp", usesLabel: false },
+  { id: "banner-bottom", name: "Banner", description: "Bottom SCAN ME bar", usesLabel: true },
+  { id: "banner-top", name: "Banner top", description: "Top SCAN ME bar", usesLabel: true },
+  { id: "balloon-bottom", name: "Balloon", description: "Speech bubble below", usesLabel: true },
+  { id: "balloon-top", name: "Balloon top", description: "Speech bubble above", usesLabel: true },
+  { id: "ribbon-bottom", name: "Ribbon", description: "Folded ribbon CTA", usesLabel: true },
 ];
 
 export const DEFAULT_FRAME_LABEL = "Scan me";
@@ -44,13 +50,26 @@ export function frameUsesLabel(id: QrFrameId): boolean {
   return getQrFrame(id).usesLabel;
 }
 
+export function frameLabelPlacement(id: QrFrameId): FrameLabelPlacement {
+  switch (id) {
+    case "banner-top":
+    case "balloon-top":
+      return "top";
+    case "caption":
+    case "pill":
+    case "banner-bottom":
+    case "balloon-bottom":
+    case "ribbon-bottom":
+      return "bottom";
+    default:
+      return "none";
+  }
+}
+
 /** Layout metrics relative to the QR module canvas size (includes quiet zone). */
 export type FrameLayout = {
-  /** Total output width. */
   width: number;
-  /** Total output height. */
   height: number;
-  /** Top-left of the QR inside the output. */
   qrX: number;
   qrY: number;
   pad: number;
@@ -58,123 +77,114 @@ export type FrameLayout = {
   radius: number;
 };
 
+function paddedSquare(s: number, padRatio: number, radiusRatio: number): FrameLayout {
+  const pad = Math.round(s * padRatio);
+  return {
+    width: s + pad * 2,
+    height: s + pad * 2,
+    qrX: pad,
+    qrY: pad,
+    pad,
+    captionHeight: 0,
+    radius: Math.round(s * radiusRatio),
+  };
+}
+
+function labeledLayout(
+  s: number,
+  opts: {
+    padRatio: number;
+    captionRatio: number;
+    radiusRatio: number;
+    placement: "top" | "bottom";
+    extra?: number;
+  },
+): FrameLayout {
+  const pad = Math.round(s * opts.padRatio);
+  const captionHeight = Math.round(s * opts.captionRatio);
+  const extra = opts.extra ?? 0;
+  const width = s + pad * 2;
+  const height = s + pad * 2 + captionHeight + extra;
+  return {
+    width,
+    height,
+    qrX: pad,
+    qrY: opts.placement === "top" ? pad + captionHeight + extra : pad,
+    pad,
+    captionHeight,
+    radius: Math.round(s * opts.radiusRatio),
+  };
+}
+
 export function getFrameLayout(qrSize: number, frameId: QrFrameId): FrameLayout {
   const s = Math.max(1, qrSize);
 
   switch (frameId) {
     case "none":
       return { width: s, height: s, qrX: 0, qrY: 0, pad: 0, captionHeight: 0, radius: 0 };
-    case "border": {
-      const pad = Math.round(s * 0.07);
-      return {
-        width: s + pad * 2,
-        height: s + pad * 2,
-        qrX: pad,
-        qrY: pad,
-        pad,
-        captionHeight: 0,
-        radius: Math.round(s * 0.04),
-      };
-    }
-    case "soft": {
-      const pad = Math.round(s * 0.11);
-      return {
-        width: s + pad * 2,
-        height: s + pad * 2,
-        qrX: pad,
-        qrY: pad,
-        pad,
-        captionHeight: 0,
-        radius: Math.round(s * 0.06),
-      };
-    }
-    case "badge": {
-      const pad = Math.round(s * 0.13);
-      return {
-        width: s + pad * 2,
-        height: s + pad * 2,
-        qrX: pad,
-        qrY: pad,
-        pad,
-        captionHeight: 0,
-        radius: Math.round(s * 0.08),
-      };
-    }
-    case "caption": {
-      const pad = Math.round(s * 0.09);
-      const captionHeight = Math.round(s * 0.18);
-      return {
-        width: s + pad * 2,
-        height: s + pad * 2 + captionHeight,
-        qrX: pad,
-        qrY: pad,
-        pad,
-        captionHeight,
-        radius: Math.round(s * 0.045),
-      };
-    }
-    case "pill": {
-      const pad = Math.round(s * 0.09);
-      const captionHeight = Math.round(s * 0.2);
-      return {
-        width: s + pad * 2,
-        height: s + pad * 2 + captionHeight,
-        qrX: pad,
-        qrY: pad,
-        pad,
-        captionHeight,
-        radius: Math.round(s * 0.06),
-      };
-    }
-    case "dashed": {
-      const pad = Math.round(s * 0.1);
-      return {
-        width: s + pad * 2,
-        height: s + pad * 2,
-        qrX: pad,
-        qrY: pad,
-        pad,
-        captionHeight: 0,
-        radius: Math.round(s * 0.05),
-      };
-    }
-    case "double": {
-      const pad = Math.round(s * 0.12);
-      return {
-        width: s + pad * 2,
-        height: s + pad * 2,
-        qrX: pad,
-        qrY: pad,
-        pad,
-        captionHeight: 0,
-        radius: Math.round(s * 0.05),
-      };
-    }
-    case "brackets": {
-      const pad = Math.round(s * 0.1);
-      return {
-        width: s + pad * 2,
-        height: s + pad * 2,
-        qrX: pad,
-        qrY: pad,
-        pad,
-        captionHeight: 0,
-        radius: 0,
-      };
-    }
-    case "circle": {
-      const pad = Math.round(s * 0.14);
-      const diameter = s + pad * 2;
-      return {
-        width: diameter,
-        height: diameter,
-        qrX: pad,
-        qrY: pad,
-        pad,
-        captionHeight: 0,
-        radius: diameter / 2,
-      };
-    }
+    case "border":
+      return paddedSquare(s, 0.07, 0.04);
+    case "soft":
+      return paddedSquare(s, 0.11, 0.06);
+    case "badge":
+      return paddedSquare(s, 0.13, 0.08);
+    case "caption":
+      return labeledLayout(s, {
+        padRatio: 0.09,
+        captionRatio: 0.18,
+        radiusRatio: 0.045,
+        placement: "bottom",
+      });
+    case "pill":
+      return labeledLayout(s, {
+        padRatio: 0.09,
+        captionRatio: 0.2,
+        radiusRatio: 0.06,
+        placement: "bottom",
+      });
+    case "dashed":
+      return paddedSquare(s, 0.1, 0.05);
+    case "double":
+      return paddedSquare(s, 0.12, 0.05);
+    case "brackets":
+      return paddedSquare(s, 0.1, 0);
+    case "banner-bottom":
+      return labeledLayout(s, {
+        padRatio: 0.08,
+        captionRatio: 0.22,
+        radiusRatio: 0.04,
+        placement: "bottom",
+      });
+    case "banner-top":
+      return labeledLayout(s, {
+        padRatio: 0.08,
+        captionRatio: 0.22,
+        radiusRatio: 0.04,
+        placement: "top",
+      });
+    case "balloon-bottom":
+      return labeledLayout(s, {
+        padRatio: 0.08,
+        captionRatio: 0.2,
+        radiusRatio: 0.08,
+        placement: "bottom",
+        extra: Math.round(s * 0.06),
+      });
+    case "balloon-top":
+      return labeledLayout(s, {
+        padRatio: 0.08,
+        captionRatio: 0.2,
+        radiusRatio: 0.08,
+        placement: "top",
+        extra: Math.round(s * 0.06),
+      });
+    case "ribbon-bottom":
+      return labeledLayout(s, {
+        padRatio: 0.08,
+        captionRatio: 0.24,
+        radiusRatio: 0.03,
+        placement: "bottom",
+      });
   }
 }
 
@@ -213,6 +223,131 @@ function drawCaptionText(
   ctx.fillText(text, x + width / 2, y + height / 2, width * 0.9);
 }
 
+function drawBannerBar(
+  ctx: CanvasRenderingContext2D,
+  opts: {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    fg: string;
+    bg: string;
+    label: string;
+    notch: "up" | "down" | "none";
+  },
+) {
+  const { x, y, w, h, fg, bg, label, notch } = opts;
+  const notchSize = Math.min(h * 0.45, w * 0.08);
+  ctx.fillStyle = fg;
+  ctx.beginPath();
+  if (notch === "up") {
+    ctx.moveTo(x, y + notchSize);
+    ctx.lineTo(x + w / 2 - notchSize, y + notchSize);
+    ctx.lineTo(x + w / 2, y);
+    ctx.lineTo(x + w / 2 + notchSize, y + notchSize);
+    ctx.lineTo(x + w, y + notchSize);
+    ctx.lineTo(x + w, y + h);
+    ctx.lineTo(x, y + h);
+  } else if (notch === "down") {
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + w, y);
+    ctx.lineTo(x + w, y + h - notchSize);
+    ctx.lineTo(x + w / 2 + notchSize, y + h - notchSize);
+    ctx.lineTo(x + w / 2, y + h);
+    ctx.lineTo(x + w / 2 - notchSize, y + h - notchSize);
+    ctx.lineTo(x, y + h - notchSize);
+  } else {
+    ctx.rect(x, y, w, h);
+  }
+  ctx.closePath();
+  ctx.fill();
+  const textPad = notch === "none" ? 0 : notchSize * 0.35;
+  drawCaptionText(
+    ctx,
+    label,
+    x,
+    notch === "up" ? y + notchSize + textPad : y + textPad,
+    w,
+    h - (notch === "none" ? 0 : notchSize) - textPad,
+    bg,
+  );
+}
+
+function drawBalloon(
+  ctx: CanvasRenderingContext2D,
+  opts: {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    pointer: number;
+    fg: string;
+    bg: string;
+    label: string;
+    placement: "top" | "bottom";
+  },
+) {
+  const { x, y, w, h, pointer, fg, bg, label, placement } = opts;
+  const bubbleY = placement === "bottom" ? y + pointer : y;
+  const bubbleH = h - pointer;
+  const r = Math.min(bubbleH / 2, w * 0.12);
+
+  ctx.fillStyle = fg;
+  roundRectPath(ctx, x, bubbleY, w, bubbleH, r);
+  ctx.fill();
+
+  ctx.beginPath();
+  if (placement === "bottom") {
+    ctx.moveTo(x + w / 2 - pointer, y + pointer);
+    ctx.lineTo(x + w / 2, y);
+    ctx.lineTo(x + w / 2 + pointer, y + pointer);
+  } else {
+    ctx.moveTo(x + w / 2 - pointer, y + bubbleH);
+    ctx.lineTo(x + w / 2, y + h);
+    ctx.lineTo(x + w / 2 + pointer, y + bubbleH);
+  }
+  ctx.closePath();
+  ctx.fill();
+
+  drawCaptionText(ctx, label, x, bubbleY, w, bubbleH, bg);
+}
+
+function drawRibbon(
+  ctx: CanvasRenderingContext2D,
+  opts: { x: number; y: number; w: number; h: number; fg: string; bg: string; label: string },
+) {
+  const { x, y, w, h, fg, bg, label } = opts;
+  const fold = Math.min(h * 0.35, w * 0.08);
+  ctx.fillStyle = fg;
+  ctx.beginPath();
+  ctx.moveTo(x + fold, y);
+  ctx.lineTo(x + w - fold, y);
+  ctx.lineTo(x + w, y + h / 2);
+  ctx.lineTo(x + w - fold, y + h);
+  ctx.lineTo(x + fold, y + h);
+  ctx.lineTo(x, y + h / 2);
+  ctx.closePath();
+  ctx.fill();
+
+  // darker fold tips
+  ctx.globalAlpha = 0.25;
+  ctx.beginPath();
+  ctx.moveTo(x, y + h / 2);
+  ctx.lineTo(x + fold, y);
+  ctx.lineTo(x + fold, y + h);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(x + w, y + h / 2);
+  ctx.lineTo(x + w - fold, y);
+  ctx.lineTo(x + w - fold, y + h);
+  ctx.closePath();
+  ctx.fill();
+  ctx.globalAlpha = 1;
+
+  drawCaptionText(ctx, label, x + fold, y, w - fold * 2, h, bg);
+}
+
 /**
  * Paint a decorative frame around an existing QR canvas (which already includes quiet zone).
  * Returns a new canvas; does not mutate the source.
@@ -232,13 +367,11 @@ export function composeFramedQrCanvas(
   const fg = design.fgColor;
   const bg = design.bgColor;
   const label = normalizeFrameLabel(design.frameLabel);
+  const stroke = Math.max(1.5, Math.round(source.width * 0.012));
 
+  // Background plate
   ctx.fillStyle = bg;
-  if (frameId === "circle") {
-    ctx.beginPath();
-    ctx.arc(layout.width / 2, layout.height / 2, layout.width / 2, 0, Math.PI * 2);
-    ctx.fill();
-  } else if (frameId !== "none") {
+  if (frameId !== "none") {
     roundRectPath(ctx, 0, 0, layout.width, layout.height, layout.radius);
     ctx.fill();
   } else {
@@ -247,7 +380,6 @@ export function composeFramedQrCanvas(
 
   ctx.drawImage(source, layout.qrX, layout.qrY);
 
-  const stroke = Math.max(1.5, Math.round(source.width * 0.012));
   ctx.strokeStyle = fg;
   ctx.fillStyle = fg;
   ctx.lineCap = "round";
@@ -311,17 +443,8 @@ export function composeFramedQrCanvas(
       const barY = layout.qrY + source.height + layout.pad * 0.25;
       ctx.fillStyle = fg;
       ctx.fillRect(0, barY, layout.width, layout.height - barY);
-      // square off bottom of rounded rect by redrawing bottom corners filled
       ctx.fillRect(0, layout.height - layout.radius, layout.width, layout.radius);
-      drawCaptionText(
-        ctx,
-        label,
-        0,
-        barY,
-        layout.width,
-        layout.height - barY,
-        bg,
-      );
+      drawCaptionText(ctx, label, 0, barY, layout.width, layout.height - barY, bg);
       break;
     }
     case "pill": {
@@ -338,7 +461,8 @@ export function composeFramedQrCanvas(
       const pillH = Math.round(layout.captionHeight * 0.72);
       const pillW = Math.round(layout.width * 0.72);
       const pillX = (layout.width - pillW) / 2;
-      const pillY = layout.qrY + source.height + (layout.captionHeight - pillH) / 2 + layout.pad * 0.15;
+      const pillY =
+        layout.qrY + source.height + (layout.captionHeight - pillH) / 2 + layout.pad * 0.15;
       roundRectPath(ctx, pillX, pillY, pillW, pillH, pillH / 2);
       ctx.fillStyle = fg;
       ctx.fill();
@@ -401,17 +525,128 @@ export function composeFramedQrCanvas(
       drawBracket(layout.width - inset, layout.height - inset, -1, -1);
       break;
     }
-    case "circle": {
-      ctx.lineWidth = stroke * 1.6;
-      ctx.beginPath();
-      ctx.arc(
-        layout.width / 2,
-        layout.height / 2,
-        layout.width / 2 - stroke,
-        0,
-        Math.PI * 2,
+    case "banner-bottom": {
+      ctx.lineWidth = stroke;
+      roundRectPath(
+        ctx,
+        stroke / 2,
+        stroke / 2,
+        layout.width - stroke,
+        layout.height - stroke,
+        layout.radius,
       );
       ctx.stroke();
+      drawBannerBar(ctx, {
+        x: 0,
+        y: layout.qrY + source.height,
+        w: layout.width,
+        h: layout.height - (layout.qrY + source.height),
+        fg,
+        bg,
+        label,
+        notch: "up",
+      });
+      break;
+    }
+    case "banner-top": {
+      ctx.lineWidth = stroke;
+      roundRectPath(
+        ctx,
+        stroke / 2,
+        stroke / 2,
+        layout.width - stroke,
+        layout.height - stroke,
+        layout.radius,
+      );
+      ctx.stroke();
+      drawBannerBar(ctx, {
+        x: 0,
+        y: 0,
+        w: layout.width,
+        h: layout.qrY,
+        fg,
+        bg,
+        label,
+        notch: "down",
+      });
+      break;
+    }
+    case "balloon-bottom": {
+      ctx.lineWidth = stroke;
+      roundRectPath(
+        ctx,
+        stroke / 2,
+        stroke / 2,
+        layout.width - stroke,
+        layout.qrY + source.height + layout.pad - stroke,
+        layout.radius,
+      );
+      ctx.stroke();
+      const areaY = layout.qrY + source.height;
+      const areaH = layout.height - areaY;
+      const pointer = Math.round(areaH * 0.28);
+      drawBalloon(ctx, {
+        x: layout.width * 0.08,
+        y: areaY,
+        w: layout.width * 0.84,
+        h: areaH - layout.pad * 0.2,
+        pointer,
+        fg,
+        bg,
+        label,
+        placement: "bottom",
+      });
+      break;
+    }
+    case "balloon-top": {
+      ctx.lineWidth = stroke;
+      roundRectPath(
+        ctx,
+        stroke / 2,
+        layout.qrY - layout.pad + stroke / 2,
+        layout.width - stroke,
+        layout.height - (layout.qrY - layout.pad) - stroke,
+        layout.radius,
+      );
+      ctx.stroke();
+      const areaH = layout.qrY;
+      const pointer = Math.round(areaH * 0.28);
+      drawBalloon(ctx, {
+        x: layout.width * 0.08,
+        y: layout.pad * 0.2,
+        w: layout.width * 0.84,
+        h: areaH - layout.pad * 0.2,
+        pointer,
+        fg,
+        bg,
+        label,
+        placement: "top",
+      });
+      break;
+    }
+    case "ribbon-bottom": {
+      ctx.lineWidth = stroke;
+      roundRectPath(
+        ctx,
+        stroke / 2,
+        stroke / 2,
+        layout.width - stroke,
+        layout.qrY + source.height + layout.pad - stroke,
+        layout.radius,
+      );
+      ctx.stroke();
+      const ribbonH = Math.round(layout.captionHeight * 0.78);
+      const ribbonY =
+        layout.qrY + source.height + (layout.captionHeight - ribbonH) / 2 + layout.pad * 0.1;
+      drawRibbon(ctx, {
+        x: layout.width * 0.06,
+        y: ribbonY,
+        w: layout.width * 0.88,
+        h: ribbonH,
+        fg,
+        bg,
+        label,
+      });
       break;
     }
   }
