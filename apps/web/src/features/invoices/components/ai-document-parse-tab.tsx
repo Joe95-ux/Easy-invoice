@@ -48,7 +48,7 @@ type VariantCopy = {
 };
 
 const composerIconButtonClass =
-  "rounded-lg text-muted-foreground hover:bg-accent hover:text-accent-foreground";
+  "rounded-[10px] text-muted-foreground hover:bg-accent hover:text-accent-foreground";
 
 const copy: Record<"invoice" | "estimate", VariantCopy> = {
   invoice: {
@@ -369,9 +369,9 @@ export function AiDocumentParseTab({
               className={composerIconButtonClass}
             >
               {parsingDocument ? (
-                <Loader2Icon className="size-4 animate-spin" />
+                <Loader2Icon className="size-5 animate-spin" />
               ) : (
-                <PlusIcon className="size-4" />
+                <PlusIcon className="size-5" />
               )}
             </Button>
 
@@ -402,7 +402,7 @@ export function AiDocumentParseTab({
               title={isRecording ? "Stop recording" : "Record voice input"}
               className={cn(
                 !isRecording && composerIconButtonClass,
-                isRecording && "animate-pulse rounded-lg",
+                isRecording && "animate-pulse rounded-[10px]",
               )}
             >
               {isTranscribing ? (
@@ -420,7 +420,7 @@ export function AiDocumentParseTab({
               disabled={!canSubmit}
               aria-label="Parse with AI"
               className={cn(
-                "inline-flex size-9 shrink-0 items-center justify-center rounded-full transition-colors",
+                "inline-flex size-9 shrink-0 items-center justify-center rounded-[10px] transition-colors",
                 canSubmit
                   ? "cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90"
                   : "cursor-not-allowed bg-muted text-muted-foreground",

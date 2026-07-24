@@ -212,7 +212,7 @@ export function QrPhonePreview({
         >
           <QrFitBox
             key={`${form.design.frameId}-${form.design.frameLabel}-${form.design.logoEnabled}`}
-            className="max-h-[340px] w-full max-w-[180px]"
+            className="max-h-[340px] w-full max-w-[200px]"
           >
             {qrElement}
           </QrFitBox>
