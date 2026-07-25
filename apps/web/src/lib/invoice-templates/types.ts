@@ -45,6 +45,9 @@ export type InvoiceHtmlData = {
     quantity: number;
     unitPrice: number;
     amount: number;
+    sectionTitle?: string | null;
+    sectionSortOrder?: number;
+    sortOrder?: number;
   }>;
   installments?: Array<{
     dueDate: Date;

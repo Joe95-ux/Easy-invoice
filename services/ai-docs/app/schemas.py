@@ -1,7 +1,6 @@
-from decimal import Decimal
 from typing import Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class LineItem(BaseModel):
@@ -9,6 +8,11 @@ class LineItem(BaseModel):
     quantity: float = Field(gt=0)
     unit_price: float = Field(ge=0)
     amount: float = Field(ge=0)
+
+
+class DraftSection(BaseModel):
+    title: str = ""
+    items: list[LineItem] = Field(min_length=1)
 
 
 class InvoiceDraft(BaseModel):
@@ -22,9 +26,21 @@ class InvoiceDraft(BaseModel):
     notes: Optional[str] = None
     tax_rate: float = Field(default=0, ge=0, le=1)
     discount: float = Field(default=0, ge=0)
-    line_items: list[LineItem]
+    sections: list[DraftSection] = Field(default_factory=list)
+    line_items: list[LineItem] = Field(default_factory=list)
     detected_language: Optional[str] = None
     confidence: Optional[float] = Field(default=None, ge=0, le=1)
+
+    @model_validator(mode="after")
+    def normalize_sections(self) -> "InvoiceDraft":
+        if self.sections:
+            flattened = [item for section in self.sections for item in section.items]
+            return self.model_copy(update={"line_items": flattened})
+        if self.line_items:
+            return self.model_copy(
+                update={"sections": [DraftSection(title="", items=list(self.line_items))]}
+            )
+        raise ValueError("At least one line item or section is required")
 
 
 class ParseInvoiceRequest(BaseModel):

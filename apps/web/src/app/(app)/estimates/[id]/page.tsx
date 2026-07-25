@@ -5,14 +5,7 @@ import { PageBackLink, PageHeader } from "@/components/app-shell/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { DocumentLineItemsTable } from "@/components/document-line-items-table";
 import { EstimateActions } from "@/features/estimates/components/estimate-actions";
 import { EstimateAutoDownload } from "@/features/estimates/components/estimate-auto-download";
 import { DocumentHistorySection } from "@/components/document-history-section";
@@ -129,6 +122,8 @@ export default async function EstimateDetailPage({ params }: PageProps) {
                 description: item.description,
                 quantity: Number(item.quantity),
                 unitPrice: Number(item.unitPrice),
+                sectionTitle: item.sectionTitle,
+                sectionSortOrder: item.sectionSortOrder,
               })),
               totals: {
                 subtotal: Number(estimate.subtotal),
@@ -258,30 +253,19 @@ export default async function EstimateDetailPage({ params }: PageProps) {
           </div>
         </CardHeader>
         <CardContent>
-          <Table stickyColumnWidths={["11rem", "4rem"]}>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Description</TableHead>
-                <TableHead className="text-right">Qty</TableHead>
-                <TableHead className="text-right">Rate</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {estimate.items.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell>{item.description}</TableCell>
-                  <TableCell className="text-right">{Number(item.quantity)}</TableCell>
-                  <TableCell className="text-right">
-                    {formatMoney(item.unitPrice, estimate.currency)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {formatMoney(item.amount, estimate.currency)}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <DocumentLineItemsTable
+            currency={estimate.currency}
+            items={estimate.items.map((item) => ({
+              id: item.id,
+              description: item.description,
+              quantity: Number(item.quantity),
+              unitPrice: Number(item.unitPrice),
+              amount: Number(item.amount),
+              sectionTitle: item.sectionTitle,
+              sectionSortOrder: item.sectionSortOrder,
+              sortOrder: item.sortOrder,
+            }))}
+          />
 
           <Separator className="my-4" />
 

@@ -48,6 +48,8 @@ export function invoiceToSnapshot(
       unitPrice: MoneyInput;
       amount: MoneyInput;
       sortOrder: number;
+      sectionTitle?: string | null;
+      sectionSortOrder?: number;
     }>;
   },
   timeEntryIdsBySortOrder?: Map<number, string[]>,
@@ -79,6 +81,8 @@ export function invoiceToSnapshot(
       unitPrice: toNumber(item.unitPrice),
       amount: toNumber(item.amount),
       sortOrder: item.sortOrder,
+      sectionTitle: item.sectionTitle ?? null,
+      sectionSortOrder: item.sectionSortOrder ?? 0,
       timeEntryIds: timeEntryIdsBySortOrder?.get(item.sortOrder),
     })),
   };
@@ -104,6 +108,8 @@ export function estimateToSnapshot(estimate: {
     unitPrice: MoneyInput;
     amount: MoneyInput;
     sortOrder: number;
+    sectionTitle?: string | null;
+    sectionSortOrder?: number;
   }>;
 }): DocumentSnapshot {
   return {
@@ -126,6 +132,8 @@ export function estimateToSnapshot(estimate: {
       unitPrice: toNumber(item.unitPrice),
       amount: toNumber(item.amount),
       sortOrder: item.sortOrder,
+      sectionTitle: item.sectionTitle ?? null,
+      sectionSortOrder: item.sectionSortOrder ?? 0,
     })),
   };
 }
@@ -205,6 +213,8 @@ export function snapshotLineItemsToCreate(
   unitPrice: number;
   amount: number;
   sortOrder: number;
+  sectionTitle: string | null;
+  sectionSortOrder: number;
 }> {
   return lineItems.map((item) => ({
     description: item.description,
@@ -212,6 +222,8 @@ export function snapshotLineItemsToCreate(
     unitPrice: item.unitPrice,
     amount: item.amount,
     sortOrder: item.sortOrder,
+    sectionTitle: item.sectionTitle?.trim() || null,
+    sectionSortOrder: item.sectionSortOrder ?? 0,
   }));
 }
 

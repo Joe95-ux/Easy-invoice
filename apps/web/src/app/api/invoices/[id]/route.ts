@@ -143,6 +143,8 @@ export async function PATCH(request: Request, context: RouteContext) {
         unitPrice: item.unitPrice,
         amount: item.amount,
         sortOrder: item.sortOrder,
+        sectionTitle: item.sectionTitle ?? null,
+        sectionSortOrder: item.sectionSortOrder ?? 0,
       })),
     });
 

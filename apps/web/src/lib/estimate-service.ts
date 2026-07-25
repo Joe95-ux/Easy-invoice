@@ -67,7 +67,9 @@ export async function convertEstimateToInvoice(estimateId: string, companyId: st
     quantity: Number(item.quantity),
     unitPrice: Number(item.unitPrice),
     amount: Number(item.amount),
-    sortOrder: index,
+    sortOrder: item.sortOrder ?? index,
+    sectionTitle: item.sectionTitle ?? null,
+    sectionSortOrder: item.sectionSortOrder ?? 0,
   }));
 
   const invoice = await prisma.$transaction(async (tx) => {

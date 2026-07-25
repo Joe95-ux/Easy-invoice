@@ -482,6 +482,8 @@ export async function duplicateDocumentFromRevision(
         quantity: item.quantity,
         unitPrice: item.unitPrice,
         sortOrder: item.sortOrder,
+        sectionTitle: item.sectionTitle ?? null,
+        sectionSortOrder: item.sectionSortOrder ?? 0,
       })),
     });
 
@@ -555,6 +557,8 @@ export async function duplicateDocumentFromRevision(
       quantity: item.quantity,
       unitPrice: item.unitPrice,
       sortOrder: item.sortOrder,
+      sectionTitle: item.sectionTitle ?? null,
+      sectionSortOrder: item.sectionSortOrder ?? 0,
     })),
   });
 
@@ -626,6 +630,8 @@ export async function duplicateInvoice(
       quantity: item.quantity,
       unitPrice: item.unitPrice,
       sortOrder: item.sortOrder,
+      sectionTitle: item.sectionTitle ?? null,
+      sectionSortOrder: item.sectionSortOrder ?? 0,
     })),
   });
 
@@ -708,6 +714,8 @@ export async function duplicateEstimate(
       quantity: item.quantity,
       unitPrice: item.unitPrice,
       sortOrder: item.sortOrder,
+      sectionTitle: item.sectionTitle ?? null,
+      sectionSortOrder: item.sectionSortOrder ?? 0,
     })),
   });
 

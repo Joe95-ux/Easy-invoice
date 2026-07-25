@@ -237,6 +237,74 @@ function buildPaymentScheduleHtml(data: InvoiceHtmlData): string {
   return `<div class="payment-schedule-block">${scheduleTable}${paymentHistory}</div>`;
 }
 
+function buildLineItemsHtml(
+  items: InvoiceHtmlData["items"],
+  currency: string,
+): string {
+  const hasSections = items.some((item) => Boolean(item.sectionTitle?.trim()));
+  if (!hasSections) {
+    return items
+      .map(
+        (item, index) => `
+      <tr class="${index % 2 === 0 ? "band-odd" : "band-even"}">
+        <td>${escapeHtml(item.description)}</td>
+        <td class="num">${item.quantity}</td>
+        <td class="num">${formatMoney(item.unitPrice, currency)}</td>
+        <td class="num">${formatMoney(item.amount, currency)}</td>
+      </tr>`,
+      )
+      .join("");
+  }
+
+  const sorted = [...items].sort((a, b) => {
+    const sectionDiff = (a.sectionSortOrder ?? 0) - (b.sectionSortOrder ?? 0);
+    if (sectionDiff !== 0) return sectionDiff;
+    return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+  });
+
+  const groups = new Map<number, { title: string; items: typeof items }>();
+  for (const item of sorted) {
+    const order = item.sectionSortOrder ?? 0;
+    const title = item.sectionTitle?.trim() || "Items";
+    const existing = groups.get(order);
+    if (existing) {
+      if (existing.title === "Items" && item.sectionTitle?.trim()) {
+        existing.title = item.sectionTitle.trim();
+      }
+      existing.items.push(item);
+    } else {
+      groups.set(order, { title, items: [item] });
+    }
+  }
+
+  const rows: string[] = [];
+  for (const [, group] of [...groups.entries()].sort(([a], [b]) => a - b)) {
+    rows.push(`
+      <tr class="section-header">
+        <td colspan="4">${escapeHtml(group.title)}</td>
+      </tr>`);
+
+    group.items.forEach((item, index) => {
+      rows.push(`
+      <tr class="${index % 2 === 0 ? "band-odd" : "band-even"}">
+        <td>${escapeHtml(item.description)}</td>
+        <td class="num">${item.quantity}</td>
+        <td class="num">${formatMoney(item.unitPrice, currency)}</td>
+        <td class="num">${formatMoney(item.amount, currency)}</td>
+      </tr>`);
+    });
+
+    const subtotal = group.items.reduce((sum, item) => sum + item.amount, 0);
+    rows.push(`
+      <tr class="section-subtotal">
+        <td colspan="3">${escapeHtml(group.title)} subtotal</td>
+        <td class="num">${formatMoney(subtotal, currency)}</td>
+      </tr>`);
+  }
+
+  return rows.join("");
+}
+
 function buildSections(data: InvoiceHtmlData) {
   const { company, client, invoice, items } = data;
   const kind = data.documentKind ?? "invoice";
@@ -279,17 +347,7 @@ function buildSections(data: InvoiceHtmlData) {
     .filter(Boolean)
     .join("");
 
-  const lineItems = items
-    .map(
-      (item, index) => `
-      <tr class="${index % 2 === 0 ? "band-odd" : "band-even"}">
-        <td>${escapeHtml(item.description)}</td>
-        <td class="num">${item.quantity}</td>
-        <td class="num">${formatMoney(item.unitPrice, invoice.currency)}</td>
-        <td class="num">${formatMoney(item.amount, invoice.currency)}</td>
-      </tr>`,
-    )
-    .join("");
+  const lineItems = buildLineItemsHtml(items, invoice.currency);
 
   const amountPaid = invoice.amountPaid ?? 0;
   const balanceDue = invoice.balanceDue ?? invoice.total;

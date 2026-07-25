@@ -25,9 +25,9 @@ import { AiDocumentParseTab } from "@/features/invoices/components/ai-document-p
 import { AddUnbilledTimeDialog } from "@/features/time/components/add-unbilled-time-dialog";
 import {
   InvoiceLineItems,
-  createDefaultLineItems,
-  createEmptyLineItem,
+  createDefaultSections,
   type LineItemInput,
+  type LineItemSectionInput,
 } from "@/features/invoices/components/invoice-line-items";
 import { InvoiceTotalsSummary } from "@/features/invoices/components/invoice-totals-summary";
 import { TemplateCarousel } from "@/features/invoices/components/template-carousel";
@@ -41,6 +41,10 @@ import type { ClientListItem } from "@/lib/clients";
 import { formatClientAddress } from "@/lib/clients";
 import { CURRENCY_OPTIONS } from "@/lib/geo/countries";
 import { normalizeDraftDate } from "@/lib/draft-dates";
+import {
+  flattenSectionsToLineItems,
+  groupLineItemsIntoSections,
+} from "@/lib/line-item-sections";
 import type { AiApplyMeta, InvoiceDraft } from "@/lib/schemas/invoice";
 import { AiSourceNotesPanel } from "@/features/invoices/components/ai-source-notes-panel";
 import type { TemplateSummary } from "@/lib/templates";
@@ -49,7 +53,7 @@ const BASE_STEPS: FormStep[] = [
   { id: "template", title: "Template", description: "Pick a design for this estimate." },
   { id: "client", title: "Client", description: "Who this estimate is for." },
   { id: "details", title: "Details", description: "Dates and currency for this estimate." },
-  { id: "items", title: "Line items", description: "Products or services on this estimate." },
+  { id: "items", title: "Line items", description: "Sections and line items for this estimate." },
   { id: "notes", title: "Notes", description: "Validity terms or anything else to include." },
 ];
 
@@ -66,7 +70,12 @@ export type EstimateInitialValues = {
   validUntil?: string | null;
   taxRate?: number;
   discount?: number;
-  lineItems?: LineItemInput[];
+  lineItems?: Array<
+    LineItemInput & {
+      sectionTitle?: string | null;
+      sectionSortOrder?: number;
+    }
+  >;
 };
 
 type EstimateCreatorProps = {
@@ -127,9 +136,12 @@ export function EstimateCreator({
   );
   const [discountMode, setDiscountMode] = useState<DiscountMode>("amount");
   const [discountValue, setDiscountValue] = useState(initialValues?.discount ?? 0);
-  const [lineItems, setLineItems] = useState<LineItemInput[]>(
-    initialValues?.lineItems?.length ? initialValues.lineItems : createDefaultLineItems(),
-  );
+  const [sections, setSections] = useState<LineItemSectionInput<LineItemInput>[]>(() => {
+    if (initialValues?.lineItems?.length) {
+      return groupLineItemsIntoSections(initialValues.lineItems);
+    }
+    return createDefaultSections();
+  });
   const [activeTab, setActiveTab] = useState("form");
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -145,6 +157,10 @@ export function EstimateCreator({
   const currentStepId = steps[step]?.id;
   const isLastStep = step === steps.length - 1;
 
+  const lineItems = useMemo(
+    () => flattenSectionsToLineItems(sections),
+    [sections],
+  );
   const lineItemsForTotals = lineItems.map((item) => ({
     quantity: item.quantity,
     unitPrice: item.unitPrice,
@@ -184,12 +200,6 @@ export function EstimateCreator({
   function openTemplatePreview(id: string) {
     setPreviewTemplateId(id);
     setPreviewOpen(true);
-  }
-
-  function updateLineItem(index: number, patch: Partial<LineItemInput>) {
-    setLineItems((items) =>
-      items.map((item, i) => (i === index ? { ...item, ...patch } : item)),
-    );
   }
 
   function applyClient(client: ClientListItem) {
@@ -232,12 +242,6 @@ export function EstimateCreator({
     setStep(itemsStepIndex);
   }, [isEditing, preselectedTimeIdsKey, selectedClientId, itemsStepIndex]);
 
-  function removeLineItem(index: number) {
-    setLineItems((items) =>
-      items.length === 1 ? items : items.filter((_, i) => i !== index),
-    );
-  }
-
   function applyDraft(draft: InvoiceDraft, meta?: AiApplyMeta) {
     const linesOnly = meta?.extraction_mode === "lines_only";
 
@@ -277,11 +281,15 @@ export function EstimateCreator({
       }
     }
 
-    setLineItems(
-      draft.line_items.map((item) => ({
-        description: item.description,
-        quantity: item.quantity,
-        unitPrice: item.unit_price,
+    setSections(
+      draft.sections.map((section) => ({
+        key: crypto.randomUUID(),
+        title: section.title?.trim() ?? "",
+        items: section.items.map((item) => ({
+          description: item.description,
+          quantity: item.quantity,
+          unitPrice: item.unit_price,
+        })),
       })),
     );
     setActiveTab("form");
@@ -294,8 +302,12 @@ export function EstimateCreator({
   function handleAddFromTime(items: LineItemInput[]): boolean {
     let added = false;
 
-    setLineItems((current) => {
-      const usedIds = new Set(current.flatMap((item) => item.timeEntryIds ?? []));
+    setSections((current) => {
+      const usedIds = new Set(
+        current.flatMap((section) =>
+          section.items.flatMap((item) => item.timeEntryIds ?? []),
+        ),
+      );
       const freshItems = items
         .map((item) => ({
           ...item,
@@ -309,10 +321,13 @@ export function EstimateCreator({
       }
 
       added = true;
-      const hasContent = current.some(
+      const next = current.length > 0 ? [...current] : createDefaultSections();
+      const target = next[next.length - 1]!;
+      const hasContent = target.items.some(
         (item) => item.description.trim() || item.unitPrice > 0 || item.quantity !== 1,
       );
-      return hasContent ? [...current, ...freshItems] : freshItems;
+      target.items = hasContent ? [...target.items, ...freshItems] : freshItems;
+      return next;
     });
 
     return added;
@@ -332,11 +347,13 @@ export function EstimateCreator({
       validUntil: validUntil ? new Date(validUntil).toISOString() : undefined,
       taxRate: taxRate / 100,
       discount: discountAmount,
-      lineItems: lineItems.map((item, index) => ({
+      lineItems: flattenSectionsToLineItems(sections).map((item) => ({
         description: item.description,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
-        sortOrder: index,
+        sortOrder: item.sortOrder,
+        sectionTitle: item.sectionTitle,
+        sectionSortOrder: item.sectionSortOrder,
       })),
     };
   }
@@ -495,10 +512,9 @@ export function EstimateCreator({
           )}
           <FormSection title="Line items">
             <InvoiceLineItems
-              items={lineItems}
-              onChange={updateLineItem}
-              onRemove={removeLineItem}
-              onAdd={() => setLineItems((items) => [...items, createEmptyLineItem()])}
+              sections={sections}
+              onChange={setSections}
+              currency={currency}
             />
           </FormSection>
           <div className="grid gap-4 sm:grid-cols-2">

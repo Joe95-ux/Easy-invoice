@@ -5,7 +5,7 @@ import re
 from openai import OpenAI
 
 from app.config import settings
-from app.schemas import InvoiceDraft, LineItem, ParseInvoiceRequest
+from app.schemas import DraftSection, InvoiceDraft, LineItem, ParseInvoiceRequest
 
 SYSTEM_PROMPT = """You are an expert invoice/estimate assistant for contractors and small businesses.
 
@@ -23,13 +23,20 @@ Return ONLY valid JSON matching this schema:
   "notes": string | null,
   "tax_rate": number (decimal, e.g. 0.08 for 8%),
   "discount": number (flat currency amount, NOT a percentage),
-  "line_items": [{ "description": string, "quantity": number, "unit_price": number, "amount": number }],
+  "sections": [
+    {
+      "title": string,
+      "items": [{ "description": string, "quantity": number, "unit_price": number, "amount": number }]
+    }
+  ],
   "detected_language": string | null,
   "confidence": number (0-1)
 }
 
+Prefer "sections" over a flat list. You may also return "line_items" instead of sections for simple single-list jobs; the server will wrap them as one untitled section.
+
 OUTPUT LANGUAGE (critical):
-- Write every line item description and the notes field in clear, professional business English unless the user explicitly asks for another output language.
+- Write every line item description, section title, and the notes field in clear, professional business English unless the user explicitly asks for another output language.
 - Translate French, typos, slang, and shorthand into standard invoice wording a US customer would understand.
 - Never copy source-language phrasing verbatim into descriptions.
 - Example: "enleve les vieux caro sur les deux douche" -> description "Remove old shower tile (per shower)", quantity 2. Only set unit_price if the source states a price.
@@ -38,6 +45,11 @@ SENDER vs CLIENT:
 - The invoice sender (the user's company) may be provided in context. Never put the sender in client_name.
 - client_name is the bill-to customer receiving the invoice.
 - If the end customer is not named, use "Client".
+
+SECTIONS (critical for remodel / multi-area jobs):
+- When the note has partitions such as downstairs vs upstairs, exterior vs interior, phase 1 vs phase 2, or labeled work packages, return multiple sections with clear titles (e.g. "Downstairs", "Upstairs", "Electrical").
+- Put each task under the correct section. Do not flatten everything into one list when sections are obvious.
+- Simple jobs with no partitions: one section with title "" (empty string) or a single section titled "Items".
 
 PRICING (critical — never invent money):
 - ONLY put a unit_price / amount when the source explicitly states that price for that task or material.
@@ -49,22 +61,22 @@ LINE ITEMS:
 - Parse pricing like "$300 x 2", "300 x 2", "$100 × 3" as unit_price and quantity respectively.
 - Inline prices like "change the drywall($650)" or "painting upstairs($2500)" mean one line with that unit_price (quantity 1 unless quantity is stated).
 - amount must equal quantity * unit_price for each line.
-- Use concise professional descriptions. Add location/scope when useful (e.g. downstairs living room, upstairs hallway).
+- Use concise professional descriptions. Add location/scope when useful (e.g. living room, hallway).
 - Split into one line per distinct task, room, or priced scope — do not merge unrelated work into one vague line.
-- Always include at least one line item.
-- Long notes with many sections: extract EVERY discrete task across the whole note. Do not stop after the first section.
+- Always include at least one line item across all sections.
+- Long notes: extract EVERY discrete task across the whole note. Do not stop after the first section.
 
 SECTION TOTALS / ROLLUPS (critical — do not double-bill):
 - Job notes often list itemized work, then a section summary such as "workmanship for all this is $4500", "subtotal", "total for downstairs", "partition total", or "labor for the above".
-- Those summaries are NOT additional line items when they roll up work already listed. Omit them from line_items.
+- Those summaries are NOT additional line items when they roll up work already listed. Omit them from items.
 - Especially: if priced lines in a section already add up to a stated section total, keep the itemized lines and DROP the summary total.
 - Only create a single rollup/labor line when the source gives a total WITHOUT listing priced breakdown lines for that same scope.
-- Materials called out without a price (e.g. "15 cartons of flooring", "1 bucket of white paint") become their own lines at unit_price 0, or mention quantities in the related task description — never invent a materials price.
+- Materials called out without a price (e.g. "15 cartons of flooring", "1 bucket of white paint") become their own lines at unit_price 0 — never invent a materials price.
 
-EXAMPLE (section rollup):
-Source fragment: "fix drywall($650), paint downstairs($1200), HVAC fix($300), kitchen floor($1000), living room floor($1350) — workmanship for all this is $4500"
-Correct: five priced lines (650, 1200, 300, 1000, 1350). Do NOT add a sixth $4500 workmanship line.
-Wrong: adding "Workmanship / downstairs total" at 4500 on top of the five lines.
+EXAMPLE (sectioned remodel):
+Source: downstairs priced tasks totaling $4500 with "workmanship for all this is $4500", then upstairs tasks, then electrical $400.
+Correct: sections "Downstairs" (itemized priced lines, NO $4500 workmanship row), "Upstairs" (itemized lines), "Electrical" ($400).
+Wrong: one flat list that adds a duplicate $4500 workmanship line.
 
 DISCOUNTS:
 - discount is a dollar/currency amount subtracted from the subtotal, not a percentage.
@@ -94,8 +106,8 @@ DOCUMENT IMPORT:
 - For document_kind=estimate, due_date is the quote valid-until date.
 
 EXTRACTION MODES:
-- extraction_mode=full: extract client details, dates, line items, tax, discount, and notes when present.
-- extraction_mode=lines_only: extract only line_items plus tax_rate, discount, and notes when clearly visible on the document.
+- extraction_mode=full: extract client details, dates, sections/line items, tax, discount, and notes when present.
+- extraction_mode=lines_only: extract only sections/line items plus tax_rate, discount, and notes when clearly visible on the document.
   For lines_only, set client_name to known_client_name when provided, otherwise "Client".
   Do not invent client email, phone, or address. Leave issue_date and due_date null unless they are essential to a line item.
 """
@@ -132,6 +144,7 @@ def _build_user_message(payload: ParseInvoiceRequest) -> str:
     parts.append("")
     parts.append(
         "Extract every discrete task from the full source below. "
+        "Use sections when the job is partitioned (e.g. downstairs / upstairs). "
         "Do not invent prices. Do not add section rollups/workmanship totals "
         "that summarize priced lines already listed."
     )
@@ -181,15 +194,25 @@ def _drop_section_rollups(items: list[LineItem]) -> list[LineItem]:
 
 
 def _normalize_draft(draft: InvoiceDraft) -> InvoiceDraft:
-    line_items: list[LineItem] = []
-    for item in draft.line_items:
-        amount = round(item.quantity * item.unit_price, 2)
-        line_items.append(
-            item.model_copy(update={"amount": amount}),
-        )
+    sections: list[DraftSection] = []
+    for section in draft.sections:
+        items: list[LineItem] = []
+        for item in section.items:
+            amount = round(item.quantity * item.unit_price, 2)
+            items.append(item.model_copy(update={"amount": amount}))
+        items = _drop_section_rollups(items)
+        if items:
+            sections.append(section.model_copy(update={"items": items}))
 
-    line_items = _drop_section_rollups(line_items)
+    if not sections and draft.line_items:
+        items = [
+            item.model_copy(update={"amount": round(item.quantity * item.unit_price, 2)})
+            for item in draft.line_items
+        ]
+        items = _drop_section_rollups(items)
+        sections = [DraftSection(title="", items=items)]
 
+    line_items = [item for section in sections for item in section.items]
     subtotal = round(sum(item.amount for item in line_items), 2)
     discount = draft.discount
 
@@ -197,7 +220,9 @@ def _normalize_draft(draft: InvoiceDraft) -> InvoiceDraft:
     if subtotal > 0 and 0 < discount < 1:
         discount = round(subtotal * discount, 2)
 
-    return draft.model_copy(update={"line_items": line_items, "discount": discount})
+    return draft.model_copy(
+        update={"sections": sections, "line_items": line_items, "discount": discount},
+    )
 
 
 def _openai_client() -> OpenAI:

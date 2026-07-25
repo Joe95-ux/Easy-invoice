@@ -5,6 +5,8 @@ const estimateLineItemInputSchema = z.object({
   quantity: z.number().positive(),
   unitPrice: z.number().nonnegative(),
   sortOrder: z.number().int().nonnegative(),
+  sectionTitle: z.string().trim().max(120).nullable().optional(),
+  sectionSortOrder: z.number().int().nonnegative().optional(),
 });
 
 export const createEstimateSchema = z.object({

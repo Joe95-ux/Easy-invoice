@@ -77,13 +77,19 @@ export async function resolveClientForInvoice(companyId: string, input: ClientIn
   });
 }
 
-export function buildInvoiceTotals(input: CreateInvoiceInput) {
+export function buildInvoiceTotals(input: {
+  lineItems: CreateInvoiceInput["lineItems"];
+  taxRate: number;
+  discount: number;
+}) {
   const lineItems = input.lineItems.map((item) => ({
     quantity: item.quantity,
     unitPrice: item.unitPrice,
     amount: lineItemAmount(item.quantity, item.unitPrice),
     description: item.description,
     sortOrder: item.sortOrder,
+    sectionTitle: item.sectionTitle?.trim() || null,
+    sectionSortOrder: item.sectionSortOrder ?? 0,
   }));
 
   const totals = calculateInvoiceTotals({

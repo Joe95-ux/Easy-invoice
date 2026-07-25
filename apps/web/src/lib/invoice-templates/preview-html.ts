@@ -50,6 +50,9 @@ export type PreviewLineItem = {
   description: string;
   quantity: number;
   unitPrice: number;
+  sectionTitle?: string | null;
+  sectionSortOrder?: number;
+  sortOrder?: number;
 };
 
 export type PreviewInstallment = {
@@ -132,6 +135,9 @@ export function buildDocumentHtml(options: BuildDocumentHtmlOptions): string {
       quantity: item.quantity,
       unitPrice: item.unitPrice,
       amount: item.quantity * item.unitPrice,
+      sectionTitle: item.sectionTitle ?? null,
+      sectionSortOrder: item.sectionSortOrder ?? 0,
+      sortOrder: item.sortOrder ?? 0,
     }));
 
   const installments = (options.installments ?? []).map((row) => {

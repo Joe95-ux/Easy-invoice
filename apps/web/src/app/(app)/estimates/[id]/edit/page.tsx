@@ -67,6 +67,8 @@ export default async function EditEstimatePage({ params }: PageProps) {
             description: item.description,
             quantity: Number(item.quantity),
             unitPrice: Number(item.unitPrice),
+            sectionTitle: item.sectionTitle,
+            sectionSortOrder: item.sectionSortOrder,
           })),
         }}
       />

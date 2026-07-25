@@ -14,6 +14,8 @@ export type DocumentSnapshotLineItem = {
   unitPrice: number;
   amount: number;
   sortOrder: number;
+  sectionTitle?: string | null;
+  sectionSortOrder?: number;
   timeEntryIds?: string[];
 };
 

@@ -1,7 +1,13 @@
 import { prisma } from "@/lib/db";
 import { SYSTEM_TEMPLATES } from "@/lib/invoice-templates/definitions";
 
-export type TemplateSummary = Awaited<ReturnType<typeof getTemplatesForCompany>>[number];
+export type TemplateSummary = {
+  id: string;
+  name: string;
+  slug: string;
+  isDefault: boolean;
+  isSystem: boolean;
+};
 
 const SYSTEM_SLUGS = SYSTEM_TEMPLATES.map((template) => template.slug);
 
@@ -118,7 +124,7 @@ export async function ensureSystemTemplates() {
 }
 
 function sortTemplatesByDefinitionOrder<
-  T extends { slug: string; isSystem: boolean; name: string },
+  T extends { id: string; slug: string; isSystem: boolean; name: string },
 >(templates: T[]): T[] {
   const slugOrder = new Map(SYSTEM_TEMPLATES.map((template, index) => [template.slug, index]));
 
@@ -135,7 +141,7 @@ function sortTemplatesByDefinitionOrder<
   });
 }
 
-export async function getTemplatesForCompany(companyId: string) {
+export async function getTemplatesForCompany(companyId: string): Promise<TemplateSummary[]> {
   await ensureSystemTemplates();
 
   const templates = await prisma.invoiceTemplate.findMany({

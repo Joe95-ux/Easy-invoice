@@ -46,6 +46,9 @@ export function estimateToHtmlData(
       quantity: Number(item.quantity),
       unitPrice: Number(item.unitPrice),
       amount: Number(item.amount),
+      sectionTitle: item.sectionTitle,
+      sectionSortOrder: item.sectionSortOrder,
+      sortOrder: item.sortOrder,
     })),
     ...(accepted
       ? {

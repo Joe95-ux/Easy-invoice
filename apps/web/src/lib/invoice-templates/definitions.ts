@@ -128,6 +128,26 @@ export const tableBandStyles = `
   table.line-items tbody tr.band-odd { background: transparent; }
   table.line-items tbody tr.band-even { background: rgba(15, 23, 42, 0.03); }
   table.line-items tbody tr.band-even td { border-bottom-color: rgba(15, 23, 42, 0.06); }
+  table.line-items tbody tr.section-header td {
+    padding-top: 14px;
+    padding-bottom: 6px;
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: #0f172a;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.18);
+    background: transparent;
+  }
+  table.line-items tbody tr.section-subtotal td {
+    padding-top: 6px;
+    padding-bottom: 10px;
+    font-weight: 600;
+    font-size: 12px;
+    color: #334155;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+    background: transparent;
+  }
 `;
 
 const sharedBody = `
@@ -543,6 +563,19 @@ export const SYSTEM_TEMPLATES: SystemTemplateDefinition[] = [
       table.line-items { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
       table.line-items tbody tr.band-odd { background: transparent; }
       table.line-items tbody tr.band-even { background: rgba(20, 20, 20, 0.03); }
+      table.line-items tbody tr.section-header td {
+        padding-top: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        font-size: 11px;
+        border-bottom: 1px solid #737373;
+      }
+      table.line-items tbody tr.section-subtotal td {
+        font-weight: 600;
+        font-size: 12px;
+        border-bottom: 1px dashed #a3a3a3;
+      }
       th {
         text-align: left;
         padding: 10px 8px;

@@ -70,6 +70,8 @@ export default async function EditInvoicePage({ params }: PageProps) {
             description: item.description,
             quantity: Number(item.quantity),
             unitPrice: Number(item.unitPrice),
+            sectionTitle: item.sectionTitle,
+            sectionSortOrder: item.sectionSortOrder,
             timeEntryIds: item.timeEntries.map((entry) => entry.id),
           })),
           installments: invoice.installments.map((row) => ({

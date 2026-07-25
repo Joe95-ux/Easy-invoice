@@ -25,9 +25,9 @@ import { AiDocumentParseTab } from "@/features/invoices/components/ai-document-p
 import { AddUnbilledTimeDialog } from "@/features/time/components/add-unbilled-time-dialog";
 import {
   InvoiceLineItems,
-  createDefaultLineItems,
-  createEmptyLineItem,
+  createDefaultSections,
   type LineItemInput,
+  type LineItemSectionInput,
 } from "@/features/invoices/components/invoice-line-items";
 import { InvoiceTotalsSummary } from "@/features/invoices/components/invoice-totals-summary";
 import {
@@ -47,6 +47,10 @@ import { formatClientAddress } from "@/lib/clients";
 import { CURRENCY_OPTIONS } from "@/lib/geo/countries";
 import { normalizeDraftDate } from "@/lib/draft-dates";
 import type { InvoiceStatus } from "@easy-invoice/db";
+import {
+  flattenSectionsToLineItems,
+  groupLineItemsIntoSections,
+} from "@/lib/line-item-sections";
 import type { AiApplyMeta, InvoiceDraft } from "@/lib/schemas/invoice";
 import { AiSourceNotesPanel } from "@/features/invoices/components/ai-source-notes-panel";
 import type { TemplateSummary } from "@/lib/templates";
@@ -55,7 +59,7 @@ const BASE_STEPS: FormStep[] = [
   { id: "template", title: "Template", description: "Pick a design for this invoice." },
   { id: "client", title: "Client", description: "Who you're billing for this invoice." },
   { id: "details", title: "Details", description: "Dates and currency for this invoice." },
-  { id: "items", title: "Line items", description: "Products or services on this invoice." },
+  { id: "items", title: "Line items", description: "Sections and line items for this invoice." },
   { id: "notes", title: "Notes", description: "Due dates, late fees, or anything else to include." },
 ];
 
@@ -72,7 +76,12 @@ export type InvoiceInitialValues = {
   dueDate?: string | null;
   taxRate?: number;
   discount?: number;
-  lineItems?: LineItemInput[];
+  lineItems?: Array<
+    LineItemInput & {
+      sectionTitle?: string | null;
+      sectionSortOrder?: number;
+    }
+  >;
   installments?: InstallmentRow[];
 };
 
@@ -134,9 +143,12 @@ export function InvoiceCreator({
   );
   const [discountMode, setDiscountMode] = useState<DiscountMode>("amount");
   const [discountValue, setDiscountValue] = useState(initialValues?.discount ?? 0);
-  const [lineItems, setLineItems] = useState<LineItemInput[]>(
-    initialValues?.lineItems?.length ? initialValues.lineItems : createDefaultLineItems(),
-  );
+  const [sections, setSections] = useState<LineItemSectionInput<LineItemInput>[]>(() => {
+    if (initialValues?.lineItems?.length) {
+      return groupLineItemsIntoSections(initialValues.lineItems);
+    }
+    return createDefaultSections();
+  });
   const [installments, setInstallments] = useState<InstallmentRow[]>(
     initialValues?.installments ?? [],
   );
@@ -156,6 +168,10 @@ export function InvoiceCreator({
   const currentStepId = steps[step]?.id;
   const isLastStep = step === steps.length - 1;
 
+  const lineItems = useMemo(
+    () => flattenSectionsToLineItems(sections),
+    [sections],
+  );
   const lineItemsForTotals = lineItems.map((item) => ({
     quantity: item.quantity,
     unitPrice: item.unitPrice,
@@ -195,12 +211,6 @@ export function InvoiceCreator({
   function openTemplatePreview(id: string) {
     setPreviewTemplateId(id);
     setPreviewOpen(true);
-  }
-
-  function updateLineItem(index: number, patch: Partial<LineItemInput>) {
-    setLineItems((items) =>
-      items.map((item, i) => (i === index ? { ...item, ...patch } : item)),
-    );
   }
 
   function applyClient(client: ClientListItem) {
@@ -283,11 +293,15 @@ export function InvoiceCreator({
       }
     }
 
-    setLineItems(
-      draft.line_items.map((item) => ({
-        description: item.description,
-        quantity: item.quantity,
-        unitPrice: item.unit_price,
+    setSections(
+      draft.sections.map((section) => ({
+        key: crypto.randomUUID(),
+        title: section.title?.trim() ?? "",
+        items: section.items.map((item) => ({
+          description: item.description,
+          quantity: item.quantity,
+          unitPrice: item.unit_price,
+        })),
       })),
     );
     setActiveTab("form");
@@ -297,17 +311,15 @@ export function InvoiceCreator({
     );
   }
 
-  function removeLineItem(index: number) {
-    setLineItems((items) =>
-      items.length === 1 ? items : items.filter((_, i) => i !== index),
-    );
-  }
-
   function handleAddFromTime(items: LineItemInput[]): boolean {
     let added = false;
 
-    setLineItems((current) => {
-      const usedIds = new Set(current.flatMap((item) => item.timeEntryIds ?? []));
+    setSections((current) => {
+      const usedIds = new Set(
+        current.flatMap((section) =>
+          section.items.flatMap((item) => item.timeEntryIds ?? []),
+        ),
+      );
       const freshItems = items
         .map((item) => ({
           ...item,
@@ -321,10 +333,13 @@ export function InvoiceCreator({
       }
 
       added = true;
-      const hasContent = current.some(
+      const next = current.length > 0 ? [...current] : createDefaultSections();
+      const target = next[next.length - 1]!;
+      const hasContent = target.items.some(
         (item) => item.description.trim() || item.unitPrice > 0 || item.quantity !== 1,
       );
-      return hasContent ? [...current, ...freshItems] : freshItems;
+      target.items = hasContent ? [...target.items, ...freshItems] : freshItems;
+      return next;
     });
 
     return added;
@@ -344,11 +359,13 @@ export function InvoiceCreator({
       dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
       taxRate: taxRate / 100,
       discount: discountAmount,
-      lineItems: lineItems.map((item, index) => ({
+      lineItems: flattenSectionsToLineItems(sections).map((item) => ({
         description: item.description,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
-        sortOrder: index,
+        sortOrder: item.sortOrder,
+        sectionTitle: item.sectionTitle,
+        sectionSortOrder: item.sectionSortOrder,
         ...(item.timeEntryIds?.length ? { timeEntryIds: item.timeEntryIds } : {}),
       })),
       ...(installments.length > 0 ? { installments } : {}),
@@ -526,10 +543,9 @@ export function InvoiceCreator({
           )}
           <FormSection title="Line items">
             <InvoiceLineItems
-              items={lineItems}
-              onChange={updateLineItem}
-              onRemove={removeLineItem}
-              onAdd={() => setLineItems((items) => [...items, createEmptyLineItem()])}
+              sections={sections}
+              onChange={setSections}
+              currency={currency}
             />
           </FormSection>
           <div className="grid gap-4 sm:grid-cols-2">

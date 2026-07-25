@@ -8,26 +8,62 @@ const lineItemSchema = z.object({
   amount: z.number().nonnegative(),
 });
 
+const draftSectionSchema = z.object({
+  title: z.string().trim().max(120).default(""),
+  items: z.array(lineItemSchema).min(1),
+});
+
 const draftDateSchema = z.preprocess(
   normalizeDraftDate,
   z.string().optional().nullable(),
 );
 
-export const invoiceDraftSchema = z.object({
-  client_name: z.string().min(1),
-  client_email: z.string().email().optional().nullable(),
-  client_phone: z.string().optional().nullable(),
-  client_address: z.string().optional().nullable(),
-  currency: z.string().length(3).default("USD"),
-  issue_date: draftDateSchema,
-  due_date: draftDateSchema,
-  notes: z.string().optional().nullable(),
-  tax_rate: z.number().min(0).max(1).default(0),
-  discount: z.number().min(0).default(0),
-  line_items: z.array(lineItemSchema).min(1),
-  detected_language: z.string().optional().nullable(),
-  confidence: z.number().min(0).max(1).optional().nullable(),
-});
+export const invoiceDraftSchema = z
+  .object({
+    client_name: z.string().min(1),
+    client_email: z.string().email().optional().nullable(),
+    client_phone: z.string().optional().nullable(),
+    client_address: z.string().optional().nullable(),
+    currency: z.string().length(3).default("USD"),
+    issue_date: draftDateSchema,
+    due_date: draftDateSchema,
+    notes: z.string().optional().nullable(),
+    tax_rate: z.number().min(0).max(1).default(0),
+    discount: z.number().min(0).default(0),
+    /** Prefer sections when the job is partitioned (upstairs / downstairs, etc.). */
+    sections: z.array(draftSectionSchema).optional(),
+    line_items: z.array(lineItemSchema).optional(),
+    detected_language: z.string().optional().nullable(),
+    confidence: z.number().min(0).max(1).optional().nullable(),
+  })
+  .transform((draft) => {
+    const sections =
+      draft.sections && draft.sections.length > 0
+        ? draft.sections
+        : draft.line_items && draft.line_items.length > 0
+          ? [{ title: "", items: draft.line_items }]
+          : [];
+    const line_items = sections.flatMap((section) => section.items);
+    return { ...draft, sections, line_items };
+  })
+  .pipe(
+    z.object({
+      client_name: z.string().min(1),
+      client_email: z.string().email().optional().nullable(),
+      client_phone: z.string().optional().nullable(),
+      client_address: z.string().optional().nullable(),
+      currency: z.string().length(3),
+      issue_date: draftDateSchema,
+      due_date: draftDateSchema,
+      notes: z.string().optional().nullable(),
+      tax_rate: z.number().min(0).max(1),
+      discount: z.number().min(0),
+      sections: z.array(draftSectionSchema).min(1),
+      line_items: z.array(lineItemSchema).min(1),
+      detected_language: z.string().optional().nullable(),
+      confidence: z.number().min(0).max(1).optional().nullable(),
+    }),
+  );
 
 export type InvoiceDraft = z.infer<typeof invoiceDraftSchema>;
 
@@ -36,6 +72,8 @@ const invoiceLineItemInputSchema = z.object({
   quantity: z.number().positive(),
   unitPrice: z.number().nonnegative(),
   sortOrder: z.number().int().nonnegative(),
+  sectionTitle: z.string().trim().max(120).nullable().optional(),
+  sectionSortOrder: z.number().int().nonnegative().optional(),
   timeEntryIds: z.array(z.string()).optional(),
 });
 
@@ -113,12 +151,7 @@ export type AiApplyMeta = {
   sourceNotes?: string;
 } & Partial<DocumentParseMeta>;
 
-export const parseDocumentResponseSchema = invoiceDraftSchema.extend({
-  extraction_mode: documentExtractionModeSchema,
-  extraction_method: z.enum(["text", "vision", "plain_text"]),
-  warnings: z.array(z.string()),
-  source_filename: z.string(),
-});
+export const parseDocumentResponseSchema = documentParseMetaSchema.and(invoiceDraftSchema);
 
 export type ParseDocumentResponse = z.infer<typeof parseDocumentResponseSchema>;
 

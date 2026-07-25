@@ -59,6 +59,9 @@ export function invoiceToHtmlData(
       quantity: Number(item.quantity),
       unitPrice: Number(item.unitPrice),
       amount: Number(item.amount),
+      sectionTitle: item.sectionTitle,
+      sectionSortOrder: item.sectionSortOrder,
+      sortOrder: item.sortOrder,
     })),
     installments: paymentSummary.installments.map((row) => ({
       dueDate: row.dueDate,

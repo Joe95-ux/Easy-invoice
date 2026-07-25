@@ -413,13 +413,17 @@ model PaymentConfirmationEmail {
 }
 
 model InvoiceLineItem {
-  id          String  @id @default(cuid())
-  invoiceId   String
-  description String
-  quantity    Decimal @default(1) @db.Decimal(12, 4)
-  unitPrice   Decimal @default(0) @db.Decimal(12, 2)
-  amount      Decimal @default(0) @db.Decimal(12, 2)
-  sortOrder   Int     @default(0)
+  id               String  @id @default(cuid())
+  invoiceId        String
+  description      String
+  quantity         Decimal @default(1) @db.Decimal(12, 4)
+  unitPrice        Decimal @default(0) @db.Decimal(12, 2)
+  amount           Decimal @default(0) @db.Decimal(12, 2)
+  sortOrder        Int     @default(0)
+  /// Optional section heading (e.g. "Downstairs"). Null/empty = ungrouped.
+  sectionTitle     String?
+  /// Order of the section among other sections on the document.
+  sectionSortOrder Int     @default(0)
 
   invoice    Invoice     @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   timeEntries TimeEntry[]
@@ -500,13 +504,17 @@ model Estimate {
 }
 
 model EstimateLineItem {
-  id          String  @id @default(cuid())
-  estimateId  String
-  description String
-  quantity    Decimal @default(1) @db.Decimal(12, 4)
-  unitPrice   Decimal @default(0) @db.Decimal(12, 2)
-  amount      Decimal @default(0) @db.Decimal(12, 2)
-  sortOrder   Int     @default(0)
+  id               String  @id @default(cuid())
+  estimateId       String
+  description      String
+  quantity         Decimal @default(1) @db.Decimal(12, 4)
+  unitPrice        Decimal @default(0) @db.Decimal(12, 2)
+  amount           Decimal @default(0) @db.Decimal(12, 2)
+  sortOrder        Int     @default(0)
+  /// Optional section heading (e.g. "Downstairs"). Null/empty = ungrouped.
+  sectionTitle     String?
+  /// Order of the section among other sections on the document.
+  sectionSortOrder Int     @default(0)
 
   estimate Estimate @relation(fields: [estimateId], references: [id], onDelete: Cascade)
 
