@@ -4,6 +4,7 @@ import { generatePublicToken } from "@/lib/document-tokens";
 import { recordDocumentRevision } from "@/lib/document-revisions/service";
 import { isEmailConfigured, sendEstimateAcceptedEmail } from "@/lib/email";
 import { createNotification } from "@/lib/notifications/service";
+import { isEstimatePastValidUntil, expireEstimateIfPastValidUntil } from "@/lib/reminders/estimate-service";
 
 const INVOICE_INCLUDE = {
   client: true,
@@ -82,10 +83,24 @@ export async function getInvoiceByPublicToken(token: string) {
 }
 
 export async function getEstimateByPublicToken(token: string) {
-  return prisma.estimate.findUnique({
+  const estimate = await prisma.estimate.findUnique({
     where: { publicToken: token },
     include: ESTIMATE_INCLUDE,
   });
+  if (!estimate) return null;
+
+  if (
+    (estimate.status === "SENT" || estimate.status === "VIEWED") &&
+    isEstimatePastValidUntil(estimate.validUntil)
+  ) {
+    await expireEstimateIfPastValidUntil(estimate.id);
+    return prisma.estimate.findUnique({
+      where: { id: estimate.id },
+      include: ESTIMATE_INCLUDE,
+    });
+  }
+
+  return estimate;
 }
 
 export async function markInvoiceViewed(invoiceId: string, currentStatus: InvoiceStatus) {
@@ -207,6 +222,15 @@ export async function respondToPublicEstimate(
 
   if (["ACCEPTED", "DECLINED", "CANCELLED", "EXPIRED"].includes(estimate.status)) {
     return { estimate, error: "already_responded" as const };
+  }
+
+  if (isEstimatePastValidUntil(estimate.validUntil)) {
+    await expireEstimateIfPastValidUntil(estimate.id);
+    const expired = await prisma.estimate.findUnique({
+      where: { id: estimate.id },
+      include: ESTIMATE_INCLUDE,
+    });
+    return { estimate: expired!, error: "expired" as const };
   }
 
   const status = action === "accept" ? "ACCEPTED" : "DECLINED";

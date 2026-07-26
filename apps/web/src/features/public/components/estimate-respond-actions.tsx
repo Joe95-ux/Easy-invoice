@@ -23,14 +23,25 @@ type EstimateRespondActionsProps = {
   token: string;
   initialStatus: EstimateStatus;
   clientName?: string | null;
+  validUntil?: string | null;
 };
 
 const RESPONDED: EstimateStatus[] = ["ACCEPTED", "DECLINED", "CANCELLED", "EXPIRED"];
+
+function isPastValidUntil(validUntil?: string | null): boolean {
+  if (!validUntil) return false;
+  const until = new Date(validUntil);
+  const today = new Date();
+  until.setUTCHours(0, 0, 0, 0);
+  today.setUTCHours(0, 0, 0, 0);
+  return until < today;
+}
 
 export function EstimateRespondActions({
   token,
   initialStatus,
   clientName,
+  validUntil,
 }: EstimateRespondActionsProps) {
   const router = useRouter();
   const [status, setStatus] = useState(initialStatus);
@@ -39,7 +50,8 @@ export function EstimateRespondActions({
   const [signerName, setSignerName] = useState(clientName?.trim() ?? "");
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
 
-  const canRespond = !RESPONDED.includes(status);
+  const expiredByDate = isPastValidUntil(validUntil);
+  const canRespond = !RESPONDED.includes(status) && !expiredByDate;
 
   async function decline() {
     setLoading("decline");
@@ -97,6 +109,7 @@ export function EstimateRespondActions({
   }
 
   if (!canRespond) {
+    const isExpired = status === "EXPIRED" || expiredByDate;
     return (
       <div className="flex items-start gap-3">
         <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
@@ -111,7 +124,9 @@ export function EstimateRespondActions({
             ? "You signed and accepted this estimate. The sender has been notified, and a confirmation was emailed to you if an address is on file."
             : status === "DECLINED"
               ? "You declined this estimate."
-              : "This estimate is no longer open for a response."}
+              : isExpired
+                ? "This estimate has expired and can no longer be accepted."
+                : "This estimate is no longer open for a response."}
         </p>
       </div>
     );

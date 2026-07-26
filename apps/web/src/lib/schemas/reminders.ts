@@ -12,10 +12,18 @@ export const reminderSettingsSchema = z.object({
   reminderDaysAfter: daysArraySchema,
   reminderIncludePdf: z.boolean(),
   paymentReceiptEmailsEnabled: z.boolean(),
+  estimateRemindersEnabled: z.boolean(),
+  estimateReminderDaysBefore: daysArraySchema,
+  estimateReminderOnExpiryDay: z.boolean(),
+  estimateReminderIncludePdf: z.boolean(),
 });
 
 export type ReminderSettingsInput = z.infer<typeof reminderSettingsSchema>;
 
 export const invoiceRemindersPausedSchema = z.object({
+  remindersPaused: z.boolean(),
+});
+
+export const estimateRemindersPausedSchema = z.object({
   remindersPaused: z.boolean(),
 });

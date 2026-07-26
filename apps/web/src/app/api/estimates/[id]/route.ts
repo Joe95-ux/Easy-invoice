@@ -144,6 +144,7 @@ export async function PATCH(request: Request, context: RouteContext) {
         issueDate: data.issueDate ? new Date(data.issueDate) : existing.issueDate,
       }),
       ...(clientId !== undefined && { clientId }),
+      ...(data.remindersPaused !== undefined && { remindersPaused: data.remindersPaused }),
       ...totalsUpdate,
       ...(data.status === "ACCEPTED" && {
         acceptedAt: existing.acceptedAt ?? new Date(),

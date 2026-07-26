@@ -30,7 +30,7 @@ export function buildEstimateTotals(input: CreateEstimateInput) {
   return buildInvoiceTotals(input);
 }
 
-const TERMINAL_STATUSES: EstimateStatus[] = ["ACCEPTED", "DECLINED", "CANCELLED"];
+const TERMINAL_STATUSES: EstimateStatus[] = ["ACCEPTED", "DECLINED", "EXPIRED", "CANCELLED"];
 
 export function canTransitionEstimateStatus(from: EstimateStatus, to: EstimateStatus): boolean {
   if (from === to) return true;
@@ -58,7 +58,11 @@ export async function convertEstimateToInvoice(estimateId: string, companyId: st
     return { invoice: estimate.convertedInvoice, created: false };
   }
 
-  if (estimate.status === "DECLINED" || estimate.status === "CANCELLED") {
+  if (
+    estimate.status === "DECLINED" ||
+    estimate.status === "CANCELLED" ||
+    estimate.status === "EXPIRED"
+  ) {
     return { error: "cannot_convert" as const };
   }
 

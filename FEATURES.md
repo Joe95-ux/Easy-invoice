@@ -58,14 +58,14 @@ Stripe Checkout link on the client invoice page; webhook marks invoice paid.
 
 **Status:** Done
 
-Company-level reminder schedule, daily cron, manual remind, per-invoice pause, audit log.
+Company-level reminder schedule, daily cron, manual remind, per-invoice pause, audit log. Same cron also expires past-`validUntil` estimates and sends estimate follow-ups.
 
 | Piece | Location |
 |-------|----------|
-| Schema | `InvoiceReminder`, company reminder fields, `remindersPaused` |
-| Cron | `GET /api/cron/invoice-reminders` |
-| Settings | `ReminderSettingsSection` |
-| UI | Invoice detail reminders + `InvoiceActions` |
+| Schema | `InvoiceReminder`, `EstimateReminder`, company reminder fields, `remindersPaused` |
+| Cron | `GET /api/cron/invoice-reminders` (invoices + estimates) |
+| Settings | `ReminderSettingsSection` (invoices + estimate follow-ups) |
+| UI | Invoice/estimate detail reminders; public accept blocked when expired |
 
 ---
 

@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { DocumentLineItemsTable } from "@/components/document-line-items-table";
 import { EstimateActions } from "@/features/estimates/components/estimate-actions";
 import { EstimateAutoDownload } from "@/features/estimates/components/estimate-auto-download";
+import { EstimateRemindersSection } from "@/features/estimates/components/estimate-reminders-section";
 import { DocumentHistorySection } from "@/components/document-history-section";
 import { DocumentTemplateManager } from "@/features/invoices/components/document-template-manager";
 import { requireMember } from "@/lib/auth";
@@ -21,6 +22,7 @@ import {
   formatDate,
   formatMoney,
   getEstimateForMember,
+  getEstimateRemindersForMember,
   estimateStatusLabel,
   estimateStatusVariant,
 } from "@/lib/estimates";
@@ -40,9 +42,10 @@ export default async function EstimateDetailPage({ params }: PageProps) {
   const member = await requireMember();
 
   const { id } = await params;
-  const [estimate, templates] = await Promise.all([
+  const [estimate, templates, reminders] = await Promise.all([
     getEstimateForMember(id, member.companyId),
     getTemplatesForCompany(member.companyId),
+    getEstimateRemindersForMember(id, member.companyId),
   ]);
   if (!estimate) notFound();
 
@@ -306,6 +309,23 @@ export default async function EstimateDetailPage({ params }: PageProps) {
           </CardContent>
         </Card>
       )}
+
+      <EstimateRemindersSection
+        estimateId={estimate.id}
+        status={estimate.status}
+        clientEmail={estimate.client?.email}
+        validUntil={estimate.validUntil?.toISOString() ?? null}
+        sentAt={estimate.sentAt?.toISOString() ?? null}
+        remindersPaused={estimate.remindersPaused}
+        reminders={(reminders ?? []).map((row) => ({
+          id: row.id,
+          kind: row.kind,
+          status: row.status,
+          toEmail: row.toEmail,
+          createdAt: row.createdAt.toISOString(),
+          error: row.error,
+        }))}
+      />
 
       <DocumentHistorySection
         kind="estimate"

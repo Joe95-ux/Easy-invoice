@@ -47,6 +47,7 @@ export default async function PublicEstimatePage({ params }: PageProps) {
           token={token}
           initialStatus={estimate.status}
           clientName={estimate.client?.name}
+          validUntil={estimate.validUntil?.toISOString() ?? null}
         />
       </div>
 

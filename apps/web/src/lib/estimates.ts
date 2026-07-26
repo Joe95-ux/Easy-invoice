@@ -25,6 +25,20 @@ export async function getEstimateForMember(
   });
 }
 
+export async function getEstimateRemindersForMember(estimateId: string, companyId: string) {
+  const estimate = await prisma.estimate.findFirst({
+    where: { id: estimateId, companyId },
+    select: { id: true },
+  });
+  if (!estimate) return null;
+
+  return prisma.estimateReminder.findMany({
+    where: { estimateId },
+    orderBy: { createdAt: "desc" },
+    take: 20,
+  });
+}
+
 type MoneyInput = number | string | Decimal;
 
 function toNumber(amount: MoneyInput): number {

@@ -104,6 +104,7 @@ enum NotificationType {
   CLIENT_VIEWED_ESTIMATE
   ESTIMATE_ACCEPTED
   ESTIMATE_DECLINED
+  ESTIMATE_EXPIRED
   PAYMENT_RECEIVED
   INVOICE_OVERDUE
   TEAM_INVITE_RECEIVED
@@ -156,6 +157,11 @@ model Company {
   reminderDaysAfter    Int[]    @default([1, 7, 14])
   reminderIncludePdf   Boolean  @default(true)
   paymentReceiptEmailsEnabled Boolean @default(true)
+  /// Follow-up emails for open estimates before validUntil.
+  estimateRemindersEnabled     Boolean @default(true)
+  estimateReminderDaysBefore   Int[]   @default([7, 3])
+  estimateReminderOnExpiryDay  Boolean @default(true)
+  estimateReminderIncludePdf   Boolean @default(true)
   documentPrefix       String?
   invoiceSequence      Int      @default(0)
   estimateSequence     Int      @default(0)
@@ -490,6 +496,7 @@ model Estimate {
   /// TYPED | DRAWN | STAFF_MARKED
   acceptanceMethod   String?
   publicToken   String?        @unique
+  remindersPaused Boolean      @default(false)
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 
@@ -497,10 +504,28 @@ model Estimate {
   client   Client?          @relation(fields: [clientId], references: [id], onDelete: SetNull)
   template InvoiceTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
   convertedInvoice Invoice? @relation("EstimateToInvoice")
-  items    EstimateLineItem[]
+  items     EstimateLineItem[]
+  reminders EstimateReminder[]
 
   @@unique([companyId, number])
   @@index([companyId, status])
+}
+
+model EstimateReminder {
+  id           String                 @id @default(cuid())
+  estimateId   String
+  kind         ReminderKind
+  offsetDays   Int                    @default(0)
+  scheduleDate DateTime               @db.Date
+  toEmail      String
+  status       ReminderDeliveryStatus @default(SENT)
+  error        String?
+  createdAt    DateTime               @default(now())
+
+  estimate Estimate @relation(fields: [estimateId], references: [id], onDelete: Cascade)
+
+  @@unique([estimateId, kind, offsetDays, scheduleDate])
+  @@index([estimateId])
 }
 
 model EstimateLineItem {

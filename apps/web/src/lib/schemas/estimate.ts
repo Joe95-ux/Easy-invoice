@@ -33,6 +33,7 @@ export const updateEstimateSchema = createEstimateSchema.partial().extend({
     .optional(),
   templateId: z.string().optional().nullable(),
   clientEmail: z.string().email().optional(),
+  remindersPaused: z.boolean().optional(),
 });
 
 export type UpdateEstimateInput = z.infer<typeof updateEstimateSchema>;

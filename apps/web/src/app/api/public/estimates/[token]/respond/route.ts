@@ -67,5 +67,12 @@ export async function POST(request: Request, context: RouteContext) {
     );
   }
 
+  if (result.error === "expired") {
+    return NextResponse.json(
+      { error: "This estimate has expired and can no longer be accepted", estimate: result.estimate },
+      { status: 409 },
+    );
+  }
+
   return NextResponse.json({ estimate: result.estimate });
 }

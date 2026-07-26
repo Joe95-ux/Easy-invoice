@@ -52,7 +52,7 @@ type EstimateActionsProps = {
   convertedInvoiceNumber?: string | null;
 };
 
-const TERMINAL_STATUSES: EstimateStatus[] = ["ACCEPTED", "DECLINED", "CANCELLED"];
+const TERMINAL_STATUSES: EstimateStatus[] = ["ACCEPTED", "DECLINED", "EXPIRED", "CANCELLED"];
 
 export function EstimateActions({
   estimateId,
@@ -75,7 +75,10 @@ export function EstimateActions({
   const canSend = !isTerminal;
   const canMarkAsSent = status === "DRAFT";
   const canConvert =
-    !convertedInvoiceId && status !== "DECLINED" && status !== "CANCELLED";
+    !convertedInvoiceId &&
+    status !== "DECLINED" &&
+    status !== "CANCELLED" &&
+    status !== "EXPIRED";
   const isBusy = loading !== null;
 
   function handleDownloadPdf() {

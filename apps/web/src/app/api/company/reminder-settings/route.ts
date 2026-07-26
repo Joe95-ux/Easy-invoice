@@ -8,8 +8,21 @@ import {
 import { recordAuditEvent } from "@/lib/audit/service";
 import { summarizeReminderSettingsChange } from "@/lib/audit/summaries";
 import { AuditAction, AuditCategory, prisma } from "@/lib/db";
-import { reminderSettingsFromCompany } from "@/lib/reminders/settings";
+import { combinedReminderSettingsFromCompany } from "@/lib/reminders/estimate-settings";
 import { reminderSettingsSchema } from "@/lib/schemas/reminders";
+
+const SETTINGS_SELECT = {
+  remindersEnabled: true,
+  reminderDaysBefore: true,
+  reminderOnDueDate: true,
+  reminderDaysAfter: true,
+  reminderIncludePdf: true,
+  paymentReceiptEmailsEnabled: true,
+  estimateRemindersEnabled: true,
+  estimateReminderDaysBefore: true,
+  estimateReminderOnExpiryDay: true,
+  estimateReminderIncludePdf: true,
+} as const;
 
 export async function GET() {
   const authResult = await requireApiMember();
@@ -17,21 +30,14 @@ export async function GET() {
 
   const company = await prisma.company.findUnique({
     where: { id: authResult.member.companyId },
-    select: {
-      remindersEnabled: true,
-      reminderDaysBefore: true,
-      reminderOnDueDate: true,
-      reminderDaysAfter: true,
-      reminderIncludePdf: true,
-      paymentReceiptEmailsEnabled: true,
-    },
+    select: SETTINGS_SELECT,
   });
 
   if (!company) {
     return NextResponse.json({ error: "Company not found" }, { status: 404 });
   }
 
-  return NextResponse.json({ settings: reminderSettingsFromCompany(company) });
+  return NextResponse.json({ settings: combinedReminderSettingsFromCompany(company) });
 }
 
 export async function PATCH(request: Request) {
@@ -46,14 +52,7 @@ export async function PATCH(request: Request) {
 
   const before = await prisma.company.findUnique({
     where: { id: authResult.member.companyId },
-    select: {
-      remindersEnabled: true,
-      reminderDaysBefore: true,
-      reminderOnDueDate: true,
-      reminderDaysAfter: true,
-      reminderIncludePdf: true,
-      paymentReceiptEmailsEnabled: true,
-    },
+    select: SETTINGS_SELECT,
   });
   if (!before) {
     return NextResponse.json({ error: "Company not found" }, { status: 404 });
@@ -62,18 +61,11 @@ export async function PATCH(request: Request) {
   const company = await prisma.company.update({
     where: { id: authResult.member.companyId },
     data: parsed.data,
-    select: {
-      remindersEnabled: true,
-      reminderDaysBefore: true,
-      reminderOnDueDate: true,
-      reminderDaysAfter: true,
-      reminderIncludePdf: true,
-      paymentReceiptEmailsEnabled: true,
-    },
+    select: SETTINGS_SELECT,
   });
 
-  const beforeSettings = reminderSettingsFromCompany(before);
-  const afterSettings = reminderSettingsFromCompany(company);
+  const beforeSettings = combinedReminderSettingsFromCompany(before);
+  const afterSettings = combinedReminderSettingsFromCompany(company);
   const { summary, changes } = summarizeReminderSettingsChange(
     beforeSettings as Record<string, unknown>,
     afterSettings as Record<string, unknown>,

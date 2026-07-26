@@ -23,6 +23,7 @@ export const NOTIFICATION_TYPE_TO_PREF: Record<NotificationType, keyof Notificat
   CLIENT_VIEWED_ESTIMATE: "notifyClientViewed",
   ESTIMATE_ACCEPTED: "notifyEstimateResponse",
   ESTIMATE_DECLINED: "notifyEstimateResponse",
+  ESTIMATE_EXPIRED: "notifyEstimateResponse",
   PAYMENT_RECEIVED: "notifyPaymentReceived",
   INVOICE_OVERDUE: "notifyInvoiceOverdue",
   TEAM_INVITE_RECEIVED: "notifyTeamChanges",

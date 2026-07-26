@@ -8,7 +8,7 @@ import { requireCompanyAdmin } from "@/lib/auth";
 import { getDefaultTemplateId, getTemplatesForCompany } from "@/lib/templates";
 import { normalizeLogoBg, normalizeLogoPlacement } from "@/lib/company-branding";
 import { normalizePaymentMethods } from "@/lib/company-payment-methods";
-import { reminderSettingsFromCompany } from "@/lib/reminders/settings";
+import { combinedReminderSettingsFromCompany } from "@/lib/reminders/estimate-settings";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PageScroll } from "@/components/app-shell/app-shell";
@@ -117,7 +117,7 @@ export default async function SettingsPage() {
 
         <section id="settings-reminders" className="scroll-mt-20">
           <ReminderSettingsSection
-            initialSettings={reminderSettingsFromCompany(company)}
+            initialSettings={combinedReminderSettingsFromCompany(company)}
           />
         </section>
       </div>

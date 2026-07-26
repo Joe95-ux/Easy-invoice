@@ -37,7 +37,7 @@ type EstimateSendDialogProps = {
   onSent?: () => void;
 };
 
-const TERMINAL_STATUSES: EstimateStatus[] = ["ACCEPTED", "DECLINED", "CANCELLED"];
+const TERMINAL_STATUSES: EstimateStatus[] = ["ACCEPTED", "DECLINED", "EXPIRED", "CANCELLED"];
 
 function defaultSubject(estimateNumber: string, companyName?: string | null) {
   const company = companyName?.trim();
