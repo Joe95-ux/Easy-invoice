@@ -18,6 +18,7 @@ export function serializeQrCode(qr: QrCodeWithMember): SerializedQrCode {
     type: qr.type,
     status: qr.status,
     token: qr.token,
+    invoiceId: qr.invoiceId ?? null,
     passwordProtected: Boolean(qr.passwordHash),
     content: (qr.content ?? {}) as Record<string, unknown>,
     design: normalizeQrDesign(qr.design),
@@ -87,6 +88,7 @@ type CreateQrCodeInput = {
   design: QrDesign;
   passwordEnabled?: boolean;
   password?: string;
+  invoiceId?: string | null;
 };
 
 export async function createQrCode(input: CreateQrCodeInput): Promise<SerializedQrCode> {
@@ -105,6 +107,7 @@ export async function createQrCode(input: CreateQrCodeInput): Promise<Serialized
       passwordHash,
       content: input.content as Prisma.InputJsonValue,
       design: input.design as unknown as Prisma.InputJsonValue,
+      ...(input.invoiceId ? { invoiceId: input.invoiceId } : {}),
     },
     include: QR_INCLUDE,
   });

@@ -6,6 +6,10 @@ import { companyBrandingFields } from "@/lib/company-branding";
 import { prisma } from "@/lib/db";
 import { getInvoiceForMember } from "@/lib/invoices";
 import { buildInvoicePaymentSummary, PAYMENT_METHOD_LABELS } from "@/lib/invoice-payments";
+import {
+  buildPaymentQrImageDataUrl,
+  getInvoicePaymentQr,
+} from "@/lib/invoice-payment-qr";
 import { ensureSystemTemplates, getDefaultTemplateId, getTemplateById } from "@/lib/templates";
 
 export type { InvoiceHtmlData };
@@ -17,6 +21,8 @@ export type RenderInvoiceHtmlOptions = {
   inlineLogo?: boolean;
   /** Sync system templates in DB before resolving template. Skip for fast screen previews. */
   ensureTemplates?: boolean;
+  /** Include linked scan-to-pay QR when present (default true for invoices). */
+  includePaymentQr?: boolean;
 };
 
 export function invoiceToHtmlData(
@@ -123,13 +129,27 @@ export async function renderInvoiceHtmlForInvoice(
   invoice: InvoiceWithRelations,
   options: RenderInvoiceHtmlOptions = {},
 ): Promise<string> {
-  const { inlineLogo = true, ensureTemplates = true } = options;
+  const { inlineLogo = true, ensureTemplates = true, includePaymentQr = true } = options;
 
   if (ensureTemplates) {
     await ensureSystemTemplates();
   }
 
   let data = invoiceToHtmlData(invoice);
+
+  if (includePaymentQr) {
+    const paymentQr = await getInvoicePaymentQr(invoice.id, invoice.companyId);
+    if (paymentQr?.qrCode.status === "ACTIVE") {
+      data = {
+        ...data,
+        paymentQr: {
+          imageDataUrl: await buildPaymentQrImageDataUrl(paymentQr.scanUrl),
+          label: paymentQr.label,
+        },
+      };
+    }
+  }
+
   if (inlineLogo) {
     data = await inlineCompanyLogo(data);
   }

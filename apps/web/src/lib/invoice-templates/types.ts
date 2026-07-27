@@ -71,4 +71,9 @@ export type InvoiceHtmlData = {
     acceptedAt?: Date | null;
     acceptanceMethod?: string | null;
   } | null;
+  /** Scan-to-pay QR (business's own payment link) shown on the invoice. */
+  paymentQr?: {
+    imageDataUrl: string;
+    label?: string | null;
+  } | null;
 };

@@ -167,8 +167,9 @@ export function PaymentMethodsEditor({
       <div>
         <p className="text-sm font-medium">Payment information</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Shown on invoices and estimates above Terms &amp; notes. Each method can only
-          be added once.
+          Shown on invoices and estimates above Terms &amp; notes. Use a full https:// URL
+          (PayPal.me, Stripe Payment Link, etc.) for any method you want to turn into a
+          scan-to-pay QR on an invoice. Each method can only be added once.
         </p>
       </div>
 
@@ -254,7 +255,11 @@ export function PaymentMethodsEditor({
                           onChange={(event) =>
                             updateRow(index, { value: event.target.value })
                           }
-                          placeholder="email, phone, or handle"
+                          placeholder={
+                            row.label.toLowerCase().includes("link")
+                              ? "https://paypal.me/yourbusiness"
+                              : "email, phone, handle, or https:// link"
+                          }
                         />
                       </div>
                     </div>

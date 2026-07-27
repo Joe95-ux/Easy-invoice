@@ -5,7 +5,7 @@ import {
   normalizeLogoBg,
   normalizeLogoPlacement,
 } from "@/lib/company-branding";
-import { normalizePaymentMethods } from "@/lib/company-payment-methods";
+import { normalizePaymentMethods, isPaymentLinkUrl } from "@/lib/company-payment-methods";
 
 function escapeHtml(value: string): string {
   return value
@@ -379,14 +379,24 @@ function buildSections(data: InvoiceHtmlData) {
   const payment_schedule = buildPaymentScheduleHtml(data);
 
   const paymentMethods = normalizePaymentMethods(company.paymentMethods);
-  const payment_info = paymentMethods.length
-    ? `<div class="payment-info"><div class="payment-info-label">Payment information</div>${paymentMethods
-        .map(
-          (method) =>
-            `<div class="payment-info-row"><span class="payment-info-method">${escapeHtml(method.label)}</span><span class="payment-info-detail">${escapeHtml(method.value)}</span></div>`,
-        )
-        .join("")}</div>`
-    : "";
+  const paymentRows = paymentMethods
+    .map((method) => {
+      const detail = isPaymentLinkUrl(method.value)
+        ? `<a href="${escapeHtml(method.value)}" style="color:inherit;word-break:break-all">${escapeHtml(method.value)}</a>`
+        : escapeHtml(method.value);
+      return `<div class="payment-info-row"><span class="payment-info-method">${escapeHtml(method.label)}</span><span class="payment-info-detail">${detail}</span></div>`;
+    })
+    .join("");
+
+  const paymentQrBlock =
+    data.documentKind !== "estimate" && data.paymentQr?.imageDataUrl
+      ? `<div class="payment-qr"><img src="${escapeHtml(data.paymentQr.imageDataUrl)}" alt="Scan to pay" /><div class="payment-qr-caption"><strong>Scan to pay</strong>${data.paymentQr.label ? escapeHtml(data.paymentQr.label) : "Open the payment link with your phone camera"}</div></div>`
+      : "";
+
+  const payment_info =
+    paymentMethods.length || paymentQrBlock
+      ? `<div class="payment-info"><div class="payment-info-label">Payment information</div>${paymentRows}${paymentQrBlock}</div>`
+      : "";
 
   const termsNotes = invoice.notes
     ? `<div class="terms-notes"><div class="terms-notes-label">Terms &amp; Notes</div><div class="terms-notes-body">${escapeHtml(invoice.notes)}</div></div>`

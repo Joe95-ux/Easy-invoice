@@ -117,7 +117,23 @@ Clone any invoice or estimate into a new draft with a fresh number.
 
 **Status:** Done
 
-Structured payment methods (PayPal, Zelle, bank, etc.) in company settings; rendered above Terms & notes on invoices and estimates.
+Structured payment methods (PayPal, Zelle, bank, etc.) in company settings; rendered above Terms & notes on invoices and estimates. Methods whose details are an `https://` URL can be used as scan-to-pay destinations on invoices.
+
+---
+
+### 7b-ii. Invoice scan-to-pay QR (own payment link)
+
+**Status:** Done
+
+Businesses attach **their own** payment URL (PayPal.me, Stripe Payment Link, Venmo, Square, etc.) to an invoice as a LINK QR. The printed code uses a stable `/q/[token]` short link that redirects to that URL. Easy-invoice does not process the payment.
+
+| Piece | Location |
+|-------|----------|
+| Schema | `QrCode.invoiceId` |
+| Lib | `apps/web/src/lib/invoice-payment-qr.ts` |
+| API | `GET/POST/DELETE /api/invoices/[id]/payment-qr` |
+| UI | `InvoicePaymentQrSection` on invoice detail |
+| PDF | QR embedded in payment information via `renderInvoiceHtmlForInvoice` |
 
 ---
 

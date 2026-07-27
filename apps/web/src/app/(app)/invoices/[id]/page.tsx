@@ -10,6 +10,7 @@ import { InvoiceActions } from "@/features/invoices/components/invoice-actions";
 import { InvoiceAutoDownload } from "@/features/invoices/components/invoice-auto-download";
 import { InvoiceRemindersSection } from "@/features/invoices/components/invoice-reminders-section";
 import { InvoicePaymentsSection } from "@/features/invoices/components/invoice-payments-section";
+import { InvoicePaymentQrSection } from "@/features/invoices/components/invoice-payment-qr-section";
 import { DocumentHistorySection } from "@/components/document-history-section";
 import { DocumentTemplateManager } from "@/features/invoices/components/document-template-manager";
 import { requireMember } from "@/lib/auth";
@@ -30,6 +31,10 @@ import {
 import { getTemplatesForCompany } from "@/lib/templates";
 import { buildInvoicePaymentSummary } from "@/lib/invoice-payments";
 import { getPaymentConfirmationsByInvoice } from "@/lib/payment-confirmation";
+import {
+  getCompanyPaymentLinkMethods,
+  getInvoicePaymentQr,
+} from "@/lib/invoice-payment-qr";
 
 type PageProps = { params: Promise<{ id: string }> };
 
@@ -37,12 +42,15 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
   const member = await requireMember();
 
   const { id } = await params;
-  const [invoice, templates, reminders, paymentConfirmations] = await Promise.all([
-    getInvoiceForMember(id, member.companyId),
-    getTemplatesForCompany(member.companyId),
-    getInvoiceRemindersForMember(id, member.companyId),
-    getPaymentConfirmationsByInvoice(id, member.companyId),
-  ]);
+  const [invoice, templates, reminders, paymentConfirmations, paymentQr, paymentLinkMethods] =
+    await Promise.all([
+      getInvoiceForMember(id, member.companyId),
+      getTemplatesForCompany(member.companyId),
+      getInvoiceRemindersForMember(id, member.companyId),
+      getPaymentConfirmationsByInvoice(id, member.companyId),
+      getInvoicePaymentQr(id, member.companyId),
+      getCompanyPaymentLinkMethods(member.companyId),
+    ]);
   if (!invoice) notFound();
 
   const paymentSummary = buildInvoicePaymentSummary(invoice);
@@ -280,6 +288,27 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
           confirmationEmails: paymentConfirmations.get(payment.id) ?? [],
         }))}
         celebrateInvoicePaid={member.celebrateInvoicePaid}
+      />
+
+      <InvoicePaymentQrSection
+        invoiceId={invoice.id}
+        invoiceNumber={invoice.number}
+        paymentLinkMethods={paymentLinkMethods}
+        initialPaymentQr={
+          paymentQr
+            ? {
+                qrCode: {
+                  id: paymentQr.qrCode.id,
+                  token: paymentQr.qrCode.token,
+                  name: paymentQr.qrCode.name,
+                  status: paymentQr.qrCode.status,
+                },
+                paymentUrl: paymentQr.paymentUrl,
+                scanUrl: paymentQr.scanUrl,
+                label: paymentQr.label,
+              }
+            : null
+        }
       />
 
       <InvoiceRemindersSection

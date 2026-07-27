@@ -102,6 +102,7 @@ export function serializeBankDetails(details: BankDetailFields): string {
 }
 
 export const SUGGESTED_PAYMENT_METHODS = [
+  { label: "Payment link", value: "https://" },
   { label: "PayPal", value: "" },
   { label: "Zelle", value: "" },
   { label: "Venmo", value: "" },
@@ -109,6 +110,31 @@ export const SUGGESTED_PAYMENT_METHODS = [
   { label: "Bank transfer", value: "" },
   { label: "Wire transfer", value: "" },
 ] as const;
+
+/** True when the value is an http(s) URL suitable for scan-to-pay QRs. */
+export function isPaymentLinkUrl(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  try {
+    const url = new URL(trimmed);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+/** Company payment methods whose details are a web payment link. */
+export function paymentLinkMethods(
+  methods: CompanyPaymentMethod[],
+): CompanyPaymentMethod[] {
+  return methods.filter((method) => isPaymentLinkUrl(method.value));
+}
+
+export function normalizePaymentLinkUrl(value: string): string | null {
+  const trimmed = value.trim();
+  if (!isPaymentLinkUrl(trimmed)) return null;
+  return trimmed;
+}
 
 /** @deprecated Prefer SUGGESTED_PAYMENT_METHODS */
 export const SUGGESTED_PAYMENT_LABELS = SUGGESTED_PAYMENT_METHODS.map(

@@ -245,6 +245,8 @@ model QrCode {
   id            String     @id @default(cuid())
   companyId     String
   memberId      String?
+  /// When set, this QR is the scan-to-pay code for an invoice (usually a LINK to the business's own payment URL).
+  invoiceId     String?
   name          String
   type          QrCodeType
   status        QrCodeStatus @default(ACTIVE)
@@ -262,8 +264,10 @@ model QrCode {
 
   company Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
   member  CompanyMember? @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  invoice Invoice?       @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
 
   @@index([companyId])
+  @@index([invoiceId])
 }
 
 model Client {
@@ -345,6 +349,8 @@ model Invoice {
   installments InvoiceInstallment[]
   payments  InvoicePayment[]
   timeEntries TimeEntry[]
+  /// Scan-to-pay QRs linked to this invoice (typically one LINK to a payment URL).
+  paymentQrCodes QrCode[]
 
   @@unique([companyId, number])
   @@index([companyId, status])

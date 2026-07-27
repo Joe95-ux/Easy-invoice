@@ -92,6 +92,30 @@ export const watermarkStyles = `
     flex: 1;
     min-width: 0;
   }
+  .payment-qr {
+    margin-top: 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .payment-qr img {
+    width: 96px;
+    height: 96px;
+    display: block;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    background: #fff;
+  }
+  .payment-qr-caption {
+    font-size: 12px;
+    color: #475569;
+    line-height: 1.45;
+  }
+  .payment-qr-caption strong {
+    display: block;
+    color: #1f2937;
+    margin-bottom: 2px;
+  }
   .totals.totals--wide { width: min(100%, 420px) !important; }
   .payment-schedule-block { margin-top: 20px; width: 100%; }
   .payment-block-label {
