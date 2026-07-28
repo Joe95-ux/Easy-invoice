@@ -7,7 +7,9 @@ import {
   CalendarIcon,
   ChevronRightIcon,
   ClockIcon,
+  DownloadIcon,
   EyeIcon,
+  FileTextIcon,
   GlobeIcon,
   InfoIcon,
   MailIcon,
@@ -66,12 +68,9 @@ const LINK_GRADIENT = `linear-gradient(135deg, ${LINK_ACCENT}, oklch(0.58 0.15 3
 
 // Distinct color stories per type (qr-code.io style).
 const PDF = {
-  hero: "linear-gradient(160deg, #F97316 0%, #EA580C 55%, #C2410C 100%)",
-  cta: "#EA580C",
-  bodyLight: "#FFF7ED",
-  bodyDark: "#1c1410",
-  cardLight: "#ffffff",
-  cardDark: "#2a211c",
+  bodyLight: "#F8FAFC",
+  bodyDark: "#0b1520",
+  cardDark: "#122033",
 };
 
 const VCARD = {
@@ -145,16 +144,16 @@ export function QrPhonePreview({
     if (!qrEnabled && tab === "qr") setTab("preview");
   }, [qrEnabled, tab]);
 
-  // Colored heroes need a light status bar; Business uses the design palette
+  // Colored heroes need a light status bar; Business/PDF use the design palette
   // so status icons follow hero luminance. Link/QR follow the app theme.
-  const businessHeroIsLight =
-    form.type === "VCARD" &&
+  const landingHeroIsLight =
+    (form.type === "VCARD" || form.type === "PDF") &&
     relativeLuminance(
       resolveBusinessLandingColors(form.design.fgColor, form.design.bgColor).heroBg,
     ) > 0.55;
   const statusTone: StatusTone =
-    tab === "preview" && form.type === "VCARD"
-      ? businessHeroIsLight
+    tab === "preview" && (form.type === "VCARD" || form.type === "PDF")
+      ? landingHeroIsLight
         ? "dark"
         : "light"
       : tab === "preview" && form.type !== "LINK"
@@ -378,71 +377,219 @@ function QrContentMobile({ form, dark }: { form: QrFormState; dark: boolean }) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  PDF — warm orange landing (matches qr-code.io style)               */
+/*  PDF — business-style header + knowledge-base landing               */
 /* ------------------------------------------------------------------ */
+
+const PDF_COVER = "/pdf_v2.webp";
+const PDF_SECTION = "rounded-[10px] border px-3 py-3 shadow-none";
 
 function PdfPage({ form, dark }: { form: QrFormState; dark: boolean }) {
   const isSample = isPreviewSampleMode(form);
-  const eyebrow = previewText(
-    isSample,
-    form.fileName?.replace(/\.pdf$/i, "") || "",
-    "Acme Studio",
-  );
   const title = previewText(isSample, form.name, "Q3 Growth Report");
-  const subtitle = isSample
-    ? form.fileName
-      ? "Your document is ready to view."
-      : "See how we turned insights into results this quarter."
-    : form.fileName.trim()
-      ? "Your document is ready to view."
-      : "";
+  const companyName = previewText(isSample, form.companyName, "Acme Studio");
+  const description = previewText(
+    isSample,
+    form.description,
+    "A clear overview of results, priorities, and next steps for the quarter ahead.",
+  );
+  const website = previewText(isSample, form.website, "www.acmestudio.com");
+  const ctaAction = form.pdfCtaAction === "download" ? "download" : "view";
+  const ctaLabel = previewText(
+    isSample,
+    form.ctaLabel,
+    ctaAction === "download" ? "Download PDF" : "View PDF",
+  );
+  const palette = resolveBusinessLandingColors(
+    form.design.fgColor,
+    form.design.bgColor,
+  );
   const body = dark ? PDF.bodyDark : PDF.bodyLight;
-  const card = dark ? PDF.cardDark : PDF.cardLight;
+  const card = dark ? PDF.cardDark : "#fff";
+  const sectionCls = cn(
+    PDF_SECTION,
+    dark ? "border-white/10 bg-white/5" : "border-black/5 bg-white",
+  );
+  const showHero = isSample || Boolean(title);
+  const showCard =
+    isSample || Boolean(companyName || description || form.fileUrl || ctaLabel);
+  const showDescription = showPreviewSection(isSample, Boolean(form.description.trim()));
+  const showWebsite = showPreviewSection(isSample, Boolean(form.website.trim()));
+  const CtaIcon = ctaAction === "download" ? DownloadIcon : EyeIcon;
 
   return (
-    <div className="flex h-full min-h-full flex-col" style={{ backgroundColor: body }}>
-      {/* Hero + diagonal cut — card overlaps the slash */}
-      <div className="relative shrink-0" style={{ background: PDF.hero }}>
-        <div className="px-5 pb-14 pt-12 text-center">
-          {eyebrow && (
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/80">
-              {eyebrow}
-            </p>
-          )}
-          {title && (
-            <p className="mt-2 font-heading text-[22px] font-bold leading-tight text-white">
-              {title}
-            </p>
-          )}
-          {subtitle && (
-            <p className="mx-auto mt-2 max-w-[90%] text-[12px] leading-relaxed text-white/90">
-              {subtitle}
-            </p>
-          )}
-        </div>
-        <div className="absolute inset-x-0 bottom-0">
-          <DiagonalDivider fill={body} />
-        </div>
-      </div>
+    <div
+      className="relative h-full min-h-full overflow-hidden"
+      style={{ backgroundColor: body }}
+    >
+      <div className="no-scrollbar h-full overflow-y-auto">
+        {showHero && (
+          <div className="relative shrink-0" style={{ backgroundColor: palette.heroBg }}>
+            <div className="px-5 pb-28 pt-14 text-center">
+              <p
+                className="font-heading text-[18px] font-bold leading-tight"
+                style={{ color: palette.heroText }}
+              >
+                {title}
+              </p>
+            </div>
+            <div className="absolute inset-x-0 bottom-0">
+              <DiagonalDivider fill={body} />
+            </div>
+          </div>
+        )}
 
-      <div className="relative z-10 -mt-8 flex flex-1 flex-col px-4 pb-10">
         <div
-          className="overflow-hidden rounded-2xl shadow-[0_12px_28px_-8px_rgba(0,0,0,0.28)]"
-          style={{ backgroundColor: card }}
+          className={cn(
+            "relative z-10 flex flex-col gap-3 px-4 pb-12",
+            showHero ? "-mt-[5.25rem]" : "pt-4",
+          )}
         >
-          <div className="px-3 pt-3">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/pdf.png"
-              alt=""
-              className="aspect-10/7 w-full rounded-xl bg-white object-cover"
-            />
-          </div>
-          <div className="p-3.5 pt-3">
-            <CtaButton color={PDF.cta} icon={<EyeIcon className="size-4" />}>
-              View PDF
-            </CtaButton>
-          </div>
+          {showCard && (
+            <div
+              className={cn(
+                "overflow-hidden rounded-[10px] ring-1",
+                dark ? "ring-white/10" : "ring-black/5",
+              )}
+              style={{ backgroundColor: card }}
+            >
+              <div className="relative aspect-10/7 w-full overflow-hidden bg-neutral-100">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={PDF_COVER}
+                  alt=""
+                  className="absolute inset-0 size-full object-cover"
+                />
+                {dark ? (
+                  <div
+                    className="absolute inset-0"
+                    style={{
+                      background:
+                        "linear-gradient(180deg, rgba(11,21,32,0.45) 0%, rgba(11,21,32,0.72) 100%)",
+                    }}
+                  />
+                ) : null}
+              </div>
+              <div className="space-y-3 p-3.5">
+                {companyName && (
+                  <div>
+                    <p
+                      className={cn(
+                        "font-heading text-[16px] font-bold leading-tight",
+                        dark ? "text-white" : "text-neutral-900",
+                      )}
+                    >
+                      {companyName}
+                    </p>
+                    {description && !showDescription && (
+                      <p
+                        className={cn(
+                          "mt-1 line-clamp-2 text-[11px] leading-relaxed",
+                          dark ? "text-neutral-300" : "text-neutral-500",
+                        )}
+                      >
+                        {description}
+                      </p>
+                    )}
+                  </div>
+                )}
+                {ctaLabel && (
+                  <div
+                    className="flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-[10px] text-[13px] font-semibold"
+                    style={{
+                      backgroundColor: palette.ctaBg,
+                      color: palette.ctaText,
+                    }}
+                  >
+                    <CtaIcon className="size-4" />
+                    {ctaLabel}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {showDescription && description && (
+            <div className={sectionCls}>
+              <div className="flex items-start gap-2.5">
+                <BusinessIconChip dark={dark}>
+                  <InfoIcon />
+                </BusinessIconChip>
+                <div className="min-w-0 pt-0.5">
+                  <p
+                    className={cn(
+                      "text-[11px] font-semibold",
+                      dark ? "text-neutral-200" : "text-neutral-700",
+                    )}
+                  >
+                    About this document
+                  </p>
+                  <p
+                    className={cn(
+                      "mt-1 text-[11px] leading-relaxed",
+                      dark ? "text-neutral-300" : "text-neutral-600",
+                    )}
+                  >
+                    {description}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showWebsite && website && (
+            <div className={cn(sectionCls, "flex cursor-pointer items-center gap-2.5")}>
+              <BusinessIconChip dark={dark}>
+                <GlobeIcon />
+              </BusinessIconChip>
+              <div className="min-w-0 flex-1">
+                <p
+                  className={cn(
+                    "text-[11px] font-semibold",
+                    dark ? "text-neutral-200" : "text-neutral-700",
+                  )}
+                >
+                  Website
+                </p>
+                <p
+                  className={cn(
+                    "truncate text-[11px]",
+                    dark ? "text-neutral-300" : "text-neutral-600",
+                  )}
+                >
+                  {website.replace(/^https?:\/\//i, "")}
+                </p>
+              </div>
+              <ChevronRightIcon
+                className={cn("size-4 shrink-0", dark ? "text-neutral-500" : "text-neutral-400")}
+              />
+            </div>
+          )}
+
+          {isSample || form.fileName.trim() ? (
+            <div className={cn(sectionCls, "flex items-center gap-2.5")}>
+              <BusinessIconChip dark={dark}>
+                <FileTextIcon />
+              </BusinessIconChip>
+              <div className="min-w-0">
+                <p
+                  className={cn(
+                    "text-[11px] font-semibold",
+                    dark ? "text-neutral-200" : "text-neutral-700",
+                  )}
+                >
+                  Document
+                </p>
+                <p
+                  className={cn(
+                    "truncate text-[11px]",
+                    dark ? "text-neutral-300" : "text-neutral-600",
+                  )}
+                >
+                  {previewText(isSample, form.fileName, "growth-report.pdf")}
+                </p>
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

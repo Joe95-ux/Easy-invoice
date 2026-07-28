@@ -1,11 +1,11 @@
 import { cookies } from "next/headers";
 import { fetchQrPdfBytes } from "@/lib/cloudinary";
 import { qrUnlockCookieName, qrUnlockToken } from "@/lib/qr-codes/password";
-import { getQrCodeByToken, recordQrScan } from "@/lib/qr-codes/service";
+import { getQrCodeByToken } from "@/lib/qr-codes/service";
 
 type RouteContext = { params: Promise<{ token: string }> };
 
-export async function GET(_request: Request, context: RouteContext) {
+export async function GET(request: Request, context: RouteContext) {
   const { token } = await context.params;
   const qr = await getQrCodeByToken(token);
 
@@ -40,6 +40,7 @@ export async function GET(_request: Request, context: RouteContext) {
     typeof content.fileName === "string" && content.fileName.trim()
       ? content.fileName.trim()
       : "document.pdf";
+  const forceDownload = new URL(request.url).searchParams.get("dl") === "1";
 
   if (!fileUrl && !filePublicId) {
     return new Response("Not found", { status: 404 });
@@ -52,13 +53,12 @@ export async function GET(_request: Request, context: RouteContext) {
       deliveryType,
     });
 
-    await recordQrScan(qr.id);
-
     const safeName = fileName.replace(/[^\w.\- ()]+/g, "_");
+    const disposition = forceDownload ? "attachment" : "inline";
     return new Response(new Uint8Array(bytes), {
       headers: {
         "Content-Type": contentType,
-        "Content-Disposition": `inline; filename="${safeName}"`,
+        "Content-Disposition": `${disposition}; filename="${safeName}"`,
         "Cache-Control": "private, no-store",
         "X-Content-Type-Options": "nosniff",
       },

@@ -76,6 +76,15 @@ export type PdfContent = {
   /** Cloudinary public_id for authenticated delivery. */
   filePublicId?: string;
   deliveryType?: "authenticated" | "upload";
+  /** Company / brand shown on the PDF landing page. */
+  companyName?: string;
+  /** Document title (usually mirrors the QR code name). */
+  title?: string;
+  description?: string;
+  website?: string;
+  ctaLabel?: string;
+  /** Whether the primary CTA opens inline or forces download. */
+  ctaAction?: "view" | "download";
 };
 
 export type SocialLink = {

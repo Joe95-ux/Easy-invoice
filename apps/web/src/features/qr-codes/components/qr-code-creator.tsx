@@ -517,12 +517,18 @@ export function QrCodeCreator({
             <div className="space-y-4">
               <FormField
                 id="qr-name"
-                label="QR code name"
+                label={form.type === "PDF" ? "PDF title" : "QR code name"}
                 required
                 value={form.name}
                 onChange={(value) => update("name", value)}
-                placeholder="e.g. Fall menu, Team card"
-                description="Only visible to your team — helps you find it later."
+                placeholder={
+                  form.type === "PDF" ? "Q3 Growth Report" : "e.g. Fall menu, Team card"
+                }
+                description={
+                  form.type === "PDF"
+                    ? "Shown on the landing page and used as the QR code name in your list."
+                    : "Only visible to your team — helps you find it later."
+                }
               />
               <QrContentFields form={form} onChange={update} />
               <QrPasswordField

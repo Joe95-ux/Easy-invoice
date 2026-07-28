@@ -41,7 +41,15 @@ export function isPreviewSampleMode(form: QrFormState): boolean {
         hasText(form.eventUrl)
       );
     case "PDF":
-      return !(hasText(form.name) || hasText(form.fileName) || hasText(form.fileUrl));
+      return !(
+        hasText(form.name) ||
+        hasText(form.fileName) ||
+        hasText(form.fileUrl) ||
+        hasText(form.companyName) ||
+        hasText(form.description) ||
+        hasText(form.website) ||
+        hasText(form.ctaLabel)
+      );
     case "MENU":
       return !(
         hasText(form.venueName) ||

@@ -35,7 +35,7 @@ export const QR_STATUS_BADGE_VARIANT: Record<
 
 export const QR_TYPE_DESCRIPTION: Record<QrCodeType, string> = {
   LINK: "Send scanners to any web address — including your own payment link.",
-  PDF: "Share a document that opens on any phone.",
+  PDF: "Share a document with a company landing page and View or Download CTA.",
   VCARD: "Share a business landing page with hours, location, and more.",
   EVENT: "Add an event straight to a calendar.",
   MENU: "Show a digital menu guests can browse.",

@@ -26,6 +26,8 @@ export type QrFormState = {
   fileName: string;
   filePublicId: string;
   deliveryType: "authenticated" | "upload" | "";
+  /** View opens inline; download forces a file save. */
+  pdfCtaAction: "view" | "download";
   // VCARD / Business
   companyName: string;
   businessTitle: string;
@@ -99,6 +101,7 @@ export function emptyQrForm(type: QrCodeType = "LINK"): QrFormState {
     fileName: "",
     filePublicId: "",
     deliveryType: "",
+    pdfCtaAction: "view",
     companyName: "",
     businessTitle: "",
     businessSubtitle: "",
@@ -257,6 +260,7 @@ export function formFromSerialized(qr: SerializedQrCode): QrFormState {
       content.deliveryType === "authenticated" || content.deliveryType === "upload"
         ? content.deliveryType
         : "",
+    pdfCtaAction: content.ctaAction === "download" ? "download" : "view",
     companyName,
     businessTitle: str(content.title) || str(content.jobTitle),
     businessSubtitle: str(content.subtitle),
@@ -328,10 +332,16 @@ export function buildQrContent(form: QrFormState): Record<string, unknown> {
         fileUrl: form.fileUrl,
         fileName: form.fileName,
         filePublicId: form.filePublicId,
+        companyName: form.companyName,
+        title: form.name,
+        description: form.description,
+        website: form.website,
+        ctaLabel: form.ctaLabel,
       });
       if (form.deliveryType === "authenticated" || form.deliveryType === "upload") {
         pdf.deliveryType = form.deliveryType;
       }
+      pdf.ctaAction = form.pdfCtaAction === "download" ? "download" : "view";
       return pdf;
     }
     case "VCARD": {

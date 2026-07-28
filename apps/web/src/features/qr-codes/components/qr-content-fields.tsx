@@ -75,7 +75,7 @@ export function QrContentFields({ form, onChange }: QrContentFieldsProps) {
   }
 
   if (form.type === "PDF") {
-    return <PdfUploadField form={form} onChange={onChange} />;
+    return <PdfFields form={form} onChange={onChange} />;
   }
 
   if (form.type === "MENU") {
@@ -657,6 +657,76 @@ function CouponFields({ form, onChange }: QrContentFieldsProps) {
   );
 }
 
+function PdfFields({ form, onChange }: QrContentFieldsProps) {
+  return (
+    <div className="space-y-4">
+      <PdfUploadField form={form} onChange={onChange} />
+      <FormField
+        id="qr-pdf-company"
+        label="Company name"
+        value={form.companyName}
+        onChange={(value) => onChange("companyName", value)}
+        placeholder="Acme Studio"
+      />
+      <Field>
+        <FieldLabel htmlFor="qr-pdf-description">Description</FieldLabel>
+        <FieldContent>
+          <Textarea
+            id="qr-pdf-description"
+            value={form.description}
+            onChange={(event) => onChange("description", event.target.value)}
+            placeholder="A short overview of what this document covers."
+            rows={3}
+          />
+        </FieldContent>
+      </Field>
+      <FormField
+        id="qr-pdf-website"
+        label="Website"
+        type="url"
+        value={form.website}
+        onChange={(value) => onChange("website", value)}
+        placeholder="https://your-company.com"
+      />
+      <FormField
+        id="qr-pdf-cta-label"
+        label="CTA text"
+        value={form.ctaLabel}
+        onChange={(value) => onChange("ctaLabel", value)}
+        placeholder={form.pdfCtaAction === "download" ? "Download PDF" : "View PDF"}
+      />
+      <Field>
+        <FieldLabel htmlFor="qr-pdf-cta-action">CTA action</FieldLabel>
+        <FieldContent>
+          <Select
+            items={[
+              { value: "view", label: "View (open in browser)" },
+              { value: "download", label: "Download (save file)" },
+            ]}
+            value={form.pdfCtaAction}
+            onValueChange={(value) => {
+              if (value === "view" || value === "download") {
+                onChange("pdfCtaAction", value);
+              }
+            }}
+          >
+            <SelectTrigger id="qr-pdf-cta-action" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="view">View (open in browser)</SelectItem>
+              <SelectItem value="download">Download (save file)</SelectItem>
+            </SelectContent>
+          </Select>
+          <FieldDescription>
+            View opens the PDF in the browser. Download saves the file to the device.
+          </FieldDescription>
+        </FieldContent>
+      </Field>
+    </div>
+  );
+}
+
 function PdfUploadField({ form, onChange }: QrContentFieldsProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -753,7 +823,7 @@ function PdfUploadField({ form, onChange }: QrContentFieldsProps) {
           </button>
         )}
         <FieldDescription>
-          The document opens when the code is scanned. Swap it later without reprinting.
+          The document opens from the landing page CTA. Swap it later without reprinting.
         </FieldDescription>
       </FieldContent>
     </Field>

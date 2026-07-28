@@ -5,6 +5,8 @@ import {
   ChevronRightIcon,
   ClockIcon,
   DownloadIcon,
+  EyeIcon,
+  FileTextIcon,
   GlobeIcon,
   InfoIcon,
   MailIcon,
@@ -37,6 +39,7 @@ import {
   resolveRedirectUrl,
 } from "@/lib/qr-codes/content";
 import {
+  normalizeQrDesign,
   resolveBusinessLandingColors,
 } from "@/lib/qr-codes/design";
 import { qrUnlockCookieName, qrUnlockToken } from "@/lib/qr-codes/password";
@@ -46,6 +49,7 @@ import type {
   EventContent,
   MenuContent,
   MenuItem,
+  PdfContent,
   SocialContent,
   SocialPlatform,
   VcardContent,
@@ -100,9 +104,131 @@ export default async function QrScanPage({ params }: PageProps) {
     }
   }
 
-  // PDF is served through a gated proxy so CDN URLs can't bypass controls.
+  // PDF landing page — file is served via gated proxy from the CTA.
   if (qr.type === "PDF") {
-    redirect(`/q/${token}/file`);
+    await recordQrScan(qr.id);
+    const pdf = (qr.content ?? {}) as unknown as PdfContent;
+    const title = pdf.title?.trim() || qr.name.trim() || "Document";
+    const companyName = pdf.companyName?.trim();
+    const description = pdf.description?.trim();
+    const website = pdf.website?.trim();
+    const ctaAction = pdf.ctaAction === "download" ? "download" : "view";
+    const ctaLabel =
+      pdf.ctaLabel?.trim() || (ctaAction === "download" ? "Download PDF" : "View PDF");
+    const fileHref =
+      ctaAction === "download" ? `/q/${token}/file?dl=1` : `/q/${token}/file`;
+    const websiteHref = website
+      ? /^https?:\/\//i.test(website)
+        ? website
+        : `https://${website}`
+      : null;
+    const sectionCls = "rounded-[10px] border border-border bg-muted/20 px-3 py-3 shadow-none";
+    const design = normalizeQrDesign(qr.design);
+    const palette = resolveBusinessLandingColors(design.fgColor, design.bgColor);
+    const CtaIcon = ctaAction === "download" ? DownloadIcon : EyeIcon;
+
+    return (
+      <div className="space-y-3">
+        <div className="flex justify-end">
+          <QrPublicThemeToggle />
+        </div>
+        <Card className="gap-0 overflow-hidden rounded-[10px] py-0 shadow-none">
+          <div
+            className="px-5 pb-28 pt-10 text-center"
+            style={{ backgroundColor: palette.heroBg }}
+          >
+            <h1
+              className="font-heading text-xl font-semibold tracking-tight"
+              style={{ color: palette.heroText }}
+            >
+              {title}
+            </h1>
+          </div>
+          <CardContent className="relative z-10 -mt-[5.25rem] space-y-3 px-4 pb-12">
+            <div className="overflow-hidden rounded-[10px] border border-border bg-card">
+              <div className="relative aspect-10/7 w-full overflow-hidden bg-muted">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/pdf_v2.webp"
+                  alt=""
+                  className="absolute inset-0 size-full object-cover"
+                />
+                <div className="absolute inset-0 bg-background/55 dark:bg-[#0b1520]/70" />
+              </div>
+              <div className="space-y-3 p-4">
+                {companyName ? (
+                  <h2 className="font-heading text-lg font-semibold tracking-tight">
+                    {companyName}
+                  </h2>
+                ) : null}
+                <Button
+                  className="w-full cursor-pointer rounded-[10px] hover:opacity-90"
+                  style={{
+                    backgroundColor: palette.ctaBg,
+                    color: palette.ctaText,
+                  }}
+                  render={<a href={fileHref} target="_blank" rel="noreferrer" />}
+                >
+                  <CtaIcon className="size-4" />
+                  {ctaLabel}
+                </Button>
+              </div>
+            </div>
+
+            {description ? (
+              <div className={sectionCls}>
+                <div className="flex items-start gap-2.5">
+                  <span className="flex size-7 shrink-0 items-center justify-center rounded-[8px] bg-muted text-muted-foreground [&_svg]:size-3.5">
+                    <InfoIcon />
+                  </span>
+                  <div className="min-w-0 pt-0.5">
+                    <p className="text-sm font-semibold">About this document</p>
+                    <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                      {description}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {websiteHref ? (
+              <a
+                href={websiteHref}
+                target="_blank"
+                rel="noreferrer"
+                className={cn(
+                  sectionCls,
+                  "flex cursor-pointer items-center gap-2.5 transition-colors hover:bg-muted/40",
+                )}
+              >
+                <span className="flex size-7 shrink-0 items-center justify-center rounded-[8px] bg-muted text-muted-foreground [&_svg]:size-3.5">
+                  <GlobeIcon />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold">Website</p>
+                  <p className="truncate text-sm text-muted-foreground">
+                    {websiteHref.replace(/^https?:\/\//i, "")}
+                  </p>
+                </div>
+                <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" />
+              </a>
+            ) : null}
+
+            {pdf.fileName?.trim() ? (
+              <div className={cn(sectionCls, "flex items-center gap-2.5")}>
+                <span className="flex size-7 shrink-0 items-center justify-center rounded-[8px] bg-muted text-muted-foreground [&_svg]:size-3.5">
+                  <FileTextIcon />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold">Document</p>
+                  <p className="truncate text-sm text-muted-foreground">{pdf.fileName.trim()}</p>
+                </div>
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   await recordQrScan(qr.id);
