@@ -9,7 +9,6 @@ import {
   ClockIcon,
   DownloadIcon,
   EyeIcon,
-  FileTextIcon,
   GlobeIcon,
   InfoIcon,
   MailIcon,
@@ -377,7 +376,7 @@ function QrContentMobile({ form, dark }: { form: QrFormState; dark: boolean }) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  PDF — business-style header + knowledge-base landing               */
+/*  PDF — business-style header + document landing                     */
 /* ------------------------------------------------------------------ */
 
 const PDF_COVER = "/pdf_v2.webp";
@@ -412,7 +411,6 @@ function PdfPage({ form, dark }: { form: QrFormState; dark: boolean }) {
   const showHero = isSample || Boolean(title);
   const showCard =
     isSample || Boolean(companyName || description || form.fileUrl || ctaLabel);
-  const showDescription = showPreviewSection(isSample, Boolean(form.description.trim()));
   const showWebsite = showPreviewSection(isSample, Boolean(form.website.trim()));
   const CtaIcon = ctaAction === "download" ? DownloadIcon : EyeIcon;
 
@@ -470,26 +468,29 @@ function PdfPage({ form, dark }: { form: QrFormState; dark: boolean }) {
                 ) : null}
               </div>
               <div className="space-y-3 p-3.5">
-                {companyName && (
+                {(companyName || description) && (
                   <div>
-                    <p
-                      className={cn(
-                        "font-heading text-[16px] font-bold leading-tight",
-                        dark ? "text-white" : "text-neutral-900",
-                      )}
-                    >
-                      {companyName}
-                    </p>
-                    {description && !showDescription && (
+                    {companyName ? (
                       <p
                         className={cn(
-                          "mt-1 line-clamp-2 text-[11px] leading-relaxed",
+                          "font-heading text-[16px] font-bold leading-tight",
+                          dark ? "text-white" : "text-neutral-900",
+                        )}
+                      >
+                        {companyName}
+                      </p>
+                    ) : null}
+                    {description ? (
+                      <p
+                        className={cn(
+                          "whitespace-pre-wrap text-[11px] leading-relaxed",
+                          companyName ? "mt-1.5" : "",
                           dark ? "text-neutral-300" : "text-neutral-500",
                         )}
                       >
                         {description}
                       </p>
-                    )}
+                    ) : null}
                   </div>
                 )}
                 {ctaLabel && (
@@ -504,34 +505,6 @@ function PdfPage({ form, dark }: { form: QrFormState; dark: boolean }) {
                     {ctaLabel}
                   </div>
                 )}
-              </div>
-            </div>
-          )}
-
-          {showDescription && description && (
-            <div className={sectionCls}>
-              <div className="flex items-start gap-2.5">
-                <BusinessIconChip dark={dark}>
-                  <InfoIcon />
-                </BusinessIconChip>
-                <div className="min-w-0 pt-0.5">
-                  <p
-                    className={cn(
-                      "text-[11px] font-semibold",
-                      dark ? "text-neutral-200" : "text-neutral-700",
-                    )}
-                  >
-                    About this document
-                  </p>
-                  <p
-                    className={cn(
-                      "mt-1 text-[11px] leading-relaxed",
-                      dark ? "text-neutral-300" : "text-neutral-600",
-                    )}
-                  >
-                    {description}
-                  </p>
-                </div>
               </div>
             </div>
           )}
@@ -564,32 +537,6 @@ function PdfPage({ form, dark }: { form: QrFormState; dark: boolean }) {
               />
             </div>
           )}
-
-          {isSample || form.fileName.trim() ? (
-            <div className={cn(sectionCls, "flex items-center gap-2.5")}>
-              <BusinessIconChip dark={dark}>
-                <FileTextIcon />
-              </BusinessIconChip>
-              <div className="min-w-0">
-                <p
-                  className={cn(
-                    "text-[11px] font-semibold",
-                    dark ? "text-neutral-200" : "text-neutral-700",
-                  )}
-                >
-                  Document
-                </p>
-                <p
-                  className={cn(
-                    "truncate text-[11px]",
-                    dark ? "text-neutral-300" : "text-neutral-600",
-                  )}
-                >
-                  {previewText(isSample, form.fileName, "growth-report.pdf")}
-                </p>
-              </div>
-            </div>
-          ) : null}
         </div>
       </div>
     </div>

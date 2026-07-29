@@ -674,10 +674,17 @@ function PdfFields({ form, onChange }: QrContentFieldsProps) {
           <Textarea
             id="qr-pdf-description"
             value={form.description}
-            onChange={(event) => onChange("description", event.target.value)}
+            onChange={(event) =>
+              onChange("description", event.target.value.slice(0, 4000))
+            }
             placeholder="A short overview of what this document covers."
-            rows={3}
+            rows={4}
+            maxLength={4000}
           />
+          <FieldDescription>
+            Shown under the company name on the landing page.{" "}
+            {form.description.length}/4000
+          </FieldDescription>
         </FieldContent>
       </Field>
       <FormField

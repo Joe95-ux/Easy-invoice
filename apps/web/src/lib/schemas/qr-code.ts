@@ -73,7 +73,7 @@ const pdfContent = z.object({
   deliveryType: z.enum(["authenticated", "upload"]).optional(),
   companyName: z.string().trim().max(120).optional().or(z.literal("")),
   title: z.string().trim().max(120).optional().or(z.literal("")),
-  description: z.string().trim().max(2000).optional().or(z.literal("")),
+  description: z.string().trim().max(4000).optional().or(z.literal("")),
   website: optionalUrl,
   ctaLabel: z.string().trim().max(40).optional().or(z.literal("")),
   ctaAction: z.enum(["view", "download"]).optional(),

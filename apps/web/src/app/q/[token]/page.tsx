@@ -6,7 +6,6 @@ import {
   ClockIcon,
   DownloadIcon,
   EyeIcon,
-  FileTextIcon,
   GlobeIcon,
   InfoIcon,
   MailIcon,
@@ -156,11 +155,25 @@ export default async function QrScanPage({ params }: PageProps) {
                 <div className="absolute inset-0 bg-background/55 dark:bg-[#0b1520]/70" />
               </div>
               <div className="space-y-3 p-4">
-                {companyName ? (
-                  <h2 className="font-heading text-lg font-semibold tracking-tight">
-                    {companyName}
-                  </h2>
-                ) : null}
+                {(companyName || description) && (
+                  <div>
+                    {companyName ? (
+                      <h2 className="font-heading text-lg font-semibold tracking-tight">
+                        {companyName}
+                      </h2>
+                    ) : null}
+                    {description ? (
+                      <p
+                        className={cn(
+                          "whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground",
+                          companyName ? "mt-1.5" : "",
+                        )}
+                      >
+                        {description}
+                      </p>
+                    ) : null}
+                  </div>
+                )}
                 <Button
                   className="w-full cursor-pointer rounded-[10px] hover:opacity-90"
                   style={{
@@ -174,22 +187,6 @@ export default async function QrScanPage({ params }: PageProps) {
                 </Button>
               </div>
             </div>
-
-            {description ? (
-              <div className={sectionCls}>
-                <div className="flex items-start gap-2.5">
-                  <span className="flex size-7 shrink-0 items-center justify-center rounded-[8px] bg-muted text-muted-foreground [&_svg]:size-3.5">
-                    <InfoIcon />
-                  </span>
-                  <div className="min-w-0 pt-0.5">
-                    <p className="text-sm font-semibold">About this document</p>
-                    <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                      {description}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ) : null}
 
             {websiteHref ? (
               <a
@@ -212,18 +209,6 @@ export default async function QrScanPage({ params }: PageProps) {
                 </div>
                 <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" />
               </a>
-            ) : null}
-
-            {pdf.fileName?.trim() ? (
-              <div className={cn(sectionCls, "flex items-center gap-2.5")}>
-                <span className="flex size-7 shrink-0 items-center justify-center rounded-[8px] bg-muted text-muted-foreground [&_svg]:size-3.5">
-                  <FileTextIcon />
-                </span>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold">Document</p>
-                  <p className="truncate text-sm text-muted-foreground">{pdf.fileName.trim()}</p>
-                </div>
-              </div>
             ) : null}
           </CardContent>
         </Card>
