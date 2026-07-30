@@ -136,12 +136,31 @@ export default async function QrScanPage({ params }: PageProps) {
             className="px-5 pb-28 pt-10 text-center"
             style={{ backgroundColor: palette.heroBg }}
           >
+            {companyName ? (
+              <p
+                className="text-xs font-semibold uppercase tracking-[0.14em]"
+                style={{ color: palette.heroText, opacity: 0.8 }}
+              >
+                {companyName}
+              </p>
+            ) : null}
             <h1
-              className="font-heading text-xl font-semibold tracking-tight"
+              className={cn(
+                "font-heading text-xl font-semibold tracking-tight",
+                companyName ? "mt-2" : "",
+              )}
               style={{ color: palette.heroText }}
             >
               {title}
             </h1>
+            {description ? (
+              <p
+                className="mx-auto mt-2 max-w-xl whitespace-pre-wrap text-sm leading-relaxed"
+                style={{ color: palette.heroText, opacity: 0.9 }}
+              >
+                {description}
+              </p>
+            ) : null}
           </div>
           <CardContent className="relative z-10 -mt-[5.25rem] space-y-3 px-4 pb-12">
             <div className="overflow-hidden rounded-[10px] border border-border bg-card">
@@ -152,28 +171,8 @@ export default async function QrScanPage({ params }: PageProps) {
                   alt=""
                   className="absolute inset-0 size-full object-cover"
                 />
-                <div className="absolute inset-0 bg-background/55 dark:bg-[#0b1520]/70" />
               </div>
               <div className="space-y-3 p-4">
-                {(companyName || description) && (
-                  <div>
-                    {companyName ? (
-                      <h2 className="font-heading text-lg font-semibold tracking-tight">
-                        {companyName}
-                      </h2>
-                    ) : null}
-                    {description ? (
-                      <p
-                        className={cn(
-                          "whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground",
-                          companyName ? "mt-1.5" : "",
-                        )}
-                      >
-                        {description}
-                      </p>
-                    ) : null}
-                  </div>
-                )}
                 <Button
                   className="w-full cursor-pointer rounded-[10px] hover:opacity-90"
                   style={{

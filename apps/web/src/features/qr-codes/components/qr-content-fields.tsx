@@ -682,8 +682,7 @@ function PdfFields({ form, onChange }: QrContentFieldsProps) {
             maxLength={4000}
           />
           <FieldDescription>
-            Shown under the company name on the landing page.{" "}
-            {form.description.length}/4000
+            Shown under the PDF title on the landing page. {form.description.length}/4000
           </FieldDescription>
         </FieldContent>
       </Field>

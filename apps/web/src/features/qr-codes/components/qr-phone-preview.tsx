@@ -408,9 +408,9 @@ function PdfPage({ form, dark }: { form: QrFormState; dark: boolean }) {
     PDF_SECTION,
     dark ? "border-white/10 bg-white/5" : "border-black/5 bg-white",
   );
-  const showHero = isSample || Boolean(title);
-  const showCard =
-    isSample || Boolean(companyName || description || form.fileUrl || ctaLabel);
+  const showHero =
+    isSample || Boolean(companyName || title || description || form.fileUrl || ctaLabel);
+  const showCard = showHero;
   const showWebsite = showPreviewSection(isSample, Boolean(form.website.trim()));
   const CtaIcon = ctaAction === "download" ? DownloadIcon : EyeIcon;
 
@@ -423,12 +423,35 @@ function PdfPage({ form, dark }: { form: QrFormState; dark: boolean }) {
         {showHero && (
           <div className="relative shrink-0" style={{ backgroundColor: palette.heroBg }}>
             <div className="px-5 pb-28 pt-14 text-center">
-              <p
-                className="font-heading text-[18px] font-bold leading-tight"
-                style={{ color: palette.heroText }}
-              >
-                {title}
-              </p>
+              {companyName ? (
+                <p
+                  className="text-[10px] font-semibold uppercase tracking-[0.14em]"
+                  style={{ color: palette.heroText, opacity: 0.8 }}
+                >
+                  {companyName}
+                </p>
+              ) : null}
+              {title ? (
+                <p
+                  className={cn(
+                    "font-heading text-[18px] font-bold leading-tight",
+                    companyName ? "mt-2" : "",
+                  )}
+                  style={{ color: palette.heroText }}
+                >
+                  {title}
+                </p>
+              ) : null}
+              {description ? (
+                <p
+                  className={cn(
+                    "mx-auto mt-2 max-w-[92%] whitespace-pre-wrap text-[13px] leading-relaxed",
+                  )}
+                  style={{ color: palette.heroText, opacity: 0.9 }}
+                >
+                  {description}
+                </p>
+              ) : null}
             </div>
             <div className="absolute inset-x-0 bottom-0">
               <DiagonalDivider fill={body} />
@@ -457,42 +480,8 @@ function PdfPage({ form, dark }: { form: QrFormState; dark: boolean }) {
                   alt=""
                   className="absolute inset-0 size-full object-cover"
                 />
-                {dark ? (
-                  <div
-                    className="absolute inset-0"
-                    style={{
-                      background:
-                        "linear-gradient(180deg, rgba(11,21,32,0.45) 0%, rgba(11,21,32,0.72) 100%)",
-                    }}
-                  />
-                ) : null}
               </div>
               <div className="space-y-3 p-3.5">
-                {(companyName || description) && (
-                  <div>
-                    {companyName ? (
-                      <p
-                        className={cn(
-                          "font-heading text-[16px] font-bold leading-tight",
-                          dark ? "text-white" : "text-neutral-900",
-                        )}
-                      >
-                        {companyName}
-                      </p>
-                    ) : null}
-                    {description ? (
-                      <p
-                        className={cn(
-                          "whitespace-pre-wrap text-[11px] leading-relaxed",
-                          companyName ? "mt-1.5" : "",
-                          dark ? "text-neutral-300" : "text-neutral-500",
-                        )}
-                      >
-                        {description}
-                      </p>
-                    ) : null}
-                  </div>
-                )}
                 {ctaLabel && (
                   <div
                     className="flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-[10px] text-[13px] font-semibold"
