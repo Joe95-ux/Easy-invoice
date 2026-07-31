@@ -249,10 +249,8 @@ export default async function QrScanPage({ params }: PageProps) {
           ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(vcard.address.trim())}`
           : null;
     const sectionCls = "rounded-[10px] border border-border bg-muted/20 px-3 py-3 shadow-none";
-    const palette = resolveBusinessLandingColors(
-      qr.design.fgColor,
-      qr.design.bgColor,
-    );
+    const design = normalizeQrDesign(qr.design);
+    const palette = resolveBusinessLandingColors(design.fgColor, design.bgColor);
 
     return (
       <div className="space-y-3">
