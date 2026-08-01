@@ -18,6 +18,7 @@ import {
   normalizeLogoBg,
 } from "@/lib/company-branding";
 import { cn } from "@/lib/utils";
+import { formatPhoneForDisplay } from "@/lib/phone";
 import {
   formatDate,
   formatMoney,
@@ -169,7 +170,13 @@ export default async function EstimateDetailPage({ params }: PageProps) {
             )}
             <p className="font-semibold">{estimate.company.name}</p>
             {estimate.company.email && <p>{estimate.company.email}</p>}
-            {estimate.company.phone && <p>{estimate.company.phone}</p>}
+            {estimate.company.phone && (
+              <p>
+                {formatPhoneForDisplay(estimate.company.phone, {
+                  defaultCountry: estimate.company.country,
+                })}
+              </p>
+            )}
             {estimate.company.address && <p>{estimate.company.address}</p>}
           </CardContent>
         </Card>
@@ -181,7 +188,13 @@ export default async function EstimateDetailPage({ params }: PageProps) {
           <CardContent className="space-y-1 text-sm">
             <p className="font-semibold">{estimate.client?.name ?? "—"}</p>
             {estimate.client?.email && <p>{estimate.client.email}</p>}
-            {estimate.client?.phone && <p>{estimate.client.phone}</p>}
+            {estimate.client?.phone && (
+              <p>
+                {formatPhoneForDisplay(estimate.client.phone, {
+                  defaultCountry: estimate.client.country ?? estimate.company.country,
+                })}
+              </p>
+            )}
             {estimate.client?.address && <p>{estimate.client.address}</p>}
           </CardContent>
         </Card>

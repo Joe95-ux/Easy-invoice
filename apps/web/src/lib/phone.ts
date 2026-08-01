@@ -42,6 +42,38 @@ export function splitPhoneNumber(
   return { country: defaultCountry, national: e164 };
 }
 
+/** Pretty-print a stored phone (usually E.164) for invoices, estimates, and UI. */
+export function formatPhoneForDisplay(
+  value: string | null | undefined,
+  options?: {
+    defaultCountry?: string | null;
+    /** International (+1 555 010 0100) is the default for documents. */
+    style?: "international" | "national";
+  },
+): string {
+  const raw = value?.trim() ?? "";
+  if (!raw) return "";
+
+  const defaultCountry = options?.defaultCountry?.trim() || undefined;
+  const parsed = parsePhoneNumberFromString(
+    raw,
+    defaultCountry ? (defaultCountry as CountryCode) : undefined,
+  );
+  if (!parsed) return raw;
+
+  return options?.style === "national"
+    ? parsed.formatNational()
+    : parsed.formatInternational();
+}
+
+/** Prefer E.164 for tel: links when the value can be parsed. */
+export function toTelHref(value: string | null | undefined): string | null {
+  const raw = value?.trim() ?? "";
+  if (!raw) return null;
+  const parsed = parsePhoneNumberFromString(raw);
+  return parsed?.number ?? raw;
+}
+
 export function phoneValidationMessage(country: string): string {
   return `Enter a valid phone number for ${country}`;
 }

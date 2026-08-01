@@ -14,6 +14,7 @@ import { COUNTRIES } from "@/lib/geo/countries";
 import {
   formatPhoneAsYouType,
   phoneValidationMessage,
+  splitPhoneNumber,
   toE164Phone,
   validatePhone,
 } from "@/lib/phone";
@@ -37,28 +38,26 @@ export function PhoneInput({
   error,
   description,
 }: PhoneInputProps) {
-  const [dialCountry, setDialCountry] = useState(country || "US");
+  const fallbackCountry = country || "US";
+  const [dialCountry, setDialCountry] = useState(fallbackCountry);
   const [national, setNational] = useState("");
   const [localError, setLocalError] = useState<string | undefined>();
 
   useEffect(() => {
-    setDialCountry(country || "US");
-  }, [country]);
+    if (!country) return;
+    setDialCountry((prev) => (value?.startsWith("+") ? prev : country));
+  }, [country, value]);
 
   useEffect(() => {
     if (!value) {
       setNational("");
       return;
     }
-    if (value.startsWith("+")) {
-      const matched = COUNTRIES.find((item) => value.startsWith(item.dialCode));
-      if (matched) {
-        setDialCountry(matched.code);
-        setNational(value.slice(matched.dialCode.length).trim());
-        return;
-      }
-    }
-    setNational(value);
+    const split = splitPhoneNumber(value, dialCountry || fallbackCountry);
+    setDialCountry(split.country);
+    setNational(split.national);
+    // Only re-sync when the committed value changes (not while typing locally).
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional
   }, [value]);
 
   const dialOptions = useMemo(

@@ -27,6 +27,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { FormField } from "@/components/forms/form-field";
+import { PhoneInput } from "@/components/forms/phone-input";
 import {
   Field,
   FieldContent,
@@ -130,13 +131,12 @@ export function BusinessFields({ form, onChange }: BusinessFieldsProps) {
             placeholder="Jane Cooper"
           />
           <div className="grid gap-3 sm:grid-cols-2">
-            <FormField
+            <PhoneInput
               id="qr-phone"
               label="Phone"
-              type="tel"
               value={form.phone}
+              country="US"
               onChange={(value) => onChange("phone", value)}
-              placeholder="+1 555 010 0100"
             />
             <FormField
               id="qr-email"

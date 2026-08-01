@@ -2,6 +2,7 @@ import type { PaymentMethod } from "@easy-invoice/db";
 import { companyBrandingFields } from "@/lib/company-branding";
 import { PAYMENT_METHOD_LABELS } from "@/lib/invoice-payments-utils";
 import { prisma } from "@/lib/db";
+import { formatPhoneForDisplay } from "@/lib/phone";
 
 export type ReceiptHtmlData = {
   company: {
@@ -23,6 +24,7 @@ export type ReceiptHtmlData = {
     email?: string | null;
     phone?: string | null;
     address?: string | null;
+    country?: string | null;
   } | null;
   receipt: {
     number: string;
@@ -103,7 +105,13 @@ function renderReceiptHtml(data: ReceiptHtmlData): string {
     ? [
         `<p class="name">${escapeHtml(client.name)}</p>`,
         client.email ? `<p>${escapeHtml(client.email)}</p>` : "",
-        client.phone ? `<p>${escapeHtml(client.phone)}</p>` : "",
+        client.phone
+          ? `<p>${escapeHtml(
+              formatPhoneForDisplay(client.phone, {
+                defaultCountry: client.country ?? company.country,
+              }),
+            )}</p>`
+          : "",
         client.address ? `<p>${escapeHtml(client.address)}</p>` : "",
       ].join("")
     : `<p class="name">—</p>`;
@@ -220,7 +228,11 @@ function renderReceiptHtml(data: ReceiptHtmlData): string {
       ${logoHtml}
       <p class="name">${escapeHtml(company.name)}</p>
       ${company.email ? `<p>${escapeHtml(company.email)}</p>` : ""}
-      ${company.phone ? `<p>${escapeHtml(company.phone)}</p>` : ""}
+      ${company.phone
+        ? `<p>${escapeHtml(
+            formatPhoneForDisplay(company.phone, { defaultCountry: company.country }),
+          )}</p>`
+        : ""}
       ${companyAddress ? `<p>${escapeHtml(companyAddress)}</p>` : ""}
     </div>
     <div style="text-align: right;">

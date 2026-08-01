@@ -6,6 +6,7 @@ import {
   normalizeLogoPlacement,
 } from "@/lib/company-branding";
 import { normalizePaymentMethods, isPaymentLinkUrl } from "@/lib/company-payment-methods";
+import { formatPhoneForDisplay } from "@/lib/phone";
 
 function escapeHtml(value: string): string {
   return value
@@ -323,7 +324,11 @@ function buildSections(data: InvoiceHtmlData) {
   const companyDetails = [
     companyAddress ? `<div class="party-detail">${escapeHtml(companyAddress)}</div>` : "",
     company.email ? `<div class="party-detail">${escapeHtml(company.email)}</div>` : "",
-    company.phone ? `<div class="party-detail">${escapeHtml(company.phone)}</div>` : "",
+    company.phone
+      ? `<div class="party-detail">${escapeHtml(
+          formatPhoneForDisplay(company.phone, { defaultCountry: company.country }),
+        )}</div>`
+      : "",
   ]
     .filter(Boolean)
     .join("");
@@ -342,7 +347,13 @@ function buildSections(data: InvoiceHtmlData) {
       ? `<div class="party-detail">${escapeHtml(client.address)}</div>`
       : "",
     client?.email ? `<div class="party-detail">${escapeHtml(client.email)}</div>` : "",
-    client?.phone ? `<div class="party-detail">${escapeHtml(client.phone)}</div>` : "",
+    client?.phone
+      ? `<div class="party-detail">${escapeHtml(
+          formatPhoneForDisplay(client.phone, {
+            defaultCountry: client.country ?? company.country,
+          }),
+        )}</div>`
+      : "",
   ]
     .filter(Boolean)
     .join("");

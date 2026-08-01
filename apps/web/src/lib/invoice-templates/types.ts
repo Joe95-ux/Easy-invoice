@@ -24,6 +24,7 @@ export type InvoiceHtmlData = {
     email?: string | null;
     phone?: string | null;
     address?: string | null;
+    country?: string | null;
   } | null;
   invoice: {
     number: string;

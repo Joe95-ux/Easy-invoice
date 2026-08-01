@@ -36,6 +36,7 @@ import {
   previewText,
   showPreviewSection,
 } from "@/features/qr-codes/preview-sample";
+import { formatPhoneForDisplay } from "@/lib/phone";
 import {
   BUSINESS_FACILITY_META,
   WEEKDAY_LABEL,
@@ -622,7 +623,11 @@ function VcardPage({ form, dark }: { form: QrFormState; dark: boolean }) {
     "We help small businesses streamline operations, strengthen client relationships, and grow with confidence.",
   );
   const contactName = previewText(isSample, form.contactName.trim(), "Alex Morgan");
-  const phone = previewText(isSample, form.phone.trim(), "+1 (555) 014-2200");
+  const phone = previewText(
+    isSample,
+    form.phone.trim() ? formatPhoneForDisplay(form.phone) : "",
+    "+1 555 014 2200",
+  );
   const email = previewText(isSample, form.email.trim(), "hello@acmeconsulting.com");
   const website = previewText(isSample, form.website.trim(), "www.acmeconsulting.com");
   const showHero = isSample || Boolean(headline);
@@ -954,7 +959,7 @@ function VcardPage({ form, dark }: { form: QrFormState; dark: boolean }) {
       <BusinessActionsFab
         contained
         dark={dark}
-        phone={isSample ? "+1 (555) 014-2200" : form.phone.trim()}
+        phone={isSample ? "+1 555 014 2200" : form.phone.trim()}
         email={isSample ? "hello@acmeconsulting.com" : form.email.trim()}
         website={isSample ? "www.acmeconsulting.com" : form.website.trim()}
         companyName={companyName || "Business"}

@@ -16,6 +16,7 @@ import { FormCard } from "@/components/forms/form-card";
 import { FormField } from "@/components/forms/form-field";
 import { FormSection } from "@/components/forms/form-section";
 import { FormStepProgress, type FormStep } from "@/components/forms/form-step-progress";
+import { PhoneInput } from "@/components/forms/phone-input";
 import { SearchableSelect } from "@/components/forms/searchable-select";
 import { Input } from "@/components/ui/input";
 import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
@@ -443,12 +444,16 @@ export function EstimateCreator({
               onChange={setClientEmail}
               placeholder="client@example.com"
             />
-            <FormField
-              label="Client phone"
+            <PhoneInput
               id="client-phone"
+              label="Client phone"
               value={clientPhone}
+              country={
+                clients.find((c) => c.id === selectedClientId)?.country ||
+                company.country ||
+                "US"
+              }
               onChange={setClientPhone}
-              placeholder="Phone number"
             />
             <FormField
               label="Client address"

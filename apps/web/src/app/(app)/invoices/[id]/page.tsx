@@ -20,6 +20,7 @@ import {
   normalizeLogoBg,
 } from "@/lib/company-branding";
 import { cn } from "@/lib/utils";
+import { formatPhoneForDisplay } from "@/lib/phone";
 import {
   formatDate,
   formatMoney,
@@ -177,7 +178,13 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
             )}
             <p className="font-semibold">{invoice.company.name}</p>
             {invoice.company.email && <p>{invoice.company.email}</p>}
-            {invoice.company.phone && <p>{invoice.company.phone}</p>}
+            {invoice.company.phone && (
+              <p>
+                {formatPhoneForDisplay(invoice.company.phone, {
+                  defaultCountry: invoice.company.country,
+                })}
+              </p>
+            )}
             {invoice.company.address && <p>{invoice.company.address}</p>}
           </CardContent>
         </Card>
@@ -189,7 +196,13 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
           <CardContent className="space-y-1 text-sm">
             <p className="font-semibold">{invoice.client?.name ?? "—"}</p>
             {invoice.client?.email && <p>{invoice.client.email}</p>}
-            {invoice.client?.phone && <p>{invoice.client.phone}</p>}
+            {invoice.client?.phone && (
+              <p>
+                {formatPhoneForDisplay(invoice.client.phone, {
+                  defaultCountry: invoice.client.country ?? invoice.company.country,
+                })}
+              </p>
+            )}
             {invoice.client?.address && <p>{invoice.client.address}</p>}
           </CardContent>
         </Card>

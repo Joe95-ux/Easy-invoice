@@ -8,6 +8,7 @@ import type { ClientFinancialProfile } from "@/lib/clients/financial-profile";
 import type { ClientInput } from "@/lib/schemas/client";
 import { formatMoney } from "@/lib/invoices";
 import { formatClientAddress } from "@/lib/clients";
+import { formatPhoneForDisplay, toTelHref } from "@/lib/phone";
 import { invoiceFromTimeUrl } from "@/lib/time-tracking/invoice-from-time";
 import { FileTextIcon } from "lucide-react";
 
@@ -139,7 +140,14 @@ export function ClientOverviewTab({
             {client.phone && (
               <div className="flex flex-wrap gap-x-2">
                 <dt className="text-foreground">Phone</dt>
-                <dd>{client.phone}</dd>
+                <dd>
+                  <a
+                    href={`tel:${toTelHref(client.phone) ?? client.phone}`}
+                    className="hover:text-foreground hover:underline"
+                  >
+                    {formatPhoneForDisplay(client.phone, { defaultCountry: client.country })}
+                  </a>
+                </dd>
               </div>
             )}
             {address && (

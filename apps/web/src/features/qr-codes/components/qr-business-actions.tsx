@@ -11,6 +11,7 @@ import {
   XIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toTelHref } from "@/lib/phone";
 import { cn } from "@/lib/utils";
 
 export type BusinessActionsProps = {
@@ -51,7 +52,8 @@ export function BusinessActionsFab({
   const [open, setOpen] = useState(false);
 
   const websiteHref = ensureHttpUrl(website);
-  const phoneHref = phone.trim() ? `tel:${phone.trim()}` : "";
+  const tel = toTelHref(phone);
+  const phoneHref = tel ? `tel:${tel}` : "";
   const emailHref = email.trim() ? `mailto:${email.trim()}` : "";
 
   const onShare = useCallback(async () => {

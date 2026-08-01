@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/table";
 import { useListTable } from "@/hooks/use-list-table";
 import type { ClientListItem } from "@/lib/clients";
+import { formatPhoneForDisplay } from "@/lib/phone";
 
 const CLIENT_FILTER_OPTIONS = [
   { value: "all", label: "All clients" },
@@ -147,7 +148,11 @@ export function ClientsTable({ clients }: ClientsTableProps) {
               >
                 <TableCell className="font-medium">{client.name}</TableCell>
                 <TableCell className="text-muted-foreground">{client.email ?? "—"}</TableCell>
-                <TableCell className="text-muted-foreground">{client.phone ?? "—"}</TableCell>
+                <TableCell className="text-muted-foreground">
+                  {client.phone
+                    ? formatPhoneForDisplay(client.phone, { defaultCountry: client.country })
+                    : "—"}
+                </TableCell>
                 <TableCell className="text-right tabular-nums">{client._count.invoices}</TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>

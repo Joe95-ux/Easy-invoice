@@ -37,10 +37,8 @@ import {
   WIFI_ENCRYPTION_LABEL,
   resolveRedirectUrl,
 } from "@/lib/qr-codes/content";
-import {
-  normalizeQrDesign,
-  resolveBusinessLandingColors,
-} from "@/lib/qr-codes/design";
+import { normalizeQrDesign, resolveBusinessLandingColors } from "@/lib/qr-codes/design";
+import { formatPhoneForDisplay, toTelHref } from "@/lib/phone";
 import { qrUnlockCookieName, qrUnlockToken } from "@/lib/qr-codes/password";
 import { getQrCodeByToken, recordQrScan } from "@/lib/qr-codes/service";
 import type {
@@ -436,13 +434,13 @@ export default async function QrScanPage({ params }: PageProps) {
                 )}
                 {vcard.phone?.trim() && (
                   <a
-                    href={`tel:${vcard.phone}`}
+                    href={`tel:${toTelHref(vcard.phone) ?? vcard.phone}`}
                     className="flex cursor-pointer items-center gap-2.5 text-sm text-muted-foreground"
                   >
                     <span className="flex size-7 shrink-0 items-center justify-center rounded-[8px] bg-muted text-muted-foreground [&_svg]:size-3.5">
                       <PhoneIcon />
                     </span>
-                    {vcard.phone}
+                    {formatPhoneForDisplay(vcard.phone)}
                   </a>
                 )}
                 {vcard.email?.trim() && (
