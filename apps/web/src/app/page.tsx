@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SignedIn, SignedOut } from "@clerk/nextjs";
 import {
   ArrowRightIcon,
   CheckIcon,
@@ -350,14 +351,32 @@ export default function HomePage() {
                     </li>
                   ))}
                 </ul>
-                <Button
-                  className="mt-7 w-full"
-                  size="lg"
-                  variant={plan.highlighted ? "default" : "outline"}
-                  render={<Link href="/sign-up" />}
-                >
-                  {plan.cta}
-                </Button>
+                <SignedOut>
+                  <Button
+                    className="mt-7 w-full"
+                    size="lg"
+                    variant={plan.highlighted ? "default" : "outline"}
+                    render={<Link href="/sign-up" />}
+                  >
+                    {plan.cta}
+                  </Button>
+                </SignedOut>
+                <SignedIn>
+                  <Button
+                    className="mt-7 w-full"
+                    size="lg"
+                    variant={plan.highlighted ? "default" : "outline"}
+                    render={
+                      <Link
+                        href={
+                          plan.highlighted ? "/settings#settings-billing" : "/dashboard"
+                        }
+                      />
+                    }
+                  >
+                    {plan.highlighted ? "Upgrade to Pro" : "Go to dashboard"}
+                  </Button>
+                </SignedIn>
               </Reveal>
             ))}
           </div>

@@ -32,10 +32,18 @@ export function SidebarFooterPanel({ plan }: SidebarFooterPanelProps) {
           </div>
           {isFree && (
             <Link
-              href="/#pricing"
+              href="/settings#settings-billing"
               className="mt-2 block text-xs font-medium text-primary hover:underline"
             >
               Upgrade to Pro
+            </Link>
+          )}
+          {!isFree && (
+            <Link
+              href="/settings#settings-billing"
+              className="mt-2 block text-xs font-medium text-primary hover:underline"
+            >
+              Manage billing
             </Link>
           )}
         </div>

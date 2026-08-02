@@ -151,6 +151,11 @@ model Company {
   defaultTemplateId String?
   stripeCustomerId     String? @unique
   stripeSubscriptionId String? @unique
+  /// Stripe Connect Express account that receives invoice card payments.
+  stripeConnectedAccountId       String?  @unique
+  stripeConnectChargesEnabled    Boolean  @default(false)
+  stripeConnectDetailsSubmitted  Boolean  @default(false)
+  stripeConnectPayoutsEnabled    Boolean  @default(false)
   remindersEnabled     Boolean  @default(true)
   reminderDaysBefore   Int[]    @default([7, 3])
   reminderOnDueDate    Boolean  @default(true)
@@ -398,6 +403,10 @@ model InvoicePayment {
   method        PaymentMethod @default(OTHER)
   reference     String?
   note          String?
+  /// Stripe Checkout Session id (idempotency for Connect invoice pay).
+  stripeCheckoutSessionId String? @unique
+  /// Stripe PaymentIntent id on the connected/platform charge.
+  stripePaymentIntentId   String? @unique
   createdAt     DateTime      @default(now())
 
   invoice             Invoice                    @relation(fields: [invoiceId], references: [id], onDelete: Cascade)

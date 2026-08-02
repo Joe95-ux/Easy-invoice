@@ -4,11 +4,19 @@ import { CompanySettingsForm } from "@/features/settings/components/company-sett
 import { ReminderSettingsSection } from "@/features/settings/components/reminder-settings-section";
 import { SettingsDefaultTemplateSection } from "@/features/settings/components/settings-default-template-section";
 import { SettingsSectionNav } from "@/features/settings/components/settings-section-nav";
+import { StripeConnectSection } from "@/features/settings/components/stripe-connect-section";
+import { BillingSettingsSection } from "@/features/settings/components/billing-settings-section";
 import { requireCompanyAdmin } from "@/lib/auth";
 import { getDefaultTemplateId, getTemplatesForCompany } from "@/lib/templates";
 import { normalizeLogoBg, normalizeLogoPlacement } from "@/lib/company-branding";
 import { normalizePaymentMethods } from "@/lib/company-payment-methods";
 import { combinedReminderSettingsFromCompany } from "@/lib/reminders/estimate-settings";
+import { isStripeConfigured } from "@/lib/stripe";
+import {
+  getProPriceId,
+  getProTrialDays,
+  isSubscriptionBillingConfigured,
+} from "@/lib/stripe-billing";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PageScroll } from "@/components/app-shell/app-shell";
@@ -68,6 +76,26 @@ export default async function SettingsPage() {
 
       <div className="space-y-6">
         <SettingsSectionNav />
+
+        <BillingSettingsSection
+          plan={company.plan}
+          hasSubscription={Boolean(company.stripeSubscriptionId)}
+          billingConfigured={isSubscriptionBillingConfigured()}
+          hasYearlyPrice={Boolean(getProPriceId("yearly"))}
+          trialDays={getProTrialDays()}
+        />
+
+        <StripeConnectSection
+          stripeConfigured={isStripeConfigured()}
+          initialStatus={{
+            accountId: company.stripeConnectedAccountId,
+            detailsSubmitted: company.stripeConnectDetailsSubmitted,
+            chargesEnabled: company.stripeConnectChargesEnabled,
+            payoutsEnabled: company.stripeConnectPayoutsEnabled,
+            readyForPayments:
+              company.stripeConnectChargesEnabled && company.stripeConnectDetailsSubmitted,
+          }}
+        />
 
         <CompanySettingsForm
           initialLogoUrl={company.logoUrl}

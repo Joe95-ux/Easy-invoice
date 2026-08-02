@@ -48,9 +48,35 @@ Shareable public URLs for invoices and estimates. Opening the link marks the doc
 
 ### 3. Stripe Pay now on invoices
 
-**Status:** Planned
+**Status:** Done (Stripe Connect Express)
 
-Stripe Checkout link on the client invoice page; webhook marks invoice paid.
+Companies connect their own Stripe Express account in Settings. Clients pay the public invoice with Checkout. Funds transfer to the company’s Stripe (`transfer_data.destination`) with **no Invoice Desk application fee**. Signed webhook records a `CARD` payment and updates status.
+
+| Piece | Location |
+|-------|----------|
+| Schema | `Company.stripeConnectedAccountId` + capability flags; `InvoicePayment.stripeCheckoutSessionId` / `stripePaymentIntentId` |
+| Connect | `POST/GET /api/stripe/connect`, Settings → Card payments |
+| Checkout | `POST /api/public/invoices/[token]/checkout` |
+| Webhook | `/api/webhooks/stripe` (`checkout.session.completed` + `account.updated`) |
+| UI | Public invoice **Pay** button |
+
+Scan-to-pay QR (external links) remains available alongside Connect.
+
+---
+
+### 3b. Pro subscription billing (SaaS)
+
+**Status:** Done
+
+Platform Stripe Checkout + Customer Portal for upgrading the company plan (separate from Connect invoice pay).
+
+| Piece | Location |
+|-------|----------|
+| Helpers | `lib/stripe-billing.ts` |
+| API | `GET/POST /api/stripe/billing` (checkout + portal) |
+| Webhook | `/api/webhooks/stripe` sets `Company.plan` from Price IDs / lookup keys |
+| UI | Settings → Plan & billing; sidebar Upgrade / Manage billing |
+| Env | `STRIPE_PRICE_PRO_MONTHLY`, `STRIPE_PRICE_PRO_YEARLY`, `STRIPE_PRO_TRIAL_DAYS` |
 
 ---
 

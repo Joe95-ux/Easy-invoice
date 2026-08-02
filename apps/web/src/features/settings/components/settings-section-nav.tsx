@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 
 const SECTIONS = [
+  { id: "settings-billing", label: "Plan & billing" },
+  { id: "settings-stripe", label: "Card payments" },
   { id: "settings-templates", label: "Templates" },
   { id: "settings-reminders", label: "Payment reminders" },
 ] as const;

@@ -97,16 +97,31 @@ function roundMoney(value: number): number {
 export async function recordInvoicePayment(input: {
   invoiceId: string;
   companyId: string;
-  memberId: string;
+  memberId?: string | null;
   amount: number;
   paidAt?: Date;
   method?: PaymentMethod;
   reference?: string;
   note?: string;
+  stripeCheckoutSessionId?: string | null;
+  stripePaymentIntentId?: string | null;
 }): Promise<{
   invoice: NonNullable<Awaited<ReturnType<typeof refreshInvoicePaymentStatus>>>;
   confirmationEmail?: { sent: boolean; toEmail?: string; error?: string };
+  alreadyRecorded?: boolean;
 }> {
+  if (input.stripeCheckoutSessionId) {
+    const existing = await prisma.invoicePayment.findUnique({
+      where: { stripeCheckoutSessionId: input.stripeCheckoutSessionId },
+      select: { id: true, invoiceId: true },
+    });
+    if (existing) {
+      const invoice = await refreshInvoicePaymentStatus(existing.invoiceId, input.companyId);
+      if (!invoice) throw new Error("Invoice not found");
+      return { invoice, alreadyRecorded: true };
+    }
+  }
+
   const invoice = await prisma.invoice.findFirst({
     where: { id: input.invoiceId, companyId: input.companyId },
     include: {
@@ -126,7 +141,9 @@ export async function recordInvoicePayment(input: {
     throw new Error("Invoice is already fully paid");
   }
 
-  const beforeSnapshot = await loadInvoiceSnapshot(input.companyId, input.invoiceId);
+  const beforeSnapshot = input.memberId
+    ? await loadInvoiceSnapshot(input.companyId, input.invoiceId)
+    : null;
   const summary = buildInvoicePaymentSummary(invoice);
   const amount = roundMoney(input.amount);
 
@@ -139,7 +156,7 @@ export async function recordInvoicePayment(input: {
   const createdPayment = await prisma.invoicePayment.create({
     data: {
       invoiceId: input.invoiceId,
-      memberId: input.memberId,
+      memberId: input.memberId ?? null,
       receiptNumber,
       publicToken: generatePublicToken(),
       amount,
@@ -147,6 +164,8 @@ export async function recordInvoicePayment(input: {
       method: input.method ?? "OTHER",
       reference: input.reference ?? null,
       note: input.note ?? null,
+      stripeCheckoutSessionId: input.stripeCheckoutSessionId ?? null,
+      stripePaymentIntentId: input.stripePaymentIntentId ?? null,
     },
     select: { id: true, receiptNumber: true },
   });
@@ -154,20 +173,22 @@ export async function recordInvoicePayment(input: {
   const updated = await refreshInvoicePaymentStatus(input.invoiceId, input.companyId);
   if (!updated) throw new Error("Invoice not found");
 
-  const afterSnapshot = await loadInvoiceSnapshot(input.companyId, input.invoiceId);
-  if (afterSnapshot) {
-    await recordInvoiceContentRevision(
-      input.companyId,
-      input.invoiceId,
-      input.memberId,
-      beforeSnapshot,
-      afterSnapshot,
-      "STATUS",
-      {
-        paymentAmount: amount,
-        amountPaid: buildInvoicePaymentSummary(updated).amountPaid,
-      },
-    );
+  if (input.memberId) {
+    const afterSnapshot = await loadInvoiceSnapshot(input.companyId, input.invoiceId);
+    if (afterSnapshot) {
+      await recordInvoiceContentRevision(
+        input.companyId,
+        input.invoiceId,
+        input.memberId,
+        beforeSnapshot,
+        afterSnapshot,
+        "STATUS",
+        {
+          paymentAmount: amount,
+          amountPaid: buildInvoicePaymentSummary(updated).amountPaid,
+        },
+      );
+    }
   }
 
   const memberIds = (
@@ -189,7 +210,7 @@ export async function recordInvoicePayment(input: {
       const result = await sendPaymentConfirmationWithLogging({
         paymentId: createdPayment.id,
         companyId: input.companyId,
-        memberId: input.memberId,
+        memberId: input.memberId ?? null,
         isResend: false,
       });
 
