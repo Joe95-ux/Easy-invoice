@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { SignedIn, SignedOut } from "@clerk/nextjs";
 import {
   ArrowRightIcon,
   CheckIcon,
@@ -16,7 +15,7 @@ import {
   ZapIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { AppLogo } from "@/components/app-logo";
+import { SiteFooter } from "@/components/marketing/site-footer";
 import { PublicNavbarLoader } from "@/components/public-navbar-loader";
 import { Reveal } from "@/components/landing/reveal";
 import { FaqAccordion } from "@/components/landing/faq-accordion";
@@ -403,29 +402,7 @@ export default function HomePage() {
         </section>
       </main>
 
-      <footer className="border-t border-border/70">
-        <div className="mx-auto flex max-w-6xl flex-col gap-4 px-6 py-10 sm:flex-row sm:items-center sm:justify-between">
-          <AppLogo iconClassName="size-6" />
-          <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} Invoice Desk. Simple invoicing for small businesses.
-          </p>
-          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-            <SignedOut>
-              <Link href="/sign-in" className="transition-colors hover:text-foreground">
-                Sign in
-              </Link>
-              <Link href="/sign-up" className="transition-colors hover:text-foreground">
-                Get started
-              </Link>
-            </SignedOut>
-            <SignedIn>
-              <Link href="/dashboard" className="transition-colors hover:text-foreground">
-                Dashboard
-              </Link>
-            </SignedIn>
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }
