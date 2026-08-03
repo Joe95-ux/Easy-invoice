@@ -29,37 +29,47 @@ export async function GET(request: NextRequest) {
   const { member, response } = await requireApiMember();
   if (response) return response;
 
-  const url = request.nextUrl;
-  const cursor = url.searchParams.get("cursor") ?? undefined;
-  const limitParam = url.searchParams.get("limit");
-  const pageParam = url.searchParams.get("page");
-  const pageSizeParam = url.searchParams.get("pageSize");
-  const read = parseReadFilter(url.searchParams.get("read"));
-  const typeParam = url.searchParams.get("type");
-  const type =
-    typeParam && NOTIFICATION_TYPES.has(typeParam)
-      ? (typeParam as NotificationType)
+  try {
+    const url = request.nextUrl;
+    const cursor = url.searchParams.get("cursor") ?? undefined;
+    const limitParam = url.searchParams.get("limit");
+    const pageParam = url.searchParams.get("page");
+    const pageSizeParam = url.searchParams.get("pageSize");
+    const read = parseReadFilter(url.searchParams.get("read"));
+    const typeParam = url.searchParams.get("type");
+    const type =
+      typeParam && NOTIFICATION_TYPES.has(typeParam)
+        ? (typeParam as NotificationType)
+        : undefined;
+
+    const page = pageParam ? Math.max(1, Number(pageParam) || 1) : undefined;
+    const pageSize = pageSizeParam
+      ? Math.min(50, Math.max(1, Number(pageSizeParam) || 20))
+      : undefined;
+    const limit = limitParam
+      ? Math.min(50, Math.max(1, Number(limitParam) || 20))
       : undefined;
 
-  const page = pageParam ? Math.max(1, Number(pageParam)) : undefined;
-  const pageSize = pageSizeParam
-    ? Math.min(50, Math.max(1, Number(pageSizeParam)))
-    : undefined;
-  const limit = limitParam ? Math.min(50, Math.max(1, Number(limitParam))) : undefined;
+    const [data, unreadCount] = await Promise.all([
+      listNotifications(member.id, {
+        cursor,
+        limit: page ? undefined : limit,
+        page,
+        pageSize,
+        read,
+        type,
+      }),
+      getUnreadCount(member.id),
+    ]);
 
-  const [data, unreadCount] = await Promise.all([
-    listNotifications(member.id, {
-      cursor,
-      limit: page ? undefined : limit,
-      page,
-      pageSize,
-      read,
-      type,
-    }),
-    getUnreadCount(member.id),
-  ]);
-
-  return NextResponse.json({ ...data, unreadCount });
+    return NextResponse.json({ ...data, unreadCount });
+  } catch (error) {
+    console.error("[GET /api/notifications]", error);
+    return NextResponse.json(
+      { error: "Could not load notifications" },
+      { status: 500 },
+    );
+  }
 }
 
 export async function DELETE(request: NextRequest) {

@@ -28,6 +28,7 @@ type NotificationBellProps = {
 export function NotificationBell({ memberId }: NotificationBellProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<NotificationListItem[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -35,7 +36,10 @@ export function NotificationBell({ memberId }: NotificationBellProps) {
   const fetchNotifications = useCallback(async () => {
     const params = new URLSearchParams({ limit: String(DROPDOWN_LIMIT) });
     const res = await fetch(`/api/notifications?${params.toString()}`);
-    if (!res.ok) return;
+    if (!res.ok) {
+      const data = (await res.json().catch(() => null)) as { error?: string } | null;
+      throw new Error(data?.error ?? "Could not load notifications");
+    }
 
     const data = (await res.json()) as {
       notifications: NotificationListItem[];
@@ -46,59 +50,84 @@ export function NotificationBell({ memberId }: NotificationBellProps) {
     setNotifications(data.notifications);
     setTotalCount(data.totalCount);
     setUnreadCount(data.unreadCount);
-  }, [memberId]);
+    setError(null);
+  }, []);
 
   useEffect(() => {
-    setNotifications([]);
-    setTotalCount(0);
-    setUnreadCount(0);
-    void fetchNotifications();
-  }, [fetchNotifications]);
+    let cancelled = false;
+    void (async () => {
+      try {
+        await fetchNotifications();
+      } catch (err) {
+        if (cancelled) return;
+        setError(err instanceof Error ? err.message : "Could not load notifications");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchNotifications, memberId]);
 
   useEffect(() => {
     const key = process.env.NEXT_PUBLIC_PUSHER_KEY;
     const cluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER;
     if (!key || !cluster) return;
 
-    const pusher = new Pusher(key, {
-      cluster,
-      channelAuthorization: {
-        endpoint: "/api/pusher/auth",
-        transport: "ajax",
-      },
-    });
+    let pusher: Pusher | null = null;
+    try {
+      pusher = new Pusher(key, {
+        cluster,
+        channelAuthorization: {
+          endpoint: "/api/pusher/auth",
+          transport: "ajax",
+        },
+      });
 
-    const channel = pusher.subscribe(`private-member-${memberId}`);
-    channel.bind("notification", (data: NotificationListItem) => {
-      setNotifications((prev) => [data, ...prev].slice(0, DROPDOWN_LIMIT));
-      setTotalCount((count) => count + 1);
-      setUnreadCount((count) => count + 1);
-      toast(data.title, { description: data.body });
-    });
+      const channel = pusher.subscribe(`private-member-${memberId}`);
+      channel.bind("notification", (data: NotificationListItem) => {
+        setNotifications((prev) => [data, ...prev].slice(0, DROPDOWN_LIMIT));
+        setTotalCount((count) => count + 1);
+        setUnreadCount((count) => count + 1);
+        toast(data.title, { description: data.body });
+      });
+    } catch {
+      // Realtime is optional — list fetch still works.
+    }
 
     return () => {
-      channel.unbind_all();
-      pusher.unsubscribe(`private-member-${memberId}`);
-      pusher.disconnect();
+      try {
+        pusher?.unsubscribe(`private-member-${memberId}`);
+        pusher?.disconnect();
+      } catch {
+        // ignore
+      }
     };
   }, [memberId]);
 
   async function handleOpen(isOpen: boolean) {
     setOpen(isOpen);
-    if (isOpen) {
-      setLoading(true);
+    if (!isOpen) return;
+
+    setLoading(true);
+    try {
       await fetchNotifications();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Could not load notifications";
+      setError(message);
+      toast.error(message);
+    } finally {
       setLoading(false);
     }
   }
 
   async function handleMarkAllRead() {
     try {
-      await fetch("/api/notifications/read", {
+      const res = await fetch("/api/notifications/read", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
       });
+      if (!res.ok) throw new Error();
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
       setUnreadCount(0);
     } catch {
@@ -182,6 +211,19 @@ export function NotificationBell({ memberId }: NotificationBellProps) {
             <div className="flex items-center justify-center py-8 text-muted-foreground">
               <Loader2Icon className="size-5 animate-spin" />
             </div>
+          ) : error ? (
+            <div className="space-y-3 px-4 py-8 text-center">
+              <p className="text-sm text-muted-foreground">{error}</p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="cursor-pointer"
+                onClick={() => void handleOpen(true)}
+              >
+                Try again
+              </Button>
+            </div>
           ) : notifications.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">
               No notifications yet
@@ -203,7 +245,7 @@ export function NotificationBell({ memberId }: NotificationBellProps) {
           )}
         </div>
 
-        {showViewAll && (
+        {showViewAll && !error && (
           <div className="border-t border-border p-2">
             <Button
               variant="ghost"

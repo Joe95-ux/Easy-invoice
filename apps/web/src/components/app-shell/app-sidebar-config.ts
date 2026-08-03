@@ -51,13 +51,13 @@ export const APP_WORKSPACE_ITEMS: AppNavItem[] = [
       { href: "/qr-codes", label: "QR codes" },
     ],
   },
+  { href: "/notifications", label: "Notifications", icon: BellIcon },
 ];
 
 export const APP_TEAM_ITEMS: AppNavItem[] = [
   { href: "/members", label: "Members", icon: UsersRoundIcon },
   { href: "/settings/activity", label: "Activity log", icon: ScrollTextIcon },
   { href: "/analytics", label: "Analytics", icon: BarChart3Icon },
-  { href: "/notifications", label: "Notifications", icon: BellIcon },
   { href: "/settings", label: "Settings", icon: SettingsIcon },
 ];
 
@@ -69,6 +69,9 @@ export function isAppQuickActionActive(pathname: string, href: string) {
 
 export function isAppWorkspaceItemActive(pathname: string, href: string) {
   if (href === "/dashboard") return pathname === href;
+  if (href === "/notifications") {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
   if (pathname === href) return true;
   if (!pathname.startsWith(`${href}/`)) return false;
   return !APP_QUICK_ACTION_PATHS.has(pathname);
@@ -82,9 +85,6 @@ export function isAppTeamItemActive(pathname: string, href: string) {
     return pathname === href || pathname.startsWith(`${href}/`);
   }
   if (href === "/analytics") {
-    return pathname === href || pathname.startsWith(`${href}/`);
-  }
-  if (href === "/notifications") {
     return pathname === href || pathname.startsWith(`${href}/`);
   }
   if (href === "/settings") {

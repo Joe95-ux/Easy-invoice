@@ -259,7 +259,11 @@ export function NotificationsPageContent({
             <div className="flex flex-col gap-2 sm:flex-row">
               <Select
                 value={readFilter}
-                onValueChange={(value) => setReadFilter(value as ReadFilter)}
+                onValueChange={(value) => {
+                  if (value === "all" || value === "read" || value === "unread") {
+                    setReadFilter(value);
+                  }
+                }}
                 items={READ_FILTER_ITEMS}
               >
                 <SelectTrigger className="w-full data-[size=default]:h-8 sm:w-[140px]">
@@ -275,9 +279,11 @@ export function NotificationsPageContent({
               </Select>
               <Select
                 value={typeFilter}
-                onValueChange={(value) =>
-                  setTypeFilter(value as NotificationType | "ALL")
-                }
+                onValueChange={(value) => {
+                  if (value === "ALL" || (value && value in NOTIFICATION_TYPE_LABELS)) {
+                    setTypeFilter(value as NotificationType | "ALL");
+                  }
+                }}
                 items={typeFilterItems}
               >
                 <SelectTrigger className="w-full data-[size=default]:h-8 sm:w-[180px]">
