@@ -36,6 +36,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { pageHeaderActionClass } from "@/components/app-shell/page-header";
 import { DocumentShareButton } from "@/components/document-share-button";
+import { FollowUpDialog } from "@/features/follow-ups/components/follow-up-dialog";
+import { FollowUpQuickAddMenuItem } from "@/features/follow-ups/components/follow-up-quick-add";
 import { EstimateSendDialog } from "@/features/estimates/components/estimate-send-dialog";
 import { usePdfDownload } from "@/hooks/use-pdf-download";
 import { cn } from "@/lib/utils";
@@ -48,6 +50,8 @@ type EstimateActionsProps = {
   status: EstimateStatus;
   clientEmail?: string | null;
   clientName?: string | null;
+  clientId?: string | null;
+  validUntil?: string | null;
   convertedInvoiceId?: string | null;
   convertedInvoiceNumber?: string | null;
 };
@@ -61,6 +65,8 @@ export function EstimateActions({
   status,
   clientEmail,
   clientName,
+  clientId,
+  validUntil,
   convertedInvoiceId,
   convertedInvoiceNumber,
 }: EstimateActionsProps) {
@@ -70,6 +76,7 @@ export function EstimateActions({
   const [sendOpen, setSendOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [followUpOpen, setFollowUpOpen] = useState(false);
 
   const isTerminal = TERMINAL_STATUSES.includes(status);
   const canSend = !isTerminal;
@@ -350,6 +357,7 @@ export function EstimateActions({
                 <CopyIcon className="size-4" />
                 {loading === "duplicate" ? "Duplicating..." : "Duplicate"}
               </DropdownMenuItem>
+              <FollowUpQuickAddMenuItem onSelect={() => setFollowUpOpen(true)} />
               <DropdownMenuSeparator />
               <DropdownMenuItem variant="destructive" onClick={() => setDeleteOpen(true)}>
                 <Trash2Icon className="size-4" />
@@ -366,6 +374,40 @@ export function EstimateActions({
         showTrigger={false}
         open={shareOpen}
         onOpenChange={setShareOpen}
+      />
+
+      <FollowUpDialog
+        open={followUpOpen}
+        onOpenChange={setFollowUpOpen}
+        clients={
+          clientId
+            ? [{ id: clientId, label: clientName ?? "Client" }]
+            : []
+        }
+        invoices={[]}
+        estimates={[
+          {
+            id: estimateId,
+            label: clientName ? `${estimateNumber} · ${clientName}` : estimateNumber,
+            clientId,
+          },
+        ]}
+        lockLink="estimate"
+        showSuccessToast={false}
+        defaults={{
+          title: `Follow up on estimate ${estimateNumber}`,
+          dueDate: validUntil,
+          clientId,
+          estimateId,
+        }}
+        onCreated={() => {
+          toast.success("Follow-up added", {
+            action: {
+              label: "View",
+              onClick: () => router.push("/follow-ups"),
+            },
+          });
+        }}
       />
 
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>

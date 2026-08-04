@@ -85,6 +85,8 @@ export default async function EstimateDetailPage({ params }: PageProps) {
             status={estimate.status}
             clientEmail={estimate.client?.email}
             clientName={estimate.client?.name}
+            clientId={estimate.clientId}
+            validUntil={estimate.validUntil ? estimate.validUntil.toISOString().slice(0, 10) : null}
             convertedInvoiceId={estimate.convertedInvoice?.id}
             convertedInvoiceNumber={estimate.convertedInvoice?.number}
           />

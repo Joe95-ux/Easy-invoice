@@ -93,7 +93,8 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
             balanceDue={paymentSummary.balanceDue}
             clientEmail={invoice.client?.email}
             clientName={invoice.client?.name}
-            dueDate={invoice.dueDate?.toISOString() ?? null}
+            clientId={invoice.clientId}
+            dueDate={invoice.dueDate ? invoice.dueDate.toISOString().slice(0, 10) : null}
             sentAt={invoice.sentAt?.toISOString() ?? null}
             celebrateInvoicePaid={member.celebrateInvoicePaid}
           />

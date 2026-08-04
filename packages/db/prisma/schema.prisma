@@ -111,6 +111,18 @@ enum NotificationType {
   MEMBER_ROLE_CHANGED
 }
 
+enum FollowUpStatus {
+  OPEN
+  DONE
+}
+
+enum FollowUpSource {
+  MANUAL
+  INVOICE_OVERDUE
+  INVOICE_DUE_SOON
+  ESTIMATE_EXPIRING
+}
+
 enum AuditAction {
   MEMBER_INVITED
   MEMBER_INVITE_CANCELLED
@@ -191,6 +203,7 @@ model Company {
   auditEvents       AuditEvent[]
   notifications     Notification[]
   qrCodes           QrCode[]
+  followUps         FollowUp[]
 
   @@index([slug])
 }
@@ -223,6 +236,7 @@ model CompanyMember {
   auditEvents       AuditEvent[]
   notifications     Notification[]
   qrCodes           QrCode[]
+  followUps         FollowUp[]
 
   @@unique([companyId, clerkId])
   @@index([clerkId])
@@ -296,6 +310,7 @@ model Client {
   estimates Estimate[]
   timeEntries TimeEntry[]
   activeTimeTimers ActiveTimeTimer[]
+  followUps FollowUp[]
 
   @@index([companyId])
 }
@@ -356,6 +371,7 @@ model Invoice {
   timeEntries TimeEntry[]
   /// Scan-to-pay QRs linked to this invoice (typically one LINK to a payment URL).
   paymentQrCodes QrCode[]
+  followUps FollowUp[]
 
   @@unique([companyId, number])
   @@index([companyId, status])
@@ -521,6 +537,7 @@ model Estimate {
   convertedInvoice Invoice? @relation("EstimateToInvoice")
   items     EstimateLineItem[]
   reminders EstimateReminder[]
+  followUps FollowUp[]
 
   @@unique([companyId, number])
   @@index([companyId, status])
@@ -638,4 +655,37 @@ model Notification {
 
   @@index([memberId, read, createdAt(sort: Desc)])
   @@index([companyId])
+}
+
+/// Billing follow-up checklist items linked to invoices, estimates, and/or clients.
+model FollowUp {
+  id          String         @id @default(cuid())
+  companyId   String
+  memberId    String?
+  title       String
+  notes       String?
+  status      FollowUpStatus @default(OPEN)
+  dueDate     DateTime?      @db.Date
+  sortOrder   Int            @default(0)
+  source      FollowUpSource @default(MANUAL)
+  /// Stable key for auto-suggestions, e.g. "invoice:overdue:{id}". Null for manual items.
+  sourceKey   String?
+  clientId    String?
+  invoiceId   String?
+  estimateId  String?
+  completedAt DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  company  Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  member   CompanyMember? @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  client   Client?        @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  invoice  Invoice?       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  estimate Estimate?      @relation(fields: [estimateId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, sourceKey])
+  @@index([companyId, status, sortOrder])
+  @@index([companyId, dueDate])
+  @@index([invoiceId])
+  @@index([estimateId])
 }

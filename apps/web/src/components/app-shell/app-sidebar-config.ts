@@ -1,6 +1,7 @@
 import {
   BarChart3Icon,
   BellIcon,
+  CheckSquareIcon,
   ClipboardListIcon,
   ClockIcon,
   FileTextIcon,
@@ -42,6 +43,7 @@ export const APP_WORKSPACE_ITEMS: AppNavItem[] = [
   { href: "/templates", label: "Templates", icon: LayoutTemplateIcon },
   { href: "/clients", label: "Clients", icon: UsersRoundIcon },
   { href: "/time", label: "Time", icon: ClockIcon },
+  { href: "/follow-ups", label: "Follow-ups", icon: CheckSquareIcon },
   {
     href: "/qr-codes",
     label: "QR codes",

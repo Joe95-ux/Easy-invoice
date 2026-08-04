@@ -56,6 +56,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { pageHeaderActionClass } from "@/components/app-shell/page-header";
 import { DocumentShareButton } from "@/components/document-share-button";
+import { FollowUpDialog } from "@/features/follow-ups/components/follow-up-dialog";
+import { FollowUpQuickAddMenuItem } from "@/features/follow-ups/components/follow-up-quick-add";
 import { InvoiceSendDialog } from "@/features/invoices/components/invoice-send-dialog";
 import { RecordPaymentDialog } from "@/features/invoices/components/record-payment-dialog";
 import { usePdfDownload } from "@/hooks/use-pdf-download";
@@ -71,6 +73,7 @@ type InvoiceActionsProps = {
   balanceDue: number;
   clientEmail?: string | null;
   clientName?: string | null;
+  clientId?: string | null;
   dueDate?: string | null;
   sentAt?: string | null;
   celebrateInvoicePaid?: boolean;
@@ -85,6 +88,7 @@ export function InvoiceActions({
   balanceDue,
   clientEmail,
   clientName,
+  clientId,
   dueDate,
   sentAt,
   celebrateInvoicePaid = false,
@@ -97,6 +101,7 @@ export function InvoiceActions({
   const [shareOpen, setShareOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
+  const [followUpOpen, setFollowUpOpen] = useState(false);
   const [reminderEmail, setReminderEmail] = useState(clientEmail ?? "");
 
   const canSend = status !== "CANCELLED" && status !== "PAID";
@@ -311,6 +316,7 @@ export function InvoiceActions({
                 <CopyIcon className="size-4" />
                 {loading === "duplicate" ? "Duplicating..." : "Duplicate"}
               </DropdownMenuItem>
+              <FollowUpQuickAddMenuItem onSelect={() => setFollowUpOpen(true)} />
               <DropdownMenuSeparator />
               <DropdownMenuItem variant="destructive" onClick={() => setDeleteOpen(true)}>
                 <Trash2Icon className="size-4" />
@@ -327,6 +333,40 @@ export function InvoiceActions({
         showTrigger={false}
         open={shareOpen}
         onOpenChange={setShareOpen}
+      />
+
+      <FollowUpDialog
+        open={followUpOpen}
+        onOpenChange={setFollowUpOpen}
+        clients={
+          clientId
+            ? [{ id: clientId, label: clientName ?? "Client" }]
+            : []
+        }
+        invoices={[
+          {
+            id: invoiceId,
+            label: clientName ? `${invoiceNumber} · ${clientName}` : invoiceNumber,
+            clientId,
+          },
+        ]}
+        estimates={[]}
+        lockLink="invoice"
+        showSuccessToast={false}
+        defaults={{
+          title: `Follow up on invoice ${invoiceNumber}`,
+          dueDate,
+          clientId,
+          invoiceId,
+        }}
+        onCreated={() => {
+          toast.success("Follow-up added", {
+            action: {
+              label: "View",
+              onClick: () => router.push("/follow-ups"),
+            },
+          });
+        }}
       />
 
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>

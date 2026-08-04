@@ -123,6 +123,21 @@ Manual time logs, unbilled hours → invoice line items, Toggl/Clockify import, 
 
 ---
 
+### 5b. Billing follow-ups
+
+**Status:** Done
+
+Company-scoped checklist + calendar for invoice/estimate follow-through (not a general todo app). Manual items must link a client, invoice, or estimate. Auto-suggestions cover overdue / due-soon invoices and expiring estimates. Drag to reorder open items.
+
+| Piece | Location |
+|-------|----------|
+| Schema | `FollowUp`, `FollowUpStatus`, `FollowUpSource` |
+| Page | `/follow-ups` (Workspace nav) |
+| API | `GET/POST /api/follow-ups`, `PATCH/DELETE /api/follow-ups/[id]`, `POST /api/follow-ups/reorder`, `POST /api/follow-ups/sync` |
+| UI | Checklist + month calendar; “Add follow-up” on invoice/estimate actions |
+
+---
+
 ### 6. Saved products / services library
 
 **Status:** Planned
