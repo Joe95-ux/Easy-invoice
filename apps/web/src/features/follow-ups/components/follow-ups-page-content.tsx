@@ -37,6 +37,7 @@ import {
   FollowUpDialog,
   type FollowUpLinkOption,
 } from "@/features/follow-ups/components/follow-up-dialog";
+import { FollowUpSortableList } from "@/features/follow-ups/components/follow-up-sortable-list";
 import type { SerializedFollowUp } from "@/lib/follow-ups/service";
 import { cn } from "@/lib/utils";
 
@@ -82,6 +83,108 @@ function dueTone(dueDate: string | null, status: SerializedFollowUp["status"]) {
   return "text-muted-foreground";
 }
 
+function FollowUpRow({
+  item,
+  showHandle,
+  busy,
+  onToggle,
+  onDelete,
+}: {
+  item: SerializedFollowUp;
+  showHandle: boolean;
+  busy: boolean;
+  onToggle: (item: SerializedFollowUp) => void;
+  onDelete: (id: string) => void;
+}) {
+  const href = linkHref(item);
+  const label = linkLabel(item);
+  const source = sourceLabel(item.source);
+  const showClientBesideDoc =
+    Boolean(item.client) && Boolean(item.invoiceId || item.estimateId);
+
+  return (
+    <div
+      data-follow-up-row=""
+      className={cn(
+        "group flex items-start gap-3 rounded-lg border border-transparent px-2 py-2.5 transition-colors",
+        "hover:border-border hover:bg-muted/40",
+        item.status === "DONE" && "opacity-70",
+      )}
+    >
+      {showHandle ? (
+        <span className="mt-0.5 text-muted-foreground" aria-hidden>
+          <GripVerticalIcon className="size-4" />
+        </span>
+      ) : (
+        <span className="mt-0.5 size-4 shrink-0" />
+      )}
+
+      <Checkbox
+        checked={item.status === "DONE"}
+        data-no-dnd=""
+        onCheckedChange={() => onToggle(item)}
+        className="mt-0.5 cursor-pointer"
+        aria-label={item.status === "DONE" ? "Mark open" : "Mark done"}
+      />
+
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <p
+            className={cn(
+              "text-sm font-medium",
+              item.status === "DONE" && "text-muted-foreground line-through",
+            )}
+          >
+            {item.title}
+          </p>
+          {source ? (
+            <Badge variant="secondary" className="font-normal">
+              {source}
+            </Badge>
+          ) : null}
+        </div>
+        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+          {item.dueDate ? (
+            <span className={dueTone(item.dueDate, item.status)}>
+              Due {format(parseISO(item.dueDate), "MMM d, yyyy")}
+            </span>
+          ) : (
+            <span className="text-muted-foreground">No due date</span>
+          )}
+          {href && label ? (
+            <Link href={href} className="cursor-pointer text-primary hover:underline" data-no-dnd="">
+              {label}
+            </Link>
+          ) : null}
+          {showClientBesideDoc ? (
+            <span className="text-muted-foreground">{item.client!.name}</span>
+          ) : null}
+        </div>
+        {item.notes ? (
+          <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{item.notes}</p>
+        ) : null}
+      </div>
+
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        data-no-dnd=""
+        className="size-8 shrink-0 cursor-pointer opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
+        disabled={busy}
+        onClick={() => onDelete(item.id)}
+        aria-label="Delete follow-up"
+      >
+        {busy ? (
+          <Loader2Icon className="size-4 animate-spin" />
+        ) : (
+          <Trash2Icon className="size-4" />
+        )}
+      </Button>
+    </div>
+  );
+}
+
 export function FollowUpsPageContent({
   initialFollowUps,
   clients,
@@ -91,13 +194,10 @@ export function FollowUpsPageContent({
   const [followUps, setFollowUps] = useState(initialFollowUps);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
-  const [dragId, setDragId] = useState<string | null>(null);
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
   const [selectedDay, setSelectedDay] = useState<Date>(() => new Date());
   const [busyId, setBusyId] = useState<string | null>(null);
-  const openItemsRef = useRef<SerializedFollowUp[]>([]);
-  const dragIdRef = useRef<string | null>(null);
-  const orderDirtyRef = useRef(false);
+  const toggleGenRef = useRef(new Map<string, number>());
 
   const openItems = useMemo(
     () => followUps.filter((item) => item.status === "OPEN"),
@@ -113,8 +213,6 @@ export function FollowUpsPageContent({
     [followUps],
   );
   const visibleDoneItems = doneItems.slice(0, 40);
-
-  openItemsRef.current = openItems;
 
   const itemsByDay = useMemo(() => {
     const map = new Map<string, SerializedFollowUp[]>();
@@ -136,40 +234,57 @@ export function FollowUpsPageContent({
   const selectedDayKey = format(selectedDay, "yyyy-MM-dd");
   const selectedDayItems = itemsByDay.get(selectedDayKey) ?? [];
 
-  async function patchFollowUp(id: string, body: Record<string, unknown>) {
-    setBusyId(id);
-    try {
-      const res = await fetch(`/api/follow-ups/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error ?? "Update failed");
-      const updated = data.followUp as SerializedFollowUp;
-      setFollowUps((prev) => {
-        const next = prev.map((item) => (item.id === id ? updated : item));
-        const open = next
-          .filter((item) => item.status === "OPEN")
-          .sort((a, b) => a.sortOrder - b.sortOrder || a.createdAt.localeCompare(b.createdAt));
-        const done = next
-          .filter((item) => item.status === "DONE")
-          .sort((a, b) =>
-            (b.completedAt ?? b.updatedAt).localeCompare(a.completedAt ?? a.updatedAt),
-          );
-        return [...open, ...done];
-      });
-      return updated;
-    } finally {
-      setBusyId(null);
-    }
+  function sortFollowUps(items: SerializedFollowUp[]) {
+    const open = items
+      .filter((item) => item.status === "OPEN")
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.createdAt.localeCompare(b.createdAt));
+    const done = items
+      .filter((item) => item.status === "DONE")
+      .sort((a, b) =>
+        (b.completedAt ?? b.updatedAt).localeCompare(a.completedAt ?? a.updatedAt),
+      );
+    return [...open, ...done];
   }
 
   async function handleToggle(item: SerializedFollowUp) {
     const nextStatus = item.status === "OPEN" ? "DONE" : "OPEN";
+    const now = new Date().toISOString();
+    const gen = (toggleGenRef.current.get(item.id) ?? 0) + 1;
+    toggleGenRef.current.set(item.id, gen);
+
+    let snapshot: SerializedFollowUp[] = [];
+    setFollowUps((prev) => {
+      snapshot = prev;
+      return sortFollowUps(
+        prev.map((entry) =>
+          entry.id === item.id
+            ? {
+                ...entry,
+                status: nextStatus,
+                completedAt: nextStatus === "DONE" ? now : null,
+                updatedAt: now,
+              }
+            : entry,
+        ),
+      );
+    });
+
     try {
-      await patchFollowUp(item.id, { status: nextStatus });
+      const res = await fetch(`/api/follow-ups/${item.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: nextStatus }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Update failed");
+      if (toggleGenRef.current.get(item.id) !== gen) return;
+      const updated = data.followUp as SerializedFollowUp;
+      setFollowUps((prev) =>
+        sortFollowUps(prev.map((entry) => (entry.id === item.id ? updated : entry))),
+      );
     } catch (error) {
+      if (toggleGenRef.current.get(item.id) !== gen) return;
+      setFollowUps(snapshot);
       toast.error(error instanceof Error ? error.message : "Could not update follow-up");
     }
   }
@@ -212,13 +327,14 @@ export function FollowUpsPageContent({
     }
   }
 
-  async function persistOrder(nextOpen: SerializedFollowUp[]) {
+  async function handleReorder(nextOpen: SerializedFollowUp[]) {
     let previous: SerializedFollowUp[] = [];
     setFollowUps((prev) => {
       previous = prev;
       const done = prev.filter((item) => item.status === "DONE");
       return [...nextOpen, ...done];
     });
+
     try {
       const res = await fetch("/api/follow-ups/reorder", {
         method: "POST",
@@ -228,145 +344,11 @@ export function FollowUpsPageContent({
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error ?? "Reorder failed");
       setFollowUps(data.followUps as SerializedFollowUp[]);
+      toast.success("Order updated");
     } catch (error) {
       setFollowUps(previous);
       toast.error(error instanceof Error ? error.message : "Could not reorder");
     }
-  }
-
-  function onDragStart(event: React.DragEvent, id: string) {
-    event.dataTransfer.effectAllowed = "move";
-    event.dataTransfer.setData("text/plain", id);
-    dragIdRef.current = id;
-    orderDirtyRef.current = false;
-    setDragId(id);
-  }
-
-  function onDragOver(event: React.DragEvent, overId: string) {
-    event.preventDefault();
-    event.dataTransfer.dropEffect = "move";
-    const activeId = dragIdRef.current;
-    if (!activeId || activeId === overId) return;
-
-    const current = openItemsRef.current;
-    const from = current.findIndex((item) => item.id === activeId);
-    const to = current.findIndex((item) => item.id === overId);
-    if (from < 0 || to < 0 || from === to) return;
-
-    const next = [...current];
-    const [moved] = next.splice(from, 1);
-    next.splice(to, 0, moved);
-    orderDirtyRef.current = true;
-    openItemsRef.current = next;
-    setFollowUps((prev) => [...next, ...prev.filter((item) => item.status === "DONE")]);
-  }
-
-  function onDragEnd() {
-    const activeId = dragIdRef.current;
-    dragIdRef.current = null;
-    setDragId(null);
-    if (!activeId || !orderDirtyRef.current) return;
-    orderDirtyRef.current = false;
-    void persistOrder(openItemsRef.current);
-  }
-
-  function renderRow(item: SerializedFollowUp, draggable: boolean) {
-    const href = linkHref(item);
-    const label = linkLabel(item);
-    const source = sourceLabel(item.source);
-    const busy = busyId === item.id;
-    const showClientBesideDoc =
-      Boolean(item.client) && Boolean(item.invoiceId || item.estimateId);
-
-    return (
-      <div
-        key={item.id}
-        onDragOver={(event) => draggable && onDragOver(event, item.id)}
-        className={cn(
-          "group flex items-start gap-3 rounded-lg border border-transparent px-2 py-2.5 transition-colors hover:border-border hover:bg-muted/40",
-          dragId === item.id && "border-border bg-muted/60 opacity-80",
-          item.status === "DONE" && "opacity-70",
-        )}
-      >
-        {draggable ? (
-          <button
-            type="button"
-            draggable
-            onClick={(event) => event.preventDefault()}
-            onDragStart={(event) => onDragStart(event, item.id)}
-            onDragEnd={onDragEnd}
-            className="mt-0.5 cursor-grab touch-none text-muted-foreground active:cursor-grabbing"
-            aria-label="Drag to reorder"
-          >
-            <GripVerticalIcon className="size-4" />
-          </button>
-        ) : (
-          <span className="mt-0.5 size-4 shrink-0" />
-        )}
-
-        <Checkbox
-          checked={item.status === "DONE"}
-          disabled={busy}
-          onCheckedChange={() => void handleToggle(item)}
-          className="mt-0.5"
-          aria-label={item.status === "DONE" ? "Mark open" : "Mark done"}
-        />
-
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <p
-              className={cn(
-                "text-sm font-medium",
-                item.status === "DONE" && "text-muted-foreground line-through",
-              )}
-            >
-              {item.title}
-            </p>
-            {source ? (
-              <Badge variant="secondary" className="font-normal">
-                {source}
-              </Badge>
-            ) : null}
-          </div>
-          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-            {item.dueDate ? (
-              <span className={dueTone(item.dueDate, item.status)}>
-                Due {format(parseISO(item.dueDate), "MMM d, yyyy")}
-              </span>
-            ) : (
-              <span className="text-muted-foreground">No due date</span>
-            )}
-            {href && label ? (
-              <Link href={href} className="text-primary hover:underline">
-                {label}
-              </Link>
-            ) : null}
-            {showClientBesideDoc ? (
-              <span className="text-muted-foreground">{item.client!.name}</span>
-            ) : null}
-          </div>
-          {item.notes ? (
-            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{item.notes}</p>
-          ) : null}
-        </div>
-
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="size-8 shrink-0 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
-          disabled={busy}
-          onClick={() => void handleDelete(item.id)}
-          aria-label="Delete follow-up"
-        >
-          {busy ? (
-            <Loader2Icon className="size-4 animate-spin" />
-          ) : (
-            <Trash2Icon className="size-4" />
-          )}
-        </Button>
-      </div>
-    );
   }
 
   return (
@@ -429,7 +411,19 @@ export function FollowUpsPageContent({
                       Nothing open. Sync suggestions or add a follow-up.
                     </p>
                   ) : (
-                    openItems.map((item) => renderRow(item, true))
+                    <FollowUpSortableList
+                      items={openItems}
+                      onReorder={handleReorder}
+                      renderItem={(item) => (
+                        <FollowUpRow
+                          item={item}
+                          showHandle
+                          busy={busyId === item.id}
+                          onToggle={handleToggle}
+                          onDelete={(id) => void handleDelete(id)}
+                        />
+                      )}
+                    />
                   )}
                 </CardContent>
               </Card>
@@ -441,7 +435,16 @@ export function FollowUpsPageContent({
                       <h2 className="text-sm font-medium text-muted-foreground">Done</h2>
                       <span className="text-xs text-muted-foreground">{doneItems.length}</span>
                     </div>
-                    {visibleDoneItems.map((item) => renderRow(item, false))}
+                    {visibleDoneItems.map((item) => (
+                      <FollowUpRow
+                        key={item.id}
+                        item={item}
+                        showHandle={false}
+                        busy={busyId === item.id}
+                        onToggle={handleToggle}
+                        onDelete={(id) => void handleDelete(id)}
+                      />
+                    ))}
                     {doneItems.length > visibleDoneItems.length ? (
                       <p className="px-2 pt-2 text-xs text-muted-foreground">
                         Showing the {visibleDoneItems.length} most recent. Older completed items
@@ -537,7 +540,16 @@ export function FollowUpsPageContent({
                   No open follow-ups on this day.
                 </p>
               ) : (
-                selectedDayItems.map((item) => renderRow(item, false))
+                selectedDayItems.map((item) => (
+                  <FollowUpRow
+                    key={item.id}
+                    item={item}
+                    showHandle={false}
+                    busy={busyId === item.id}
+                    onToggle={handleToggle}
+                    onDelete={(id) => void handleDelete(id)}
+                  />
+                ))
               )}
             </CardContent>
           </Card>

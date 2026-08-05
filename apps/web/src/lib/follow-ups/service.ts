@@ -233,14 +233,25 @@ export async function reorderFollowUps(companyId: string, orderedIds: string[]) 
     return getFollowUpsForCompany(companyId);
   }
 
-  await prisma.$transaction(
-    ids.map((id, index) =>
-      prisma.followUp.update({
-        where: { id },
-        data: { sortOrder: index },
-      }),
-    ),
-  );
+  const orders = ids.map((_, index) => index);
+
+  // One statement + per-company advisory lock avoids row-lock deadlocks
+  // when sync and reorder run concurrently.
+  await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${companyId}))`;
+    await tx.$executeRaw`
+      UPDATE "FollowUp" AS f
+      SET "sortOrder" = data.new_order
+      FROM (
+        SELECT
+          UNNEST(${ids}::text[]) AS id,
+          UNNEST(${orders}::int[]) AS new_order
+      ) AS data
+      WHERE f.id = data.id
+        AND f."companyId" = ${companyId}
+        AND f.status = CAST('OPEN' AS "FollowUpStatus")
+    `;
+  });
 
   return getFollowUpsForCompany(companyId);
 }
@@ -374,6 +385,8 @@ export async function syncFollowUpSuggestions(companyId: string, memberId: strin
   let nextOrder = await nextOpenSortOrder(companyId);
 
   await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${companyId}))`;
+
     for (const suggestion of suggestions) {
       const current = byKey.get(suggestion.sourceKey);
       if (!current) {
