@@ -76,7 +76,8 @@ export async function refreshInvoicePaymentStatus(invoiceId: string, companyId: 
     data.dueDate = summary.nextDueDate;
   }
 
-  return prisma.invoice.update({
+  const wasPaid = invoice.status === "PAID";
+  const updated = await prisma.invoice.update({
     where: { id: invoiceId },
     data,
     include: {
@@ -88,6 +89,13 @@ export async function refreshInvoicePaymentStatus(invoiceId: string, companyId: 
       installments: { orderBy: { sortOrder: "asc" } },
     },
   });
+
+  if (nextStatus === "PAID" && !wasPaid) {
+    const { resolveFollowUpsForInvoice } = await import("@/lib/follow-ups/service");
+    await resolveFollowUpsForInvoice(companyId, invoiceId).catch(() => undefined);
+  }
+
+  return updated;
 }
 
 function roundMoney(value: number): number {

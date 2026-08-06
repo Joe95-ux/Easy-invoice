@@ -257,6 +257,11 @@ export async function respondToPublicEstimate(
     include: ESTIMATE_INCLUDE,
   });
 
+  if (action === "accept") {
+    const { resolveFollowUpsForEstimate } = await import("@/lib/follow-ups/service");
+    await resolveFollowUpsForEstimate(estimate.companyId, estimate.id).catch(() => undefined);
+  }
+
   const clientName = evidence?.signerName?.trim() || estimate.client?.name || "Client";
   const memberIds = await getCompanyMemberIds(estimate.companyId);
   const verb = action === "accept" ? "accepted" : "declined";

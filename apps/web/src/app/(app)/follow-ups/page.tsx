@@ -19,7 +19,7 @@ export default async function FollowUpsPage() {
     // Page still loads; user can retry via Sync suggestions.
   }
 
-  const [followUps, clients, invoices, estimates] = await Promise.all([
+  const [followUps, clients, invoices, estimates, members] = await Promise.all([
     getFollowUpsForCompany(member.companyId),
     getClientsForMember(member.companyId),
     prisma.invoice.findMany({
@@ -34,12 +34,18 @@ export default async function FollowUpsPage() {
       orderBy: { createdAt: "desc" },
       take: 100,
     }),
+    prisma.companyMember.findMany({
+      where: { companyId: member.companyId },
+      select: { id: true, name: true, email: true },
+      orderBy: { createdAt: "asc" },
+    }),
   ]);
 
   return (
     <PageScroll>
       <FollowUpsPageContent
         initialFollowUps={followUps.map(serializeFollowUp)}
+        currentMemberId={member.id}
         clients={clients.map((client) => ({ id: client.id, label: client.name }))}
         invoices={invoices.map((invoice) => ({
           id: invoice.id,
@@ -54,6 +60,10 @@ export default async function FollowUpsPage() {
             ? `${estimate.number} · ${estimate.client.name}`
             : estimate.number,
           clientId: estimate.clientId,
+        }))}
+        members={members.map((row) => ({
+          id: row.id,
+          label: row.name?.trim() || row.email,
         }))}
       />
     </PageScroll>

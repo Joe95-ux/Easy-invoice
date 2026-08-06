@@ -127,14 +127,16 @@ Manual time logs, unbilled hours → invoice line items, Toggl/Clockify import, 
 
 **Status:** Done
 
-Company-scoped checklist + calendar for invoice/estimate follow-through (not a general todo app). Manual items must link a client, invoice, or estimate. Auto-suggestions cover overdue / due-soon invoices and expiring estimates. Drag to reorder open items.
+Company-scoped checklist + calendar for invoice/estimate follow-through (not a general todo app). Manual items must link a client, invoice, or estimate. Auto-suggestions cover overdue / due-soon invoices and expiring estimates. Drag to reorder open items. Optional assignee, filters, inline edit, and dashboard attention banner. Open items auto-close when the linked invoice is paid or estimate is accepted.
 
 | Piece | Location |
 |-------|----------|
 | Schema | `FollowUp`, `FollowUpStatus`, `FollowUpSource` |
 | Page | `/follow-ups` (Workspace nav) |
 | API | `GET/POST /api/follow-ups`, `PATCH/DELETE /api/follow-ups/[id]`, `POST /api/follow-ups/reorder`, `POST /api/follow-ups/sync` |
-| UI | Checklist + month calendar; “Add follow-up” on invoice/estimate actions |
+| UI | Checklist + month calendar; filters; edit dialog; assignee; “Add follow-up” on invoice/estimate actions |
+| Auto-close | Invoice paid / estimate accepted → `resolveFollowUpsForInvoice` / `resolveFollowUpsForEstimate` |
+| Dashboard | Due today + overdue counts via `getFollowUpActionCounts` |
 
 ---
 

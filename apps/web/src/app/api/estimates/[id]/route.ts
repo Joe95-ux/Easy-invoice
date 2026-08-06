@@ -160,6 +160,11 @@ export async function PATCH(request: Request, context: RouteContext) {
     },
   });
 
+  if (data.status === "ACCEPTED" && existing.status !== "ACCEPTED") {
+    const { resolveFollowUpsForEstimate } = await import("@/lib/follow-ups/service");
+    await resolveFollowUpsForEstimate(member.companyId, id).catch(() => undefined);
+  }
+
   const afterSnapshot = await loadEstimateSnapshot(member.companyId, id);
   if (afterSnapshot) {
     await recordEstimateContentRevision(

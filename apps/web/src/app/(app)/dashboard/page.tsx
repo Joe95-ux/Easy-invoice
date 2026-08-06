@@ -3,6 +3,7 @@ import {
   ArrowRightIcon,
   ArrowUpRightIcon,
   CheckCircle2Icon,
+  CheckSquareIcon,
   ClockIcon,
   FileTextIcon,
   PlusIcon,
@@ -91,6 +92,41 @@ export default async function DashboardPage() {
           icon={UsersRoundIcon}
         />
       </section>
+
+      {stats.followUps.actionable > 0 && (
+        <Link
+          href="/follow-ups"
+          className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-4 transition-colors hover:bg-amber-500/10 sm:px-5"
+        >
+          <div className="flex min-w-0 items-start gap-3">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-800 dark:text-amber-300">
+              <CheckSquareIcon className="size-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="font-medium">
+                {stats.followUps.actionable} follow-up
+                {stats.followUps.actionable === 1 ? "" : "s"} need attention
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {[
+                  stats.followUps.overdue > 0
+                    ? `${stats.followUps.overdue} overdue`
+                    : null,
+                  stats.followUps.dueToday > 0
+                    ? `${stats.followUps.dueToday} due today`
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
+            </div>
+          </div>
+          <span className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-amber-800 dark:text-amber-300">
+            Open checklist
+            <ArrowUpRightIcon className="size-4" />
+          </span>
+        </Link>
+      )}
 
       {stats.unbilledTime.entryCount > 0 && (
         <Link

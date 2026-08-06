@@ -32,16 +32,27 @@ export type FollowUpLinkOption = {
   clientId?: string | null;
 };
 
+export type FollowUpMemberOption = {
+  id: string;
+  label: string;
+};
+
 type FollowUpDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   clients: FollowUpLinkOption[];
   invoices: FollowUpLinkOption[];
   estimates: FollowUpLinkOption[];
+  members?: FollowUpMemberOption[];
+  currentMemberId?: string | null;
+  /** When set, dialog edits this follow-up instead of creating. */
+  followUp?: SerializedFollowUp | null;
   /** Prefill when opened from an invoice/estimate page. */
   defaults?: {
     title?: string;
     dueDate?: string | null;
+    notes?: string | null;
+    memberId?: string | null;
     clientId?: string | null;
     invoiceId?: string | null;
     estimateId?: string | null;
@@ -50,7 +61,8 @@ type FollowUpDialogProps = {
   lockLink?: "invoice" | "estimate" | "client";
   /** Set false when the parent shows its own success toast. */
   showSuccessToast?: boolean;
-  onCreated: (followUp: SerializedFollowUp) => void;
+  onSaved?: (followUp: SerializedFollowUp) => void;
+  onCreated?: (followUp: SerializedFollowUp) => void;
 };
 
 type LinkKind = "invoice" | "estimate" | "client";
@@ -61,14 +73,20 @@ export function FollowUpDialog({
   clients,
   invoices,
   estimates,
+  members = [],
+  currentMemberId,
+  followUp,
   defaults,
   lockLink,
   showSuccessToast = true,
+  onSaved,
   onCreated,
 }: FollowUpDialogProps) {
+  const isEdit = Boolean(followUp);
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
   const [dueDate, setDueDate] = useState("");
+  const [memberId, setMemberId] = useState("");
   const [linkKind, setLinkKind] = useState<LinkKind>("invoice");
   const [clientId, setClientId] = useState("");
   const [invoiceId, setInvoiceId] = useState("");
@@ -78,19 +96,38 @@ export function FollowUpDialog({
 
   useEffect(() => {
     if (open && !wasOpen.current) {
-      setTitle(defaults?.title ?? "");
-      setNotes("");
-      setDueDate(defaults?.dueDate ?? "");
-      setClientId(defaults?.clientId ?? "");
-      setInvoiceId(defaults?.invoiceId ?? "");
-      setEstimateId(defaults?.estimateId ?? "");
-      setLinkKind(
-        lockLink ??
-          (defaults?.invoiceId ? "invoice" : defaults?.estimateId ? "estimate" : "invoice"),
-      );
+      if (followUp) {
+        setTitle(followUp.title);
+        setNotes(followUp.notes ?? "");
+        setDueDate(followUp.dueDate ?? "");
+        setMemberId(followUp.memberId ?? "");
+        setClientId(followUp.clientId ?? "");
+        setInvoiceId(followUp.invoiceId ?? "");
+        setEstimateId(followUp.estimateId ?? "");
+        setLinkKind(
+          lockLink ??
+            (followUp.invoiceId
+              ? "invoice"
+              : followUp.estimateId
+                ? "estimate"
+                : "client"),
+        );
+      } else {
+        setTitle(defaults?.title ?? "");
+        setNotes(defaults?.notes ?? "");
+        setDueDate(defaults?.dueDate ?? "");
+        setMemberId(defaults?.memberId ?? currentMemberId ?? "");
+        setClientId(defaults?.clientId ?? "");
+        setInvoiceId(defaults?.invoiceId ?? "");
+        setEstimateId(defaults?.estimateId ?? "");
+        setLinkKind(
+          lockLink ??
+            (defaults?.invoiceId ? "invoice" : defaults?.estimateId ? "estimate" : "invoice"),
+        );
+      }
     }
     wasOpen.current = open;
-  }, [open, defaults, lockLink]);
+  }, [open, followUp, defaults, lockLink, currentMemberId]);
 
   const selectedInvoice = useMemo(
     () => invoices.find((item) => item.id === invoiceId),
@@ -100,6 +137,8 @@ export function FollowUpDialog({
     () => estimates.find((item) => item.id === estimateId),
     [estimates, estimateId],
   );
+
+  const linkLocked = Boolean(lockLink) || (isEdit && followUp?.source !== "MANUAL");
 
   const canSubmit =
     Boolean(title.trim()) &&
@@ -125,6 +164,7 @@ export function FollowUpDialog({
       title: title.trim(),
       notes: notes.trim() || null,
       dueDate: dueDate || null,
+      memberId: memberId || null,
       clientId:
         linkKind === "client"
           ? clientId || null
@@ -142,22 +182,30 @@ export function FollowUpDialog({
 
     setSaving(true);
     try {
-      const res = await fetch("/api/follow-ups", {
-        method: "POST",
+      const res = await fetch(isEdit ? `/api/follow-ups/${followUp!.id}` : "/api/follow-ups", {
+        method: isEdit ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(data.error ?? "Could not create follow-up");
+        throw new Error(data.error ?? (isEdit ? "Could not update follow-up" : "Could not create follow-up"));
       }
-      onCreated(data.followUp as SerializedFollowUp);
+      const saved = data.followUp as SerializedFollowUp;
+      onSaved?.(saved);
+      onCreated?.(saved);
       onOpenChange(false);
       if (showSuccessToast) {
-        toast.success("Follow-up added");
+        toast.success(isEdit ? "Follow-up updated" : "Follow-up added");
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not create follow-up");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : isEdit
+            ? "Could not update follow-up"
+            : "Could not create follow-up",
+      );
     } finally {
       setSaving(false);
     }
@@ -168,9 +216,11 @@ export function FollowUpDialog({
       <DialogContent className="sm:max-w-md">
         <form onSubmit={(event) => void handleSubmit(event)}>
           <DialogHeader>
-            <DialogTitle>Add follow-up</DialogTitle>
+            <DialogTitle>{isEdit ? "Edit follow-up" : "Add follow-up"}</DialogTitle>
             <DialogDescription>
-              Track the next billing action on a client, invoice, or estimate.
+              {isEdit
+                ? "Update the next billing action for this client, invoice, or estimate."
+                : "Track the next billing action on a client, invoice, or estimate."}
             </DialogDescription>
           </DialogHeader>
           <DialogBody className="grid gap-4">
@@ -195,7 +245,42 @@ export function FollowUpDialog({
               />
             </div>
 
-            {!lockLink ? (
+            {members.length > 0 ? (
+              <div className="grid gap-2">
+                <Label>Assignee</Label>
+                <Select
+                  value={memberId || "__unassigned__"}
+                  onValueChange={(value) => {
+                    if (!value || value === "__unassigned__") {
+                      setMemberId("");
+                      return;
+                    }
+                    setMemberId(value);
+                  }}
+                  items={[
+                    { value: "__unassigned__", label: "Unassigned" },
+                    ...members.map((member) => ({
+                      value: member.id,
+                      label: member.label,
+                    })),
+                  ]}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Assign to…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__unassigned__">Unassigned</SelectItem>
+                    {members.map((member) => (
+                      <SelectItem key={member.id} value={member.id}>
+                        {member.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
+
+            {!linkLocked ? (
               <div className="grid gap-2">
                 <Label>Linked to</Label>
                 <Select
@@ -222,9 +307,12 @@ export function FollowUpDialog({
             {linkKind === "invoice" ? (
               <div className="grid gap-2">
                 <Label>Invoice</Label>
-                {lockLink === "invoice" && selectedInvoice ? (
+                {linkLocked && (selectedInvoice || followUp?.invoice) ? (
                   <p className="rounded-lg border bg-muted/40 px-3 py-2 text-sm">
-                    {selectedInvoice.label}
+                    {selectedInvoice?.label ??
+                      (followUp?.invoice
+                        ? `Invoice ${followUp.invoice.number}`
+                        : "Invoice")}
                   </p>
                 ) : invoices.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No invoices yet.</p>
@@ -255,9 +343,12 @@ export function FollowUpDialog({
             {linkKind === "estimate" ? (
               <div className="grid gap-2">
                 <Label>Estimate</Label>
-                {lockLink === "estimate" && selectedEstimate ? (
+                {linkLocked && (selectedEstimate || followUp?.estimate) ? (
                   <p className="rounded-lg border bg-muted/40 px-3 py-2 text-sm">
-                    {selectedEstimate.label}
+                    {selectedEstimate?.label ??
+                      (followUp?.estimate
+                        ? `Estimate ${followUp.estimate.number}`
+                        : "Estimate")}
                   </p>
                 ) : estimates.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No estimates yet.</p>
@@ -288,7 +379,13 @@ export function FollowUpDialog({
             {linkKind === "client" ? (
               <div className="grid gap-2">
                 <Label>Client</Label>
-                {clients.length === 0 ? (
+                {linkLocked && (clients.find((c) => c.id === clientId) || followUp?.client) ? (
+                  <p className="rounded-lg border bg-muted/40 px-3 py-2 text-sm">
+                    {clients.find((c) => c.id === clientId)?.label ??
+                      followUp?.client?.name ??
+                      "Client"}
+                  </p>
+                ) : clients.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No clients yet.</p>
                 ) : (
                   <Select
@@ -331,7 +428,7 @@ export function FollowUpDialog({
             </Button>
             <Button type="submit" disabled={saving || !canSubmit}>
               {saving ? <Loader2Icon className="size-4 animate-spin" /> : null}
-              Add follow-up
+              {isEdit ? "Save changes" : "Add follow-up"}
             </Button>
           </DialogFooter>
         </form>

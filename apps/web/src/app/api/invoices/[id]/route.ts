@@ -229,6 +229,11 @@ export async function PATCH(request: Request, context: RouteContext) {
     );
   }
 
+  if (data.status === "PAID" && existing.status !== "PAID") {
+    const { resolveFollowUpsForInvoice } = await import("@/lib/follow-ups/service");
+    await resolveFollowUpsForInvoice(member.companyId, id).catch(() => undefined);
+  }
+
   return NextResponse.json({ invoice: refreshed });
 }
 

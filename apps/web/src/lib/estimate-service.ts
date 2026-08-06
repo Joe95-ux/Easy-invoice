@@ -118,6 +118,11 @@ export async function convertEstimateToInvoice(estimateId: string, companyId: st
     return created;
   });
 
+  if (estimate.status !== "ACCEPTED") {
+    const { resolveFollowUpsForEstimate } = await import("@/lib/follow-ups/service");
+    await resolveFollowUpsForEstimate(companyId, estimateId).catch(() => undefined);
+  }
+
   return { invoice, created: true };
 }
 

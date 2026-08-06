@@ -23,6 +23,7 @@ export type SerializedFollowUp = {
   sortOrder: number;
   source: FollowUpSource;
   sourceKey: string | null;
+  memberId: string | null;
   clientId: string | null;
   invoiceId: string | null;
   estimateId: string | null;
@@ -64,6 +65,7 @@ export function serializeFollowUp(item: FollowUpWithRelations): SerializedFollow
     sortOrder: item.sortOrder,
     source: item.source,
     sourceKey: item.sourceKey,
+    memberId: item.memberId,
     clientId: item.clientId,
     invoiceId: item.invoiceId,
     estimateId: item.estimateId,
@@ -132,9 +134,58 @@ async function nextOpenSortOrder(companyId: string) {
   return (maxOrder._max.sortOrder ?? -1) + 1;
 }
 
+async function assertAssignee(companyId: string, memberId: string | null | undefined) {
+  if (!memberId) return null;
+  const member = await prisma.companyMember.findFirst({
+    where: { id: memberId, companyId },
+    select: { id: true },
+  });
+  if (!member) throw new Error("Assignee not found");
+  return member.id;
+}
+
+/** Close open follow-ups linked to a resolved invoice or estimate. */
+export async function resolveFollowUpsForInvoice(companyId: string, invoiceId: string) {
+  return prisma.followUp.updateMany({
+    where: { companyId, invoiceId, status: "OPEN" },
+    data: { status: "DONE", completedAt: new Date() },
+  });
+}
+
+export async function resolveFollowUpsForEstimate(companyId: string, estimateId: string) {
+  return prisma.followUp.updateMany({
+    where: { companyId, estimateId, status: "OPEN" },
+    data: { status: "DONE", completedAt: new Date() },
+  });
+}
+
+export async function getFollowUpActionCounts(companyId: string) {
+  const todayKey = format(new Date(), "yyyy-MM-dd");
+  const today = toDateOnly(todayKey)!;
+
+  const [overdue, dueToday] = await Promise.all([
+    prisma.followUp.count({
+      where: {
+        companyId,
+        status: "OPEN",
+        dueDate: { lt: today },
+      },
+    }),
+    prisma.followUp.count({
+      where: {
+        companyId,
+        status: "OPEN",
+        dueDate: today,
+      },
+    }),
+  ]);
+
+  return { overdue, dueToday, actionable: overdue + dueToday };
+}
+
 export async function createFollowUp(
   companyId: string,
-  memberId: string,
+  actorMemberId: string,
   input: FollowUpInput,
 ) {
   const payload = {
@@ -143,11 +194,15 @@ export async function createFollowUp(
     estimateId: input.estimateId ?? null,
   };
   await assertLinkedEntities(companyId, payload);
+  const assigneeId = await assertAssignee(
+    companyId,
+    input.memberId === undefined ? actorMemberId : input.memberId,
+  );
 
   return prisma.followUp.create({
     data: {
       companyId,
-      memberId,
+      memberId: assigneeId,
       title: input.title.trim(),
       notes: input.notes?.trim() || null,
       dueDate: toDateOnly(input.dueDate),
@@ -188,6 +243,11 @@ export async function updateFollowUp(
     await assertLinkedEntities(companyId, nextLinks);
   }
 
+  let nextMemberId: string | null | undefined;
+  if (input.memberId !== undefined) {
+    nextMemberId = await assertAssignee(companyId, input.memberId);
+  }
+
   const status = input.status;
   const markingDone = status === "DONE" && existing.status !== "DONE";
   const markingOpen = status === "OPEN" && existing.status !== "OPEN";
@@ -198,6 +258,7 @@ export async function updateFollowUp(
       ...(input.title !== undefined && { title: input.title.trim() }),
       ...(input.notes !== undefined && { notes: input.notes?.trim() || null }),
       ...(input.dueDate !== undefined && { dueDate: toDateOnly(input.dueDate) }),
+      ...(nextMemberId !== undefined && { memberId: nextMemberId }),
       ...(input.clientId !== undefined && { clientId: nextLinks.clientId }),
       ...(input.invoiceId !== undefined && { invoiceId: nextLinks.invoiceId }),
       ...(input.estimateId !== undefined && { estimateId: nextLinks.estimateId }),
