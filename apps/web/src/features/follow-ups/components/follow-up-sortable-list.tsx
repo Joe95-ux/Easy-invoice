@@ -20,6 +20,10 @@ type FollowUpSortableListProps<T extends SortableItem> = {
   className?: string;
 };
 
+const ROW_GAP_PX = 4;
+/** Dead zone around slot midpoints so the insert index doesn't flicker. */
+const HYSTERESIS_PX = 6;
+
 function isInteractiveTarget(target: EventTarget | null) {
   if (!(target instanceof Element)) return false;
   return Boolean(
@@ -34,6 +38,31 @@ function arrayMove<T>(list: T[], from: number, to: number) {
   const [item] = next.splice(from, 1);
   next.splice(to, 0, item);
   return next;
+}
+
+/**
+ * Resolve insert index from a probe Y in list-local coordinates using the
+ * layout measured at drag start (ignores live CSS transforms so hit-testing
+ * and visual shifts can't fight each other).
+ */
+function resolveIndexFromProbe(
+  probeY: number,
+  heights: number[],
+  currentIndex: number,
+  hysteresis = HYSTERESIS_PX,
+) {
+  if (heights.length === 0) return 0;
+
+  let acc = 0;
+  for (let i = 0; i < heights.length; i += 1) {
+    const h = heights[i] ?? 56;
+    const midpoint = acc + h / 2;
+    const bias =
+      i > currentIndex ? hysteresis : i < currentIndex ? -hysteresis : 0;
+    if (probeY < midpoint + bias) return i;
+    acc += h + ROW_GAP_PX;
+  }
+  return heights.length - 1;
 }
 
 export function FollowUpSortableList<T extends SortableItem>({
@@ -63,8 +92,9 @@ export function FollowUpSortableList<T extends SortableItem>({
     grabOffsetY: number;
     originIndex: number;
     currentIndex: number;
-    height: number;
+    itemHeight: number;
     heights: number[];
+    listTop: number;
     order: T[];
   } | null>(null);
 
@@ -109,32 +139,24 @@ export function FollowUpSortableList<T extends SortableItem>({
   useEffect(() => {
     if (!activeId) return;
 
+    function probeYFromEvent(clientY: number) {
+      const drag = dragRef.current;
+      if (!drag) return clientY;
+      // Aim with the floating card's vertical center — matches what the eye tracks.
+      return clientY - drag.grabOffsetY + drag.itemHeight / 2;
+    }
+
     function resolveIndex(clientY: number) {
       const drag = dragRef.current;
       const list = listRef.current;
       if (!drag || !list) return 0;
 
+      // Refresh list top each move so page scroll during drag stays accurate.
       const listTop = list.getBoundingClientRect().top;
-      const y = clientY - listTop;
-      const { heights, originIndex, currentIndex } = drag;
-      const gap = 4;
-      const hysteresis = 10;
+      drag.listTop = listTop;
+      const probeY = probeYFromEvent(clientY) - listTop;
 
-      let acc = 0;
-      let insertAmongOthers = 0;
-      for (let i = 0; i < heights.length; i += 1) {
-        if (i === originIndex) continue;
-        const h = heights[i] ?? 56;
-        const midpoint = acc + h / 2;
-        // Prefer staying on the current index near boundaries.
-        const threshold =
-          midpoint + (insertAmongOthers > currentIndex ? hysteresis : insertAmongOthers < currentIndex ? -hysteresis : 0);
-        if (y < threshold) break;
-        acc += h + gap;
-        insertAmongOthers += 1;
-      }
-
-      return insertAmongOthers;
+      return resolveIndexFromProbe(probeY, drag.heights, drag.currentIndex);
     }
 
     function onPointerMove(event: PointerEvent) {
@@ -153,13 +175,22 @@ export function FollowUpSortableList<T extends SortableItem>({
       const nextIndex = resolveIndex(event.clientY);
       if (nextIndex !== drag.currentIndex) {
         drag.currentIndex = nextIndex;
-        setShifts(computeShifts(drag.order, drag.originIndex, nextIndex, drag.height));
+        setShifts(
+          computeShifts(
+            drag.order,
+            drag.originIndex,
+            nextIndex,
+            drag.itemHeight + ROW_GAP_PX,
+          ),
+        );
       }
     }
 
     function onPointerUp(event: PointerEvent) {
       const drag = dragRef.current;
       if (!drag || event.pointerId !== drag.pointerId) return;
+      // Final resolve so the drop matches where the card actually is.
+      drag.currentIndex = resolveIndex(event.clientY);
       void endDrag(true);
     }
 
@@ -194,7 +225,8 @@ export function FollowUpSortableList<T extends SortableItem>({
     if (isInteractiveTarget(event.target)) return;
 
     const el = rowRefs.current.get(id);
-    if (!el) return;
+    const list = listRef.current;
+    if (!el || !list) return;
 
     const rect = el.getBoundingClientRect();
     const order = [...itemsRef.current];
@@ -202,6 +234,7 @@ export function FollowUpSortableList<T extends SortableItem>({
     if (index < 0) return;
 
     event.preventDefault();
+    el.setPointerCapture?.(event.pointerId);
 
     const heights = order.map((item) => rowRefs.current.get(item.id)?.offsetHeight ?? 56);
 
@@ -211,8 +244,9 @@ export function FollowUpSortableList<T extends SortableItem>({
       grabOffsetY: event.clientY - rect.top,
       originIndex: index,
       currentIndex: index,
-      height: rect.height + 4,
+      itemHeight: rect.height,
       heights,
+      listTop: list.getBoundingClientRect().top,
       order,
     };
 
@@ -235,7 +269,8 @@ export function FollowUpSortableList<T extends SortableItem>({
       data-dragging={activeId ? "" : undefined}
       className={cn(
         "relative space-y-1",
-        activeId && "[&_[data-follow-up-row]]:hover:border-transparent [&_[data-follow-up-row]]:hover:bg-transparent",
+        activeId &&
+          "[&_[data-follow-up-row]]:hover:border-transparent [&_[data-follow-up-row]]:hover:bg-transparent",
         className,
       )}
     >
@@ -255,7 +290,7 @@ export function FollowUpSortableList<T extends SortableItem>({
               transform: isDragging ? undefined : `translate3d(0, ${shift}px, 0)`,
               transition:
                 activeId && !isDragging
-                  ? "transform 200ms cubic-bezier(0.25, 1, 0.5, 1)"
+                  ? "transform 140ms cubic-bezier(0.25, 1, 0.5, 1)"
                   : "none",
             }}
             className={cn(
