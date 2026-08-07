@@ -21,14 +21,26 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   GripVerticalIcon,
+  ListFilterIcon,
   Loader2Icon,
   PencilIcon,
   PlusIcon,
   RefreshCwIcon,
   Trash2Icon,
+  XIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { EmptyState, PageHeader, pageHeaderActionClass } from "@/components/app-shell/page-header";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -176,7 +188,7 @@ function FollowUpRow({
   busy: boolean;
   onToggle: (item: SerializedFollowUp) => void;
   onEdit: (item: SerializedFollowUp) => void;
-  onDelete: (id: string) => void;
+  onDelete: (item: SerializedFollowUp) => void;
 }) {
   const href = linkHref(item);
   const label = linkLabel(item);
@@ -274,7 +286,7 @@ function FollowUpRow({
           data-no-dnd=""
           className="size-8 cursor-pointer opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
           disabled={busy}
-          onClick={() => onDelete(item.id)}
+          onClick={() => onDelete(item)}
           aria-label="Delete follow-up"
         >
           {busy ? (
@@ -299,10 +311,12 @@ export function FollowUpsPageContent({
   const [followUps, setFollowUps] = useState(initialFollowUps);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<SerializedFollowUp | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<SerializedFollowUp | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
   const [selectedDay, setSelectedDay] = useState<Date>(() => new Date());
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [dueFilter, setDueFilter] = useState<DueFilter>("all");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [clientFilter, setClientFilter] = useState("all");
@@ -406,6 +420,14 @@ export function FollowUpsPageContent({
     setDialogOpen(true);
   }
 
+  function clearFilters() {
+    setDueFilter("all");
+    setTypeFilter("all");
+    setClientFilter("all");
+    setAssigneeFilter("all");
+    setFiltersOpen(false);
+  }
+
   async function handleToggle(item: SerializedFollowUp) {
     const nextStatus = item.status === "OPEN" ? "DONE" : "OPEN";
     const now = new Date().toISOString();
@@ -449,7 +471,9 @@ export function FollowUpsPageContent({
     }
   }
 
-  async function handleDelete(id: string) {
+  async function confirmDelete() {
+    if (!pendingDelete) return;
+    const id = pendingDelete.id;
     setBusyId(id);
     try {
       const res = await fetch(`/api/follow-ups/${id}`, { method: "DELETE" });
@@ -458,6 +482,7 @@ export function FollowUpsPageContent({
         throw new Error(data.error ?? "Delete failed");
       }
       setFollowUps((prev) => prev.filter((item) => item.id !== id));
+      setPendingDelete(null);
       toast.success("Follow-up removed");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not delete follow-up");
@@ -555,79 +580,106 @@ export function FollowUpsPageContent({
       />
 
       <Tabs defaultValue="list" className="gap-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <TabsList variant="segment">
+        <div className="flex items-center gap-3">
+          <TabsList variant="segment" className="shrink-0">
             <TabsTrigger value="list">Checklist</TabsTrigger>
             <TabsTrigger value="calendar">Calendar</TabsTrigger>
           </TabsList>
 
-          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
-            <Select
-              value={dueFilter}
-              onValueChange={(value) => value && setDueFilter(value as DueFilter)}
-              items={[...DUE_FILTER_ITEMS]}
-            >
-              <SelectTrigger className="w-full data-[size=default]:h-8 sm:w-[150px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent align="end">
-                {DUE_FILTER_ITEMS.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={typeFilter}
-              onValueChange={(value) => value && setTypeFilter(value as TypeFilter)}
-              items={[...TYPE_FILTER_ITEMS]}
-            >
-              <SelectTrigger className="w-full data-[size=default]:h-8 sm:w-[140px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent align="end">
-                {TYPE_FILTER_ITEMS.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={clientFilter}
-              onValueChange={(value) => value && setClientFilter(value)}
-              items={clientFilterItems}
-            >
-              <SelectTrigger className="w-full data-[size=default]:h-8 sm:w-[160px]">
-                <SelectValue placeholder="All clients" />
-              </SelectTrigger>
-              <SelectContent align="end">
-                {clientFilterItems.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {members.length > 0 ? (
-              <Select
-                value={assigneeFilter}
-                onValueChange={(value) => value && setAssigneeFilter(value)}
-                items={assigneeFilterItems}
+          <div className="flex min-w-0 flex-1 items-center justify-end overflow-hidden">
+            {!filtersOpen ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="size-8 shrink-0"
+                onClick={() => setFiltersOpen(true)}
+                aria-label="Show filters"
               >
-                <SelectTrigger className="w-full data-[size=default]:h-8 sm:w-[160px]">
-                  <SelectValue placeholder="Anyone" />
-                </SelectTrigger>
-                <SelectContent align="end">
-                  {assigneeFilterItems.map((item) => (
-                    <SelectItem key={item.value} value={item.value}>
-                      {item.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : null}
+                <ListFilterIcon className="size-4" />
+              </Button>
+            ) : (
+              <div className="flex min-w-0 max-w-full items-center gap-1.5 animate-in fade-in slide-in-from-right-4 duration-200">
+                <div className="no-scrollbar flex min-w-0 items-center gap-2 overflow-x-auto">
+                  <Select
+                    value={dueFilter}
+                    onValueChange={(value) => value && setDueFilter(value as DueFilter)}
+                    items={[...DUE_FILTER_ITEMS]}
+                  >
+                    <SelectTrigger className="h-8 w-[150px] shrink-0 data-[size=default]:h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent align="end">
+                      {DUE_FILTER_ITEMS.map((item) => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={typeFilter}
+                    onValueChange={(value) => value && setTypeFilter(value as TypeFilter)}
+                    items={[...TYPE_FILTER_ITEMS]}
+                  >
+                    <SelectTrigger className="h-8 w-[140px] shrink-0 data-[size=default]:h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent align="end">
+                      {TYPE_FILTER_ITEMS.map((item) => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={clientFilter}
+                    onValueChange={(value) => value && setClientFilter(value)}
+                    items={clientFilterItems}
+                  >
+                    <SelectTrigger className="h-8 w-[160px] shrink-0 data-[size=default]:h-8">
+                      <SelectValue placeholder="All clients" />
+                    </SelectTrigger>
+                    <SelectContent align="end">
+                      {clientFilterItems.map((item) => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {members.length > 0 ? (
+                    <Select
+                      value={assigneeFilter}
+                      onValueChange={(value) => value && setAssigneeFilter(value)}
+                      items={assigneeFilterItems}
+                    >
+                      <SelectTrigger className="h-8 w-[160px] shrink-0 data-[size=default]:h-8">
+                        <SelectValue placeholder="Anyone" />
+                      </SelectTrigger>
+                      <SelectContent align="end">
+                        {assigneeFilterItems.map((item) => (
+                          <SelectItem key={item.value} value={item.value}>
+                            {item.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : null}
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-8 shrink-0"
+                  onClick={clearFilters}
+                  aria-label="Clear filters"
+                >
+                  <XIcon className="size-4" />
+                </Button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -655,16 +707,7 @@ export function FollowUpsPageContent({
                 No follow-ups match your filters.
                 {filtersActive ? (
                   <div className="mt-3">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setDueFilter("all");
-                        setTypeFilter("all");
-                        setClientFilter("all");
-                        setAssigneeFilter("all");
-                      }}
-                    >
+                    <Button variant="outline" size="sm" onClick={clearFilters}>
                       Clear filters
                     </Button>
                   </div>
@@ -696,7 +739,7 @@ export function FollowUpsPageContent({
                           busy={busyId === item.id}
                           onToggle={handleToggle}
                           onEdit={openEdit}
-                          onDelete={(id) => void handleDelete(id)}
+                          onDelete={setPendingDelete}
                         />
                       )}
                     />
@@ -719,7 +762,7 @@ export function FollowUpsPageContent({
                         busy={busyId === item.id}
                         onToggle={handleToggle}
                         onEdit={openEdit}
-                        onDelete={(id) => void handleDelete(id)}
+                        onDelete={setPendingDelete}
                       />
                     ))}
                     {doneItems.length > visibleDoneItems.length ? (
@@ -825,7 +868,7 @@ export function FollowUpsPageContent({
                     busy={busyId === item.id}
                     onToggle={handleToggle}
                     onEdit={openEdit}
-                    onDelete={(id) => void handleDelete(id)}
+                    onDelete={setPendingDelete}
                   />
                 ))
               )}
@@ -848,6 +891,44 @@ export function FollowUpsPageContent({
         followUp={editing}
         onSaved={handleSaved}
       />
+
+      <AlertDialog
+        open={Boolean(pendingDelete)}
+        onOpenChange={(open) => {
+          if (!open && busyId !== pendingDelete?.id) setPendingDelete(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete follow-up?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete
+              {pendingDelete ? (
+                <>
+                  {" "}
+                  <span className="font-medium text-foreground">
+                    “{pendingDelete.title}”
+                  </span>
+                </>
+              ) : null}
+              . This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busyId === pendingDelete?.id}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={busyId === pendingDelete?.id}
+              onClick={(event) => {
+                event.preventDefault();
+                void confirmDelete();
+              }}
+            >
+              {busyId === pendingDelete?.id ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
