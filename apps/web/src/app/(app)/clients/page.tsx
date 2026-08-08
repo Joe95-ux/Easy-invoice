@@ -14,7 +14,7 @@ export default async function ClientsPage() {
   const clients = await getClientsForMember(member.companyId);
 
   return (
-    <PageScroll fullWidth>
+    <PageScroll>
       <PageHeader
         title="Clients"
         description="Manage the people and businesses you invoice."

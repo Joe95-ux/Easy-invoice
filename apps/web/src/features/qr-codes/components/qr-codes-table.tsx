@@ -267,7 +267,7 @@ export function QrCodesTable({ qrCodes, origin, companyLogoUrl }: QrCodesTablePr
         <Popover>
           <PopoverTrigger
             className={cn(
-              "relative inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+              "relative inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-[10px] border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
               filtersActive ? "border-primary/50 text-foreground" : "border-border",
             )}
             aria-label="Filter"
@@ -336,7 +336,7 @@ export function QrCodesTable({ qrCodes, origin, companyLogoUrl }: QrCodesTablePr
 
         <DropdownMenu>
           <DropdownMenuTrigger
-            className="inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-[10px] border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             aria-label="Sort"
           >
             <ArrowUpDownIcon className="size-4" />

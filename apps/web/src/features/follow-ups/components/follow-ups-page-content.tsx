@@ -59,6 +59,7 @@ import {
   type FollowUpMemberOption,
 } from "@/features/follow-ups/components/follow-up-dialog";
 import { FollowUpSortableList } from "@/features/follow-ups/components/follow-up-sortable-list";
+import { useIsMobile } from "@/hooks/use-mobile";
 import type { SerializedFollowUp } from "@/lib/follow-ups/service";
 import { cn } from "@/lib/utils";
 
@@ -308,6 +309,7 @@ export function FollowUpsPageContent({
   members,
   currentMemberId,
 }: FollowUpsPageContentProps) {
+  const isMobile = useIsMobile();
   const [followUps, setFollowUps] = useState(initialFollowUps);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<SerializedFollowUp | null>(null);
@@ -316,6 +318,7 @@ export function FollowUpsPageContent({
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
   const [selectedDay, setSelectedDay] = useState<Date>(() => new Date());
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("list");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [dueFilter, setDueFilter] = useState<DueFilter>("all");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
@@ -579,14 +582,26 @@ export function FollowUpsPageContent({
         }
       />
 
-      <Tabs defaultValue="list" className="gap-4">
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="gap-4"
+      >
         <div className="flex items-center gap-3">
-          <TabsList variant="segment" className="shrink-0">
+          <TabsList
+            variant="segment"
+            className={cn("shrink-0", isMobile && filtersOpen && "hidden")}
+          >
             <TabsTrigger value="list">Checklist</TabsTrigger>
             <TabsTrigger value="calendar">Calendar</TabsTrigger>
           </TabsList>
 
-          <div className="flex min-w-0 flex-1 items-center justify-end overflow-hidden">
+          <div
+            className={cn(
+              "flex min-w-0 items-center overflow-hidden",
+              isMobile && filtersOpen ? "w-full flex-1" : "flex-1 justify-end",
+            )}
+          >
             {!filtersOpen ? (
               <Button
                 type="button"
@@ -599,8 +614,15 @@ export function FollowUpsPageContent({
                 <ListFilterIcon className="size-4" />
               </Button>
             ) : (
-              <div className="flex min-w-0 max-w-full items-center gap-1.5 animate-in fade-in slide-in-from-right-4 duration-200">
-                <div className="no-scrollbar flex min-w-0 items-center gap-2 overflow-x-auto">
+              <div
+                className={cn(
+                  "flex min-w-0 items-center gap-1.5 animate-in fade-in duration-200",
+                  isMobile
+                    ? "w-full max-w-none slide-in-from-right-2"
+                    : "max-w-full slide-in-from-right-4",
+                )}
+              >
+                <div className="no-scrollbar flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
                   <Select
                     value={dueFilter}
                     onValueChange={(value) => value && setDueFilter(value as DueFilter)}
