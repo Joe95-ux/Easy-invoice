@@ -45,7 +45,7 @@ export function createDefaultSections(
   ];
 }
 
-function lineItemHasContent(item: LineItemInput) {
+export function lineItemHasContent(item: LineItemInput) {
   return Boolean(
     item.description.trim() || item.unitPrice > 0 || item.quantity !== 1,
   );

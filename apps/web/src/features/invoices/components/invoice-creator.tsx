@@ -25,13 +25,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { AiDocumentParseTab } from "@/features/invoices/components/ai-document-parse-tab";
 import { AddFromLibraryDialog } from "@/features/products/components/add-from-library-dialog";
 import { AddUnbilledTimeDialog } from "@/features/time/components/add-unbilled-time-dialog";
+import { UnsavedChangesDialog } from "@/components/unsaved-changes-dialog";
 import {
   InvoiceLineItems,
   appendItemsToLastSection,
   createDefaultSections,
+  lineItemHasContent,
   type LineItemInput,
   type LineItemSectionInput,
 } from "@/features/invoices/components/invoice-line-items";
+import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
 import { InvoiceTotalsSummary } from "@/features/invoices/components/invoice-totals-summary";
 import {
   InvoiceInstallmentEditor,
@@ -164,6 +167,46 @@ export function InvoiceCreator({
 
   const canAddFromTime =
     Boolean(selectedClientId) && (!isEditing || invoiceStatus === "DRAFT");
+
+  const isDirty = useMemo(() => {
+    if (isEditing) return false;
+    return Boolean(
+      selectedClientId ||
+        clientName.trim() ||
+        clientEmail.trim() ||
+        clientPhone.trim() ||
+        clientAddress.trim() ||
+        notes.trim() ||
+        taxRate !== 0 ||
+        discountValue !== 0 ||
+        installments.length > 0 ||
+        aiSourceNotes ||
+        sections.some(
+          (section) =>
+            section.title.trim() || section.items.some(lineItemHasContent),
+        ),
+    );
+  }, [
+    isEditing,
+    selectedClientId,
+    clientName,
+    clientEmail,
+    clientPhone,
+    clientAddress,
+    notes,
+    taxRate,
+    discountValue,
+    installments.length,
+    aiSourceNotes,
+    sections,
+  ]);
+
+  const {
+    leaveDialogOpen,
+    confirmLeave,
+    cancelLeave,
+    allowNextNavigation,
+  } = useUnsavedChangesGuard({ enabled: isDirty && !saving });
 
   const steps = useMemo(
     () => (templates.length > 0 ? BASE_STEPS : BASE_STEPS.filter((s) => s.id !== "template")),
@@ -395,6 +438,7 @@ export function InvoiceCreator({
       if (!response.ok) throw new Error(data.error ?? "Failed to save invoice");
 
       const id = isEditing ? invoiceId! : data.invoice.id;
+      allowNextNavigation();
 
       if (isEditing) {
         toast.success("Invoice updated");
@@ -712,6 +756,18 @@ export function InvoiceCreator({
     />
   );
 
+  const leaveDialog = (
+    <UnsavedChangesDialog
+      open={leaveDialogOpen}
+      onOpenChange={(open) => {
+        if (!open) cancelLeave();
+      }}
+      onConfirmLeave={confirmLeave}
+      title="Leave invoice?"
+      description="You have an unfinished invoice. If you leave now, your progress will be lost."
+    />
+  );
+
   if (isEditing) {
     return (
       <>
@@ -719,6 +775,7 @@ export function InvoiceCreator({
         {previewDrawer}
         {timeDialog}
         {libraryDialog}
+        {leaveDialog}
       </>
     );
   }
@@ -754,6 +811,7 @@ export function InvoiceCreator({
       {previewDrawer}
       {timeDialog}
       {libraryDialog}
+      {leaveDialog}
     </Tabs>
   );
 }

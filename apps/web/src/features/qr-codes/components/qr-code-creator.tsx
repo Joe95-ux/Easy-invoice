@@ -2,6 +2,8 @@
 
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { UnsavedChangesDialog } from "@/components/unsaved-changes-dialog";
+import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
 import {
   CheckIcon,
   CopyIcon,
@@ -139,6 +141,38 @@ export function QrCodeCreator({
   const qrPreviewEnabled =
     form.name.trim().length > 0 && isContentComplete(form);
 
+  const defaultDesignJson = useMemo(
+    () => JSON.stringify(emptyQrForm().design),
+    [],
+  );
+  const initialFormJson = useMemo(
+    () => (initial ? JSON.stringify(formFromSerialized(initial)) : null),
+    [initial],
+  );
+
+  const isDirty = useMemo(() => {
+    if (created) return false;
+    if (mode === "edit") {
+      return initialFormJson != null && JSON.stringify(form) !== initialFormJson;
+    }
+    return (
+      step > 0 ||
+      form.type !== "LINK" ||
+      form.name.trim().length > 0 ||
+      isContentComplete(form) ||
+      form.passwordEnabled ||
+      JSON.stringify(form.design) !== defaultDesignJson
+    );
+  }, [created, mode, initialFormJson, form, step, defaultDesignJson]);
+
+  const {
+    leaveDialogOpen,
+    confirmLeave,
+    cancelLeave,
+    allowNextNavigation,
+    guardedPush,
+  } = useUnsavedChangesGuard({ enabled: isDirty && !submitting });
+
   const stepValid = useMemo(() => {
     if (currentStepId === "type") return true;
     if (currentStepId === "content") {
@@ -194,6 +228,7 @@ export function QrCodeCreator({
 
       if (mode === "edit") {
         toast.success("QR code updated");
+        allowNextNavigation();
         router.push("/qr-codes");
         router.refresh();
       } else {
@@ -258,7 +293,7 @@ export function QrCodeCreator({
           size="icon"
           aria-label="Close"
           className="absolute -top-1 right-0 rounded-full text-muted-foreground hover:text-foreground"
-          onClick={() => router.push("/qr-codes")}
+          onClick={() => guardedPush("/qr-codes")}
         >
           <XIcon className="size-5" />
         </Button>
@@ -567,6 +602,16 @@ export function QrCodeCreator({
         </DrawerContent>
       </Drawer>
       </div>
+
+      <UnsavedChangesDialog
+        open={leaveDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) cancelLeave();
+        }}
+        onConfirmLeave={confirmLeave}
+        title="Leave QR code?"
+        description="You have an unfinished QR code. If you leave now, your progress will be lost."
+      />
     </>
   );
 }
