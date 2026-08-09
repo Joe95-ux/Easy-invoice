@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { EyeIcon, ClockIcon } from "lucide-react";
+import { EyeIcon, ClockIcon, PackageIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/app-shell/page-header";
@@ -23,6 +23,7 @@ import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { AiDocumentParseTab } from "@/features/invoices/components/ai-document-parse-tab";
+import { AddFromLibraryDialog } from "@/features/products/components/add-from-library-dialog";
 import { AddUnbilledTimeDialog } from "@/features/time/components/add-unbilled-time-dialog";
 import {
   InvoiceLineItems,
@@ -147,6 +148,7 @@ export function EstimateCreator({
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [timeDialogOpen, setTimeDialogOpen] = useState(false);
+  const [libraryDialogOpen, setLibraryDialogOpen] = useState(false);
   const [aiSourceNotes, setAiSourceNotes] = useState<string | null>(null);
 
   const canAddFromTime = Boolean(selectedClientId) && !isEditing;
@@ -300,6 +302,18 @@ export function EstimateCreator({
     );
   }
 
+  function appendLineItems(items: LineItemInput[]) {
+    setSections((current) => {
+      const next = current.length > 0 ? [...current] : createDefaultSections();
+      const target = next[next.length - 1]!;
+      const hasContent = target.items.some(
+        (item) => item.description.trim() || item.unitPrice > 0 || item.quantity !== 1,
+      );
+      target.items = hasContent ? [...target.items, ...items] : items;
+      return next;
+    });
+  }
+
   function handleAddFromTime(items: LineItemInput[]): boolean {
     let added = false;
 
@@ -332,6 +346,10 @@ export function EstimateCreator({
     });
 
     return added;
+  }
+
+  function handleAddFromLibrary(items: LineItemInput[]) {
+    appendLineItems(items);
   }
 
   function buildPayload() {
@@ -503,8 +521,16 @@ export function EstimateCreator({
 
       {currentStepId === "items" && (
         <div className="space-y-4">
-          {canAddFromTime && (
-            <div className="flex justify-end">
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setLibraryDialogOpen(true)}
+            >
+              <PackageIcon className="size-4" />
+              Add from library
+            </Button>
+            {canAddFromTime ? (
               <Button
                 type="button"
                 variant="outline"
@@ -513,8 +539,8 @@ export function EstimateCreator({
                 <ClockIcon className="size-4" />
                 Add from unbilled time
               </Button>
-            </div>
-          )}
+            ) : null}
+          </div>
           <FormSection title="Line items">
             <InvoiceLineItems
               sections={sections}
@@ -665,12 +691,22 @@ export function EstimateCreator({
     />
   ) : null;
 
+  const libraryDialog = (
+    <AddFromLibraryDialog
+      open={libraryDialogOpen}
+      onOpenChange={setLibraryDialogOpen}
+      currency={currency}
+      onAdd={handleAddFromLibrary}
+    />
+  );
+
   if (isEditing) {
     return (
       <>
         <FormCard footer={formFooter}>{formBody}</FormCard>
         {previewDrawer}
         {timeDialog}
+        {libraryDialog}
       </>
     );
   }
@@ -705,6 +741,7 @@ export function EstimateCreator({
 
       {previewDrawer}
       {timeDialog}
+      {libraryDialog}
     </Tabs>
   );
 }
