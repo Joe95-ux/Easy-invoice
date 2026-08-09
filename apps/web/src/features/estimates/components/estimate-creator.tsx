@@ -27,6 +27,7 @@ import { AddFromLibraryDialog } from "@/features/products/components/add-from-li
 import { AddUnbilledTimeDialog } from "@/features/time/components/add-unbilled-time-dialog";
 import {
   InvoiceLineItems,
+  appendItemsToLastSection,
   createDefaultSections,
   type LineItemInput,
   type LineItemSectionInput,
@@ -302,18 +303,6 @@ export function EstimateCreator({
     );
   }
 
-  function appendLineItems(items: LineItemInput[]) {
-    setSections((current) => {
-      const next = current.length > 0 ? [...current] : createDefaultSections();
-      const target = next[next.length - 1]!;
-      const hasContent = target.items.some(
-        (item) => item.description.trim() || item.unitPrice > 0 || item.quantity !== 1,
-      );
-      target.items = hasContent ? [...target.items, ...items] : items;
-      return next;
-    });
-  }
-
   function handleAddFromTime(items: LineItemInput[]): boolean {
     let added = false;
 
@@ -336,20 +325,14 @@ export function EstimateCreator({
       }
 
       added = true;
-      const next = current.length > 0 ? [...current] : createDefaultSections();
-      const target = next[next.length - 1]!;
-      const hasContent = target.items.some(
-        (item) => item.description.trim() || item.unitPrice > 0 || item.quantity !== 1,
-      );
-      target.items = hasContent ? [...target.items, ...freshItems] : freshItems;
-      return next;
+      return appendItemsToLastSection(current, freshItems);
     });
 
     return added;
   }
 
   function handleAddFromLibrary(items: LineItemInput[]) {
-    appendLineItems(items);
+    setSections((current) => appendItemsToLastSection(current, items));
   }
 
   function buildPayload() {

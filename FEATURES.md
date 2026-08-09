@@ -142,9 +142,17 @@ Company-scoped checklist + calendar for invoice/estimate follow-through (not a g
 
 ### 6. Saved products / services library
 
-**Status:** Planned
+**Status:** Done
 
-Reusable line items for faster repeat invoicing.
+Company-scoped catalog of reusable products/services. Add items to invoices and estimates from the line-items step without retyping description, qty, or price. Values are copied onto the document (no live link back to the catalog).
+
+| Piece | Location |
+|-------|----------|
+| Schema | `Product` (`name`, `description`, `unitPrice`, `defaultQuantity`, `unit`) |
+| Lib | `apps/web/src/lib/products.ts`, `lib/schemas/product.ts` |
+| API | `GET/POST /api/products`, `GET/PATCH/DELETE /api/products/[id]` |
+| Page | `/products` (Workspace nav) |
+| UI | Products table + dialog; “Add from library” on invoice/estimate creators |
 
 ---
 

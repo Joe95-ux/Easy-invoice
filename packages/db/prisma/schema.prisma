@@ -204,6 +204,7 @@ model Company {
   notifications     Notification[]
   qrCodes           QrCode[]
   followUps         FollowUp[]
+  products          Product[]
 
   @@index([slug])
 }
@@ -313,6 +314,25 @@ model Client {
   followUps FollowUp[]
 
   @@index([companyId])
+}
+
+/// Reusable product/service for faster invoice and estimate line items.
+model Product {
+  id               String   @id @default(cuid())
+  companyId        String
+  name             String
+  /// Optional longer text used as the line-item description when set; otherwise `name` is used.
+  description      String?
+  unitPrice        Decimal  @default(0) @db.Decimal(12, 2)
+  defaultQuantity  Decimal  @default(1) @db.Decimal(12, 4)
+  unit             String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([companyId, name])
 }
 
 model ActiveTimeTimer {

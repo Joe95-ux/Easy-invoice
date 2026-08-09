@@ -45,6 +45,33 @@ export function createDefaultSections(
   ];
 }
 
+function lineItemHasContent(item: LineItemInput) {
+  return Boolean(
+    item.description.trim() || item.unitPrice > 0 || item.quantity !== 1,
+  );
+}
+
+/**
+ * Append line items to the last section. Pure — safe under React Strict Mode
+ * (must not mutate existing section/item objects).
+ */
+export function appendItemsToLastSection(
+  sections: LineItemSectionInput<LineItemInput>[],
+  items: LineItemInput[],
+): LineItemSectionInput<LineItemInput>[] {
+  if (items.length === 0) return sections;
+
+  const base = sections.length > 0 ? sections : createDefaultSections();
+  const lastIndex = base.length - 1;
+  const target = base[lastIndex]!;
+  const hasContent = target.items.some(lineItemHasContent);
+  const nextItems = hasContent ? [...target.items, ...items] : [...items];
+
+  return base.map((section, index) =>
+    index === lastIndex ? { ...section, items: nextItems } : section,
+  );
+}
+
 type InvoiceLineItemsProps = {
   sections: LineItemSectionInput<LineItemInput>[];
   onChange: (sections: LineItemSectionInput<LineItemInput>[]) => void;
