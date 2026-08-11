@@ -12,6 +12,7 @@ import {
   LinkIcon,
   MoreHorizontalIcon,
   PencilIcon,
+  RefreshCwIcon,
   SendIcon,
   Trash2Icon,
 } from "lucide-react";
@@ -60,6 +61,7 @@ import { FollowUpDialog } from "@/features/follow-ups/components/follow-up-dialo
 import { FollowUpQuickAddMenuItem } from "@/features/follow-ups/components/follow-up-quick-add";
 import { InvoiceSendDialog } from "@/features/invoices/components/invoice-send-dialog";
 import { RecordPaymentDialog } from "@/features/invoices/components/record-payment-dialog";
+import { MakeRecurringDialog } from "@/features/recurring-invoices/components/make-recurring-dialog";
 import { usePdfDownload } from "@/hooks/use-pdf-download";
 import { cn } from "@/lib/utils";
 import type { InvoiceStatus } from "@easy-invoice/db";
@@ -102,9 +104,11 @@ export function InvoiceActions({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [followUpOpen, setFollowUpOpen] = useState(false);
+  const [makeRecurringOpen, setMakeRecurringOpen] = useState(false);
   const [reminderEmail, setReminderEmail] = useState(clientEmail ?? "");
 
   const canSend = status !== "CANCELLED" && status !== "PAID";
+  const canMakeRecurring = Boolean(clientId) && status !== "CANCELLED";
   const canMarkAsSent = status === "DRAFT";
   const canRecordPayment =
     status !== "DRAFT" && status !== "CANCELLED" && status !== "PAID" && balanceDue > 0.001;
@@ -316,6 +320,15 @@ export function InvoiceActions({
                 <CopyIcon className="size-4" />
                 {loading === "duplicate" ? "Duplicating..." : "Duplicate"}
               </DropdownMenuItem>
+              {canMakeRecurring ? (
+                <DropdownMenuItem
+                  onClick={() => setMakeRecurringOpen(true)}
+                  disabled={isBusy}
+                >
+                  <RefreshCwIcon className="size-4" />
+                  Make recurring
+                </DropdownMenuItem>
+              ) : null}
               <FollowUpQuickAddMenuItem onSelect={() => setFollowUpOpen(true)} />
               <DropdownMenuSeparator />
               <DropdownMenuItem variant="destructive" onClick={() => setDeleteOpen(true)}>
@@ -366,6 +379,18 @@ export function InvoiceActions({
               onClick: () => router.push("/follow-ups"),
             },
           });
+        }}
+      />
+
+      <MakeRecurringDialog
+        open={makeRecurringOpen}
+        onOpenChange={setMakeRecurringOpen}
+        invoiceId={invoiceId}
+        invoiceNumber={invoiceNumber}
+        clientName={clientName}
+        onCreated={() => {
+          router.push("/recurring-invoices");
+          router.refresh();
         }}
       />
 

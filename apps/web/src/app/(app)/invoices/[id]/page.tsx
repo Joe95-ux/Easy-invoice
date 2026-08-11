@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { Suspense } from "react";
 import { PageScroll } from "@/components/app-shell/app-shell";
 import { PageBackLink, PageHeader } from "@/components/app-shell/page-header";
@@ -14,6 +15,7 @@ import { InvoicePaymentQrSection } from "@/features/invoices/components/invoice-
 import { DocumentHistorySection } from "@/components/document-history-section";
 import { DocumentTemplateManager } from "@/features/invoices/components/document-template-manager";
 import { requireMember } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 import {
   companyBrandingFields,
   logoPreviewClassName,
@@ -54,6 +56,13 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
     ]);
   if (!invoice) notFound();
 
+  const recurringSchedule = invoice.recurringInvoiceId
+    ? await prisma.recurringInvoice.findFirst({
+        where: { id: invoice.recurringInvoiceId, companyId: member.companyId },
+        select: { id: true, name: true },
+      })
+    : null;
+
   const paymentSummary = buildInvoicePaymentSummary(invoice);
 
   return (
@@ -81,6 +90,17 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
             {invoice.sentAt && ` · Sent ${formatDate(invoice.sentAt)}`}
             {invoice.viewedAt && ` · Viewed ${formatDate(invoice.viewedAt)}`}
             {invoice.paidAt && ` · Paid ${formatDate(invoice.paidAt)}`}
+            {recurringSchedule ? (
+              <>
+                {" · "}
+                <Link
+                  href="/recurring-invoices"
+                  className="underline-offset-2 hover:underline"
+                >
+                  Recurring: {recurringSchedule.name}
+                </Link>
+              </>
+            ) : null}
           </>
         }
         actions={

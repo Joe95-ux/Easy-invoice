@@ -226,9 +226,9 @@ Later: scan analytics over time, more types (app store), frames/labels.
 
 ### 9. Recurring invoices
 
-**Status:** Planned
+**Status:** Done
 
-Schedule invoices (e.g. monthly retainers).
+Schedule invoices (weekly / monthly / quarterly / yearly) with pause/resume, end date or max occurrences, optional auto-send, and daily cron generation. Create from scratch or via **Make recurring** on an invoice.
 
 ---
 

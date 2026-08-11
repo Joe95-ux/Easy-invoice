@@ -10,6 +10,7 @@ import {
   PackageIcon,
   PlusIcon,
   QrCodeIcon,
+  RefreshCwIcon,
   ScrollTextIcon,
   SettingsIcon,
   UserRoundIcon,
@@ -40,6 +41,7 @@ export const APP_QUICK_ACTIONS: AppNavItem[] = [
 export const APP_WORKSPACE_ITEMS: AppNavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboardIcon },
   { href: "/invoices", label: "Invoices", icon: FileTextIcon },
+  { href: "/recurring-invoices", label: "Recurring", icon: RefreshCwIcon },
   { href: "/estimates", label: "Estimates", icon: ClipboardListIcon },
   { href: "/templates", label: "Templates", icon: LayoutTemplateIcon },
   { href: "/clients", label: "Clients", icon: UsersRoundIcon },

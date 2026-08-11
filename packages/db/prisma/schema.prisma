@@ -123,6 +123,19 @@ enum FollowUpSource {
   ESTIMATE_EXPIRING
 }
 
+enum RecurringFrequency {
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+enum RecurringInvoiceStatus {
+  ACTIVE
+  PAUSED
+  ENDED
+}
+
 enum AuditAction {
   MEMBER_INVITED
   MEMBER_INVITE_CANCELLED
@@ -205,6 +218,7 @@ model Company {
   qrCodes           QrCode[]
   followUps         FollowUp[]
   products          Product[]
+  recurringInvoices RecurringInvoice[]
 
   @@index([slug])
 }
@@ -238,6 +252,7 @@ model CompanyMember {
   notifications     Notification[]
   qrCodes           QrCode[]
   followUps         FollowUp[]
+  recurringInvoices RecurringInvoice[]
 
   @@unique([companyId, clerkId])
   @@index([clerkId])
@@ -312,6 +327,7 @@ model Client {
   timeEntries TimeEntry[]
   activeTimeTimers ActiveTimeTimer[]
   followUps FollowUp[]
+  recurringInvoices RecurringInvoice[]
 
   @@index([companyId])
 }
@@ -333,6 +349,66 @@ model Product {
 
   @@index([companyId])
   @@index([companyId, name])
+}
+
+/// Schedule that generates invoices on a cadence (retainers, subscriptions, etc.).
+model RecurringInvoice {
+  id                 String                 @id @default(cuid())
+  companyId          String
+  clientId           String
+  memberId           String?
+  /// Display name, e.g. "Monthly retainer – Acme".
+  name               String
+  status             RecurringInvoiceStatus @default(ACTIVE)
+  frequency          RecurringFrequency
+  /// Every N periods (e.g. every 2 weeks when frequency is WEEKLY).
+  interval           Int                    @default(1)
+  startDate          DateTime               @db.Date
+  nextIssueDate      DateTime               @db.Date
+  endDate            DateTime?              @db.Date
+  maxOccurrences     Int?
+  occurrenceCount    Int                    @default(0)
+  /// Days after each issue date for the generated invoice due date.
+  dueDaysAfterIssue  Int                    @default(14)
+  /// When true, newly issued invoices are emailed and marked SENT.
+  autoSend           Boolean                @default(false)
+  currency           String                 @default("USD")
+  taxRate            Decimal                @default(0) @db.Decimal(5, 4)
+  discount           Decimal                @default(0) @db.Decimal(12, 2)
+  notes              String?
+  templateId         String?
+  /// Optional invoice this schedule was created from (no FK; source may be deleted).
+  sourceInvoiceId    String?
+  lastIssuedAt       DateTime?
+  lastError          String?
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+
+  company  Company                    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  client   Client                     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  member   CompanyMember?             @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  template InvoiceTemplate?           @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  items    RecurringInvoiceLineItem[]
+  invoices Invoice[]
+
+  @@index([companyId, status, nextIssueDate])
+  @@index([companyId, clientId])
+}
+
+model RecurringInvoiceLineItem {
+  id               String   @id @default(cuid())
+  recurringInvoiceId String
+  description      String
+  quantity         Decimal  @db.Decimal(12, 4)
+  unitPrice        Decimal  @db.Decimal(12, 2)
+  sortOrder        Int      @default(0)
+  sectionTitle     String?
+  sectionSortOrder Int      @default(0)
+  createdAt        DateTime @default(now())
+
+  recurringInvoice RecurringInvoice @relation(fields: [recurringInvoiceId], references: [id], onDelete: Cascade)
+
+  @@index([recurringInvoiceId])
 }
 
 model ActiveTimeTimer {
@@ -376,6 +452,7 @@ model Invoice {
   viewedAt      DateTime?
   publicToken   String?       @unique
   sourceEstimateId String?    @unique
+  recurringInvoiceId String?
   remindersPaused  Boolean      @default(false)
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
@@ -384,6 +461,7 @@ model Invoice {
   client    Client?           @relation(fields: [clientId], references: [id], onDelete: SetNull)
   template  InvoiceTemplate?  @relation(fields: [templateId], references: [id], onDelete: SetNull)
   sourceEstimate Estimate?    @relation("EstimateToInvoice", fields: [sourceEstimateId], references: [id], onDelete: SetNull)
+  recurringInvoice RecurringInvoice? @relation(fields: [recurringInvoiceId], references: [id], onDelete: SetNull)
   items     InvoiceLineItem[]
   reminders InvoiceReminder[]
   installments InvoiceInstallment[]
@@ -395,6 +473,7 @@ model Invoice {
 
   @@unique([companyId, number])
   @@index([companyId, status])
+  @@index([recurringInvoiceId])
 }
 
 model InvoiceReminder {
@@ -614,6 +693,7 @@ model InvoiceTemplate {
   defaultForCompanies Company[] @relation("CompanyDefaultTemplate")
   invoices Invoice[]
   estimates Estimate[]
+  recurringInvoices RecurringInvoice[]
 
   @@unique([companyId, slug])
 }
