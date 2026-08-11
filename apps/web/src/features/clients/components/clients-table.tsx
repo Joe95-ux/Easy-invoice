@@ -68,7 +68,7 @@ export function ClientsTable({ clients }: ClientsTableProps) {
   });
 
   async function handleDelete(client: ClientListItem) {
-    if (!confirm(`Delete ${client.name}? Their invoices will remain but will no longer be linked to this client.`)) {
+    if (!confirm(`Delete ${client.name}? Their invoices will remain but will no longer be linked to this client. Recurring invoice schedules for this client will be deleted.`)) {
       return;
     }
 

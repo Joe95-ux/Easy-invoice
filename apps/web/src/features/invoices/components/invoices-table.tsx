@@ -10,6 +10,7 @@ import {
   EyeIcon,
   MoreHorizontalIcon,
   PencilIcon,
+  RefreshCwIcon,
   SendIcon,
   Trash2Icon,
 } from "lucide-react";
@@ -32,6 +33,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { MakeRecurringDialog } from "@/features/recurring-invoices/components/make-recurring-dialog";
 import { useListTable } from "@/hooks/use-list-table";
 import { usePdfDownload } from "@/hooks/use-pdf-download";
 import {
@@ -50,7 +52,9 @@ export type InvoiceRow = {
   balanceDue: string;
   currency: string;
   dueDate: string | null;
+  clientId: string | null;
   clientName: string | null;
+  clientEmail: string | null;
 };
 
 const STATUS_FILTER_OPTIONS = [
@@ -72,6 +76,7 @@ export function InvoicesTable({ invoices, companyName }: InvoicesTableProps) {
   const router = useRouter();
   const { openPdfDownload, pdfDownloadDialog } = usePdfDownload();
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [makeRecurringInvoice, setMakeRecurringInvoice] = useState<InvoiceRow | null>(null);
 
   const table = useListTable<InvoiceRow>({
     tableId: "invoices",
@@ -256,6 +261,12 @@ export function InvoicesTable({ invoices, companyName }: InvoicesTableProps) {
                         <CopyIcon className="size-4" />
                         Duplicate
                       </DropdownMenuItem>
+                      {invoice.clientId && invoice.status !== "CANCELLED" ? (
+                        <DropdownMenuItem onClick={() => setMakeRecurringInvoice(invoice)}>
+                          <RefreshCwIcon className="size-4" />
+                          Make recurring
+                        </DropdownMenuItem>
+                      ) : null}
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         variant="destructive"
@@ -285,6 +296,21 @@ export function InvoicesTable({ invoices, companyName }: InvoicesTableProps) {
         onPageSizeChange={table.setPageSize}
       />
       {pdfDownloadDialog}
+      <MakeRecurringDialog
+        open={Boolean(makeRecurringInvoice)}
+        onOpenChange={(open) => {
+          if (!open) setMakeRecurringInvoice(null);
+        }}
+        invoiceId={makeRecurringInvoice?.id ?? ""}
+        invoiceNumber={makeRecurringInvoice?.number ?? ""}
+        clientName={makeRecurringInvoice?.clientName}
+        clientEmail={makeRecurringInvoice?.clientEmail}
+        onCreated={(recurringInvoiceId) => {
+          setMakeRecurringInvoice(null);
+          router.push(`/recurring-invoices?id=${recurringInvoiceId}`);
+          router.refresh();
+        }}
+      />
     </div>
   );
 }

@@ -61,7 +61,11 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
         where: { id: invoice.recurringInvoiceId, companyId: member.companyId },
         select: { id: true, name: true },
       })
-    : null;
+    : await prisma.recurringInvoice.findFirst({
+        where: { sourceInvoiceId: invoice.id, companyId: member.companyId },
+        select: { id: true, name: true },
+        orderBy: { createdAt: "desc" },
+      });
 
   const paymentSummary = buildInvoicePaymentSummary(invoice);
 
@@ -94,7 +98,7 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
               <>
                 {" · "}
                 <Link
-                  href="/recurring-invoices"
+                  href={`/recurring-invoices?id=${recurringSchedule.id}`}
                   className="underline-offset-2 hover:underline"
                 >
                   Recurring: {recurringSchedule.name}

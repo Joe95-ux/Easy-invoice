@@ -30,6 +30,7 @@ export type {
 } from "@/lib/recurring-invoices-shared";
 export {
   frequencyLabel,
+  localDateOnly,
   recurringStatusLabel,
   recurringStatusVariant,
 } from "@/lib/recurring-invoices-shared";
@@ -93,6 +94,44 @@ function shouldEndSchedule(input: {
     return true;
   }
   return false;
+}
+
+/** True when the upcoming issue itself is no longer allowed (already at/over limits). */
+function shouldSkipUpcomingIssue(input: {
+  issueDate: Date;
+  endDate: Date | null;
+  maxOccurrences: number | null;
+  occurrenceCount: number;
+}): boolean {
+  if (input.maxOccurrences != null && input.occurrenceCount >= input.maxOccurrences) {
+    return true;
+  }
+  if (input.endDate && startOfUtcDay(input.issueDate) > startOfUtcDay(input.endDate)) {
+    return true;
+  }
+  return false;
+}
+
+function assertAutoSendAllowed(
+  autoSend: boolean,
+  client: { email: string | null },
+) {
+  if (autoSend && !client.email?.trim()) {
+    throw new Error("Client email is required when auto-send is enabled");
+  }
+}
+
+function assertScheduleDates(input: {
+  startDate: Date;
+  nextIssueDate: Date;
+  endDate: Date | null;
+}) {
+  if (input.nextIssueDate.getTime() < input.startDate.getTime()) {
+    throw new Error("Next issue date must be on or after the start date");
+  }
+  if (input.endDate && input.endDate.getTime() < input.nextIssueDate.getTime()) {
+    throw new Error("End date must be on or after the next issue date");
+  }
 }
 
 function computeEstimatedTotal(input: {
@@ -191,6 +230,7 @@ export function serializeRecurringInvoice(
     lastError: row.lastError,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
+    clientName: row.client.name,
     client: row.client,
     items,
     estimatedTotal: computeEstimatedTotal({
@@ -265,11 +305,13 @@ export async function createRecurringInvoice(
 ) {
   const client = await assertClient(companyId, input.clientId);
   if (!client) throw new Error("Client not found");
+  assertAutoSendAllowed(input.autoSend, client);
 
   const templateId = await resolveTemplateId(companyId, input.templateId);
   const startDate = parseUtcDateOnly(input.startDate);
   const nextIssueDate = parseUtcDateOnly(input.nextIssueDate ?? input.startDate);
   const endDate = input.endDate ? parseUtcDateOnly(input.endDate) : null;
+  assertScheduleDates({ startDate, nextIssueDate, endDate });
 
   return prisma.recurringInvoice.create({
     data: {
@@ -318,6 +360,7 @@ export async function createRecurringFromInvoice(
   if (invoice.items.length === 0) {
     throw new Error("Invoice must have at least one line item");
   }
+  assertAutoSendAllowed(input.autoSend, invoice.client);
 
   const dueDays =
     input.dueDaysAfterIssue ??
@@ -336,7 +379,7 @@ export async function createRecurringFromInvoice(
     input.name?.trim() ||
     `${frequencyLabel(input.frequency, input.interval)} – ${invoice.client.name}`;
 
-  return createRecurringInvoice(companyId, memberId, {
+  const created = await createRecurringInvoice(companyId, memberId, {
     name,
     clientId: invoice.clientId,
     frequency: input.frequency,
@@ -362,6 +405,16 @@ export async function createRecurringFromInvoice(
       sectionSortOrder: item.sectionSortOrder ?? 0,
     })),
   });
+
+  // Link the source invoice so detail pages show the schedule relationship.
+  if (!invoice.recurringInvoiceId) {
+    await prisma.invoice.update({
+      where: { id: invoice.id },
+      data: { recurringInvoiceId: created.id },
+    });
+  }
+
+  return created;
 }
 
 export async function updateRecurringInvoice(
@@ -372,10 +425,39 @@ export async function updateRecurringInvoice(
   const existing = await getRecurringInvoice(id, companyId);
   if (!existing) return null;
 
-  if (input.clientId) {
-    const client = await assertClient(companyId, input.clientId);
-    if (!client) throw new Error("Client not found");
-  }
+  const nextClientId = input.clientId ?? existing.clientId;
+  const client = await assertClient(companyId, nextClientId);
+  if (!client) throw new Error("Client not found");
+
+  const nextAutoSend = input.autoSend ?? existing.autoSend;
+  assertAutoSendAllowed(nextAutoSend, client);
+
+  const startDate =
+    input.startDate !== undefined
+      ? parseUtcDateOnly(input.startDate)
+      : startOfUtcDay(existing.startDate);
+  const nextIssueDate =
+    input.nextIssueDate !== undefined
+      ? parseUtcDateOnly(input.nextIssueDate)
+      : startOfUtcDay(existing.nextIssueDate);
+  const endDate =
+    input.endDate !== undefined
+      ? input.endDate
+        ? parseUtcDateOnly(input.endDate)
+        : null
+      : existing.endDate
+        ? startOfUtcDay(existing.endDate)
+        : null;
+  assertScheduleDates({ startDate, nextIssueDate, endDate });
+
+  const maxOccurrences =
+    input.maxOccurrences !== undefined ? input.maxOccurrences : existing.maxOccurrences;
+  const shouldEnd = shouldEndSchedule({
+    nextIssueDate,
+    endDate,
+    maxOccurrences,
+    occurrenceCount: existing.occurrenceCount,
+  });
 
   let templateId: string | null | undefined = undefined;
   if (input.templateId !== undefined) {
@@ -400,18 +482,16 @@ export async function updateRecurringInvoice(
       data: {
         ...(input.name !== undefined ? { name: input.name.trim() } : {}),
         ...(input.clientId !== undefined ? { clientId: input.clientId } : {}),
-        ...(input.status !== undefined ? { status: input.status } : {}),
+        ...(input.status !== undefined
+          ? { status: shouldEnd ? "ENDED" : input.status }
+          : shouldEnd && existing.status === "ACTIVE"
+            ? { status: "ENDED" }
+            : {}),
         ...(input.frequency !== undefined ? { frequency: input.frequency } : {}),
         ...(input.interval !== undefined ? { interval: input.interval } : {}),
-        ...(input.startDate !== undefined
-          ? { startDate: parseUtcDateOnly(input.startDate) }
-          : {}),
-        ...(input.nextIssueDate !== undefined
-          ? { nextIssueDate: parseUtcDateOnly(input.nextIssueDate) }
-          : {}),
-        ...(input.endDate !== undefined
-          ? { endDate: input.endDate ? parseUtcDateOnly(input.endDate) : null }
-          : {}),
+        ...(input.startDate !== undefined ? { startDate } : {}),
+        ...(input.nextIssueDate !== undefined ? { nextIssueDate } : {}),
+        ...(input.endDate !== undefined ? { endDate } : {}),
         ...(input.maxOccurrences !== undefined
           ? { maxOccurrences: input.maxOccurrences }
           : {}),
@@ -440,14 +520,34 @@ export async function setRecurringInvoiceStatus(
   const existing = await getRecurringInvoice(id, companyId);
   if (!existing) return null;
 
-  if (status === "ACTIVE" && existing.status === "ENDED") {
-    // Resuming an ended schedule requires a future next date; keep nextIssueDate as-is.
+  const today = startOfUtcDay(new Date());
+  let nextIssueDate = startOfUtcDay(existing.nextIssueDate);
+
+  if (status === "ACTIVE") {
+    if (
+      shouldSkipUpcomingIssue({
+        issueDate: nextIssueDate,
+        endDate: existing.endDate,
+        maxOccurrences: existing.maxOccurrences,
+        occurrenceCount: existing.occurrenceCount,
+      })
+    ) {
+      throw new Error(
+        "This schedule has reached its end date or max occurrences. Edit the schedule before resuming.",
+      );
+    }
+
+    // Don't flood-issue missed dates when resuming — start from today if overdue.
+    if (nextIssueDate.getTime() < today.getTime()) {
+      nextIssueDate = today;
+    }
   }
 
   return prisma.recurringInvoice.update({
     where: { id },
     data: {
       status,
+      nextIssueDate,
       lastError: status === "ACTIVE" ? null : existing.lastError,
     },
     include: listInclude,
@@ -561,6 +661,30 @@ export async function issueRecurringInvoiceOccurrence(
   }
 
   const issueDate = startOfUtcDay(schedule.nextIssueDate);
+
+  if (
+    shouldSkipUpcomingIssue({
+      issueDate,
+      endDate: schedule.endDate,
+      maxOccurrences: schedule.maxOccurrences,
+      occurrenceCount: schedule.occurrenceCount,
+    })
+  ) {
+    await prisma.recurringInvoice.update({
+      where: { id: schedule.id },
+      data: { status: "ENDED", lastError: null },
+    });
+    return {
+      recurringInvoiceId,
+      invoiceId: null,
+      invoiceNumber: null,
+      skipped: true,
+      ended: true,
+      autoSent: false,
+      error: "Schedule has ended",
+    };
+  }
+
   if (!options?.force && issueDate.getTime() > today.getTime()) {
     return {
       recurringInvoiceId,

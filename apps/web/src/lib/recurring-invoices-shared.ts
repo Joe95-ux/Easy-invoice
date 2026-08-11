@@ -36,6 +36,8 @@ export type SerializedRecurringInvoice = {
   lastError: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Flattened for table search. */
+  clientName: string;
   client: {
     id: string;
     name: string;
@@ -46,6 +48,14 @@ export type SerializedRecurringInvoice = {
   estimatedTotal: number;
   invoicesCount?: number;
 };
+
+/** Local calendar YYYY-MM-DD for date inputs (avoids UTC day skew). */
+export function localDateOnly(date = new Date()): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
 
 export function frequencyLabel(frequency: RecurringFrequency, interval = 1): string {
   const unit =

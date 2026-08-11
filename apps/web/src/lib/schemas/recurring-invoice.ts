@@ -37,11 +37,18 @@ const recurringInvoiceFieldsSchema = z.object({
   lineItems: z.array(lineItemSchema).min(1, "At least one line item is required"),
 });
 
-function refineEndDate(
+function refineScheduleDates(
   data: { startDate: string; nextIssueDate?: string; endDate?: string | null },
   ctx: z.RefinementCtx,
 ) {
   const next = data.nextIssueDate ?? data.startDate;
+  if (next < data.startDate) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Next issue date must be on or after the start date",
+      path: ["nextIssueDate"],
+    });
+  }
   if (data.endDate && data.endDate < next) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -52,7 +59,7 @@ function refineEndDate(
 }
 
 export const createRecurringInvoiceSchema =
-  recurringInvoiceFieldsSchema.superRefine(refineEndDate);
+  recurringInvoiceFieldsSchema.superRefine(refineScheduleDates);
 
 export const updateRecurringInvoiceSchema = recurringInvoiceFieldsSchema
   .omit({ sourceInvoiceId: true })
@@ -62,10 +69,25 @@ export const updateRecurringInvoiceSchema = recurringInvoiceFieldsSchema
     lineItems: z.array(lineItemSchema).min(1).optional(),
   })
   .superRefine((data, ctx) => {
-    if (data.startDate && data.endDate && data.endDate < (data.nextIssueDate ?? data.startDate)) {
+    // Full date triples are validated in the service against existing row values.
+    if (data.startDate && data.nextIssueDate && data.nextIssueDate < data.startDate) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Next issue date must be on or after the start date",
+        path: ["nextIssueDate"],
+      });
+    }
+    if (data.endDate && data.nextIssueDate && data.endDate < data.nextIssueDate) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "End date must be on or after the next issue date",
+        path: ["endDate"],
+      });
+    }
+    if (data.endDate && data.startDate && !data.nextIssueDate && data.endDate < data.startDate) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "End date must be on or after the start date",
         path: ["endDate"],
       });
     }
@@ -83,7 +105,7 @@ export const createRecurringFromInvoiceSchema = z
     dueDaysAfterIssue: z.number().int().min(0).max(365).optional(),
     autoSend: z.boolean().default(false),
   })
-  .superRefine(refineEndDate);
+  .superRefine(refineScheduleDates);
 
 export type CreateRecurringInvoiceInput = z.infer<typeof createRecurringInvoiceSchema>;
 export type UpdateRecurringInvoiceInput = z.infer<typeof updateRecurringInvoiceSchema>;

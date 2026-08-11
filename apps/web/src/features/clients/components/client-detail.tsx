@@ -155,7 +155,8 @@ export function ClientDetail({ client, companyName }: ClientDetailProps) {
                   <AlertDialogTitle>Delete client?</AlertDialogTitle>
                   <AlertDialogDescription>
                     This will delete {client.name}. Their invoices and estimates will remain but
-                    will no longer be linked to this client record.
+                    will no longer be linked to this client. Any recurring invoice schedules for
+                    this client will be deleted.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>

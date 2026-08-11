@@ -7,8 +7,13 @@ import {
   serializeRecurringInvoice,
 } from "@/lib/recurring-invoices";
 
-export default async function RecurringInvoicesPage() {
+type PageProps = {
+  searchParams: Promise<{ id?: string }>;
+};
+
+export default async function RecurringInvoicesPage({ searchParams }: PageProps) {
   const member = await requireMember();
+  const params = await searchParams;
   const [rows, clients] = await Promise.all([
     listRecurringInvoices(member.companyId),
     getClientsForMember(member.companyId),
@@ -24,6 +29,7 @@ export default async function RecurringInvoicesPage() {
           email: client.email,
         }))}
         currency={member.company.currency}
+        highlightId={params.id ?? null}
       />
     </PageScroll>
   );

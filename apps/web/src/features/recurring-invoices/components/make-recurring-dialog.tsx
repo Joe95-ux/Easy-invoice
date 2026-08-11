@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { frequencyLabel } from "@/lib/recurring-invoices-shared";
+import { frequencyLabel, localDateOnly } from "@/lib/recurring-invoices-shared";
 import type { RecurringFrequency } from "@easy-invoice/db";
 
 type MakeRecurringDialogProps = {
@@ -32,6 +32,7 @@ type MakeRecurringDialogProps = {
   invoiceId: string;
   invoiceNumber: string;
   clientName?: string | null;
+  clientEmail?: string | null;
   onCreated: (recurringInvoiceId: string) => void;
 };
 
@@ -41,10 +42,6 @@ const FREQUENCY_ITEMS: { value: RecurringFrequency; label: string }[] = [
   { value: "QUARTERLY", label: "Quarterly" },
   { value: "YEARLY", label: "Yearly" },
 ];
-
-function todayUtcDateOnly(): string {
-  return new Date().toISOString().slice(0, 10);
-}
 
 function firstValidationMessage(details: unknown): string | null {
   if (!details || typeof details !== "object") return null;
@@ -63,21 +60,23 @@ export function MakeRecurringDialog({
   invoiceId,
   invoiceNumber,
   clientName,
+  clientEmail,
   onCreated,
 }: MakeRecurringDialogProps) {
   const [name, setName] = useState("");
   const [frequency, setFrequency] = useState<RecurringFrequency>("MONTHLY");
   const [interval, setInterval] = useState("1");
-  const [startDate, setStartDate] = useState(todayUtcDateOnly());
+  const [startDate, setStartDate] = useState(localDateOnly());
   const [endDate, setEndDate] = useState("");
   const [maxOccurrences, setMaxOccurrences] = useState("");
   const [autoSend, setAutoSend] = useState(false);
   const [saving, setSaving] = useState(false);
   const wasOpen = useRef(false);
+  const canAutoSend = Boolean(clientEmail?.trim());
 
   useEffect(() => {
     if (open && !wasOpen.current) {
-      const today = todayUtcDateOnly();
+      const today = localDateOnly();
       setName(
         clientName
           ? `${frequencyLabel("MONTHLY", 1)} – ${clientName}`
@@ -108,6 +107,14 @@ export function MakeRecurringDialog({
     }
     if (parsedMax != null && (!Number.isInteger(parsedMax) || parsedMax < 1)) {
       toast.error("Max occurrences must be a whole number of 1 or more");
+      return;
+    }
+    if (endDate.trim() && endDate.trim() < startDate) {
+      toast.error("End date must be on or after the first issue date");
+      return;
+    }
+    if (autoSend && !canAutoSend) {
+      toast.error("Add a client email before enabling auto-send");
       return;
     }
 
@@ -249,10 +256,22 @@ export function MakeRecurringDialog({
               <div className="min-w-0">
                 <p className="text-sm font-medium">Auto-send</p>
                 <p className="text-xs text-muted-foreground">
-                  Email each generated invoice when the schedule runs.
+                  {canAutoSend
+                    ? "Email each generated invoice when the schedule runs."
+                    : "This client needs an email address to enable auto-send."}
                 </p>
               </div>
-              <Switch checked={autoSend} onCheckedChange={setAutoSend} />
+              <Switch
+                checked={autoSend}
+                disabled={!canAutoSend}
+                onCheckedChange={(checked) => {
+                  if (checked && !canAutoSend) {
+                    toast.error("Add a client email before enabling auto-send");
+                    return;
+                  }
+                  setAutoSend(checked);
+                }}
+              />
             </div>
           </DialogBody>
 

@@ -26,6 +26,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
   frequencyLabel,
+  localDateOnly,
   type SerializedRecurringInvoice,
 } from "@/lib/recurring-invoices-shared";
 import type { RecurringFrequency } from "@easy-invoice/db";
@@ -58,10 +59,6 @@ const FREQUENCY_ITEMS: { value: RecurringFrequency; label: string }[] = [
   { value: "QUARTERLY", label: "Quarterly" },
   { value: "YEARLY", label: "Yearly" },
 ];
-
-function todayUtcDateOnly(): string {
-  return new Date().toISOString().slice(0, 10);
-}
 
 function emptyLine(): LineDraft {
   return {
@@ -96,8 +93,8 @@ export function RecurringInvoiceDialog({
   const [clientId, setClientId] = useState("");
   const [frequency, setFrequency] = useState<RecurringFrequency>("MONTHLY");
   const [interval, setInterval] = useState("1");
-  const [startDate, setStartDate] = useState(todayUtcDateOnly());
-  const [nextIssueDate, setNextIssueDate] = useState(todayUtcDateOnly());
+  const [startDate, setStartDate] = useState(localDateOnly());
+  const [nextIssueDate, setNextIssueDate] = useState(localDateOnly());
   const [endDate, setEndDate] = useState("");
   const [maxOccurrences, setMaxOccurrences] = useState("");
   const [dueDaysAfterIssue, setDueDaysAfterIssue] = useState("14");
@@ -143,7 +140,7 @@ export function RecurringInvoiceDialog({
             : [emptyLine()],
         );
       } else {
-        const today = todayUtcDateOnly();
+        const today = localDateOnly();
         setName("");
         setClientId(clients[0]?.id ?? "");
         setFrequency("MONTHLY");
@@ -175,6 +172,21 @@ export function RecurringInvoiceDialog({
     }
     if (!clientId) {
       toast.error("Select a client");
+      return;
+    }
+
+    const selectedClient = clients.find((c) => c.id === clientId);
+    if (autoSend && !selectedClient?.email?.trim()) {
+      toast.error("Add a client email before enabling auto-send");
+      return;
+    }
+
+    if (nextIssueDate < startDate) {
+      toast.error("Next issue date must be on or after the start date");
+      return;
+    }
+    if (endDate.trim() && endDate.trim() < nextIssueDate) {
+      toast.error("End date must be on or after the next issue date");
       return;
     }
 
@@ -309,7 +321,12 @@ export function RecurringInvoiceDialog({
               <Label>Client</Label>
               <Select
                 value={clientId || undefined}
-                onValueChange={(value) => value && setClientId(value)}
+                onValueChange={(value) => {
+                  if (!value) return;
+                  setClientId(value);
+                  const next = clients.find((c) => c.id === value);
+                  if (autoSend && !next?.email?.trim()) setAutoSend(false);
+                }}
                 items={clientItems}
               >
                 <SelectTrigger className="w-full">
@@ -433,7 +450,9 @@ export function RecurringInvoiceDialog({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="recurring-discount">Discount ({currency})</Label>
+                <Label htmlFor="recurring-discount">
+                  Discount ({isEdit ? editing!.currency : currency})
+                </Label>
                 <Input
                   id="recurring-discount"
                   type="number"
@@ -449,10 +468,22 @@ export function RecurringInvoiceDialog({
               <div className="min-w-0">
                 <p className="text-sm font-medium">Auto-send</p>
                 <p className="text-xs text-muted-foreground">
-                  Email each invoice when generated (client email required).
+                  {clients.find((c) => c.id === clientId)?.email?.trim()
+                    ? "Email each invoice when generated."
+                    : "Selected client needs an email address to enable this."}
                 </p>
               </div>
-              <Switch checked={autoSend} onCheckedChange={setAutoSend} />
+              <Switch
+                checked={autoSend}
+                disabled={!clients.find((c) => c.id === clientId)?.email?.trim()}
+                onCheckedChange={(checked) => {
+                  if (checked && !clients.find((c) => c.id === clientId)?.email?.trim()) {
+                    toast.error("Add a client email before enabling auto-send");
+                    return;
+                  }
+                  setAutoSend(checked);
+                }}
+              />
             </div>
 
             <div className="space-y-2">

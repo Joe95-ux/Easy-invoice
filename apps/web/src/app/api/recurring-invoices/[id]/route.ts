@@ -44,17 +44,23 @@ export async function PATCH(request: Request, context: RouteContext) {
     typeof body === "object" &&
     Object.keys(body as object).length === 1
   ) {
-    const updated = await setRecurringInvoiceStatus(
-      member.companyId,
-      id,
-      statusOnly.data.status,
-    );
-    if (!updated) {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    try {
+      const updated = await setRecurringInvoiceStatus(
+        member.companyId,
+        id,
+        statusOnly.data.status,
+      );
+      if (!updated) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
+      return NextResponse.json({
+        recurringInvoice: serializeRecurringInvoice(updated),
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to update status";
+      return NextResponse.json({ error: message }, { status: 400 });
     }
-    return NextResponse.json({
-      recurringInvoice: serializeRecurringInvoice(updated),
-    });
   }
 
   const parsed = updateRecurringInvoiceSchema.safeParse(body);

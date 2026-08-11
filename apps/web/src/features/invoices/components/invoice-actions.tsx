@@ -388,8 +388,9 @@ export function InvoiceActions({
         invoiceId={invoiceId}
         invoiceNumber={invoiceNumber}
         clientName={clientName}
-        onCreated={() => {
-          router.push("/recurring-invoices");
+        clientEmail={clientEmail}
+        onCreated={(recurringInvoiceId) => {
+          router.push(`/recurring-invoices?id=${recurringInvoiceId}`);
           router.refresh();
         }}
       />

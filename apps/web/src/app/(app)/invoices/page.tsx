@@ -23,7 +23,9 @@ export default async function InvoicesPage() {
       balanceDue: paymentSummary.balanceDue.toString(),
       currency: invoice.currency,
       dueDate: invoice.dueDate?.toISOString() ?? null,
+      clientId: invoice.clientId,
       clientName: invoice.client?.name ?? null,
+      clientEmail: invoice.client?.email ?? null,
     };
   });
 

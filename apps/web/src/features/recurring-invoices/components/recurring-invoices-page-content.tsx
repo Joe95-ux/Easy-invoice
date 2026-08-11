@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   MoreHorizontalIcon,
   PauseIcon,
@@ -39,13 +39,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Table,
   TableBody,
   TableCell,
@@ -68,10 +61,8 @@ import {
 import { cn } from "@/lib/utils";
 import type { RecurringInvoiceStatus } from "@easy-invoice/db";
 
-type StatusFilter = "ALL" | RecurringInvoiceStatus;
-
-const STATUS_FILTER_ITEMS: { value: StatusFilter; label: string }[] = [
-  { value: "ALL", label: "All statuses" },
+const STATUS_FILTER_OPTIONS = [
+  { value: "all", label: "All statuses" },
   { value: "ACTIVE", label: "Active" },
   { value: "PAUSED", label: "Paused" },
   { value: "ENDED", label: "Ended" },
@@ -81,6 +72,8 @@ type RecurringInvoicesPageContentProps = {
   initialRows: SerializedRecurringInvoice[];
   clients: RecurringClientOption[];
   currency: string;
+  /** Open this schedule’s edit dialog on load (`?id=`). */
+  highlightId?: string | null;
 };
 
 function formatDateOnly(value: string): string {
@@ -97,22 +90,24 @@ export function RecurringInvoicesPageContent({
   initialRows,
   clients,
   currency,
+  highlightId = null,
 }: RecurringInvoicesPageContentProps) {
   const router = useRouter();
   const [rows, setRows] = useState(initialRows);
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<SerializedRecurringInvoice | null>(null);
   const [pendingDelete, setPendingDelete] = useState<SerializedRecurringInvoice | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
-
-  const filtered =
-    statusFilter === "ALL" ? rows : rows.filter((row) => row.status === statusFilter);
+  const [deleting, setDeleting] = useState(false);
+  const [highlightHandled, setHighlightHandled] = useState(false);
 
   const table = useListTable<SerializedRecurringInvoice>({
     tableId: "recurring-invoices",
-    data: filtered,
-    searchKeys: ["name"],
+    data: rows,
+    searchKeys: ["name", "clientName"],
+    filterOptions: STATUS_FILTER_OPTIONS,
+    defaultFilter: "all",
+    filterFn: (row, filter) => row.status === filter,
     defaultSortKey: "nextIssueDate",
     defaultSortDirection: "asc",
     getSortValue: (row, key) => {
@@ -127,6 +122,20 @@ export function RecurringInvoicesPageContent({
   });
 
   const empty = rows.length === 0;
+
+  useEffect(() => {
+    setRows(initialRows);
+  }, [initialRows]);
+
+  useEffect(() => {
+    if (highlightHandled || !highlightId) return;
+    const match = rows.find((row) => row.id === highlightId);
+    if (!match) return;
+    setEditing(match);
+    setDialogOpen(true);
+    setHighlightHandled(true);
+    router.replace("/recurring-invoices", { scroll: false });
+  }, [highlightId, highlightHandled, rows, router]);
 
   function openCreate() {
     setEditing(null);
@@ -216,6 +225,7 @@ export function RecurringInvoicesPageContent({
 
   async function confirmDelete() {
     if (!pendingDelete) return;
+    setDeleting(true);
     setBusyId(pendingDelete.id);
     try {
       const res = await fetch(`/api/recurring-invoices/${pendingDelete.id}`, {
@@ -234,6 +244,7 @@ export function RecurringInvoicesPageContent({
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not delete schedule");
     } finally {
+      setDeleting(false);
       setBusyId(null);
     }
   }
@@ -244,7 +255,11 @@ export function RecurringInvoicesPageContent({
         title="Recurring invoices"
         description="Automatically create invoices on a schedule for retainers and subscriptions."
         actions={
-          <Button className={pageHeaderActionClass} onClick={openCreate} disabled={clients.length === 0}>
+          <Button
+            className={pageHeaderActionClass}
+            onClick={openCreate}
+            disabled={clients.length === 0}
+          >
             <PlusIcon />
             New schedule
           </Button>
@@ -274,32 +289,15 @@ export function RecurringInvoicesPageContent({
       ) : (
         <Card className="overflow-hidden py-0">
           <div>
-            <div className="flex flex-col gap-2 border-b border-border/60 sm:flex-row sm:items-center sm:pr-4">
-              <div className="min-w-0 flex-1">
-                <TableToolbar
-                  search={table.searchQuery}
-                  onSearchChange={table.setSearchQuery}
-                  searchPlaceholder="Search schedules…"
-                  className="border-0"
-                />
-              </div>
-              <Select
-                value={statusFilter}
-                onValueChange={(value) => value && setStatusFilter(value as StatusFilter)}
-                items={[...STATUS_FILTER_ITEMS]}
-              >
-                <SelectTrigger className="mx-4 mb-3 h-8 w-auto sm:mx-0 sm:mb-0 sm:w-[140px] data-[size=default]:h-8">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent align="end">
-                  {STATUS_FILTER_ITEMS.map((item) => (
-                    <SelectItem key={item.value} value={item.value}>
-                      {item.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <TableToolbar
+              search={table.searchQuery}
+              onSearchChange={table.setSearchQuery}
+              searchPlaceholder="Search schedules…"
+              filter={table.filter}
+              onFilterChange={table.setFilter}
+              filterOptions={STATUS_FILTER_OPTIONS}
+              filterLabel="Status"
+            />
 
             <Table>
               <TableHeader>
@@ -317,6 +315,7 @@ export function RecurringInvoicesPageContent({
                     sortKey={table.sortKey}
                     sortDirection={table.sortDirection}
                     onSort={table.toggleSort}
+                    className="hidden sm:table-cell"
                   />
                   <SortableTableHead
                     label="Status"
@@ -355,14 +354,22 @@ export function RecurringInvoicesPageContent({
                 {table.pageRows.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
-                      No schedules match your filters.
+                      {table.hasActiveFilters
+                        ? "No schedules match your filters."
+                        : "No schedules."}
                     </TableCell>
                   </TableRow>
                 ) : (
                   table.pageRows.map((row) => {
                     const busy = busyId === row.id;
                     return (
-                      <TableRow key={row.id} className={cn(busy && "opacity-60")}>
+                      <TableRow
+                        key={row.id}
+                        className={cn(
+                          busy && "opacity-60",
+                          highlightId === row.id && "bg-muted/40",
+                        )}
+                      >
                         <TableCell>
                           <div className="min-w-0">
                             <button
@@ -372,6 +379,9 @@ export function RecurringInvoicesPageContent({
                             >
                               {row.name}
                             </button>
+                            <p className="text-xs text-muted-foreground sm:hidden">
+                              {row.client.name}
+                            </p>
                             <p className="text-xs text-muted-foreground">
                               {row.occurrenceCount} issued
                               {row.maxOccurrences != null ? ` / ${row.maxOccurrences}` : ""}
@@ -384,7 +394,7 @@ export function RecurringInvoicesPageContent({
                             ) : null}
                           </div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="hidden sm:table-cell">
                           <Link
                             href={`/clients/${row.client.id}`}
                             className="hover:underline"
@@ -500,7 +510,10 @@ export function RecurringInvoicesPageContent({
 
       <RecurringInvoiceDialog
         open={dialogOpen}
-        onOpenChange={setDialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) setEditing(null);
+        }}
         clients={clients}
         currency={currency}
         editing={editing}
@@ -513,7 +526,7 @@ export function RecurringInvoicesPageContent({
       <AlertDialog
         open={Boolean(pendingDelete)}
         onOpenChange={(open) => {
-          if (!open) setPendingDelete(null);
+          if (!open && !deleting) setPendingDelete(null);
         }}
       >
         <AlertDialogContent>
@@ -525,9 +538,16 @@ export function RecurringInvoicesPageContent({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" onClick={() => void confirmDelete()}>
-              Delete
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={deleting}
+              onClick={(event) => {
+                event.preventDefault();
+                void confirmDelete();
+              }}
+            >
+              {deleting ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

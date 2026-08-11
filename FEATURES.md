@@ -84,12 +84,12 @@ Platform Stripe Checkout + Customer Portal for upgrading the company plan (separ
 
 **Status:** Done
 
-Company-level reminder schedule, daily cron, manual remind, per-invoice pause, audit log. Same cron also expires past-`validUntil` estimates and sends estimate follow-ups.
+Company-level reminder schedule, daily cron, manual remind, per-invoice pause, audit log. Same cron also expires past-`validUntil` estimates, sends estimate follow-ups, and issues due recurring invoices.
 
 | Piece | Location |
 |-------|----------|
 | Schema | `InvoiceReminder`, `EstimateReminder`, company reminder fields, `remindersPaused` |
-| Cron | `GET /api/cron/invoice-reminders` (invoices + estimates) |
+| Cron | `GET /api/cron/invoice-reminders` (invoices + estimates + recurring) |
 | Settings | `ReminderSettingsSection` (invoices + estimate follow-ups) |
 | UI | Invoice/estimate detail reminders; public accept blocked when expired |
 
@@ -229,6 +229,14 @@ Later: scan analytics over time, more types (app store), frames/labels.
 **Status:** Done
 
 Schedule invoices (weekly / monthly / quarterly / yearly) with pause/resume, end date or max occurrences, optional auto-send, and daily cron generation. Create from scratch or via **Make recurring** on an invoice.
+
+| Piece | Location |
+|-------|----------|
+| Schema | `RecurringInvoice`, `RecurringInvoiceLineItem`, `Invoice.recurringInvoiceId` |
+| Service | `lib/recurring-invoices.ts` |
+| API | `GET/POST /api/recurring-invoices`, `GET/PATCH/DELETE /api/recurring-invoices/[id]`, `POST …/generate`, `POST /api/invoices/[id]/make-recurring` |
+| Cron | Included in `GET /api/cron/invoice-reminders` |
+| UI | `/recurring-invoices`, invoice **Make recurring**, schedule link on invoice detail |
 
 ---
 
