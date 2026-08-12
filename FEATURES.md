@@ -228,7 +228,7 @@ Later: scan analytics over time, more types (app store), frames/labels.
 
 **Status:** Done
 
-Schedule invoices (weekly / monthly / quarterly / yearly) with pause/resume, end date or max occurrences, optional auto-send, and daily cron generation. Create from scratch or via **Make recurring** on an invoice.
+Schedule invoices (weekly / monthly / quarterly / yearly) with pause/resume, end date or max occurrences, optional auto-send, and daily cron generation. Schedules are based on an existing invoice (copied client/lines/totals), matching common invoicing tools.
 
 | Piece | Location |
 |-------|----------|
@@ -236,7 +236,7 @@ Schedule invoices (weekly / monthly / quarterly / yearly) with pause/resume, end
 | Service | `lib/recurring-invoices.ts` |
 | API | `GET/POST /api/recurring-invoices`, `GET/PATCH/DELETE /api/recurring-invoices/[id]`, `POST …/generate`, `POST /api/invoices/[id]/make-recurring` |
 | Cron | Included in `GET /api/cron/invoice-reminders` |
-| UI | `/recurring-invoices`, invoice **Make recurring**, schedule link on invoice detail |
+| UI | `/recurring-invoices` (right drawer: pick invoice + schedule), invoice **Make recurring**, schedule link on invoice detail |
 
 ---
 

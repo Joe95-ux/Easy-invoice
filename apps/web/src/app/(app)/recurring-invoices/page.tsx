@@ -2,6 +2,7 @@ import { PageScroll } from "@/components/app-shell/app-shell";
 import { RecurringInvoicesPageContent } from "@/features/recurring-invoices/components/recurring-invoices-page-content";
 import { requireMember } from "@/lib/auth";
 import { getClientsForMember } from "@/lib/clients";
+import { getInvoicesForMember } from "@/lib/invoice-service";
 import {
   listRecurringInvoices,
   serializeRecurringInvoice,
@@ -14,9 +15,10 @@ type PageProps = {
 export default async function RecurringInvoicesPage({ searchParams }: PageProps) {
   const member = await requireMember();
   const params = await searchParams;
-  const [rows, clients] = await Promise.all([
+  const [rows, clients, invoices] = await Promise.all([
     listRecurringInvoices(member.companyId),
     getClientsForMember(member.companyId),
+    getInvoicesForMember(member.companyId, 200),
   ]);
 
   return (
@@ -28,6 +30,15 @@ export default async function RecurringInvoicesPage({ searchParams }: PageProps)
           name: client.name,
           email: client.email,
         }))}
+        invoices={invoices
+          .filter((invoice) => invoice.clientId && invoice.status !== "CANCELLED")
+          .map((invoice) => ({
+            id: invoice.id,
+            number: invoice.number,
+            clientId: invoice.clientId,
+            clientName: invoice.client?.name ?? null,
+            clientEmail: invoice.client?.email ?? null,
+          }))}
         currency={member.company.currency}
         highlightId={params.id ?? null}
       />

@@ -47,9 +47,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  RecurringInvoiceDialog,
+  RecurringScheduleDrawer,
   type RecurringClientOption,
-} from "@/features/recurring-invoices/components/recurring-invoice-dialog";
+  type RecurringInvoiceOption,
+} from "@/features/recurring-invoices/components/recurring-schedule-drawer";
 import { useListTable } from "@/hooks/use-list-table";
 import { formatMoney } from "@/lib/invoices";
 import {
@@ -71,8 +72,9 @@ const STATUS_FILTER_OPTIONS = [
 type RecurringInvoicesPageContentProps = {
   initialRows: SerializedRecurringInvoice[];
   clients: RecurringClientOption[];
+  invoices: RecurringInvoiceOption[];
   currency: string;
-  /** Open this schedule’s edit dialog on load (`?id=`). */
+  /** Open this schedule’s edit drawer on load (`?id=`). */
   highlightId?: string | null;
 };
 
@@ -89,6 +91,7 @@ function formatDateOnly(value: string): string {
 export function RecurringInvoicesPageContent({
   initialRows,
   clients,
+  invoices,
   currency,
   highlightId = null,
 }: RecurringInvoicesPageContentProps) {
@@ -258,7 +261,7 @@ export function RecurringInvoicesPageContent({
           <Button
             className={pageHeaderActionClass}
             onClick={openCreate}
-            disabled={clients.length === 0}
+            disabled={invoices.length === 0}
           >
             <PlusIcon />
             New schedule
@@ -271,18 +274,18 @@ export function RecurringInvoicesPageContent({
           icon={RefreshCwIcon}
           title="No recurring schedules yet"
           description={
-            clients.length === 0
-              ? "Add a client first, then create a schedule—or make an existing invoice recurring."
-              : "Create a schedule for retainers, subscriptions, or any invoice that should repeat."
+            invoices.length === 0
+              ? "Create an invoice first, then turn it into a recurring schedule—client, lines, and totals are copied automatically."
+              : "Pick an existing invoice and set how often new ones should be created."
           }
           action={
-            clients.length > 0 ? (
+            invoices.length > 0 ? (
               <Button onClick={openCreate}>
                 <PlusIcon />
                 New schedule
               </Button>
             ) : (
-              <Button render={<Link href="/clients/new" />}>Add client</Button>
+              <Button render={<Link href="/invoices/new" />}>New invoice</Button>
             )
           }
         />
@@ -508,12 +511,14 @@ export function RecurringInvoicesPageContent({
         </Card>
       )}
 
-      <RecurringInvoiceDialog
+      <RecurringScheduleDrawer
         open={dialogOpen}
         onOpenChange={(open) => {
           setDialogOpen(open);
           if (!open) setEditing(null);
         }}
+        mode={editing ? "edit" : "create"}
+        invoices={invoices}
         clients={clients}
         currency={currency}
         editing={editing}
