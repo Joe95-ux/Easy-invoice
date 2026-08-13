@@ -1,14 +1,9 @@
 "use client";
 
+import { Combobox } from "@/components/forms/combobox";
+import { DatePicker } from "@/components/forms/date-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { frequencyLabel } from "@/lib/recurring-invoices-shared";
 import type { RecurringFrequency } from "@easy-invoice/db";
@@ -25,13 +20,16 @@ export type RecurringScheduleFormState = {
   autoSend: boolean;
 };
 
-const UNIT_ITEMS: { value: RecurringFrequency; label: string; singular: string; plural: string }[] =
-  [
-    { value: "WEEKLY", label: "Week", singular: "week", plural: "weeks" },
-    { value: "MONTHLY", label: "Month", singular: "month", plural: "months" },
-    { value: "QUARTERLY", label: "Quarter", singular: "quarter", plural: "quarters" },
-    { value: "YEARLY", label: "Year", singular: "year", plural: "years" },
-  ];
+const UNIT_ITEMS: {
+  value: RecurringFrequency;
+  singular: string;
+  plural: string;
+}[] = [
+  { value: "WEEKLY", singular: "week", plural: "weeks" },
+  { value: "MONTHLY", singular: "month", plural: "months" },
+  { value: "QUARTERLY", singular: "quarter", plural: "quarters" },
+  { value: "YEARLY", singular: "year", plural: "years" },
+];
 
 export function intervalUnit(frequency: RecurringFrequency, interval: number): string {
   const unit = UNIT_ITEMS.find((item) => item.value === frequency);
@@ -46,6 +44,8 @@ type RecurringScheduleFieldsProps = {
   showNextIssueDate?: boolean;
   canAutoSend: boolean;
   autoSendHint?: string;
+  /** Portal target for popovers inside Vaul drawers. */
+  popupContainer?: HTMLElement | null;
 };
 
 export function RecurringScheduleFields({
@@ -54,9 +54,14 @@ export function RecurringScheduleFields({
   showNextIssueDate = false,
   canAutoSend,
   autoSendHint,
+  popupContainer = null,
 }: RecurringScheduleFieldsProps) {
   const intervalNum = Number(value.interval) || 1;
   const cadenceHint = frequencyLabel(value.frequency, intervalNum);
+  const unitOptions = UNIT_ITEMS.map((item) => ({
+    value: item.value,
+    label: intervalNum === 1 ? item.singular : item.plural,
+  }));
 
   return (
     <div className="space-y-4">
@@ -84,27 +89,17 @@ export function RecurringScheduleFields({
             onChange={(e) => onChange({ interval: e.target.value })}
             aria-label="Interval count"
           />
-          <Select
+          <Combobox
+            id="recurring-frequency"
             value={value.frequency}
-            onValueChange={(next) =>
-              next && onChange({ frequency: next as RecurringFrequency })
-            }
-            items={UNIT_ITEMS.map((item) => ({
-              value: item.value,
-              label: intervalNum === 1 ? item.singular : item.plural,
-            }))}
-          >
-            <SelectTrigger className="w-full capitalize">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {UNIT_ITEMS.map((item) => (
-                <SelectItem key={item.value} value={item.value} className="capitalize">
-                  {intervalNum === 1 ? item.singular : item.plural}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            options={unitOptions}
+            onChange={(next) => onChange({ frequency: next })}
+            placeholder="Period"
+            showSearch={false}
+            container={popupContainer}
+            aria-label="Repeat period"
+            className="capitalize"
+          />
         </div>
         <p className="text-xs text-muted-foreground">
           {cadenceHint}
@@ -119,30 +114,27 @@ export function RecurringScheduleFields({
           <Label htmlFor="recurring-start">
             {showNextIssueDate ? "Start date" : "First issue date"}
           </Label>
-          <Input
+          <DatePicker
             id="recurring-start"
-            type="date"
             value={value.startDate}
-            onChange={(e) => {
-              const startDate = e.target.value;
+            container={popupContainer}
+            onChange={(startDate) => {
               onChange(
                 showNextIssueDate
                   ? { startDate }
                   : { startDate, nextIssueDate: startDate },
               );
             }}
-            required
           />
         </div>
         {showNextIssueDate ? (
           <div className="space-y-2">
             <Label htmlFor="recurring-next">Next issue date</Label>
-            <Input
+            <DatePicker
               id="recurring-next"
-              type="date"
               value={value.nextIssueDate}
-              onChange={(e) => onChange({ nextIssueDate: e.target.value })}
-              required
+              container={popupContainer}
+              onChange={(nextIssueDate) => onChange({ nextIssueDate })}
             />
           </div>
         ) : null}
@@ -151,11 +143,12 @@ export function RecurringScheduleFields({
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="recurring-end">End date (optional)</Label>
-          <Input
+          <DatePicker
             id="recurring-end"
-            type="date"
-            value={value.endDate}
-            onChange={(e) => onChange({ endDate: e.target.value })}
+            value={value.endDate || undefined}
+            placeholder="No end date"
+            container={popupContainer}
+            onChange={(endDate) => onChange({ endDate })}
           />
         </div>
         <div className="space-y-2">

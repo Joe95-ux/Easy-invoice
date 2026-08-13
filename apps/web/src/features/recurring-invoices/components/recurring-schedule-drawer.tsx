@@ -368,8 +368,14 @@ export function RecurringScheduleDrawer({
   const hideInvoicePicker = Boolean(preselectedInvoiceId) && !isEdit;
 
   return (
-    <Drawer direction="right" open={open} onOpenChange={onOpenChange}>
+    <Drawer
+      direction="right"
+      open={open}
+      onOpenChange={onOpenChange}
+      repositionInputs={false}
+    >
       <DrawerContent className="data-[vaul-drawer-direction=right]:h-full data-[vaul-drawer-direction=right]:w-full data-[vaul-drawer-direction=right]:sm:max-w-lg">
+        {/* Portal target for selects/date pickers — must live inside the Vaul focus trap. */}
         <div ref={setPopupContainer} />
         <DrawerHeader className="border-b">
           <DrawerTitle>
@@ -444,6 +450,7 @@ export function RecurringScheduleDrawer({
               onChange={patchSchedule}
               showNextIssueDate={isEdit}
               canAutoSend={canAutoSend}
+              popupContainer={popupContainer}
             />
 
             {isEdit ? (

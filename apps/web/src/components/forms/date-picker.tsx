@@ -15,6 +15,8 @@ type DatePickerProps = {
   placeholder?: string;
   disabled?: boolean;
   className?: string;
+  /** Portal target — required inside Vaul drawers so the calendar stays in the focus trap. */
+  container?: HTMLElement | null;
 };
 
 function parseDateValue(value?: string): Date | undefined {
@@ -33,6 +35,7 @@ export function DatePicker({
   placeholder = "Pick a date",
   disabled,
   className,
+  container,
 }: DatePickerProps) {
   const [open, setOpen] = useState(false);
   const selected = parseDateValue(value);
@@ -59,7 +62,11 @@ export function DatePicker({
           {selected ? format(selected, "PPP") : placeholder}
         </span>
       </PopoverTrigger>
-      <PopoverContent className="w-auto overflow-hidden p-0" align="start">
+      <PopoverContent
+        className="w-auto overflow-hidden p-0"
+        align="start"
+        container={container}
+      >
         <Calendar
           mode="single"
           selected={selected}
