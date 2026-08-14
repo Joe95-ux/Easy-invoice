@@ -6,6 +6,8 @@ import { ExternalLinkIcon, Loader2Icon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 
 type ConnectStatus = {
   accountId: string | null;
@@ -18,15 +20,21 @@ type ConnectStatus = {
 type StripeConnectSectionProps = {
   initialStatus: ConnectStatus;
   stripeConfigured: boolean;
+  /** Company policy: clients may self-serve 2/3 split on public invoices. */
+  clientPaymentPlansEnabled: boolean;
 };
 
 export function StripeConnectSection({
   initialStatus,
   stripeConfigured,
+  clientPaymentPlansEnabled: initialClientPlans,
 }: StripeConnectSectionProps) {
   const router = useRouter();
   const [status, setStatus] = useState(initialStatus);
-  const [loading, setLoading] = useState<"onboard" | "login" | "refresh" | null>(null);
+  const [clientPlans, setClientPlans] = useState(initialClientPlans);
+  const [loading, setLoading] = useState<"onboard" | "login" | "refresh" | "policy" | null>(
+    null,
+  );
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -79,6 +87,35 @@ export function StripeConnectSection({
       throw new Error("No Stripe URL returned");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Something went wrong");
+      setLoading(null);
+    }
+  }
+
+  async function toggleClientPlans(enabled: boolean) {
+    const previous = clientPlans;
+    setClientPlans(enabled);
+    setLoading("policy");
+    try {
+      const response = await fetch("/api/company/payment-plan-policy", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientPaymentPlansEnabled: enabled }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error ?? "Could not save policy");
+      }
+      setClientPlans(Boolean(data.clientPaymentPlansEnabled));
+      toast.success(
+        enabled
+          ? "Clients can split unpaid invoices into 2 or 3 payments"
+          : "Client self-serve payment plans turned off",
+      );
+      router.refresh();
+    } catch (error) {
+      setClientPlans(previous);
+      toast.error(error instanceof Error ? error.message : "Could not save policy");
+    } finally {
       setLoading(null);
     }
   }
@@ -154,6 +191,30 @@ export function StripeConnectSection({
             </Button>
           ) : null}
         </div>
+
+        <div className="flex items-start justify-between gap-4 rounded-lg border border-border/70 px-4 py-3">
+          <div className="space-y-1">
+            <Label htmlFor="client-payment-plans" className="text-sm font-medium">
+              Let clients split into a payment plan
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Company policy: unpaid invoices show “Split into 2 / 3” on the public page. Off by
+              default — only your team can offer a plan until you turn this on.
+            </p>
+          </div>
+          <Switch
+            id="client-payment-plans"
+            checked={clientPlans}
+            disabled={loading !== null || !ready}
+            onCheckedChange={(checked) => void toggleClientPlans(checked)}
+            aria-label="Allow clients to self-serve payment plans"
+          />
+        </div>
+        {!ready ? (
+          <p className="text-xs text-muted-foreground">
+            Connect Stripe before enabling client payment plans.
+          </p>
+        ) : null}
       </CardContent>
     </Card>
   );

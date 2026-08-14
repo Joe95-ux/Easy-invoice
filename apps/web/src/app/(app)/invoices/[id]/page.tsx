@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { DocumentLineItemsTable } from "@/components/document-line-items-table";
 import { InvoiceActions } from "@/features/invoices/components/invoice-actions";
 import { InvoiceAutoDownload } from "@/features/invoices/components/invoice-auto-download";
+import { InvoiceGetPaidSection } from "@/features/invoices/components/invoice-get-paid-section";
 import { InvoiceRemindersSection } from "@/features/invoices/components/invoice-reminders-section";
 import { InvoicePaymentsSection } from "@/features/invoices/components/invoice-payments-section";
 import { InvoicePaymentQrSection } from "@/features/invoices/components/invoice-payment-qr-section";
@@ -122,6 +123,28 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
             sentAt={invoice.sentAt?.toISOString() ?? null}
             celebrateInvoicePaid={member.celebrateInvoicePaid}
           />
+        }
+      />
+
+      <InvoiceGetPaidSection
+        invoiceId={invoice.id}
+        invoiceNumber={invoice.number}
+        companyName={invoice.company.name}
+        status={invoice.status}
+        balanceDue={paymentSummary.balanceDue}
+        amountPaid={paymentSummary.amountPaid}
+        clientEmail={invoice.client?.email}
+        clientName={invoice.client?.name}
+        clientId={invoice.clientId}
+        dueDate={invoice.dueDate ? invoice.dueDate.toISOString().slice(0, 10) : null}
+        sentAt={invoice.sentAt?.toISOString() ?? null}
+        viewedAt={invoice.viewedAt?.toISOString() ?? null}
+        installmentCount={paymentSummary.installments.length}
+        unpaidInstallmentCount={paymentSummary.installments.filter((row) => !row.isPaid).length}
+        canPayOnline={
+          Boolean(invoice.company.stripeConnectedAccountId) &&
+          invoice.company.stripeConnectChargesEnabled &&
+          invoice.company.stripeConnectDetailsSubmitted
         }
       />
 

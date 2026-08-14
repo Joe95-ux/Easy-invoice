@@ -18,27 +18,36 @@ export async function syncInvoiceInstallments(
   invoiceId: string,
   installments: InstallmentInput[],
 ) {
-  await prisma.invoiceInstallment.deleteMany({ where: { invoiceId } });
+  await prisma.$transaction(async (tx) => {
+    await tx.invoiceInstallment.deleteMany({ where: { invoiceId } });
 
-  if (installments.length === 0) return;
+    if (installments.length === 0) return;
 
-  await prisma.invoiceInstallment.createMany({
-    data: installments.map((row) => ({
-      invoiceId,
-      dueDate: new Date(row.dueDate),
-      amount: row.amount,
-      label: row.label ?? null,
-      sortOrder: row.sortOrder,
-    })),
+    await tx.invoiceInstallment.createMany({
+      data: installments.map((row) => ({
+        invoiceId,
+        dueDate: new Date(row.dueDate),
+        amount: row.amount,
+        label: row.label ?? null,
+        sortOrder: row.sortOrder,
+      })),
+    });
+
+    const earliest = installments.reduce((min, row) =>
+      new Date(row.dueDate).getTime() < new Date(min.dueDate).getTime() ? row : min,
+    );
+
+    await tx.invoice.update({
+      where: { id: invoiceId },
+      data: { dueDate: new Date(earliest.dueDate) },
+    });
   });
+}
 
-  const earliest = installments.reduce((min, row) =>
-    new Date(row.dueDate).getTime() < new Date(min.dueDate).getTime() ? row : min,
-  );
-
-  await prisma.invoice.update({
-    where: { id: invoiceId },
-    data: { dueDate: new Date(earliest.dueDate) },
+/** Remove a payment schedule when nothing has been paid yet. */
+export async function clearInvoiceInstallments(invoiceId: string) {
+  await prisma.$transaction(async (tx) => {
+    await tx.invoiceInstallment.deleteMany({ where: { invoiceId } });
   });
 }
 

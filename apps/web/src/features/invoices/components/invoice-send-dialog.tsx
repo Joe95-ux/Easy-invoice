@@ -34,6 +34,8 @@ type InvoiceSendDialogProps = {
   clientEmail?: string | null;
   companyName?: string | null;
   clientName?: string | null;
+  /** When set, AI draft uses this tone (and auto-drafts on open for collections). */
+  draftTone?: "professional" | "friendly" | "short" | "collections";
   onSent?: () => void;
 };
 
@@ -53,6 +55,7 @@ export function InvoiceSendDialog({
   clientEmail,
   companyName,
   clientName,
+  draftTone = "professional",
   onSent,
 }: InvoiceSendDialogProps) {
   const router = useRouter();
@@ -66,14 +69,23 @@ export function InvoiceSendDialog({
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const messageRef = useRef<HTMLTextAreaElement>(null);
+  const autoDraftedForOpen = useRef(false);
 
   const canSend = status !== "CANCELLED" && status !== "PAID";
   const attachmentName = `${invoiceNumber}.pdf`;
+  const isCollections = draftTone === "collections";
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      autoDraftedForOpen.current = false;
+      return;
+    }
     setTo(clientEmail ?? "");
-    setSubject(defaultSubject(invoiceNumber, companyName));
+    setSubject(
+      isCollections
+        ? `Following up on invoice ${invoiceNumber}`
+        : defaultSubject(invoiceNumber, companyName),
+    );
     setMessage("");
     setPreviewOpen(false);
     setPreviewError(null);
@@ -81,7 +93,14 @@ export function InvoiceSendDialog({
       messageRef.current?.focus();
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [open, clientEmail, invoiceNumber, companyName]);
+  }, [open, clientEmail, invoiceNumber, companyName, isCollections]);
+
+  useEffect(() => {
+    if (!open || !isCollections || autoDraftedForOpen.current) return;
+    autoDraftedForOpen.current = true;
+    void handleAiDraft("collections");
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- draft once per open for collections
+  }, [open, isCollections]);
 
   useEffect(() => {
     return () => {
@@ -126,7 +145,9 @@ export function InvoiceSendDialog({
     }
   }
 
-  async function handleAiDraft() {
+  async function handleAiDraft(
+    tone: "professional" | "friendly" | "short" | "collections" = draftTone,
+  ) {
     setDrafting(true);
     try {
       const response = await fetch(`/api/invoices/${invoiceId}/email-draft`, {
@@ -134,7 +155,7 @@ export function InvoiceSendDialog({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           clientName: clientName ?? undefined,
-          tone: "professional",
+          tone,
         }),
       });
       const data = await response.json();
@@ -143,7 +164,7 @@ export function InvoiceSendDialog({
         throw new Error("Empty draft returned");
       }
       setMessage(data.message.trim());
-      toast.success("Draft ready — edit as you like");
+      toast.success(tone === "collections" ? "Chase draft ready" : "Draft ready — edit as you like");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not draft message");
     } finally {
@@ -193,7 +214,9 @@ export function InvoiceSendDialog({
                 New message
               </SheetTitle>
               <SheetDescription className="truncate text-xs">
-                Send {invoiceNumber} with PDF attached
+                {isCollections
+                  ? `Chase for ${invoiceNumber} — edit, then send with PDF`
+                  : `Send ${invoiceNumber} with PDF attached`}
               </SheetDescription>
             </div>
             <div className="flex items-center gap-0.5">
@@ -277,7 +300,7 @@ export function InvoiceSendDialog({
                       ) : (
                         <SparklesIcon className="size-3.5" />
                       )}
-                      {drafting ? "Drafting…" : "Draft with AI"}
+                      {drafting ? "Drafting…" : isCollections ? "Redraft chase" : "Draft with AI"}
                     </Button>
                     <span className="text-[11px] text-muted-foreground">
                       {message.length}/2000

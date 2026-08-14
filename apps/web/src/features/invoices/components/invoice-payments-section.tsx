@@ -130,6 +130,7 @@ export function InvoicePaymentsSection({
   const [resending, setResending] = useState(false);
   const [deletePayment, setDeletePayment] = useState<PaymentRow | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [clearingPlan, setClearingPlan] = useState(false);
 
   const confirmationLog = payments.flatMap((payment) =>
     payment.confirmationEmails.map((confirmation) => ({
@@ -146,10 +147,36 @@ export function InvoicePaymentsSection({
     status !== "DRAFT" && status !== "CANCELLED" && status !== "PAID" && balanceDue > 0.001;
   const canSendUpdate =
     status !== "DRAFT" && status !== "CANCELLED" && amountPaid > 0.001;
+  const canClearPlan =
+    installments.length > 0 &&
+    amountPaid <= 0.001 &&
+    status !== "CANCELLED" &&
+    status !== "PAID";
 
   function openRecordDialog(presetAmount?: number) {
     setRecordInitialAmount(presetAmount);
     setRecordOpen(true);
+  }
+
+  async function handleClearPlan() {
+    setClearingPlan(true);
+    try {
+      const response = await fetch(`/api/invoices/${invoiceId}/payment-plan`, {
+        method: "DELETE",
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(
+          typeof data.error === "string" ? data.error : "Could not remove payment plan",
+        );
+      }
+      toast.success("Payment plan removed");
+      router.refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not remove payment plan");
+    } finally {
+      setClearingPlan(false);
+    }
   }
 
   async function handleDeletePayment() {
@@ -298,7 +325,23 @@ export function InvoicePaymentsSection({
 
           {installments.length > 0 && (
             <div className="space-y-2">
-              <h3 className="text-sm font-medium">Payment schedule</h3>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-sm font-medium">Payment schedule</h3>
+                {canClearPlan ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={clearingPlan}
+                    onClick={() => void handleClearPlan()}
+                  >
+                    {clearingPlan ? (
+                      <Loader2Icon className="size-4 animate-spin" />
+                    ) : null}
+                    Remove plan
+                  </Button>
+                ) : null}
+              </div>
               <Table>
                 <TableHeader>
                   <TableRow>

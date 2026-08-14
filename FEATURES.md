@@ -240,6 +240,24 @@ Schedule invoices (weekly / monthly / quarterly / yearly) with pause/resume, end
 
 ---
 
+### 9b. Collections co-pilot
+
+**Status:** Done
+
+Next-best-action on unpaid invoices from signals we already store (`sentAt`, `viewedAt`, due date, balance, installments) — not a full AR suite. **The team** can always offer/remove a plan from the invoice. **Clients** only see self-serve “Split into 2 / 3” when company policy `clientPaymentPlansEnabled` is on (Settings → Card payments; default off). Clients can always pay full, pay half, or pay the next installment when a plan exists. AI draft tone `collections` for firm chase emails.
+
+| Piece | Location |
+|-------|----------|
+| Advice | `lib/collections/advice.ts` — `getCollectionsAdvice`, equal plan builder, checkout amount policy |
+| Policy | `Company.clientPaymentPlansEnabled` (default false); `PATCH /api/company/payment-plan-policy` |
+| Owner API | `POST/DELETE /api/invoices/[id]/payment-plan` (authenticated team member) |
+| Public API | `POST /api/public/invoices/[token]/payment-plan` (403 unless policy on); checkout optional `amount` |
+| Owner UI | `InvoiceGetPaidSection` / `InvoiceCollectionsCard`; Remove plan on Payments; Settings toggle |
+| Public UI | `InvoicePayButton` — with a plan, primary charges **next installment due**; secondary pays remaining balance; half / split 2–3 (policy-gated) |
+| AI | `POST /api/invoices/[id]/email-draft` tone `collections` (plan-aware copy) |
+
+---
+
 ### 10. Simple reports
 
 **Status:** Planned

@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
+import { parseJsonBody, validationError } from "@/lib/api/validation";
 import { getAppOrigin } from "@/lib/app-url";
+import { resolvePublicCheckoutAmount } from "@/lib/collections/advice";
 import { prisma } from "@/lib/db";
 import { buildInvoicePaymentSummary } from "@/lib/invoice-payments";
 import { INVOICE_CHECKOUT_META_TYPE, isStripeConfigured, stripe } from "@/lib/stripe";
@@ -8,7 +11,12 @@ type RouteContext = { params: Promise<{ token: string }> };
 
 const BLOCKED_STATUSES = new Set(["DRAFT", "CANCELLED", "PAID"]);
 
-export async function POST(_request: Request, context: RouteContext) {
+const checkoutSchema = z.object({
+  /** Optional partial amount (major units). Defaults to full balance due. */
+  amount: z.number().positive().optional(),
+});
+
+export async function POST(request: Request, context: RouteContext) {
   if (!isStripeConfigured()) {
     return NextResponse.json(
       { error: "Online payments are not available right now" },
@@ -17,6 +25,12 @@ export async function POST(_request: Request, context: RouteContext) {
   }
 
   const { token } = await context.params;
+  const body = await parseJsonBody<unknown>(request);
+  if (body instanceof NextResponse) return body;
+
+  const parsed = checkoutSchema.safeParse(body ?? {});
+  if (!parsed.success) return validationError(parsed.error);
+
   const invoice = await prisma.invoice.findUnique({
     where: { publicToken: token },
     include: {
@@ -59,20 +73,22 @@ export async function POST(_request: Request, context: RouteContext) {
   }
 
   const summary = buildInvoicePaymentSummary(invoice);
-  if (summary.balanceDue <= 0.001) {
-    return NextResponse.json({ error: "This invoice is already paid" }, { status: 400 });
+  const resolved = resolvePublicCheckoutAmount({
+    balanceDue: summary.balanceDue,
+    nextDueAmount: summary.nextDueAmount,
+    hasInstallments: summary.installments.length > 0,
+    requested: parsed.data.amount,
+  });
+  if (!resolved.ok) {
+    return NextResponse.json({ error: resolved.error }, { status: 400 });
   }
 
-  const amountCents = Math.round(summary.balanceDue * 100);
-  if (amountCents < 50) {
-    return NextResponse.json(
-      { error: "Balance due is too small for card payment" },
-      { status: 400 },
-    );
-  }
+  const chargeAmount = resolved.amount;
+  const amountCents = Math.round(chargeAmount * 100);
 
   const origin = await getAppOrigin();
   const currency = invoice.currency.trim().toLowerCase();
+  const isPartial = chargeAmount < summary.balanceDue - 0.001;
 
   const metadata = {
     type: INVOICE_CHECKOUT_META_TYPE,
@@ -81,8 +97,6 @@ export async function POST(_request: Request, context: RouteContext) {
     publicToken: token,
   };
 
-  // Destination charge: platform Checkout session, funds transfer to the
-  // company's Connect account with no application fee (Invoice Desk takes $0).
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     customer_email: invoice.client?.email?.trim() || undefined,
@@ -94,13 +108,14 @@ export async function POST(_request: Request, context: RouteContext) {
           unit_amount: amountCents,
           product_data: {
             name: `Invoice ${invoice.number}`,
-            description: `Payment to ${company.name}`,
+            description: isPartial
+              ? `Partial payment to ${company.name}`
+              : `Payment to ${company.name}`,
           },
         },
       },
     ],
     payment_intent_data: {
-      // No application_fee_amount → Invoice Desk takes $0; funds go to the connected account.
       transfer_data: {
         destination: company.stripeConnectedAccountId,
       },
@@ -115,5 +130,9 @@ export async function POST(_request: Request, context: RouteContext) {
     return NextResponse.json({ error: "Could not start checkout" }, { status: 502 });
   }
 
-  return NextResponse.json({ url: session.url, sessionId: session.id });
+  return NextResponse.json({
+    url: session.url,
+    sessionId: session.id,
+    amount: chargeAmount,
+  });
 }

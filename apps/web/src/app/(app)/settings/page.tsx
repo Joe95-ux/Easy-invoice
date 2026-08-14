@@ -87,6 +87,7 @@ export default async function SettingsPage() {
 
         <StripeConnectSection
           stripeConfigured={isStripeConfigured()}
+          clientPaymentPlansEnabled={company.clientPaymentPlansEnabled}
           initialStatus={{
             accountId: company.stripeConnectedAccountId,
             detailsSubmitted: company.stripeConnectDetailsSubmitted,

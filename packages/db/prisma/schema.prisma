@@ -181,6 +181,8 @@ model Company {
   stripeConnectChargesEnabled    Boolean  @default(false)
   stripeConnectDetailsSubmitted  Boolean  @default(false)
   stripeConnectPayoutsEnabled    Boolean  @default(false)
+  /// When true, clients may self-serve split an unpaid invoice into 2/3 equal parts on the public page.
+  clientPaymentPlansEnabled Boolean @default(false)
   remindersEnabled     Boolean  @default(true)
   reminderDaysBefore   Int[]    @default([7, 3])
   reminderOnDueDate    Boolean  @default(true)

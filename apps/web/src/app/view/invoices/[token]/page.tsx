@@ -6,6 +6,7 @@ import { InvoicePayButton } from "@/features/public/components/invoice-pay-butto
 import { PublicDocumentFrame } from "@/features/public/components/public-document-frame";
 import { renderInvoiceHtmlForInvoice } from "@/lib/invoice-html";
 import { buildInvoicePaymentSummary } from "@/lib/invoice-payments";
+import { MIN_PLAN_BALANCE } from "@/lib/collections/advice";
 import { formatDate, formatMoney } from "@/lib/invoices";
 import { getInvoiceByPublicToken, markInvoiceViewed } from "@/lib/public-documents";
 
@@ -33,6 +34,14 @@ export default async function PublicInvoicePage({ params }: PageProps) {
     !["DRAFT", "CANCELLED", "PAID"].includes(invoice.status) &&
     summary.balanceDue > 0.001;
 
+  // Self-serve split only when the company turned on the policy.
+  const canOfferPlan =
+    canPayOnline &&
+    invoice.company.clientPaymentPlansEnabled &&
+    summary.amountPaid <= 0.001 &&
+    summary.installments.length === 0 &&
+    summary.balanceDue >= MIN_PLAN_BALANCE;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -46,9 +55,15 @@ export default async function PublicInvoicePage({ params }: PageProps) {
           </p>
           <p className="text-lg font-semibold tabular-nums">
             {formatMoney(invoice.total, invoice.currency)}
-            {summary.amountPaid > 0 && invoice.status !== "PAID" ? (
+            {invoice.status !== "PAID" && summary.balanceDue > 0.001 ? (
               <span className="ml-2 text-sm font-normal text-muted-foreground">
-                · {formatMoney(summary.balanceDue, invoice.currency)} due
+                {summary.installments.length > 0 &&
+                summary.nextDueAmount != null &&
+                summary.nextDueAmount < summary.balanceDue - 0.001
+                  ? `· ${formatMoney(summary.nextDueAmount, invoice.currency)} due now · ${formatMoney(summary.balanceDue, invoice.currency)} remaining`
+                  : summary.amountPaid > 0
+                    ? `· ${formatMoney(summary.balanceDue, invoice.currency)} due`
+                    : null}
               </span>
             ) : null}
           </p>
@@ -60,6 +75,8 @@ export default async function PublicInvoicePage({ params }: PageProps) {
             currency={invoice.currency}
             canPayOnline={canPayOnline}
             alreadyPaid={invoice.status === "PAID" || summary.balanceDue <= 0.001}
+            nextDueAmount={summary.nextDueAmount}
+            canOfferPlan={canOfferPlan}
           />
           <Button
             variant="outline"

@@ -184,6 +184,15 @@ export function validateInstallments(
 ): string | null {
   if (installments.length === 0) return null;
 
+  for (const row of installments) {
+    if (!Number.isFinite(row.amount) || row.amount <= 0) {
+      return "Each installment must be a positive amount";
+    }
+    if (!row.dueDate || Number.isNaN(new Date(row.dueDate).getTime())) {
+      return "Each installment needs a valid due date";
+    }
+  }
+
   const sum = roundMoney(installments.reduce((total, row) => total + row.amount, 0));
   if (Math.abs(sum - invoiceTotal) > 0.01) {
     return `Installment amounts must equal the invoice total (${invoiceTotal.toFixed(2)})`;
