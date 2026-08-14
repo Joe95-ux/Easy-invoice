@@ -135,7 +135,7 @@ Company-scoped checklist + calendar for invoice/estimate follow-through (not a g
 | Page | `/follow-ups` (Workspace nav) |
 | API | `GET/POST /api/follow-ups`, `PATCH/DELETE /api/follow-ups/[id]`, `POST /api/follow-ups/reorder`, `POST /api/follow-ups/sync` |
 | UI | Checklist + month calendar; filters; edit dialog; assignee; “Add follow-up” on invoice/estimate actions |
-| Auto-close | Invoice paid / estimate accepted → `resolveFollowUpsForInvoice` / `resolveFollowUpsForEstimate` |
+| Auto-close | Invoice paid / estimate accepted → `resolveFollowUpsForInvoice` / `resolveFollowUpsForEstimate`. Auto “due soon” items are **promoted** to overdue (stay open) when the due date passes — not marked Done while unpaid. |
 | Dashboard | Due today + overdue counts via `getFollowUpActionCounts` |
 
 ---

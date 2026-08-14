@@ -449,7 +449,29 @@ export async function syncFollowUpSuggestions(companyId: string, memberId: strin
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${companyId}))`;
 
     for (const suggestion of suggestions) {
-      const current = byKey.get(suggestion.sourceKey);
+      let current = byKey.get(suggestion.sourceKey);
+
+      // Due-soon → overdue is the same open work. Promote the existing row instead of
+      // marking "due soon" Done (invoice is still unpaid) and creating a duplicate.
+      if (
+        !current &&
+        suggestion.sourceKey.startsWith("invoice:overdue:")
+      ) {
+        const invoiceId = suggestion.sourceKey.slice("invoice:overdue:".length);
+        const dueSoon = byKey.get(`invoice:due-soon:${invoiceId}`);
+        if (dueSoon && dueSoon.status !== "DONE") {
+          current = dueSoon;
+          byKey.delete(dueSoon.sourceKey!);
+          byKey.set(suggestion.sourceKey, {
+            ...dueSoon,
+            sourceKey: suggestion.sourceKey,
+            source: suggestion.source,
+            title: suggestion.title,
+            dueDate: suggestion.dueDate,
+          });
+        }
+      }
+
       if (!current) {
         await tx.followUp.create({
           data: {
@@ -472,6 +494,7 @@ export async function syncFollowUpSuggestions(companyId: string, memberId: strin
       if (current.status === "DONE") continue;
 
       const unchanged =
+        current.sourceKey === suggestion.sourceKey &&
         current.title === suggestion.title &&
         dateKey(current.dueDate) === dateKey(suggestion.dueDate) &&
         current.source === suggestion.source &&
@@ -487,6 +510,7 @@ export async function syncFollowUpSuggestions(companyId: string, memberId: strin
           title: suggestion.title,
           dueDate: suggestion.dueDate,
           source: suggestion.source,
+          sourceKey: suggestion.sourceKey,
           clientId: suggestion.clientId,
           invoiceId: suggestion.invoiceId,
           estimateId: suggestion.estimateId,
@@ -498,6 +522,12 @@ export async function syncFollowUpSuggestions(companyId: string, memberId: strin
     for (const item of existing) {
       if (!item.sourceKey || item.status === "DONE") continue;
       if (activeKeys.has(item.sourceKey)) continue;
+
+      // Stale due-soon keys for invoices that are now overdue were promoted above.
+      if (item.sourceKey.startsWith("invoice:due-soon:")) {
+        const invoiceId = item.sourceKey.slice("invoice:due-soon:".length);
+        if (activeKeys.has(`invoice:overdue:${invoiceId}`)) continue;
+      }
 
       await tx.followUp.update({
         where: { id: item.id },
