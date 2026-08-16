@@ -8,7 +8,7 @@ export default async function NotificationPreferencesPage() {
 
   return (
     <PageScroll maxWidth="4xl">
-      <PageBackLink href="/settings">Back to settings</PageBackLink>
+      <PageBackLink href="/settings/general">Back to settings</PageBackLink>
       <NotificationPreferencesPageContent />
     </PageScroll>
   );

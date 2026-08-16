@@ -32,7 +32,7 @@ export function SidebarFooterPanel({ plan }: SidebarFooterPanelProps) {
           </div>
           {isFree && (
             <Link
-              href="/settings#settings-billing"
+              href="/settings/billing"
               className="mt-2 block text-xs font-medium text-primary hover:underline"
             >
               Upgrade to Pro
@@ -40,7 +40,7 @@ export function SidebarFooterPanel({ plan }: SidebarFooterPanelProps) {
           )}
           {!isFree && (
             <Link
-              href="/settings#settings-billing"
+              href="/settings/billing"
               className="mt-2 block text-xs font-medium text-primary hover:underline"
             >
               Manage billing

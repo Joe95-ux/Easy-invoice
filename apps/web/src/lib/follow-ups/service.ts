@@ -442,6 +442,7 @@ export async function syncFollowUpSuggestions(companyId: string, memberId: strin
   let created = 0;
   let updated = 0;
   let resolved = 0;
+  let removed = 0;
 
   let nextOrder = await nextOpenSortOrder(companyId);
 
@@ -449,25 +450,34 @@ export async function syncFollowUpSuggestions(companyId: string, memberId: strin
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${companyId}))`;
 
     for (const suggestion of suggestions) {
-      let current = byKey.get(suggestion.sourceKey);
+      const isOverdueKey = suggestion.sourceKey.startsWith("invoice:overdue:");
+      const invoiceId = isOverdueKey
+        ? suggestion.sourceKey.slice("invoice:overdue:".length)
+        : null;
+      const dueSoonKey = invoiceId ? `invoice:due-soon:${invoiceId}` : null;
+      const overdueRow = isOverdueKey ? byKey.get(suggestion.sourceKey) : undefined;
+      const dueSoonRow = dueSoonKey ? byKey.get(dueSoonKey) : undefined;
 
-      // Due-soon → overdue is the same open work. Promote the existing row instead of
-      // marking "due soon" Done (invoice is still unpaid) and creating a duplicate.
-      if (
-        !current &&
-        suggestion.sourceKey.startsWith("invoice:overdue:")
-      ) {
-        const invoiceId = suggestion.sourceKey.slice("invoice:overdue:".length);
-        const dueSoon = byKey.get(`invoice:due-soon:${invoiceId}`);
-        if (dueSoon && dueSoon.status !== "DONE") {
-          current = dueSoon;
-          byKey.delete(dueSoon.sourceKey!);
+      // Prefer a single row for an unpaid invoice: overdue wins, due-soon is promoted or removed.
+      let current = byKey.get(suggestion.sourceKey);
+      let deleteAfterPromote: typeof dueSoonRow | undefined;
+      let promotedFromDueSoon = false;
+
+      if (isOverdueKey) {
+        if (overdueRow) {
+          current = overdueRow;
+          if (dueSoonRow) deleteAfterPromote = dueSoonRow;
+        } else if (dueSoonRow) {
+          promotedFromDueSoon = true;
+          current = dueSoonRow;
+          byKey.delete(dueSoonRow.sourceKey!);
           byKey.set(suggestion.sourceKey, {
-            ...dueSoon,
+            ...dueSoonRow,
             sourceKey: suggestion.sourceKey,
             source: suggestion.source,
             title: suggestion.title,
             dueDate: suggestion.dueDate,
+            status: "OPEN",
           });
         }
       }
@@ -488,12 +498,29 @@ export async function syncFollowUpSuggestions(companyId: string, memberId: strin
           },
         });
         created += 1;
+        if (deleteAfterPromote) {
+          await tx.followUp.delete({ where: { id: deleteAfterPromote.id } });
+          byKey.delete(deleteAfterPromote.sourceKey!);
+          removed += 1;
+        }
         continue;
       }
 
-      if (current.status === "DONE") continue;
+      // Reopen only when promoting a wrongly closed due-soon into overdue.
+      // Do not reopen an overdue item the user marked Done on purpose.
+      const shouldReopen = current.status === "DONE" && promotedFromDueSoon;
+
+      if (current.status === "DONE" && !shouldReopen) {
+        if (deleteAfterPromote) {
+          await tx.followUp.delete({ where: { id: deleteAfterPromote.id } });
+          byKey.delete(deleteAfterPromote.sourceKey!);
+          removed += 1;
+        }
+        continue;
+      }
 
       const unchanged =
+        !shouldReopen &&
         current.sourceKey === suggestion.sourceKey &&
         current.title === suggestion.title &&
         dateKey(current.dueDate) === dateKey(suggestion.dueDate) &&
@@ -502,28 +529,48 @@ export async function syncFollowUpSuggestions(companyId: string, memberId: strin
         current.invoiceId === suggestion.invoiceId &&
         current.estimateId === suggestion.estimateId;
 
-      if (unchanged) continue;
+      if (!unchanged) {
+        await tx.followUp.update({
+          where: { id: current.id },
+          data: {
+            status: "OPEN",
+            completedAt: null,
+            title: suggestion.title,
+            dueDate: suggestion.dueDate,
+            source: suggestion.source,
+            sourceKey: suggestion.sourceKey,
+            clientId: suggestion.clientId,
+            invoiceId: suggestion.invoiceId,
+            estimateId: suggestion.estimateId,
+          },
+        });
+        updated += 1;
+      }
 
-      await tx.followUp.update({
-        where: { id: current.id },
-        data: {
-          title: suggestion.title,
-          dueDate: suggestion.dueDate,
-          source: suggestion.source,
-          sourceKey: suggestion.sourceKey,
-          clientId: suggestion.clientId,
-          invoiceId: suggestion.invoiceId,
-          estimateId: suggestion.estimateId,
-        },
-      });
-      updated += 1;
+      if (deleteAfterPromote) {
+        await tx.followUp.delete({ where: { id: deleteAfterPromote.id } });
+        byKey.delete(deleteAfterPromote.sourceKey!);
+        removed += 1;
+      }
+    }
+
+    // Remove leftover due-soon rows once overdue is the active suggestion (fixes Done duplicates).
+    for (const item of existing) {
+      if (!item.sourceKey?.startsWith("invoice:due-soon:")) continue;
+      const invoiceId = item.sourceKey.slice("invoice:due-soon:".length);
+      if (!activeKeys.has(`invoice:overdue:${invoiceId}`)) continue;
+      if (!byKey.has(item.sourceKey)) continue; // already deleted while promoting
+
+      await tx.followUp.delete({ where: { id: item.id } });
+      byKey.delete(item.sourceKey);
+      removed += 1;
     }
 
     for (const item of existing) {
       if (!item.sourceKey || item.status === "DONE") continue;
       if (activeKeys.has(item.sourceKey)) continue;
+      if (!byKey.has(item.sourceKey)) continue;
 
-      // Stale due-soon keys for invoices that are now overdue were promoted above.
       if (item.sourceKey.startsWith("invoice:due-soon:")) {
         const invoiceId = item.sourceKey.slice("invoice:due-soon:".length);
         if (activeKeys.has(`invoice:overdue:${invoiceId}`)) continue;
@@ -538,5 +585,5 @@ export async function syncFollowUpSuggestions(companyId: string, memberId: strin
   });
 
   const items = await getFollowUpsForCompany(companyId);
-  return { created, updated, resolved, items };
+  return { created, updated, resolved, removed, items };
 }

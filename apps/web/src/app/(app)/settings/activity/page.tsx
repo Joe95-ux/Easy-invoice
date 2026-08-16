@@ -13,7 +13,7 @@ export default async function SettingsActivityPage() {
 
   return (
     <PageScroll>
-      <PageBackLink href="/settings">Back to settings</PageBackLink>
+      <PageBackLink href="/settings/general">Back to settings</PageBackLink>
       <ActivityLogPageContent initialEvents={events} initialCursor={nextCursor} />
     </PageScroll>
   );

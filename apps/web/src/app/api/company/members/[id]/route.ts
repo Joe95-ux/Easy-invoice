@@ -75,7 +75,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       type: "MEMBER_ROLE_CHANGED",
       title: "Your role was changed",
       body: `Your role has been changed from ${target.role.toLowerCase()} to ${newRole.toLowerCase()}`,
-      linkUrl: "/settings",
+      linkUrl: "/settings/general",
     }).catch(() => undefined);
   }
 

@@ -44,11 +44,11 @@ export function BillingSettingsSection({
     const billing = params.get("billing");
     if (billing === "success") {
       toast.success("Welcome to Pro — your plan is updating");
-      router.replace("/settings#settings-billing");
+      router.replace("/settings/billing");
       router.refresh();
     } else if (billing === "canceled") {
       toast.message("Checkout canceled");
-      router.replace("/settings#settings-billing");
+      router.replace("/settings/billing");
     }
   }, [router]);
 

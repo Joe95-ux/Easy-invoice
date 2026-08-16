@@ -87,7 +87,7 @@ export function AnalyticsPageContent({ data }: AnalyticsPageContentProps) {
             <Button
               variant="outline"
               className={pageHeaderActionClass}
-              render={<Link href="/settings" />}
+              render={<Link href="/settings/general" />}
             >
               <SettingsIcon className="size-4" />
               Settings

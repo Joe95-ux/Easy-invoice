@@ -101,7 +101,7 @@ export function NotificationPreferencesPageContent() {
           <Button
             variant="outline"
             className={pageHeaderActionClass}
-            render={<Link href="/settings" />}
+            render={<Link href="/settings/general" />}
           >
             Settings
           </Button>

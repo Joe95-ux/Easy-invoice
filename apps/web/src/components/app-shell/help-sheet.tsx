@@ -67,13 +67,13 @@ const linkOptions = [
   {
     title: "Pricing & plans",
     description: "Compare plans and see what each tier includes.",
-    href: "/settings#settings-billing",
+    href: "/settings/billing",
     icon: CreditCardIcon,
   },
   {
     title: "Company settings",
     description: "Logo, branding, templates, and default preferences.",
-    href: "/settings",
+    href: "/settings/general",
     icon: SettingsIcon,
   },
 ] as const;
@@ -137,7 +137,7 @@ function PaymentRemindersHelp({ onNavigate }: { onNavigate?: () => void }) {
         Payment reminders help you get paid on time without chasing clients manually. Configure the
         schedule once in{" "}
         <Link
-          href="/settings"
+          href="/settings/general"
           onClick={onNavigate}
           className="font-medium text-foreground underline-offset-4 hover:underline"
         >

@@ -244,7 +244,7 @@ export default async function DashboardPage() {
               </Link>
             ) : (
               <Link
-                href="/settings"
+                href="/settings/general"
                 className="mt-3 flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2.5 text-sm transition-colors hover:bg-muted"
               >
                 <span className="text-muted-foreground">Add your logo to brand every PDF</span>

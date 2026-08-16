@@ -64,7 +64,15 @@ export const APP_TEAM_ITEMS: AppNavItem[] = [
   { href: "/members", label: "Members", icon: UsersRoundIcon },
   { href: "/settings/activity", label: "Activity log", icon: ScrollTextIcon },
   { href: "/analytics", label: "Analytics", icon: BarChart3Icon },
-  { href: "/settings", label: "Settings", icon: SettingsIcon },
+  {
+    href: "/settings",
+    label: "Settings",
+    icon: SettingsIcon,
+    children: [
+      { href: "/settings/general", label: "General" },
+      { href: "/settings/billing", label: "Billing" },
+    ],
+  },
 ];
 
 export const APP_QUICK_ACTION_PATHS = new Set(APP_QUICK_ACTIONS.map((item) => item.href));
@@ -83,6 +91,8 @@ export function isAppWorkspaceItemActive(pathname: string, href: string) {
   return !APP_QUICK_ACTION_PATHS.has(pathname);
 }
 
+const SETTINGS_SECTION_PATHS = ["/settings/general", "/settings/billing"] as const;
+
 export function isAppTeamItemActive(pathname: string, href: string) {
   if (href === "/members") {
     return pathname === href || pathname.startsWith(`${href}/`);
@@ -94,7 +104,9 @@ export function isAppTeamItemActive(pathname: string, href: string) {
     return pathname === href || pathname.startsWith(`${href}/`);
   }
   if (href === "/settings") {
-    return pathname === "/settings";
+    return SETTINGS_SECTION_PATHS.some(
+      (path) => pathname === path || pathname.startsWith(`${path}/`),
+    );
   }
   return pathname === href;
 }

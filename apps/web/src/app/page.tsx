@@ -369,7 +369,7 @@ export default function HomePage() {
                     render={
                       <Link
                         href={
-                          plan.highlighted ? "/settings#settings-billing" : "/dashboard"
+                          plan.highlighted ? "/settings/billing" : "/dashboard"
                         }
                       />
                     }

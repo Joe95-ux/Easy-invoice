@@ -62,7 +62,7 @@ export function StripeConnectSection({
         // ignore
       } finally {
         setLoading(null);
-        router.replace("/settings#settings-stripe");
+        router.replace("/settings/billing");
         router.refresh();
       }
     })();

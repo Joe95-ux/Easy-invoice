@@ -199,7 +199,7 @@ export function SidebarOrgHeader({
               Create company
             </DropdownMenuItem>
             {showCompanySettings && (
-              <DropdownMenuItem render={<Link href="/settings" />}>
+              <DropdownMenuItem render={<Link href="/settings/general" />}>
                 <SettingsIcon className="size-4" />
                 Company settings
               </DropdownMenuItem>

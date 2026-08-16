@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -124,7 +124,11 @@ function NavCollapsibleItem({
     return best;
   }, [children, pathname]);
 
-  const [open, setOpen] = useState(() => activeChildHref !== null);
+  const [open, setOpen] = useState(() => activeChildHref !== null || isActive);
+
+  useEffect(() => {
+    if (activeChildHref || isActive) setOpen(true);
+  }, [activeChildHref, isActive]);
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
