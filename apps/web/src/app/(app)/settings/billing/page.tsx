@@ -15,7 +15,7 @@ export default async function SettingsBillingPage() {
   const { company } = member;
 
   return (
-    <PageScroll>
+    <PageScroll maxWidth="50rem">
       <PageHeader
         title="Billing"
         description="Your Invoice Desk plan and how clients pay invoices by card."

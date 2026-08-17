@@ -39,7 +39,7 @@ export default async function SettingsGeneralPage() {
   };
 
   return (
-    <PageScroll>
+    <PageScroll maxWidth="50rem">
       <PageHeader
         title="General"
         description="Company profile, templates, and reminder preferences."

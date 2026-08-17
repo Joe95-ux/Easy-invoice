@@ -82,7 +82,7 @@ function NavMenu({
           <NavCollapsibleItem
             key={item.href}
             item={item}
-            isActive={isActive(item.href)}
+            sectionActive={isActive(item.href)}
             onNavigate={onNavigate}
           />
         ) : (
@@ -104,11 +104,12 @@ function NavMenu({
 
 function NavCollapsibleItem({
   item,
-  isActive,
+  sectionActive,
   onNavigate,
 }: {
   item: AppNavItem;
-  isActive: boolean;
+  /** True when this section owns the current route — opens the group, does not highlight the parent. */
+  sectionActive: boolean;
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
@@ -124,18 +125,18 @@ function NavCollapsibleItem({
     return best;
   }, [children, pathname]);
 
-  const [open, setOpen] = useState(() => activeChildHref !== null || isActive);
+  const [open, setOpen] = useState(() => sectionActive || activeChildHref !== null);
 
   useEffect(() => {
-    if (activeChildHref || isActive) setOpen(true);
-  }, [activeChildHref, isActive]);
+    if (sectionActive || activeChildHref) setOpen(true);
+  }, [sectionActive, activeChildHref]);
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
       <SidebarMenuItem>
         <CollapsibleTrigger
           render={
-            <SidebarMenuButton tooltip={item.label} isActive={isActive} />
+            <SidebarMenuButton tooltip={item.label} />
           }
         >
           <item.icon />
