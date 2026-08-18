@@ -1,12 +1,12 @@
 "use client";
 
 import {
-  SidebarInset,
   SidebarProvider,
 } from "@/components/ui/sidebar";
 import { AppHeader } from "@/components/app-shell/app-header";
 import { ActiveCompanySync } from "@/components/app-shell/active-company-sync";
 import { AppSidebar } from "@/components/app-shell/app-sidebar";
+import { AppWorkspaceFooter } from "@/components/app-shell/app-workspace-footer";
 import { TimeTimerProvider } from "@/features/time/components/time-timer-provider";
 import { TimeTimerShell } from "@/features/time/components/time-timer-shell";
 import type { CompanySummary } from "@/lib/companies";
@@ -35,7 +35,7 @@ export function PageScroll({
   children: React.ReactNode;
   className?: string;
   fullWidth?: boolean;
-  maxWidth?: "6xl" | "4xl" | "85rem" | "50rem";
+  maxWidth?: "6xl" | "4xl" | "85rem" | "50rem" | "60rem";
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
@@ -49,7 +49,9 @@ export function PageScroll({
                 ? "max-w-[85rem]"
                 : maxWidth === "50rem"
                   ? "max-w-[50rem]"
-                  : "max-w-6xl"),
+                  : maxWidth === "60rem"
+                    ? "max-w-[60rem]"
+                    : "max-w-6xl"),
           className,
         )}
       >
@@ -87,12 +89,20 @@ export function AppShell({
           plan={plan}
           userRole={userRole}
         />
-        <SidebarInset className="flex h-full min-h-0 flex-col overflow-hidden">
-          <AppHeader memberId={memberId} />
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            {children}
+        <div
+          className={cn(
+            "relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+            "md:mt-2 md:mr-2 md:peer-data-[state=collapsed]:ml-2",
+          )}
+        >
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background md:rounded-xl md:shadow-sm">
+            <AppHeader memberId={memberId} />
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              {children}
+            </div>
           </div>
-        </SidebarInset>
+          <AppWorkspaceFooter />
+        </div>
         <TimeTimerShell activeCompanyId={activeCompanyId} />
       </TimeTimerProvider>
     </SidebarProvider>

@@ -1,219 +1,480 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   ArrowRightIcon,
-  ClipboardListIcon,
+  CheckIcon,
+  CircleIcon,
+  ClockIcon,
   FileTextIcon,
-  LayoutTemplateIcon,
+  RefreshCwIcon,
   SendIcon,
-  SparklesIcon,
-  UserRoundIcon,
-  UsersRoundIcon,
+  WalletIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { PageScroll } from "@/components/app-shell/app-shell";
 import { PageHeader } from "@/components/app-shell/page-header";
-import { InvoiceFlowMockup } from "@/features/process/components/invoice-flow-mockup";
+import type { ProcessSetupSnapshot } from "@/lib/process/setup";
 import { cn } from "@/lib/utils";
 
-const flowSteps = [
+type PlaybookId = "invoice" | "estimate" | "recurring" | "collect" | "time";
+
+type PlaybookStep = {
+  title: string;
+  body: string;
+  href: string;
+  cta: string;
+};
+
+type Playbook = {
+  id: PlaybookId;
+  label: string;
+  summary: string;
+  steps: PlaybookStep[];
+};
+
+const PLAYBOOKS: Playbook[] = [
   {
-    title: "Pick a client",
-    description:
-      "Choose someone from your client list or enter their details manually. We pre-fill name, email, and address for you.",
-    icon: UserRoundIcon,
+    id: "invoice",
+    label: "Invoice",
+    summary: "The core path competitors all ship — client, lines, send, get paid.",
+    steps: [
+      {
+        title: "Choose or create a client",
+        body: "Pull saved details or enter them once. Address and email carry into the PDF and payment emails.",
+        href: "/clients/new",
+        cta: "Add client",
+      },
+      {
+        title: "Add line items",
+        body: "Type manually, pull from your products library, or paste rough notes into AI drafting.",
+        href: "/invoices/new",
+        cta: "New invoice",
+      },
+      {
+        title: "Preview, then send",
+        body: "Confirm the PDF with your branding, then email it or share the public link.",
+        href: "/invoices/new",
+        cta: "Create & preview",
+      },
+      {
+        title: "Collect payment",
+        body: "Clients pay by card when Stripe is connected, or use your payment methods / scan-to-pay QR.",
+        href: "/settings/billing",
+        cta: "Card payments",
+      },
+    ],
   },
   {
-    title: "Add the work",
-    description:
-      "Fill in line items, tax, and discounts — or switch to the AI tab and paste rough notes in any language.",
-    icon: SparklesIcon,
+    id: "estimate",
+    label: "Estimate",
+    summary: "Quote first, convert when they accept — standard for service businesses.",
+    steps: [
+      {
+        title: "Draft an estimate",
+        body: "Same line-item and template flow as invoices, with an expiry date.",
+        href: "/estimates/new",
+        cta: "New estimate",
+      },
+      {
+        title: "Share for review",
+        body: "Client opens the public link, can accept or decline. You see viewed status.",
+        href: "/estimates",
+        cta: "View estimates",
+      },
+      {
+        title: "Convert to invoice",
+        body: "One click copies client, lines, and totals into a new invoice when they say yes.",
+        href: "/estimates",
+        cta: "Open estimates",
+      },
+    ],
   },
   {
-    title: "Preview your invoice",
-    description:
-      "See the exact PDF your client will receive — line items, totals, and your branding before you send.",
-    icon: FileTextIcon,
-    mockup: true,
+    id: "recurring",
+    label: "Recurring",
+    summary: "Retainers and subscriptions — schedule from an existing invoice, not a second builder.",
+    steps: [
+      {
+        title: "Start from a solid invoice",
+        body: "Create or open an invoice that already has the right client and lines.",
+        href: "/invoices",
+        cta: "Invoices",
+      },
+      {
+        title: "Make it recurring",
+        body: "Set interval (weekly → yearly), end rules, and optional auto-send. Cron issues the next ones.",
+        href: "/recurring-invoices",
+        cta: "Recurring",
+      },
+      {
+        title: "Pause or end anytime",
+        body: "Manage schedules from the recurring list — pause, resume, or stop without rewriting the template invoice.",
+        href: "/recurring-invoices",
+        cta: "Manage schedules",
+      },
+    ],
   },
   {
-    title: "Choose a template",
-    description:
-      "Swipe through polished layouts, preview each one live, and pick the look that fits your business.",
-    icon: LayoutTemplateIcon,
+    id: "collect",
+    label: "Collect",
+    summary: "What AR tools charge for — reminders, follow-ups, plans, and chase drafts on signals you already store.",
+    steps: [
+      {
+        title: "Let reminders run",
+        body: "Company schedule emails before due, on due, and after. Pause per invoice when needed.",
+        href: "/settings/general#settings-reminders",
+        cta: "Reminder settings",
+      },
+      {
+        title: "Work the follow-ups list",
+        body: "Due-soon and overdue invoices surface as open tasks. They stay open until paid — not when the date passes.",
+        href: "/follow-ups",
+        cta: "Follow-ups",
+      },
+      {
+        title: "Offer a payment plan",
+        body: "From the invoice Get paid card, your team splits into 2 or 3. Clients only self-serve split if you enable it in Billing.",
+        href: "/invoices",
+        cta: "Open invoices",
+      },
+      {
+        title: "Send a chase email",
+        body: "AI draft in collections tone uses viewed/overdue context. Primary card pay charges what’s due on a plan.",
+        href: "/invoices",
+        cta: "Find overdue",
+      },
+    ],
   },
   {
-    title: "Send & get paid",
-    description:
-      "Email the PDF in one click or download it. Track the invoice from draft through sent, viewed, and paid.",
-    icon: SendIcon,
+    id: "time",
+    label: "Time",
+    summary: "Track hours, then bill — without turning Invoice Desk into a full time-tracking product.",
+    steps: [
+      {
+        title: "Log or import time",
+        body: "Manual entries, live timer, or one-time import from Toggl / Clockify.",
+        href: "/time",
+        cta: "Time",
+      },
+      {
+        title: "Add unbilled hours to an invoice",
+        body: "From create or draft edit, pull open time entries into line items at your rate.",
+        href: "/invoices/new",
+        cta: "New invoice",
+      },
+      {
+        title: "Send and collect as usual",
+        body: "Same send, remind, and pay flow — hours are just another line source.",
+        href: "/invoices",
+        cta: "Invoices",
+      },
+    ],
   },
 ];
 
-const exploreFeatures = [
-  {
-    title: "Invoices",
-    description: "Create, send, and track professional invoices with templates and PDF export.",
-    icon: FileTextIcon,
-    href: "/invoices/new",
-    action: "Create invoice",
-    accent: "from-primary/15 to-primary/5",
-  },
-  {
-    title: "Estimates",
-    description: "Send polished quotes to clients and convert them to invoices when they say yes.",
-    icon: ClipboardListIcon,
-    href: "/estimates/new",
-    action: "Create estimate",
-    accent: "from-accent/40 to-accent/10",
-  },
-  {
-    title: "Clients",
-    description: "Keep contact details and billing history in one place for faster repeat work.",
-    icon: UsersRoundIcon,
-    href: "/clients/new",
-    action: "Add client",
-    accent: "from-muted to-muted/40",
-  },
-  {
-    title: "AI drafting",
-    description: "Describe the job in plain words — we structure line items, math, and wording for you.",
-    icon: SparklesIcon,
-    href: "/invoices/new",
-    action: "Try AI tab",
-    accent: "from-primary/10 via-accent/20 to-transparent",
-    badge: "On new invoice",
-  },
-];
+const PLAYBOOK_ICONS: Record<PlaybookId, typeof FileTextIcon> = {
+  invoice: FileTextIcon,
+  estimate: SendIcon,
+  recurring: RefreshCwIcon,
+  collect: WalletIcon,
+  time: ClockIcon,
+};
 
-function FlowTimeline() {
-  return (
-    <ol className="relative space-y-0">
-      {flowSteps.map((step, index) => {
-        const isLast = index === flowSteps.length - 1;
-        const Icon = step.icon;
+type ProcessPageContentProps = {
+  setup: ProcessSetupSnapshot;
+};
 
-        return (
-          <li key={step.title} className="relative grid grid-cols-[2.5rem_1fr] gap-x-4 gap-y-0 sm:grid-cols-[3rem_1fr] sm:gap-x-6">
-            <div className="relative flex flex-col items-center">
-              <span
-                className={cn(
-                  "relative z-10 flex size-9 shrink-0 items-center justify-center rounded-full border-2 border-primary bg-background text-primary shadow-sm sm:size-10",
-                  index === 2 && "ring-4 ring-primary/15",
-                )}
-              >
-                <Icon className="size-4 sm:size-[1.125rem]" />
-              </span>
-              {!isLast && (
-                <span
-                  className="absolute top-9 bottom-0 w-px bg-gradient-to-b from-primary/50 via-border to-border sm:top-10"
-                  aria-hidden
-                />
-              )}
-            </div>
+export function ProcessPageContent({ setup }: ProcessPageContentProps) {
+  const [playbookId, setPlaybookId] = useState<PlaybookId>("invoice");
+  const [stepIndex, setStepIndex] = useState(0);
 
-            <div className={cn("min-w-0 pb-10 sm:pb-12", isLast && "pb-0")}>
-              <div className="pt-1.5 sm:pt-2">
-                <p className="text-xs font-semibold uppercase tracking-[0.1em] text-primary">
-                  Step {index + 1}
-                </p>
-                <h3 className="mt-1 font-heading text-lg font-semibold tracking-tight sm:text-xl">
-                  {step.title}
-                </h3>
-                <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
-                  {step.description}
-                </p>
-              </div>
-
-              {step.mockup && (
-                <div className="mt-6 sm:mt-8">
-                  <InvoiceFlowMockup />
-                </div>
-              )}
-            </div>
-          </li>
-        );
-      })}
-    </ol>
+  const playbook = useMemo(
+    () => PLAYBOOKS.find((item) => item.id === playbookId) ?? PLAYBOOKS[0]!,
+    [playbookId],
   );
-}
 
-function ExploreFeatureCard({
-  title,
-  description,
-  icon: Icon,
-  href,
-  action,
-  accent,
-  badge,
-}: (typeof exploreFeatures)[number]) {
-  return (
-    <article className="flex flex-col overflow-hidden rounded-[20px] border border-border bg-card shadow-sm transition-shadow hover:shadow-md">
-      <div className="relative flex flex-1 flex-col p-6">
-        <div
-          className={cn(
-            "pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-br opacity-80",
-            accent,
-          )}
-          aria-hidden
-        />
-        <div className="relative">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex size-10 items-center justify-center rounded-xl bg-background/80 text-primary shadow-sm ring-1 ring-border/60 backdrop-blur-sm">
-              <Icon className="size-5" />
-            </span>
-            {badge && (
-              <span className="inline-flex rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                {badge}
-              </span>
-            )}
-          </div>
-          <h3 className="mt-4 font-heading text-lg font-semibold tracking-tight">{title}</h3>
-          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{description}</p>
-        </div>
-      </div>
-      <footer className="border-t border-border bg-muted/20 px-6 py-4">
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full cursor-pointer rounded-[20px]"
-          render={<Link href={href} />}
-        >
-          {action}
-          <ArrowRightIcon className="size-4" />
-        </Button>
-      </footer>
-    </article>
-  );
-}
+  useEffect(() => {
+    setStepIndex(0);
+  }, [playbookId]);
 
-export function ProcessPageContent() {
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+      const n = Number(event.key);
+      if (n >= 1 && n <= playbook.steps.length) {
+        setStepIndex(n - 1);
+      }
+      if (event.key === "ArrowDown" || event.key === "j") {
+        event.preventDefault();
+        setStepIndex((i) => Math.min(playbook.steps.length - 1, i + 1));
+      }
+      if (event.key === "ArrowUp" || event.key === "k") {
+        event.preventDefault();
+        setStepIndex((i) => Math.max(0, i - 1));
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [playbook.steps.length]);
+
+  const activeStep = playbook.steps[stepIndex] ?? playbook.steps[0]!;
+  const progress = setup.total === 0 ? 0 : Math.round((setup.completed / setup.total) * 100);
+  const stepSelectItems = playbook.steps.map((step, index) => ({
+    value: String(index),
+    label: `${index + 1}. ${step.title}`,
+  }));
+
   return (
-    <PageScroll className="space-y-16 pb-8 md:space-y-20">
+    <PageScroll maxWidth="60rem" className="space-y-10 pb-10">
       <PageHeader
-        eyebrow="Process"
-        title="From rough notes to a paid invoice"
-        description="Invoice Desk is built around a simple path — client, work, preview, template, send. Follow the flow below to see how each step connects."
+        title="Process"
+        description="How work moves through Invoice Desk — setup checklist, then playbooks for the jobs you actually run."
       />
 
-      <section className="rounded-[20px] border border-border bg-card/50 p-6 shadow-sm sm:p-8 md:p-10">
-        <FlowTimeline />
+      {/* Setup */}
+      <section className="space-y-4">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-medium text-foreground">Workspace setup</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {setup.completed} of {setup.total} complete
+            </p>
+          </div>
+          <p className="font-mono text-xs tabular-nums text-muted-foreground">{progress}%</p>
+        </div>
+        <div
+          className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
+          role="progressbar"
+          aria-valuenow={progress}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label="Workspace setup progress"
+        >
+          <div
+            className="h-full rounded-full bg-foreground transition-[width] duration-300"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+        <ul className="divide-y divide-border overflow-hidden rounded-[10px] border border-border">
+          {setup.items.map((item) => (
+            <li key={item.id}>
+              <Link
+                href={item.href}
+                className="group flex items-start gap-3 px-4 py-3 transition-colors hover:bg-muted/40 sm:px-5"
+              >
+                <span
+                  className={cn(
+                    "mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border",
+                    item.done
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-border text-muted-foreground",
+                  )}
+                  aria-hidden
+                >
+                  {item.done ? (
+                    <CheckIcon className="size-3" strokeWidth={3} />
+                  ) : (
+                    <CircleIcon className="size-2.5 opacity-40" />
+                  )}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span
+                    className={cn(
+                      "block text-sm font-medium",
+                      item.done && "text-muted-foreground line-through",
+                    )}
+                  >
+                    {item.label}
+                  </span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                    {item.description}
+                  </span>
+                </span>
+                <ArrowRightIcon className="mt-1 size-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+              </Link>
+            </li>
+          ))}
+        </ul>
       </section>
 
-      <section className="space-y-8">
-        <div className="max-w-2xl space-y-2">
-          <h2 className="font-heading text-xl font-semibold tracking-tight md:text-2xl">
-            Explore more
-          </h2>
-          <p className="text-sm text-muted-foreground md:text-base">
-            Jump straight into the tools that power your workflow — invoices, estimates, clients,
-            and more as we ship them.
+      {/* Playbooks */}
+      <section className="space-y-5">
+        <div className="space-y-1">
+          <h2 className="text-sm font-medium text-foreground">Playbooks</h2>
+          <p className="text-sm text-muted-foreground">
+            Pick a workflow. Use ↑↓ or 1–{playbook.steps.length} to move between steps.
           </p>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {exploreFeatures.map((feature) => (
-            <ExploreFeatureCard key={feature.title} {...feature} />
-          ))}
+        <div
+          role="tablist"
+          aria-label="Playbooks"
+          className="-mx-1 flex gap-1 overflow-x-auto border-b border-border px-1 pb-px"
+        >
+          {PLAYBOOKS.map((item) => {
+            const Icon = PLAYBOOK_ICONS[item.id];
+            const selected = item.id === playbookId;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                onClick={(event) => {
+                  setPlaybookId(item.id);
+                  event.currentTarget.focus({ preventScroll: true });
+                  event.currentTarget.scrollIntoView({
+                    behavior: "smooth",
+                    inline: "nearest",
+                    block: "nearest",
+                  });
+                }}
+                className={cn(
+                  "inline-flex shrink-0 cursor-pointer items-center gap-1.5 border-b-2 px-3 py-2 text-sm transition-colors",
+                  selected
+                    ? "border-foreground font-medium text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <Icon className="size-3.5 opacity-70" />
+                {item.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <p className="text-sm text-muted-foreground">{playbook.summary}</p>
+
+        <div className="overflow-hidden rounded-[10px] border border-border">
+          <div className="flex flex-col md:grid md:grid-cols-[minmax(12rem,14rem)_minmax(0,1fr)]">
+            <nav
+              aria-label="Steps"
+              className="border-b border-border md:border-r md:border-b-0"
+            >
+              {/* Mobile: compact step picker */}
+              <div className="space-y-1.5 p-3 md:hidden">
+                <span className="text-xs font-medium text-muted-foreground">Step</span>
+                <Select
+                  value={String(stepIndex)}
+                  onValueChange={(value) => {
+                    if (value != null) setStepIndex(Number(value));
+                  }}
+                  items={stepSelectItems}
+                >
+                  <SelectTrigger
+                    id="process-step-select"
+                    aria-label="Step"
+                    className="h-10 w-full rounded-[10px]"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent align="start" alignItemWithTrigger>
+                    {stepSelectItems.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Desktop: vertical step list */}
+              <ol className="hidden gap-1 p-3 md:flex md:flex-col">
+                {playbook.steps.map((step, index) => {
+                  const selected = index === stepIndex;
+                  return (
+                    <li key={step.title} className="w-full">
+                      <button
+                        type="button"
+                        onClick={() => setStepIndex(index)}
+                        className={cn(
+                          "flex w-full cursor-pointer items-center gap-2 rounded-[10px] px-2.5 py-2 text-left text-sm transition-colors",
+                          selected
+                            ? "bg-muted font-medium text-foreground"
+                            : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+                        )}
+                      >
+                        <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
+                          {index + 1}
+                        </span>
+                        <span className="min-w-0 flex-1 whitespace-normal">{step.title}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ol>
+            </nav>
+
+            <div className="flex min-w-0 flex-col justify-between gap-6 p-4 sm:p-6">
+              <div className="space-y-3">
+                <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
+                  Step {stepIndex + 1} of {playbook.steps.length}
+                </p>
+                <h3 className="font-heading text-lg font-semibold tracking-tight sm:text-xl">
+                  {activeStep.title}
+                </h3>
+                <p className="max-w-prose text-sm leading-relaxed text-muted-foreground">
+                  {activeStep.body}
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                <Button className="w-full sm:w-auto" render={<Link href={activeStep.href} />}>
+                  {activeStep.cta}
+                  <ArrowRightIcon className="size-4" />
+                </Button>
+                {stepIndex < playbook.steps.length - 1 ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full cursor-pointer sm:w-auto"
+                    onClick={() => setStepIndex((i) => i + 1)}
+                  >
+                    Next step
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Shortcuts */}
+      <section className="space-y-3 border-t border-border pt-8">
+        <h2 className="text-sm font-medium text-foreground">Jump in</h2>
+        <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
+          <Link href="/invoices/new" className="text-foreground underline-offset-4 hover:underline">
+            New invoice
+          </Link>
+          <Link href="/estimates/new" className="text-foreground underline-offset-4 hover:underline">
+            New estimate
+          </Link>
+          <Link href="/follow-ups" className="text-foreground underline-offset-4 hover:underline">
+            Follow-ups
+          </Link>
+          <Link
+            href="/recurring-invoices"
+            className="text-foreground underline-offset-4 hover:underline"
+          >
+            Recurring
+          </Link>
+          <Link href="/time" className="text-foreground underline-offset-4 hover:underline">
+            Time
+          </Link>
+          <Link href="/invoices/new" className="text-foreground underline-offset-4 hover:underline">
+            AI draft on new invoice
+          </Link>
         </div>
       </section>
     </PageScroll>
