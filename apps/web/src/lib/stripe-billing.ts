@@ -167,6 +167,39 @@ export async function createBillingPortalSession(input: {
   return { url: session.url };
 }
 
+export type BillingInvoiceSummary = {
+  id: string;
+  number: string | null;
+  status: string | null;
+  amountPaid: number;
+  currency: string;
+  created: number;
+  hostedInvoiceUrl: string | null;
+  invoicePdf: string | null;
+};
+
+/** Recent Invoice Desk SaaS invoices for the company's Stripe customer. */
+export async function listRecentBillingInvoices(
+  customerId: string,
+  limit = 5,
+): Promise<BillingInvoiceSummary[]> {
+  const result = await stripe.invoices.list({
+    customer: customerId,
+    limit,
+  });
+
+  return result.data.map((invoice) => ({
+    id: invoice.id,
+    number: invoice.number,
+    status: invoice.status,
+    amountPaid: invoice.amount_paid,
+    currency: invoice.currency,
+    created: invoice.created,
+    hostedInvoiceUrl: invoice.hosted_invoice_url ?? null,
+    invoicePdf: invoice.invoice_pdf ?? null,
+  }));
+}
+
 export function isPaidPlan(plan: string | null | undefined): boolean {
   const value = (plan ?? "FREE").toUpperCase();
   return value !== "FREE";

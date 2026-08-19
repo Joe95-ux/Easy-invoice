@@ -14,7 +14,7 @@ export const stripe = new Proxy({} as Stripe, {
 });
 
 export const PLANS = {
-  FREE: { name: "Free", invoicesPerMonth: 5 },
+  FREE: { name: "Free", invoicesPerMonth: 20 },
   PRO: { name: "Pro", invoicesPerMonth: Infinity },
   BUSINESS: { name: "Business", invoicesPerMonth: Infinity },
   SCALE: { name: "Scale", invoicesPerMonth: Infinity },
