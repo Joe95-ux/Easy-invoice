@@ -131,8 +131,8 @@ export async function createProCheckoutSession(input: {
     line_items: [{ price: priceId, quantity: 1 }],
     allow_promotion_codes: true,
     billing_address_collection: "auto",
-    success_url: `${origin}/settings?billing=success#settings-billing`,
-    cancel_url: `${origin}/settings?billing=canceled#settings-billing`,
+    success_url: `${origin}/settings/billing?billing=success`,
+    cancel_url: `${origin}/settings/billing?billing=canceled`,
     metadata: {
       type: SAAS_SUBSCRIPTION_META_TYPE,
       companyId: input.companyId,
