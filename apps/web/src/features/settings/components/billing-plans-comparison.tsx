@@ -82,7 +82,7 @@ export function BillingPlansComparison({
                     variant="ghost"
                     disabled
                     className={cn(
-                      "w-full cursor-default text-muted-foreground",
+                      "w-full cursor-default bg-muted text-muted-foreground disabled:opacity-100",
                       billingButtonClassName,
                     )}
                   >
@@ -126,7 +126,7 @@ export function BillingPlansComparison({
                     variant="ghost"
                     disabled
                     className={cn(
-                      "w-full cursor-default text-muted-foreground",
+                      "w-full cursor-default bg-muted text-muted-foreground disabled:opacity-100",
                       billingButtonClassName,
                     )}
                   >

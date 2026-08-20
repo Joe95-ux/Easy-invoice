@@ -13,6 +13,6 @@ export const FAQ_ITEMS = [
   },
   {
     q: "Is it free to start?",
-    a: "Yes. You can create and send invoices on the free plan with no credit card. Upgrade only when you want custom branding and payment tracking.",
+    a: "Yes. The Free plan includes 20 invoices per month, estimates, Stripe card payments, reminders, and AI drafting — no credit card required. Upgrade to Pro for unlimited volume, branding, email, recurring invoices, and collections tools.",
   },
 ] as const;

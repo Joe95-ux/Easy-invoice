@@ -307,3 +307,41 @@ body {
     );
   }
 }
+
+/* Linear-style landing (HomePageV2) — scoped, does not affect the app shell */
+.landing-v2 {
+  --lv2-bg: oklch(0.14 0.012 240);
+  --lv2-panel: oklch(0.18 0.014 240);
+  --lv2-fg: oklch(0.96 0.005 95);
+  --lv2-muted: oklch(0.72 0.02 240);
+  --lv2-accent: oklch(0.78 0.12 165);
+  --lv2-accent-fg: oklch(0.16 0.02 165);
+  color-scheme: dark;
+}
+
+.landing-v2 header {
+  border-color: color-mix(in oklch, white 8%, transparent) !important;
+  background: color-mix(in oklch, var(--lv2-bg) 82%, transparent) !important;
+}
+
+.landing-v2 header a,
+.landing-v2 header button {
+  color: var(--lv2-muted);
+}
+
+.landing-v2 header a:hover,
+.landing-v2 header button:hover {
+  color: var(--lv2-fg);
+  background-color: color-mix(in oklch, white 6%, transparent);
+}
+
+.landing-v2 #faq details,
+.landing-v2 #faq .divide-y {
+  border-color: color-mix(in oklch, white 10%, transparent) !important;
+  background: var(--lv2-panel) !important;
+  color: var(--lv2-fg);
+}
+
+.landing-v2 #faq .text-muted-foreground {
+  color: var(--lv2-muted) !important;
+}

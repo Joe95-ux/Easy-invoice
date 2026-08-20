@@ -37,11 +37,12 @@ export const BILLING_PLANS: PlanDefinition[] = [
     summary: "Free for getting started",
     features: [
       "20 invoices per month",
-      "2 companies",
-      "2 team members",
-      "5 QR codes",
-      "Time tracking",
-      "AI describe-to-invoice",
+      "2 companies · 2 team members",
+      "Estimates, clients & products",
+      "Public invoice & estimate links",
+      "Card payments via Stripe",
+      "Reminders, follow-ups & time tracking",
+      "5 QR codes · AI describe-to-invoice",
     ],
   },
   {
@@ -49,13 +50,12 @@ export const BILLING_PLANS: PlanDefinition[] = [
     name: "Pro",
     summary: "For businesses that bill every day",
     features: [
-      "Unlimited invoices & estimates",
-      "Unlimited companies",
-      "Unlimited team members",
-      "Unlimited QR codes",
-      "Time tracking & billing",
-      "Custom branding & logo",
+      "Unlimited invoices, estimates & QR codes",
+      "Unlimited companies & team members",
+      "Custom branding & logo on PDFs",
       "Email invoices & payment tracking",
+      "Recurring invoices",
+      "Payment plans & collections tools",
       "Priority support",
     ],
   },
@@ -69,11 +69,21 @@ export const PRO_UPGRADE_COLUMNS: { title: string; features: string[] }[] = [
   },
   {
     title: "Invoicing",
-    features: ["Unlimited invoices", "Estimates & recurring", "Time tracking", "AI draft"],
+    features: [
+      "Unlimited invoices",
+      "Recurring invoices",
+      "Time tracking",
+      "AI draft",
+    ],
   },
   {
-    title: "Grow",
-    features: ["Unlimited QR codes", "Custom branding", "Email & payment tracking"],
+    title: "Get paid",
+    features: [
+      "Unlimited QR codes",
+      "Custom branding",
+      "Email & payment tracking",
+      "Payment plans",
+    ],
   },
 ];
 
@@ -93,22 +103,68 @@ export const PLAN_COMPARISON_SECTIONS: ComparisonSection[] = [
       { label: "QR codes", free: "5", pro: "Unlimited" },
       { label: "Estimates", free: true, pro: true },
       { label: "Clients", free: true, pro: true },
+      { label: "Products / services library", free: true, pro: true },
     ],
   },
   {
     title: "Core features",
     rows: [
-      { label: "Time tracking", free: true, pro: true },
       { label: "AI describe-to-invoice", free: true, pro: true },
       { label: "PDF templates", free: true, pro: true },
+      { label: "Public invoice & estimate links", free: true, pro: true },
+      { label: "Viewed tracking", free: true, pro: true },
+      { label: "Estimate → invoice", free: true, pro: true },
+      { label: "Time tracking", free: true, pro: true },
+      { label: "Online card payments (Stripe)", free: true, pro: true },
+      { label: "Payment reminders", free: true, pro: true },
+      { label: "Follow-ups", free: true, pro: true },
       { label: "Custom branding & logo", free: false, pro: true },
       { label: "Email invoices", free: false, pro: true },
       { label: "Payment tracking", free: false, pro: true },
       { label: "Recurring invoices", free: false, pro: true },
+      { label: "Payment plans & collections", free: false, pro: true },
       { label: "Priority support", free: false, pro: true },
     ],
   },
 ];
+
+/** Marketing site pricing cards — keep in sync with billing plans. */
+export const LANDING_PLANS = [
+  {
+    name: "Free",
+    price: "$0",
+    cadence: "forever",
+    description: "Everything you need to invoice your first clients.",
+    features: [
+      "20 invoices per month",
+      "2 companies · 2 team members",
+      "Estimates, clients & products",
+      "Public links & viewed tracking",
+      "Card payments via Stripe",
+      "Reminders, follow-ups & time tracking",
+      "AI describe-to-invoice · 5 QR codes",
+    ],
+    cta: "Start for free",
+    highlighted: false,
+  },
+  {
+    name: "Pro",
+    price: "$12",
+    cadence: "per month",
+    description: "For busy businesses that bill every day. $10/mo billed yearly.",
+    features: [
+      "Everything in Free, unlimited",
+      "Custom branding & logo on PDFs",
+      "Email invoices & payment tracking",
+      "Recurring invoices",
+      "Payment plans & collections",
+      "Unlimited QR codes",
+      "Priority support",
+    ],
+    cta: "Start free trial",
+    highlighted: true,
+  },
+] as const;
 
 export function normalizePlanId(plan: string | null | undefined): PlanId {
   const value = (plan ?? "FREE").toUpperCase();
