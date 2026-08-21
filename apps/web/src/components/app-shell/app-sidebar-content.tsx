@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import {
   ChevronRightIcon,
   HelpCircleIcon,
-  SparklesIcon,
   WalletIcon,
   WorkflowIcon,
 } from "lucide-react";
@@ -22,6 +21,7 @@ import {
 } from "@/components/app-shell/app-sidebar-config";
 import { SidebarFooterPanel } from "@/components/app-shell/sidebar-footer-panel";
 import { SidebarOrgHeader } from "@/components/app-shell/sidebar-org-header";
+import { PublicFeaturesMobileNav } from "@/components/landing/public-nav-features";
 import type { CompanySummary } from "@/lib/companies";
 import type { LogoBg } from "@/lib/company-branding";
 import type { UserRole } from "@/lib/db";
@@ -47,11 +47,11 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar";
 
+/** Flat landing anchors — Features is the mega menu (desktop + mobile collapsible). */
 export const PUBLIC_SECTION_LINKS = [
-  { href: "#features", label: "Features", icon: SparklesIcon },
-  { href: "#how", label: "How it works", icon: WorkflowIcon },
-  { href: "#pricing", label: "Pricing", icon: WalletIcon },
-  { href: "#faq", label: "FAQ", icon: HelpCircleIcon },
+  { href: "/#how", label: "How it works", icon: WorkflowIcon },
+  { href: "/#pricing", label: "Pricing", icon: WalletIcon },
+  { href: "/#faq", label: "FAQ", icon: HelpCircleIcon },
 ] as const;
 
 type AppSidebarContentProps = {
@@ -268,6 +268,7 @@ export function AppSidebarContent({
               <SidebarGroupLabel>Website</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu className="gap-1">
+                  <PublicFeaturesMobileNav onNavigate={onNavigate} />
                   {PUBLIC_SECTION_LINKS.map((item) => (
                     <SidebarMenuItem key={item.href}>
                       <SidebarMenuButton

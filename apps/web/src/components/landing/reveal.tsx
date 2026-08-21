@@ -37,7 +37,7 @@ export function Reveal({ children, className, delay = 0, y = 16 }: RevealProps) 
           }
         }
       },
-      { threshold: 0.15, rootMargin: "0px 0px -10% 0px" },
+      { threshold: 0.08, rootMargin: "0px 0px -5% 0px" },
     );
 
     observer.observe(node);

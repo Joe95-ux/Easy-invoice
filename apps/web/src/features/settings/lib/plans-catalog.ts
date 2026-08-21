@@ -38,7 +38,7 @@ export const BILLING_PLANS: PlanDefinition[] = [
     features: [
       "20 invoices per month",
       "2 companies · 2 team members",
-      "Estimates, clients & products",
+      "Estimates with e-sign · clients & products",
       "Public invoice & estimate links",
       "Card payments via Stripe",
       "Reminders, follow-ups & time tracking",
@@ -71,8 +71,8 @@ export const PRO_UPGRADE_COLUMNS: { title: string; features: string[] }[] = [
     title: "Invoicing",
     features: [
       "Unlimited invoices",
+      "Estimates with e-sign",
       "Recurring invoices",
-      "Time tracking",
       "AI draft",
     ],
   },
@@ -112,6 +112,7 @@ export const PLAN_COMPARISON_SECTIONS: ComparisonSection[] = [
       { label: "AI describe-to-invoice", free: true, pro: true },
       { label: "PDF templates", free: true, pro: true },
       { label: "Public invoice & estimate links", free: true, pro: true },
+      { label: "Estimate e-signature", free: true, pro: true },
       { label: "Viewed tracking", free: true, pro: true },
       { label: "Estimate → invoice", free: true, pro: true },
       { label: "Time tracking", free: true, pro: true },
@@ -138,7 +139,7 @@ export const LANDING_PLANS = [
     features: [
       "20 invoices per month",
       "2 companies · 2 team members",
-      "Estimates, clients & products",
+      "Estimates with e-sign · clients & products",
       "Public links & viewed tracking",
       "Card payments via Stripe",
       "Reminders, follow-ups & time tracking",

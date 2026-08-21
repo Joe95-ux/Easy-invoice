@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { AppLogo } from "@/components/app-logo";
 import { PUBLIC_SECTION_LINKS } from "@/components/app-shell/app-sidebar-content";
+import { PublicFeaturesNavItem } from "@/components/landing/public-nav-features";
 import { PublicMobileNavSheet } from "@/components/public-mobile-nav-sheet";
 import { PublicNavAuth } from "@/components/public-nav-auth";
 import type { CompanySummary } from "@/lib/companies";
@@ -52,6 +53,7 @@ export function PublicNavbar({ company = null }: PublicNavbarProps) {
             <AppLogo className="text-lg" />
           </Link>
           <nav className="hidden items-center gap-0.5 md:flex">
+            <PublicFeaturesNavItem />
             {PUBLIC_SECTION_LINKS.map((link) => (
               <NavLink key={link.href} href={link.href} label={link.label} />
             ))}

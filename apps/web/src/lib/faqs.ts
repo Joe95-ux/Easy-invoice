@@ -12,7 +12,11 @@ export const FAQ_ITEMS = [
     a: "Every invoice uses a polished template with your logo and business details, exported as a crisp PDF your clients can pay against.",
   },
   {
+    q: "What are the QR codes for?",
+    a: "Dynamic QR codes for the real world — Wi‑Fi, menus, business pages, PDFs, events, coupons, socials, or any payment link. Print once, change the destination later, brand the code, and track scans. Free includes 5 codes; Pro is unlimited.",
+  },
+  {
     q: "Is it free to start?",
-    a: "Yes. The Free plan includes 20 invoices per month, estimates, Stripe card payments, reminders, and AI drafting — no credit card required. Upgrade to Pro for unlimited volume, branding, email, recurring invoices, and collections tools.",
+    a: "Yes. The Free plan includes 20 invoices per month, estimates with e-sign, Stripe card payments, reminders, AI drafting, and 5 QR codes — no credit card required. Upgrade to Pro for unlimited volume, branding, email, recurring invoices, and collections tools.",
   },
 ] as const;

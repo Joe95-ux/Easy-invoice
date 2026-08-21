@@ -96,7 +96,7 @@ function HelpOptionButton({
       onClick={onClick}
       className="group flex w-full cursor-pointer items-start gap-3 rounded-lg border border-border/70 bg-muted/20 p-3 text-left transition-colors hover:border-border hover:bg-muted/50"
     >
-      <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-background text-muted-foreground ring-1 ring-border/60 group-hover:text-foreground">
+      <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground ring-1 ring-border/60 group-hover:text-foreground">
         <Icon className="size-4" />
       </div>
       <div className="min-w-0 flex-1">
@@ -349,7 +349,7 @@ export function HelpSheet() {
                     onClick={close}
                     className="group flex items-start gap-3 rounded-lg border border-border/70 bg-muted/20 p-3 transition-colors hover:border-border hover:bg-muted/50"
                   >
-                    <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-background text-muted-foreground ring-1 ring-border/60 group-hover:text-foreground">
+                    <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground ring-1 ring-border/60 group-hover:text-foreground">
                       <option.icon className="size-4" />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -391,7 +391,7 @@ export function HelpSheet() {
                   onClick={close}
                   className="group mt-2 flex items-start gap-3 rounded-lg border border-border/70 bg-muted/20 p-3 transition-colors hover:border-border hover:bg-muted/50"
                 >
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-background text-muted-foreground ring-1 ring-border/60 group-hover:text-foreground">
+                  <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground ring-1 ring-border/60 group-hover:text-foreground">
                     <MailIcon className="size-4" />
                   </div>
                   <div className="min-w-0 flex-1">

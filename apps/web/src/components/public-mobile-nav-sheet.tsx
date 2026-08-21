@@ -45,7 +45,7 @@ export function PublicMobileNavSheet({ company }: PublicMobileNavSheetProps) {
       <SheetContent
         side="left"
         showCloseButton={false}
-        className="flex w-[min(100vw,18rem)] flex-col gap-0 bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
+        className="flex w-[min(100vw,22rem)] flex-col gap-0 bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
       >
         <SheetHeader className="sr-only">
           <SheetTitle>Navigation</SheetTitle>
