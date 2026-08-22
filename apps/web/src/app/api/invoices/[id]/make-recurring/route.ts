@@ -5,6 +5,11 @@ import {
   serializeRecurringInvoice,
 } from "@/lib/recurring-invoices";
 import { createRecurringFromInvoiceSchema } from "@/lib/schemas/recurring-invoice";
+import {
+  assertProFeature,
+  isPlanLimitError,
+  planLimitResponse,
+} from "@/lib/billing/entitlements";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -21,6 +26,7 @@ export async function POST(request: Request, context: RouteContext) {
   if (!parsed.success) return validationError(parsed.error);
 
   try {
+    assertProFeature(member.company.plan, "recurring_invoices");
     const recurringInvoice = await createRecurringFromInvoice(
       member.companyId,
       member.id,
@@ -32,6 +38,7 @@ export async function POST(request: Request, context: RouteContext) {
       { status: 201 },
     );
   } catch (error) {
+    if (isPlanLimitError(error)) return planLimitResponse(error);
     const message =
       error instanceof Error ? error.message : "Failed to create recurring schedule";
     const status = message === "Invoice not found" ? 404 : 400;

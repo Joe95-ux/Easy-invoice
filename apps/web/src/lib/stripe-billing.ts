@@ -131,7 +131,7 @@ export async function createProCheckoutSession(input: {
     line_items: [{ price: priceId, quantity: 1 }],
     allow_promotion_codes: true,
     billing_address_collection: "auto",
-    success_url: `${origin}/settings/billing?billing=success`,
+    success_url: `${origin}/settings/billing?billing=success&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/settings/billing?billing=canceled`,
     metadata: {
       type: SAAS_SUBSCRIPTION_META_TYPE,
@@ -188,19 +188,112 @@ export async function listRecentBillingInvoices(
     limit,
   });
 
-  return result.data.map((invoice) => ({
-    id: invoice.id,
-    number: invoice.number,
-    status: invoice.status,
-    amountPaid: invoice.amount_paid,
-    currency: invoice.currency,
-    created: invoice.created,
-    hostedInvoiceUrl: invoice.hosted_invoice_url ?? null,
-    invoicePdf: invoice.invoice_pdf ?? null,
-  }));
+  return result.data
+    .filter((invoice): invoice is typeof invoice & { id: string } => Boolean(invoice.id))
+    .map((invoice) => ({
+      id: invoice.id,
+      number: invoice.number,
+      status: invoice.status,
+      amountPaid: invoice.amount_paid,
+      currency: invoice.currency,
+      created: invoice.created,
+      hostedInvoiceUrl: invoice.hosted_invoice_url ?? null,
+      invoicePdf: invoice.invoice_pdf ?? null,
+    }));
 }
 
 export function isPaidPlan(plan: string | null | undefined): boolean {
   const value = (plan ?? "FREE").toUpperCase();
   return value !== "FREE";
+}
+
+/**
+ * Apply a completed SaaS Checkout Session to the company.
+ * Idempotent fallback when the client returns before the webhook runs.
+ */
+export async function applySaasCheckoutSession(
+  session: Stripe.Checkout.Session,
+): Promise<{ ok: boolean; plan?: Plan }> {
+  if (
+    session.payment_status !== "paid" &&
+    session.payment_status !== "no_payment_required"
+  ) {
+    return { ok: false };
+  }
+
+  if (
+    session.mode !== "subscription" &&
+    session.metadata?.type !== SAAS_SUBSCRIPTION_META_TYPE
+  ) {
+    return { ok: false };
+  }
+
+  const companyId = session.metadata?.companyId;
+  const customerId =
+    typeof session.customer === "string" ? session.customer : session.customer?.id;
+  const subscriptionId =
+    typeof session.subscription === "string"
+      ? session.subscription
+      : session.subscription?.id ?? null;
+
+  if (!companyId || !customerId) {
+    return { ok: false };
+  }
+
+  let plan: Plan | null = null;
+  const metaPlan = session.metadata?.plan?.toUpperCase();
+  if (metaPlan === "PRO" || metaPlan === "BUSINESS" || metaPlan === "SCALE") {
+    plan = metaPlan;
+  } else if (subscriptionId) {
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    plan = resolvePlanFromSubscription(subscription);
+  }
+
+  if (!plan) {
+    const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
+      limit: 1,
+      expand: ["data.price"],
+    });
+    const price = lineItems.data[0]?.price;
+    if (price && typeof price !== "string") {
+      plan = resolvePlanFromPrice(price);
+    }
+  }
+
+  await prisma.company.update({
+    where: { id: companyId },
+    data: {
+      stripeCustomerId: customerId,
+      stripeSubscriptionId: subscriptionId,
+      ...(plan ? { plan } : {}),
+    },
+  });
+
+  return { ok: true, plan: plan ?? undefined };
+}
+
+export type SubscriptionBillingState = {
+  status: Stripe.Subscription.Status;
+  cancelAtPeriodEnd: boolean;
+  interval: BillingInterval;
+};
+
+export async function getSubscriptionBillingState(
+  subscriptionId: string | null | undefined,
+): Promise<SubscriptionBillingState | null> {
+  if (!subscriptionId || !isStripeConfigured()) return null;
+  try {
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    const interval =
+      subscription.items.data[0]?.price?.recurring?.interval === "year"
+        ? "yearly"
+        : "monthly";
+    return {
+      status: subscription.status,
+      cancelAtPeriodEnd: Boolean(subscription.cancel_at_period_end),
+      interval,
+    };
+  } catch {
+    return null;
+  }
 }

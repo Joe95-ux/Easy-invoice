@@ -9,7 +9,7 @@ import {
   stripe,
 } from "@/lib/stripe";
 import {
-  resolvePlanFromPrice,
+  applySaasCheckoutSession,
   resolvePlanFromSubscription,
   SAAS_SUBSCRIPTION_META_TYPE,
 } from "@/lib/stripe-billing";
@@ -47,66 +47,8 @@ async function handleConnectAccountUpdated(account: Stripe.Account) {
   });
 }
 
-async function resolvePlanForSubscriptionCheckout(
-  session: Stripe.Checkout.Session,
-): Promise<Plan | null> {
-  const metaPlan = session.metadata?.plan?.toUpperCase();
-  if (metaPlan === "PRO" || metaPlan === "BUSINESS" || metaPlan === "SCALE") {
-    return metaPlan;
-  }
-
-  const subscriptionId =
-    typeof session.subscription === "string"
-      ? session.subscription
-      : session.subscription?.id;
-
-  if (subscriptionId) {
-    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-    const fromSub = resolvePlanFromSubscription(subscription);
-    if (fromSub) return fromSub;
-  }
-
-  const lineItems = await stripe.checkout.sessions.listLineItems(session.id, {
-    limit: 1,
-    expand: ["data.price"],
-  });
-  const price = lineItems.data[0]?.price;
-  if (price && typeof price !== "string") {
-    return resolvePlanFromPrice(price);
-  }
-
-  return null;
-}
-
 async function handleSaasCheckoutSession(session: Stripe.Checkout.Session) {
-  // Trials may complete with no_payment_required; never upgrade on unpaid.
-  if (
-    session.payment_status !== "paid" &&
-    session.payment_status !== "no_payment_required"
-  ) {
-    return;
-  }
-
-  const companyId = session.metadata?.companyId;
-  const customerId =
-    typeof session.customer === "string" ? session.customer : session.customer?.id;
-  const subscriptionId =
-    typeof session.subscription === "string"
-      ? session.subscription
-      : session.subscription?.id ?? null;
-
-  if (!companyId || !customerId) return;
-
-  const plan = await resolvePlanForSubscriptionCheckout(session);
-
-  await prisma.company.update({
-    where: { id: companyId },
-    data: {
-      stripeCustomerId: customerId,
-      stripeSubscriptionId: subscriptionId,
-      ...(plan ? { plan } : {}),
-    },
-  });
+  await applySaasCheckoutSession(session);
 }
 
 async function syncCompanyPlanFromSubscription(subscription: Stripe.Subscription) {

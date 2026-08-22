@@ -9,6 +9,11 @@ import {
 import { membershipsToCompanySummaries } from "@/lib/companies";
 import { prisma, UserRole } from "@/lib/db";
 import { companyOnboardingSchema } from "@/lib/schemas/company";
+import {
+  assertCanCreateCompany,
+  isPlanLimitError,
+  planLimitResponse,
+} from "@/lib/billing/entitlements";
 
 export async function GET() {
   const { userId } = await auth();
@@ -34,6 +39,13 @@ export async function POST(request: Request) {
 
   const parsed = companyOnboardingSchema.safeParse(body);
   if (!parsed.success) return validationError(parsed.error);
+
+  try {
+    await assertCanCreateCompany(userId);
+  } catch (error) {
+    if (isPlanLimitError(error)) return planLimitResponse(error);
+    throw error;
+  }
 
   const user = await currentUser();
   const userEmail =

@@ -10,6 +10,11 @@ import {
 } from "@/lib/cloudinary";
 import { recordAuditEvent } from "@/lib/audit/service";
 import { AuditAction, AuditCategory, prisma } from "@/lib/db";
+import {
+  assertProFeature,
+  isPlanLimitError,
+  planLimitResponse,
+} from "@/lib/billing/entitlements";
 
 const importLogoSchema = z.object({
   sourceUrl: z.string().url(),
@@ -18,6 +23,13 @@ const importLogoSchema = z.object({
 export async function POST(request: Request) {
   const { member, response } = await requireApiCompanyAdmin();
   if (response) return response;
+
+  try {
+    assertProFeature(member.company.plan, "custom_branding");
+  } catch (error) {
+    if (isPlanLimitError(error)) return planLimitResponse(error);
+    throw error;
+  }
 
   if (!isCloudinaryConfigured()) {
     return NextResponse.json({ error: "File storage is not configured" }, { status: 503 });

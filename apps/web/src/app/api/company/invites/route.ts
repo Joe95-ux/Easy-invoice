@@ -15,6 +15,11 @@ import {
   inviteExpiresAt,
   normalizeInviteEmail,
 } from "@/lib/team";
+import {
+  assertCanInviteMember,
+  isPlanLimitError,
+  planLimitResponse,
+} from "@/lib/billing/entitlements";
 
 function createInviteToken(): string {
   return randomBytes(24).toString("hex");
@@ -47,6 +52,13 @@ export async function POST(request: Request) {
   });
   if (existingMember) {
     return NextResponse.json({ error: "This person is already a team member" }, { status: 409 });
+  }
+
+  try {
+    await assertCanInviteMember(member.companyId, member.company.plan);
+  } catch (error) {
+    if (isPlanLimitError(error)) return planLimitResponse(error);
+    throw error;
   }
 
   await prisma.companyInvite.deleteMany({

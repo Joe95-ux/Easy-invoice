@@ -10,6 +10,7 @@ import {
 } from "@/lib/schemas/qr-code";
 import { isQrAccessPasswordStrong } from "@/lib/qr-codes/password";
 import { createQrCode, getQrCodesForCompany } from "@/lib/qr-codes/service";
+import { isPlanLimitError, planLimitResponse } from "@/lib/billing/entitlements";
 
 export async function GET() {
   const { member, response } = await requireApiMember();
@@ -39,16 +40,21 @@ export async function POST(request: Request) {
     }
   }
 
-  const qrCode = await createQrCode({
-    companyId: member.companyId,
-    memberId: member.id,
-    name: parsed.data.name,
-    type: parsed.data.type,
-    content: parsed.data.content,
-    design: parsed.data.design,
-    passwordEnabled: parsed.data.passwordEnabled,
-    password: parsed.data.password,
-  });
+  try {
+    const qrCode = await createQrCode({
+      companyId: member.companyId,
+      memberId: member.id,
+      name: parsed.data.name,
+      type: parsed.data.type,
+      content: parsed.data.content,
+      design: parsed.data.design,
+      passwordEnabled: parsed.data.passwordEnabled,
+      password: parsed.data.password,
+    });
 
-  return NextResponse.json({ qrCode }, { status: 201 });
+    return NextResponse.json({ qrCode }, { status: 201 });
+  } catch (error) {
+    if (isPlanLimitError(error)) return planLimitResponse(error);
+    throw error;
+  }
 }

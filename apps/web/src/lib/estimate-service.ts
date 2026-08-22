@@ -12,6 +12,7 @@ import {
 import type { CreateEstimateInput } from "@/lib/schemas/estimate";
 import { allocateEstimateNumber } from "@/lib/document-numbers";
 import { getEstimateForMember } from "@/lib/estimates";
+import { assertWithinInvoiceQuota } from "@/lib/billing/entitlements";
 
 export async function getEstimatesForMember(companyId: string, limit = 50) {
   return prisma.estimate.findMany({
@@ -65,6 +66,12 @@ export async function convertEstimateToInvoice(estimateId: string, companyId: st
   ) {
     return { error: "cannot_convert" as const };
   }
+
+  const company = await prisma.company.findUniqueOrThrow({
+    where: { id: companyId },
+    select: { plan: true },
+  });
+  await assertWithinInvoiceQuota(companyId, company.plan);
 
   const lineItems = estimate.items.map((item, index) => ({
     description: item.description,

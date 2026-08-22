@@ -45,7 +45,7 @@ const linkOptions = [
   {
     title: "Pricing & plans",
     description: "Compare plans and see what each tier includes.",
-    href: "/settings/billing",
+    href: "/settings/billing/plans",
     icon: CreditCardIcon,
   },
   {

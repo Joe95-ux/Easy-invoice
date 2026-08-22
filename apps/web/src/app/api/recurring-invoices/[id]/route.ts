@@ -9,6 +9,11 @@ import {
 } from "@/lib/recurring-invoices";
 import { updateRecurringInvoiceSchema } from "@/lib/schemas/recurring-invoice";
 import { z } from "zod";
+import {
+  assertProFeature,
+  isPlanLimitError,
+  planLimitResponse,
+} from "@/lib/billing/entitlements";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -28,6 +33,13 @@ export async function GET(_request: Request, context: RouteContext) {
 export async function PATCH(request: Request, context: RouteContext) {
   const { member, response } = await requireApiMember();
   if (response) return response;
+
+  try {
+    assertProFeature(member.company.plan, "recurring_invoices");
+  } catch (error) {
+    if (isPlanLimitError(error)) return planLimitResponse(error);
+    throw error;
+  }
 
   const { id } = await context.params;
   const body = await parseJsonBody<unknown>(request);
@@ -86,6 +98,13 @@ export async function PATCH(request: Request, context: RouteContext) {
 export async function DELETE(_request: Request, context: RouteContext) {
   const { member, response } = await requireApiMember();
   if (response) return response;
+
+  try {
+    assertProFeature(member.company.plan, "recurring_invoices");
+  } catch (error) {
+    if (isPlanLimitError(error)) return planLimitResponse(error);
+    throw error;
+  }
 
   const { id } = await context.params;
   const deleted = await deleteRecurringInvoice(member.companyId, id);

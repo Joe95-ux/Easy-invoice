@@ -9,6 +9,11 @@ import {
   syncInvoiceInstallments,
   validateInstallments,
 } from "@/lib/invoice-payments";
+import {
+  assertProFeature,
+  isPlanLimitError,
+  planLimitResponse,
+} from "@/lib/billing/entitlements";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -27,6 +32,13 @@ export async function POST(request: Request, context: RouteContext) {
 
   const parsed = schema.safeParse(body);
   if (!parsed.success) return validationError(parsed.error);
+
+  try {
+    assertProFeature(member.company.plan, "payment_plans");
+  } catch (error) {
+    if (isPlanLimitError(error)) return planLimitResponse(error);
+    throw error;
+  }
 
   const invoice = await prisma.invoice.findFirst({
     where: { id, companyId: member.companyId },
@@ -97,6 +109,13 @@ export async function POST(request: Request, context: RouteContext) {
 export async function DELETE(_request: Request, context: RouteContext) {
   const { member, response } = await requireApiMember();
   if (response) return response;
+
+  try {
+    assertProFeature(member.company.plan, "payment_plans");
+  } catch (error) {
+    if (isPlanLimitError(error)) return planLimitResponse(error);
+    throw error;
+  }
 
   const { id } = await context.params;
 

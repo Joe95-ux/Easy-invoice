@@ -8,6 +8,11 @@ import {
 } from "@/lib/api/validation";
 import { recordAuditEvent } from "@/lib/audit/service";
 import { AuditAction, AuditCategory, prisma } from "@/lib/db";
+import {
+  assertProFeature,
+  isPlanLimitError,
+  planLimitResponse,
+} from "@/lib/billing/entitlements";
 
 const schema = z.object({
   clientPaymentPlansEnabled: z.boolean(),
@@ -39,6 +44,15 @@ export async function PATCH(request: Request) {
 
   const parsed = schema.safeParse(body);
   if (!parsed.success) return validationError(parsed.error);
+
+  if (parsed.data.clientPaymentPlansEnabled) {
+    try {
+      assertProFeature(authResult.member.company.plan, "payment_plans");
+    } catch (error) {
+      if (isPlanLimitError(error)) return planLimitResponse(error);
+      throw error;
+    }
+  }
 
   const before = await prisma.company.findUnique({
     where: { id: authResult.member.companyId },

@@ -23,6 +23,10 @@ import type {
 } from "@/lib/schemas/recurring-invoice";
 import type { SerializedRecurringInvoice } from "@/lib/recurring-invoices-shared";
 import { frequencyLabel } from "@/lib/recurring-invoices-shared";
+import {
+  assertWithinInvoiceQuota,
+  isProPlan,
+} from "@/lib/billing/entitlements";
 
 export type {
   SerializedRecurringInvoice,
@@ -645,6 +649,35 @@ export async function issueRecurringInvoiceOccurrence(
       ended: false,
       autoSent: false,
       error: "Not found",
+    };
+  }
+
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { plan: true },
+  });
+  if (!company || !isProPlan(company.plan)) {
+    return {
+      recurringInvoiceId,
+      invoiceId: null,
+      invoiceNumber: null,
+      skipped: true,
+      ended: false,
+      autoSent: false,
+      error: "Recurring invoices require Pro",
+    };
+  }
+  try {
+    await assertWithinInvoiceQuota(companyId, company.plan);
+  } catch (error) {
+    return {
+      recurringInvoiceId,
+      invoiceId: null,
+      invoiceNumber: null,
+      skipped: true,
+      ended: false,
+      autoSent: false,
+      error: error instanceof Error ? error.message : "Invoice limit reached",
     };
   }
 

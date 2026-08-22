@@ -28,6 +28,7 @@ import {
   generateNextInvoiceNumber,
 } from "@/lib/invoice-service";
 import { getInvoiceForMember } from "@/lib/invoices";
+import { assertWithinInvoiceQuota } from "@/lib/billing/entitlements";
 import {
   linkTimeEntriesToInvoice,
   releaseTimeEntriesForInvoice,
@@ -616,6 +617,12 @@ export async function duplicateInvoice(
   memberId: string,
   invoiceId: string,
 ) {
+  const company = await prisma.company.findUniqueOrThrow({
+    where: { id: companyId },
+    select: { plan: true },
+  });
+  await assertWithinInvoiceQuota(companyId, company.plan);
+
   const snapshot = await loadInvoiceSnapshot(companyId, invoiceId);
   if (!snapshot) throw new Error("Invoice not found");
 

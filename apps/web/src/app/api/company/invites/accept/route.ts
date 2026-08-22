@@ -6,6 +6,11 @@ import { recordAuditEvent } from "@/lib/audit/service";
 import { AuditAction, AuditCategory, prisma } from "@/lib/db";
 import { acceptInviteSchema } from "@/lib/schemas/team";
 import { normalizeInviteEmail } from "@/lib/team";
+import {
+  assertCanInviteMember,
+  isPlanLimitError,
+  planLimitResponse,
+} from "@/lib/billing/entitlements";
 
 export async function POST(request: Request) {
   const { userId } = await auth();
@@ -65,6 +70,13 @@ export async function POST(request: Request) {
       company: { id: invite.company.id, name: invite.company.name },
       alreadyMember: true,
     });
+  }
+
+  try {
+    await assertCanInviteMember(invite.companyId, invite.company.plan);
+  } catch (error) {
+    if (isPlanLimitError(error)) return planLimitResponse(error);
+    throw error;
   }
 
   const userName = user.fullName?.trim() || null;

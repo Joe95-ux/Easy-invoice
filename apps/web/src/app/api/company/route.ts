@@ -4,6 +4,11 @@ import { recordAuditEvent } from "@/lib/audit/service";
 import { summarizeCompanyProfileChange } from "@/lib/audit/summaries";
 import { AuditAction, AuditCategory, prisma } from "@/lib/db";
 import { companySettingsSchema } from "@/lib/schemas/company";
+import {
+  assertProFeature,
+  isPlanLimitError,
+  planLimitResponse,
+} from "@/lib/billing/entitlements";
 
 const PROFILE_AUDIT_FIELDS = [
   "name",
@@ -53,6 +58,19 @@ export async function PATCH(request: Request) {
 
   const parsed = companySettingsSchema.safeParse(body);
   if (!parsed.success) return validationError(parsed.error);
+
+  const brandingTouched =
+    parsed.data.logoBg !== undefined ||
+    parsed.data.logoPlacement !== undefined ||
+    parsed.data.brandColor !== undefined;
+  if (brandingTouched) {
+    try {
+      assertProFeature(member.company.plan, "custom_branding");
+    } catch (error) {
+      if (isPlanLimitError(error)) return planLimitResponse(error);
+      throw error;
+    }
+  }
 
   const before = await prisma.company.findUnique({
     where: { id: member.companyId },

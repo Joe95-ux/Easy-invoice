@@ -5,6 +5,11 @@ import { MIN_PLAN_BALANCE } from "@/lib/collections/advice";
 import { buildInvoicePaymentSummary } from "@/lib/invoice-payments";
 import { formatMoney, getInvoiceForMember } from "@/lib/invoices";
 import { daysUntilDue, startOfUtcDay } from "@/lib/reminders/dates";
+import {
+  assertProFeature,
+  isPlanLimitError,
+  planLimitResponse,
+} from "@/lib/billing/entitlements";
 
 const draftSchema = z.object({
   clientName: z.string().trim().max(120).optional(),
@@ -69,6 +74,14 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   const tone = parsed.data.tone ?? "professional";
+  if (tone === "collections") {
+    try {
+      assertProFeature(member.company.plan, "collections");
+    } catch (error) {
+      if (isPlanLimitError(error)) return planLimitResponse(error);
+      throw error;
+    }
+  }
   const clientName =
     parsed.data.clientName?.trim() || invoice.client?.name?.trim() || undefined;
   const summary = buildInvoicePaymentSummary(invoice);

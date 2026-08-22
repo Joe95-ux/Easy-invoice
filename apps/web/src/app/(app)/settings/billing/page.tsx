@@ -5,10 +5,12 @@ import { BillingInvoicesCard } from "@/features/settings/components/billing-invo
 import { BillingUpgradeCard } from "@/features/settings/components/billing-upgrade-card";
 import { StripeConnectSection } from "@/features/settings/components/stripe-connect-section";
 import { requireCompanyAdmin } from "@/lib/auth";
+import { getCompanyUsage } from "@/lib/billing/entitlements";
 import { isStripeConfigured } from "@/lib/stripe";
 import {
   getProPriceId,
   getProTrialDays,
+  getSubscriptionBillingState,
   isPaidPlan,
   isSubscriptionBillingConfigured,
 } from "@/lib/stripe-billing";
@@ -22,6 +24,10 @@ export default async function SettingsBillingPage() {
   const member = await requireCompanyAdmin();
   const { company } = member;
   const paid = isPaidPlan(company.plan);
+  const [usage, subscription] = await Promise.all([
+    getCompanyUsage(company.id, company.plan),
+    getSubscriptionBillingState(company.stripeSubscriptionId),
+  ]);
 
   return (
     <PageScroll maxWidth="50rem">
@@ -50,6 +56,10 @@ export default async function SettingsBillingPage() {
           hasSubscription={Boolean(company.stripeSubscriptionId)}
           billingConfigured={isSubscriptionBillingConfigured()}
           hasYearlyPrice={Boolean(getProPriceId("yearly"))}
+          billingInterval={subscription?.interval ?? "monthly"}
+          subscriptionStatus={subscription?.status ?? null}
+          cancelAtPeriodEnd={subscription?.cancelAtPeriodEnd ?? false}
+          usage={usage}
         />
 
         {!paid ? (

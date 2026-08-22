@@ -15,7 +15,8 @@ import { SiteFooter } from "@/components/marketing/site-footer";
 import { PublicNavbarLoader } from "@/components/public-navbar-loader";
 import { Reveal } from "@/components/landing/reveal";
 import { FaqAccordion } from "@/components/landing/faq-accordion";
-import { LANDING_PLANS } from "@/features/settings/lib/plans-catalog";
+import { LANDING_PLANS, getLandingProCta } from "@/features/settings/lib/plans-catalog";
+import { getProTrialDays } from "@/lib/stripe-billing";
 import { cn } from "@/lib/utils";
 
 /** Landing CTAs — lift + shadow; keeps brand primary (no color override). */
@@ -31,6 +32,8 @@ const landingBtnOutline = cn(
   landingBtn,
   "hover:-translate-y-0.5 hover:border-primary/35 hover:bg-primary/5 hover:text-foreground hover:shadow-sm active:translate-y-0 active:shadow-none",
 );
+
+const landingProCta = getLandingProCta(getProTrialDays());
 
 /**
  * Product-forward landing (v2). Uses app theme tokens so light/dark works.
@@ -343,7 +346,7 @@ export function HomePageV2() {
                       variant={plan.highlighted ? "default" : "outline"}
                       render={<Link href="/sign-up" />}
                     >
-                      {plan.cta}
+                      {plan.highlighted ? landingProCta : plan.cta}
                     </Button>
                   </SignedOut>
                   <SignedIn>
@@ -356,11 +359,11 @@ export function HomePageV2() {
                       variant={plan.highlighted ? "default" : "outline"}
                       render={
                         <Link
-                          href={plan.highlighted ? "/settings/billing" : "/dashboard"}
+                          href={plan.highlighted ? "/settings/billing/plans" : "/dashboard"}
                         />
                       }
                     >
-                      {plan.highlighted ? "Upgrade to Pro" : "Open dashboard"}
+                      {plan.highlighted ? "View plans" : "Open dashboard"}
                     </Button>
                   </SignedIn>
                 </Reveal>

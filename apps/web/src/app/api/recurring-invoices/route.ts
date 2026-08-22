@@ -7,6 +7,11 @@ import {
 } from "@/lib/recurring-invoices";
 import { createRecurringInvoiceSchema } from "@/lib/schemas/recurring-invoice";
 import type { RecurringInvoiceStatus } from "@easy-invoice/db";
+import {
+  assertProFeature,
+  isPlanLimitError,
+  planLimitResponse,
+} from "@/lib/billing/entitlements";
 
 export async function GET(request: Request) {
   const { member, response } = await requireApiMember();
@@ -36,6 +41,7 @@ export async function POST(request: Request) {
   if (!parsed.success) return validationError(parsed.error);
 
   try {
+    assertProFeature(member.company.plan, "recurring_invoices");
     const recurringInvoice = await createRecurringInvoice(
       member.companyId,
       member.id,
@@ -46,6 +52,7 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
+    if (isPlanLimitError(error)) return planLimitResponse(error);
     const message =
       error instanceof Error ? error.message : "Failed to create recurring invoice";
     const status =

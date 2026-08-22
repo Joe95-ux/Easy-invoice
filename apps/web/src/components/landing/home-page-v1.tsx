@@ -20,7 +20,10 @@ import { SiteFooter } from "@/components/marketing/site-footer";
 import { PublicNavbarLoader } from "@/components/public-navbar-loader";
 import { Reveal } from "@/components/landing/reveal";
 import { FaqAccordion } from "@/components/landing/faq-accordion";
-import { LANDING_PLANS } from "@/features/settings/lib/plans-catalog";
+import { LANDING_PLANS, getLandingProCta } from "@/features/settings/lib/plans-catalog";
+import { getProTrialDays } from "@/lib/stripe-billing";
+
+const landingProCta = getLandingProCta(getProTrialDays());
 
 const stats = [
   { value: "30 sec", label: "to a finished invoice" },
@@ -328,7 +331,7 @@ export function HomePageV1() {
                     variant={plan.highlighted ? "default" : "outline"}
                     render={<Link href="/sign-up" />}
                   >
-                    {plan.cta}
+                    {plan.highlighted ? landingProCta : plan.cta}
                   </Button>
                 </SignedOut>
                 <SignedIn>
@@ -339,12 +342,12 @@ export function HomePageV1() {
                     render={
                       <Link
                         href={
-                          plan.highlighted ? "/settings/billing" : "/dashboard"
+                          plan.highlighted ? "/settings/billing/plans" : "/dashboard"
                         }
                       />
                     }
                   >
-                    {plan.highlighted ? "Upgrade to Pro" : "Go to dashboard"}
+                    {plan.highlighted ? "View plans" : "Go to dashboard"}
                   </Button>
                 </SignedIn>
               </Reveal>

@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
-import { ArrowUpRightIcon, CheckIcon } from "lucide-react";
+import { ArrowUpRightIcon, CheckIcon, Loader2Icon } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { BillingCheckoutButton } from "@/features/settings/components/billing-checkout-button";
@@ -20,6 +20,7 @@ type BillingPlansComparisonProps = {
   currentPlan: string;
   billingConfigured: boolean;
   hasYearlyPrice: boolean;
+  canManageBilling?: boolean;
 };
 
 function CellValue({ value }: { value: string | boolean }) {
@@ -36,13 +37,36 @@ export function BillingPlansComparison({
   currentPlan,
   billingConfigured,
   hasYearlyPrice,
+  canManageBilling = true,
 }: BillingPlansComparisonProps) {
   const current = normalizePlanId(currentPlan);
   const [interval, setInterval] = useState<BillingInterval>("yearly");
   const [supportOpen, setSupportOpen] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
   const billedYearly = interval === "yearly";
   const freePrice = formatPlanPriceLabel("FREE");
   const proPrice = formatPlanPriceLabel("PRO", hasYearlyPrice ? interval : "monthly");
+
+  async function openPortal() {
+    setPortalLoading(true);
+    try {
+      const response = await fetch("/api/stripe/billing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "portal" }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Could not open billing portal");
+      if (data.url) {
+        window.location.href = data.url;
+        return;
+      }
+      throw new Error("No portal URL returned");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Something went wrong");
+      setPortalLoading(false);
+    }
+  }
 
   return (
     <div className="space-y-8">
@@ -88,13 +112,28 @@ export function BillingPlansComparison({
                   >
                     Current plan
                   </Button>
-                ) : (
+                ) : canManageBilling ? (
                   <Button
                     variant="ghost"
                     className={cn("w-full cursor-pointer", billingButtonClassName)}
-                    render={<Link href="/settings/billing" />}
+                    disabled={portalLoading}
+                    onClick={() => void openPortal()}
                   >
+                    {portalLoading ? (
+                      <Loader2Icon className="size-4 animate-spin" />
+                    ) : null}
                     Downgrade
+                  </Button>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    disabled
+                    className={cn(
+                      "w-full cursor-default bg-muted text-muted-foreground disabled:opacity-100",
+                      billingButtonClassName,
+                    )}
+                  >
+                    Ask an admin
                   </Button>
                 )
               }
@@ -132,13 +171,24 @@ export function BillingPlansComparison({
                   >
                     Current plan
                   </Button>
-                ) : (
+                ) : canManageBilling ? (
                   <BillingCheckoutButton
                     className={cn("w-full cursor-pointer", billingButtonClassName)}
                     disabled={!billingConfigured}
                     label="Upgrade"
                     interval={hasYearlyPrice ? interval : "monthly"}
                   />
+                ) : (
+                  <Button
+                    variant="ghost"
+                    disabled
+                    className={cn(
+                      "w-full cursor-default bg-muted text-muted-foreground disabled:opacity-100",
+                      billingButtonClassName,
+                    )}
+                  >
+                    Ask an admin to upgrade
+                  </Button>
                 )
               }
             />

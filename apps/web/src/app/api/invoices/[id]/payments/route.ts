@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireApiMember, parseJsonBody, validationError } from "@/lib/api/validation";
 import { recordInvoicePayment } from "@/lib/invoice-payments";
 import { recordInvoicePaymentSchema } from "@/lib/schemas/invoice";
+import { isPlanLimitError, planLimitResponse } from "@/lib/billing/entitlements";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -30,6 +31,7 @@ export async function POST(request: Request, context: RouteContext) {
 
     return NextResponse.json({ invoice, confirmationEmail }, { status: 201 });
   } catch (error) {
+    if (isPlanLimitError(error)) return planLimitResponse(error);
     const message = error instanceof Error ? error.message : "Could not record payment";
     return NextResponse.json({ error: message }, { status: 400 });
   }

@@ -4,6 +4,7 @@ import { generatePublicToken } from "@/lib/document-tokens";
 import { normalizeQrDesign } from "@/lib/qr-codes/design";
 import { hashQrPassword } from "@/lib/qr-codes/password";
 import type { QrDesign, SerializedQrCode } from "@/lib/qr-codes/types";
+import { assertCanCreateQrCode } from "@/lib/billing/entitlements";
 
 const QR_INCLUDE = {
   member: { select: { name: true, email: true } },
@@ -92,6 +93,12 @@ type CreateQrCodeInput = {
 };
 
 export async function createQrCode(input: CreateQrCodeInput): Promise<SerializedQrCode> {
+  const company = await prisma.company.findUniqueOrThrow({
+    where: { id: input.companyId },
+    select: { plan: true },
+  });
+  await assertCanCreateQrCode(input.companyId, company.plan);
+
   const token = await generateUniqueQrToken();
   const passwordHash =
     input.passwordEnabled && input.password

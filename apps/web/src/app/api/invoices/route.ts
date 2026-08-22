@@ -18,6 +18,12 @@ import {
   syncInvoiceInstallments,
   validateInstallments,
 } from "@/lib/invoice-payments";
+import {
+  assertProFeature,
+  assertWithinInvoiceQuota,
+  isPlanLimitError,
+  planLimitResponse,
+} from "@/lib/billing/entitlements";
 
 export async function POST(request: Request) {
   const { member, response } = await requireApiMember();
@@ -49,6 +55,16 @@ export async function POST(request: Request) {
   const installmentError = validateInstallments(parsed.data.installments ?? [], totals.total);
   if (installmentError) {
     return NextResponse.json({ error: installmentError }, { status: 400 });
+  }
+
+  try {
+    await assertWithinInvoiceQuota(member.companyId, member.company.plan);
+    if (parsed.data.installments?.length) {
+      assertProFeature(member.company.plan, "payment_plans");
+    }
+  } catch (error) {
+    if (isPlanLimitError(error)) return planLimitResponse(error);
+    throw error;
   }
 
   try {

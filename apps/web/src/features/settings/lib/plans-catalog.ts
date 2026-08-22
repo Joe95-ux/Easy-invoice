@@ -53,7 +53,7 @@ export const BILLING_PLANS: PlanDefinition[] = [
       "Unlimited invoices, estimates & QR codes",
       "Unlimited companies & team members",
       "Custom branding & logo on PDFs",
-      "Email invoices & payment tracking",
+      "Email invoices & manual payment ledger",
       "Recurring invoices",
       "Payment plans & collections tools",
       "Priority support",
@@ -61,7 +61,7 @@ export const BILLING_PLANS: PlanDefinition[] = [
   },
 ];
 
-/** Upgrade card: Pro highlights in three short columns. */
+/** Upgrade card: Pro exclusives only (Free features stay on Free). */
 export const PRO_UPGRADE_COLUMNS: { title: string; features: string[] }[] = [
   {
     title: "Workspace",
@@ -71,18 +71,18 @@ export const PRO_UPGRADE_COLUMNS: { title: string; features: string[] }[] = [
     title: "Invoicing",
     features: [
       "Unlimited invoices",
-      "Estimates with e-sign",
       "Recurring invoices",
-      "AI draft",
+      "Email invoices",
+      "Custom branding & logo",
     ],
   },
   {
     title: "Get paid",
     features: [
       "Unlimited QR codes",
-      "Custom branding",
-      "Email & payment tracking",
+      "Manual payment ledger",
       "Payment plans",
+      "Collections tools",
     ],
   },
 ];
@@ -121,7 +121,7 @@ export const PLAN_COMPARISON_SECTIONS: ComparisonSection[] = [
       { label: "Follow-ups", free: true, pro: true },
       { label: "Custom branding & logo", free: false, pro: true },
       { label: "Email invoices", free: false, pro: true },
-      { label: "Payment tracking", free: false, pro: true },
+      { label: "Manual payment ledger", free: false, pro: true },
       { label: "Recurring invoices", free: false, pro: true },
       { label: "Payment plans & collections", free: false, pro: true },
       { label: "Priority support", free: false, pro: true },
@@ -156,16 +156,21 @@ export const LANDING_PLANS = [
     features: [
       "Everything in Free, unlimited",
       "Custom branding & logo on PDFs",
-      "Email invoices & payment tracking",
+      "Email invoices & manual payment ledger",
       "Recurring invoices",
       "Payment plans & collections",
       "Unlimited QR codes",
       "Priority support",
     ],
-    cta: "Start free trial",
+    /** Prefer getLandingProCta(trialDays) at render time. */
+    cta: "Upgrade to Pro",
     highlighted: true,
   },
 ] as const;
+
+export function getLandingProCta(trialDays: number): string {
+  return trialDays > 0 ? `Start ${trialDays}-day free trial` : "Upgrade to Pro";
+}
 
 export function normalizePlanId(plan: string | null | undefined): PlanId {
   const value = (plan ?? "FREE").toUpperCase();

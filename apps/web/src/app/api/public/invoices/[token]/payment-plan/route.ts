@@ -8,6 +8,11 @@ import {
   syncInvoiceInstallments,
   validateInstallments,
 } from "@/lib/invoice-payments";
+import {
+  assertProFeature,
+  isPlanLimitError,
+  planLimitResponse,
+} from "@/lib/billing/entitlements";
 
 type RouteContext = { params: Promise<{ token: string }> };
 
@@ -34,6 +39,7 @@ export async function POST(request: Request, context: RouteContext) {
       installments: { orderBy: { sortOrder: "asc" } },
       company: {
         select: {
+          plan: true,
           clientPaymentPlansEnabled: true,
           stripeConnectedAccountId: true,
           stripeConnectChargesEnabled: true,
@@ -45,6 +51,13 @@ export async function POST(request: Request, context: RouteContext) {
 
   if (!invoice) {
     return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
+  }
+
+  try {
+    assertProFeature(invoice.company.plan, "payment_plans");
+  } catch (error) {
+    if (isPlanLimitError(error)) return planLimitResponse(error);
+    throw error;
   }
 
   if (!invoice.company.clientPaymentPlansEnabled) {
