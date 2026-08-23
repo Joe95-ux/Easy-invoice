@@ -12,6 +12,7 @@ import {
   Trash2Icon,
 } from "lucide-react";
 import { toast } from "sonner";
+import { throwIfApiError, toastApiError } from "@/lib/billing/plan-api-error";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -165,15 +166,11 @@ export function InvoicePaymentsSection({
         method: "DELETE",
       });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(
-          typeof data.error === "string" ? data.error : "Could not remove payment plan",
-        );
-      }
+      throwIfApiError(response, data, "Could not remove payment plan");
       toast.success("Payment plan removed");
       router.refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not remove payment plan");
+      toastApiError(error, "Could not remove payment plan");
     } finally {
       setClearingPlan(false);
     }

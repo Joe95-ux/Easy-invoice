@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import { throwIfApiError, toastApiError } from "@/lib/billing/plan-api-error";
 import {
   CopyIcon,
   DownloadIcon,
@@ -114,15 +115,14 @@ export function InvoicesTable({ invoices, companyName }: InvoicesTableProps) {
         method: "POST",
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? "Failed to duplicate");
+      throwIfApiError(response, data, "Failed to duplicate");
 
       toast.success(`Draft created from ${invoice.number}`, { id: toastId });
       router.push(`/invoices/${data.invoice.id}`);
       router.refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not duplicate invoice", {
-        id: toastId,
-      });
+      toast.dismiss(toastId);
+      toastApiError(error, "Could not duplicate invoice");
     } finally {
       setLoadingId(null);
     }

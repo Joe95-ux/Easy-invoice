@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ImageIcon, UploadIcon, UserRoundIcon } from "lucide-react";
 import { toast } from "sonner";
+import { throwIfApiError, toastApiError } from "@/lib/billing/plan-api-error";
 import { Button } from "@/components/ui/button";
 import {
   Field,
@@ -76,7 +77,7 @@ export function CompanyLogoUpload({
       setPreviewUrl(url);
       toast.success("Logo uploaded");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not upload logo");
+      toastApiError(error, "Could not upload logo");
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = "";
@@ -102,7 +103,7 @@ export function CompanyLogoUpload({
       setUsingSuggested(true);
       toast.success("Profile photo added as logo");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not import logo");
+      toastApiError(error, "Could not import logo");
     } finally {
       setUploading(false);
     }
@@ -122,14 +123,14 @@ export function CompanyLogoUpload({
     try {
       const response = await fetch("/api/company/logo", { method: "DELETE" });
       const body = await response.json();
-      if (!response.ok) throw new Error(body.error ?? "Failed to remove logo");
+      throwIfApiError(response, body, "Failed to remove logo");
 
       onLogoChange(body.logoUrl);
       setPreviewUrl(null);
       setUsingSuggested(false);
       toast.success("Logo removed");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not remove logo");
+      toastApiError(error, "Could not remove logo");
     } finally {
       setRemoving(false);
     }

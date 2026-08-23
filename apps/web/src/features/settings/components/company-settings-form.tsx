@@ -34,6 +34,9 @@ import {
 } from "@/lib/document-numbers";
 import { PaymentMethodsEditor } from "@/features/settings/components/payment-methods-editor";
 import { normalizePaymentMethods } from "@/lib/company-payment-methods";
+import { throwIfApiError, toastApiError } from "@/lib/billing/plan-api-error";
+import { useCompanyPlan } from "@/components/billing/company-plan-context";
+import { ProFeatureGate } from "@/components/billing/pro-feature-gate";
 
 type CompanySettingsFormProps = {
   initialValues: CompanySettingsInput;
@@ -62,6 +65,7 @@ export function CompanySettingsForm({
 }: CompanySettingsFormProps) {
   const { user } = useUser();
   const router = useRouter();
+  const { isPro } = useCompanyPlan();
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<CompanySettingsInput>({
     ...initialValues,
@@ -96,18 +100,26 @@ export function CompanySettingsForm({
     setErrors({});
     setSubmitting(true);
     try {
+      // Free plans cannot update branding fields — omit so profile saves still succeed.
+      const payload = isPro
+        ? parsed.data
+        : (() => {
+            const { logoBg: _logoBg, logoPlacement: _logoPlacement, brandColor: _brandColor, ...rest } =
+              parsed.data;
+            return rest;
+          })();
       const response = await fetch("/api/company", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(parsed.data),
+        body: JSON.stringify(payload),
       });
       const body = await response.json();
-      if (!response.ok) throw new Error(body.error ?? "Failed to save");
+      throwIfApiError(response, body, "Failed to save");
 
       toast.success("Company settings saved");
       router.refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not save settings");
+      toastApiError(error, "Could not save settings");
     } finally {
       setSubmitting(false);
     }
@@ -181,20 +193,29 @@ export function CompanySettingsForm({
         <form id="company-settings-form" onSubmit={handleSubmit} className="space-y-6">
           {step === 0 && (
             <div className="space-y-6">
-              <CompanyLogoUpload
-                logoUrl={logoUrl}
-                onLogoChange={setLogoUrl}
-                logoBg={normalizeLogoBg(form.logoBg)}
-                suggestedImageUrl={user?.imageUrl}
-              />
-              <CompanyBrandOptions
-                logoBg={normalizeLogoBg(form.logoBg)}
-                logoPlacement={normalizeLogoPlacement(form.logoPlacement)}
-                brandColor={form.brandColor ?? null}
-                onLogoBgChange={(value) => updateField("logoBg", value)}
-                onLogoPlacementChange={(value) => updateField("logoPlacement", value)}
-                onBrandColorChange={(value) => updateField("brandColor", value)}
-              />
+              {isPro ? (
+                <>
+                  <CompanyLogoUpload
+                    logoUrl={logoUrl}
+                    onLogoChange={setLogoUrl}
+                    logoBg={normalizeLogoBg(form.logoBg)}
+                    suggestedImageUrl={user?.imageUrl}
+                  />
+                  <CompanyBrandOptions
+                    logoBg={normalizeLogoBg(form.logoBg)}
+                    logoPlacement={normalizeLogoPlacement(form.logoPlacement)}
+                    brandColor={form.brandColor ?? null}
+                    onLogoBgChange={(value) => updateField("logoBg", value)}
+                    onLogoPlacementChange={(value) => updateField("logoPlacement", value)}
+                    onBrandColorChange={(value) => updateField("brandColor", value)}
+                  />
+                </>
+              ) : (
+                <ProFeatureGate
+                  title="Custom branding is on Pro"
+                  description="Upload a logo and set brand colors for invoices and estimates. Free plans use the default template styling."
+                />
+              )}
               <div className="grid gap-4 sm:grid-cols-2">
                 <FormField
                   label="Company name"

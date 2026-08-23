@@ -4,6 +4,9 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2Icon } from "lucide-react";
 import { toast } from "sonner";
+import { parsePlanApiError, toastApiError } from "@/lib/billing/plan-api-error";
+import { useCompanyPlan } from "@/components/billing/company-plan-context";
+import { ProFeatureGate } from "@/components/billing/pro-feature-gate";
 import { SearchableSelect } from "@/components/forms/searchable-select";
 import { Button } from "@/components/ui/button";
 import {
@@ -107,6 +110,7 @@ export function RecurringScheduleDrawer({
   onSaved,
 }: RecurringScheduleDrawerProps) {
   const isEdit = mode === "edit";
+  const { isPro } = useCompanyPlan();
   const [schedule, setSchedule] = useState<RecurringScheduleFormState>(defaultScheduleState());
   const [invoiceId, setInvoiceId] = useState("");
   const [clientId, setClientId] = useState("");
@@ -282,6 +286,8 @@ export function RecurringScheduleDrawer({
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
+          const planError = parsePlanApiError(data);
+          if (planError) throw planError;
           throw new Error(
             firstValidationMessage(data.details) ??
               data.error ??
@@ -294,7 +300,7 @@ export function RecurringScheduleDrawer({
         onSaved(data.recurringInvoice as SerializedRecurringInvoice);
         onOpenChange(false);
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Could not create schedule");
+        toastApiError(error, "Could not create schedule");
       } finally {
         setSaving(false);
       }
@@ -351,6 +357,8 @@ export function RecurringScheduleDrawer({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
+        const planError = parsePlanApiError(data);
+        if (planError) throw planError;
         throw new Error(
           firstValidationMessage(data.details) ?? data.error ?? "Could not save schedule",
         );
@@ -359,7 +367,7 @@ export function RecurringScheduleDrawer({
       onSaved(data.recurringInvoice as SerializedRecurringInvoice);
       onOpenChange(false);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not save schedule");
+      toastApiError(error, "Could not save schedule");
     } finally {
       setSaving(false);
     }
@@ -388,6 +396,14 @@ export function RecurringScheduleDrawer({
           </DrawerDescription>
         </DrawerHeader>
 
+        {!isPro ? (
+          <div className="flex-1 overflow-y-auto p-4">
+            <ProFeatureGate
+              title="Recurring invoices are on Pro"
+              description="Upgrade to schedule automatic invoices for retainers and subscriptions."
+            />
+          </div>
+        ) : (
         <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
           <div className="flex-1 space-y-5 overflow-y-auto p-4">
             {!isEdit && !hideInvoicePicker ? (
@@ -525,6 +541,7 @@ export function RecurringScheduleDrawer({
             </Button>
           </DrawerFooter>
         </form>
+        )}
       </DrawerContent>
     </Drawer>
   );

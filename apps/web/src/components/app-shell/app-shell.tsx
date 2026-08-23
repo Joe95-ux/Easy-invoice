@@ -7,6 +7,7 @@ import { AppHeader } from "@/components/app-shell/app-header";
 import { ActiveCompanySync } from "@/components/app-shell/active-company-sync";
 import { AppSidebar } from "@/components/app-shell/app-sidebar";
 import { AppWorkspaceFooter } from "@/components/app-shell/app-workspace-footer";
+import { CompanyPlanProvider } from "@/components/billing/company-plan-context";
 import { TimeTimerProvider } from "@/features/time/components/time-timer-provider";
 import { TimeTimerShell } from "@/features/time/components/time-timer-shell";
 import type { CompanySummary } from "@/lib/companies";
@@ -79,6 +80,7 @@ export function AppShell({
       className="h-svh overflow-hidden"
     >
       <TimeTimerProvider activeCompanyId={activeCompanyId}>
+        <CompanyPlanProvider plan={plan}>
         <ActiveCompanySync />
         <AppSidebar
           activeCompanyId={activeCompanyId}
@@ -104,6 +106,7 @@ export function AppShell({
           <AppWorkspaceFooter />
         </div>
         <TimeTimerShell activeCompanyId={activeCompanyId} />
+        </CompanyPlanProvider>
       </TimeTimerProvider>
     </SidebarProvider>
   );

@@ -11,6 +11,7 @@ import {
   SplitIcon,
 } from "lucide-react";
 import { toast } from "sonner";
+import { throwIfApiError, toastApiError } from "@/lib/billing/plan-api-error";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -88,7 +89,7 @@ export function InvoiceCollectionsCard({
         body: JSON.stringify({ parts }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? "Could not create plan");
+      throwIfApiError(response, data, "Could not create plan");
       toast.success(`${parts}-part payment plan enabled`, {
         description: canPayOnline
           ? "Share the invoice link so they can pay the first installment online."
@@ -100,7 +101,7 @@ export function InvoiceCollectionsCard({
       });
       router.refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not create plan");
+      toastApiError(error, "Could not create plan");
     } finally {
       setBusy(null);
     }

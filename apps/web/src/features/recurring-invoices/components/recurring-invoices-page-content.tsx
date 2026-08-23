@@ -14,6 +14,9 @@ import {
   Trash2Icon,
 } from "lucide-react";
 import { toast } from "sonner";
+import { throwIfApiError, toastApiError } from "@/lib/billing/plan-api-error";
+import { useCompanyPlan } from "@/components/billing/company-plan-context";
+import { ProFeatureGate } from "@/components/billing/pro-feature-gate";
 import { EmptyState, PageHeader, pageHeaderActionClass } from "@/components/app-shell/page-header";
 import { SortableTableHead } from "@/components/data-table/sortable-table-head";
 import { TablePagination } from "@/components/data-table/table-pagination";
@@ -96,6 +99,7 @@ export function RecurringInvoicesPageContent({
   highlightId = null,
 }: RecurringInvoicesPageContentProps) {
   const router = useRouter();
+  const { isPro } = useCompanyPlan();
   const [rows, setRows] = useState(initialRows);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<SerializedRecurringInvoice | null>(null);
@@ -131,21 +135,23 @@ export function RecurringInvoicesPageContent({
   }, [initialRows]);
 
   useEffect(() => {
-    if (highlightHandled || !highlightId) return;
+    if (!isPro || highlightHandled || !highlightId) return;
     const match = rows.find((row) => row.id === highlightId);
     if (!match) return;
     setEditing(match);
     setDialogOpen(true);
     setHighlightHandled(true);
     router.replace("/recurring-invoices", { scroll: false });
-  }, [highlightId, highlightHandled, rows, router]);
+  }, [highlightId, highlightHandled, rows, router, isPro]);
 
   function openCreate() {
+    if (!isPro) return;
     setEditing(null);
     setDialogOpen(true);
   }
 
   function openEdit(row: SerializedRecurringInvoice) {
+    if (!isPro) return;
     setEditing(row);
     setDialogOpen(true);
   }
@@ -169,7 +175,7 @@ export function RecurringInvoicesPageContent({
         body: JSON.stringify({ status }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error ?? "Could not update status");
+      throwIfApiError(res, data, "Could not update status");
       upsertRow(data.recurringInvoice as SerializedRecurringInvoice);
       toast.success(
         status === "ACTIVE"
@@ -180,7 +186,7 @@ export function RecurringInvoicesPageContent({
       );
       router.refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not update status");
+      toastApiError(error, "Could not update status");
     } finally {
       setBusyId(null);
     }
@@ -194,7 +200,7 @@ export function RecurringInvoicesPageContent({
         method: "POST",
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error ?? "Could not generate invoice");
+      throwIfApiError(res, data, "Could not generate invoice");
 
       if (data.recurringInvoice) {
         upsertRow(data.recurringInvoice as SerializedRecurringInvoice);
@@ -218,9 +224,8 @@ export function RecurringInvoicesPageContent({
       }
       router.refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not generate invoice", {
-        id: toastId,
-      });
+      toast.dismiss(toastId);
+      toastApiError(error, "Could not generate invoice");
     } finally {
       setBusyId(null);
     }
@@ -234,10 +239,8 @@ export function RecurringInvoicesPageContent({
       const res = await fetch(`/api/recurring-invoices/${pendingDelete.id}`, {
         method: "DELETE",
       });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error ?? "Could not delete schedule");
-      }
+      const data = await res.json().catch(() => ({}));
+      throwIfApiError(res, data, "Could not delete schedule");
       setRows((prev) => prev.filter((row) => row.id !== pendingDelete.id));
       toast.success("Schedule deleted", {
         description: "Past invoices created from this schedule were kept.",
@@ -245,7 +248,7 @@ export function RecurringInvoicesPageContent({
       setPendingDelete(null);
       router.refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not delete schedule");
+      toastApiError(error, "Could not delete schedule");
     } finally {
       setDeleting(false);
       setBusyId(null);
@@ -258,28 +261,50 @@ export function RecurringInvoicesPageContent({
         title="Recurring invoices"
         description="Automatically create invoices on a schedule for retainers and subscriptions."
         actions={
-          <Button
-            className={pageHeaderActionClass}
-            onClick={openCreate}
-            disabled={invoices.length === 0}
-          >
-            <PlusIcon />
-            New schedule
-          </Button>
+          isPro ? (
+            <Button
+              className={pageHeaderActionClass}
+              onClick={openCreate}
+              disabled={invoices.length === 0}
+            >
+              <PlusIcon />
+              New schedule
+            </Button>
+          ) : (
+            <Button
+              className={pageHeaderActionClass}
+              render={<Link href="/settings/billing/plans" />}
+            >
+              Upgrade to Pro
+            </Button>
+          )
         }
       />
+
+      {!isPro ? (
+        <ProFeatureGate
+          variant="banner"
+          className="mb-6"
+          title="Recurring invoices are on Pro"
+          description="Schedule automatic invoices for retainers and subscriptions. Free plans can still create one-off invoices."
+        />
+      ) : null}
 
       {empty ? (
         <EmptyState
           icon={RefreshCwIcon}
           title="No recurring schedules yet"
           description={
-            invoices.length === 0
-              ? "Create an invoice first, then turn it into a recurring schedule—client, lines, and totals are copied automatically."
-              : "Pick an existing invoice and set how often new ones should be created."
+            !isPro
+              ? "Upgrade to Pro to schedule invoices that create themselves on a cadence."
+              : invoices.length === 0
+                ? "Create an invoice first, then turn it into a recurring schedule—client, lines, and totals are copied automatically."
+                : "Pick an existing invoice and set how often new ones should be created."
           }
           action={
-            invoices.length > 0 ? (
+            !isPro ? (
+              <Button render={<Link href="/settings/billing/plans" />}>Upgrade to Pro</Button>
+            ) : invoices.length > 0 ? (
               <Button onClick={openCreate}>
                 <PlusIcon />
                 New schedule

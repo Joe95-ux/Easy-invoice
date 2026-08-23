@@ -15,6 +15,7 @@ import {
   Trash2Icon,
 } from "lucide-react";
 import { toast } from "sonner";
+import { throwIfApiError, toastApiError } from "@/lib/billing/plan-api-error";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -182,7 +183,7 @@ export function EstimateActions({
         method: "POST",
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? "Failed to convert");
+      throwIfApiError(response, data, "Failed to convert");
 
       toast.success(
         data.created
@@ -193,9 +194,8 @@ export function EstimateActions({
       router.push(`/invoices/${data.invoice.id}`);
       router.refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not convert estimate", {
-        id: toastId,
-      });
+      toast.dismiss(toastId);
+      toastApiError(error, "Could not convert estimate");
     } finally {
       setLoading(null);
     }

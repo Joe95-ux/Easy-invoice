@@ -5,6 +5,13 @@ import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import {
+  isPlanApiError,
+  throwIfApiError,
+  toastApiError,
+} from "@/lib/billing/plan-api-error";
+import { useCompanyPlan } from "@/components/billing/company-plan-context";
+import { ProFeatureGate } from "@/components/billing/pro-feature-gate";
 import { Button } from "@/components/ui/button";
 import { CompanyLogoUpload } from "@/components/forms/company-logo-upload";
 import { CompanyProfileFields } from "@/components/forms/company-profile-fields";
@@ -43,6 +50,7 @@ export function CompanyCreateForm({
 }: CompanyCreateFormProps) {
   const router = useRouter();
   const { user } = useUser();
+  const { isPro } = useCompanyPlan();
   const [form, setForm] = useState<CompanyOnboardingInput>(defaultValues);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -88,17 +96,25 @@ export function CompanyCreateForm({
 
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
-        throw new Error(body.error ?? "Failed to create company");
+        throwIfApiError(response, body, "Failed to create company");
       }
 
-      try {
-        await uploadPendingCompanyLogo({
-          file: pendingLogoFile,
-          sourceUrl:
-            useProfilePhotoAsLogo && user?.imageUrl ? user.imageUrl : null,
-        });
-      } catch {
-        toast.message("Company created, but logo upload failed. Add it in Settings.");
+      if (isPro && (pendingLogoFile || useProfilePhotoAsLogo)) {
+        try {
+          await uploadPendingCompanyLogo({
+            file: pendingLogoFile,
+            sourceUrl:
+              useProfilePhotoAsLogo && user?.imageUrl ? user.imageUrl : null,
+          });
+        } catch (logoError) {
+          if (isPlanApiError(logoError)) {
+            toast.message(
+              "Company created. Logo upload needs Pro — upgrade anytime in Billing.",
+            );
+          } else {
+            toast.message("Company created, but logo upload failed. Add it in Settings.");
+          }
+        }
       }
 
       if (onSuccess) {
@@ -108,7 +124,7 @@ export function CompanyCreateForm({
         router.refresh();
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Something went wrong");
+      toastApiError(error, "Something went wrong");
     } finally {
       setSubmitting(false);
     }
@@ -116,14 +132,21 @@ export function CompanyCreateForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <CompanyLogoUpload
-        logoUrl={logoPreview}
-        onLogoChange={setLogoPreview}
-        mode="deferred"
-        suggestedImageUrl={user?.imageUrl}
-        onPendingFileChange={setPendingLogoFile}
-        onSuggestedLogoSelect={setUseProfilePhotoAsLogo}
-      />
+      {isPro ? (
+        <CompanyLogoUpload
+          logoUrl={logoPreview}
+          onLogoChange={setLogoPreview}
+          mode="deferred"
+          suggestedImageUrl={user?.imageUrl}
+          onPendingFileChange={setPendingLogoFile}
+          onSuggestedLogoSelect={setUseProfilePhotoAsLogo}
+        />
+      ) : (
+        <ProFeatureGate
+          title="Custom logo is on Pro"
+          description="Create your company now — upgrade later to add a logo and brand colors on invoices."
+        />
+      )}
 
       <CompanyProfileFields values={form} errors={errors} onChange={updateField} />
 

@@ -20,6 +20,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
+import { throwIfApiError, toastApiError } from "@/lib/billing/plan-api-error";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -224,7 +225,7 @@ export function QrCodeCreator({
         },
       );
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? "Something went wrong");
+      throwIfApiError(response, data, "Something went wrong");
 
       if (mode === "edit") {
         toast.success("QR code updated");
@@ -237,7 +238,7 @@ export function QrCodeCreator({
         router.refresh();
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Something went wrong");
+      toastApiError(error, "Something went wrong");
     } finally {
       setSubmitting(false);
     }

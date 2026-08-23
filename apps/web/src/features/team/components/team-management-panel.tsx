@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { throwIfApiError, toastApiError } from "@/lib/billing/plan-api-error";
 import { InfoIcon, Loader2Icon, MailIcon, UserRoundPlusIcon, XIcon } from "lucide-react";
 import {
   AlertDialog,
@@ -116,14 +117,14 @@ export function TeamManagementPanel({ initialData }: TeamManagementPanelProps) {
         body: JSON.stringify({ email: email.trim(), role }),
       });
       const body = await response.json();
-      if (!response.ok) throw new Error(body.error ?? "Failed to send invite");
+      throwIfApiError(response, body, "Failed to send invite");
 
       toast.success(`Invite sent to ${email.trim()}`);
       setEmail("");
       await refreshTeam();
       router.refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to send invite");
+      toastApiError(error, "Failed to send invite");
     } finally {
       setInviting(false);
     }

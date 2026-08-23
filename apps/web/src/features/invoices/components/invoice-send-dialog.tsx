@@ -12,6 +12,9 @@ import {
   XIcon,
 } from "lucide-react";
 import { toast } from "sonner";
+import { throwIfApiError, toastApiError } from "@/lib/billing/plan-api-error";
+import { useCompanyPlan } from "@/components/billing/company-plan-context";
+import { ProFeatureGate } from "@/components/billing/pro-feature-gate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -59,6 +62,7 @@ export function InvoiceSendDialog({
   onSent,
 }: InvoiceSendDialogProps) {
   const router = useRouter();
+  const { isPro } = useCompanyPlan();
   const [to, setTo] = useState(clientEmail ?? "");
   const [subject, setSubject] = useState(defaultSubject(invoiceNumber, companyName));
   const [message, setMessage] = useState("");
@@ -72,6 +76,8 @@ export function InvoiceSendDialog({
   const autoDraftedForOpen = useRef(false);
 
   const canSend = status !== "CANCELLED" && status !== "PAID";
+  const emailUnlocked = isPro;
+  const canCompose = canSend && emailUnlocked;
   const attachmentName = `${invoiceNumber}.pdf`;
   const isCollections = draftTone === "collections";
 
@@ -96,11 +102,11 @@ export function InvoiceSendDialog({
   }, [open, clientEmail, invoiceNumber, companyName, isCollections]);
 
   useEffect(() => {
-    if (!open || !isCollections || autoDraftedForOpen.current) return;
+    if (!open || !isCollections || !emailUnlocked || autoDraftedForOpen.current) return;
     autoDraftedForOpen.current = true;
     void handleAiDraft("collections");
     // eslint-disable-next-line react-hooks/exhaustive-deps -- draft once per open for collections
-  }, [open, isCollections]);
+  }, [open, isCollections, emailUnlocked]);
 
   useEffect(() => {
     return () => {
@@ -159,21 +165,21 @@ export function InvoiceSendDialog({
         }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? "Could not draft message");
+      throwIfApiError(response, data, "Could not draft message");
       if (typeof data.message !== "string" || !data.message.trim()) {
         throw new Error("Empty draft returned");
       }
       setMessage(data.message.trim());
       toast.success(tone === "collections" ? "Chase draft ready" : "Draft ready — edit as you like");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not draft message");
+      toastApiError(error, "Could not draft message");
     } finally {
       setDrafting(false);
     }
   }
 
   async function handleSend() {
-    if (!to.trim() || !canSend) return;
+    if (!to.trim() || !canCompose) return;
     setSending(true);
     try {
       const response = await fetch(`/api/invoices/${invoiceId}/send`, {
@@ -186,14 +192,14 @@ export function InvoiceSendDialog({
         }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? "Failed to send");
+      throwIfApiError(response, data, "Failed to send");
 
       toast.success(`Invoice sent to ${to.trim()}`);
       onOpenChange(false);
       onSent?.();
       router.refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to send invoice");
+      toastApiError(error, "Failed to send invoice");
     } finally {
       setSending(false);
     }
@@ -255,6 +261,15 @@ export function InvoiceSendDialog({
                 previewOpen && "border-r sm:max-w-md lg:max-w-lg",
               )}
             >
+              {!emailUnlocked ? (
+                <div className="border-b px-4 py-3">
+                  <ProFeatureGate
+                    variant="banner"
+                    title="Email invoices on Pro"
+                    description="Upgrade to send invoices by email with PDF attached. Free plans can still share a payment link."
+                  />
+                </div>
+              ) : null}
               <div className="flex min-h-0 flex-1 flex-col">
                 <ComposeField label="To">
                   <Input
@@ -262,7 +277,7 @@ export function InvoiceSendDialog({
                     value={to}
                     onChange={(event) => setTo(event.target.value)}
                     placeholder="client@example.com"
-                    disabled={!canSend}
+                    disabled={!canCompose}
                     className="h-9 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
                   />
                 </ComposeField>
@@ -271,7 +286,7 @@ export function InvoiceSendDialog({
                     value={subject}
                     onChange={(event) => setSubject(event.target.value)}
                     placeholder={defaultSubject(invoiceNumber, companyName)}
-                    disabled={!canSend}
+                    disabled={!canCompose}
                     className="h-9 border-0 bg-transparent px-1 shadow-none focus-visible:ring-0"
                   />
                 </ComposeField>
@@ -283,7 +298,7 @@ export function InvoiceSendDialog({
                     onChange={(event) => setMessage(event.target.value)}
                     placeholder="Write a short note for your client…"
                     maxLength={2000}
-                    disabled={!canSend}
+                    disabled={!canCompose}
                     className="min-h-[160px] flex-1 resize-none rounded-none border-0 bg-transparent p-2 shadow-none focus-visible:ring-0 sm:p-4"
                   />
                   <div className="flex flex-wrap items-center gap-2 px-2 py-3 sm:px-4">
@@ -293,7 +308,7 @@ export function InvoiceSendDialog({
                       size="sm"
                       className="cursor-pointer"
                       onClick={() => void handleAiDraft()}
-                      disabled={!canSend || drafting}
+                      disabled={!canCompose || drafting}
                     >
                       {drafting ? (
                         <Loader2Icon className="size-3.5 animate-spin" />
@@ -343,7 +358,7 @@ export function InvoiceSendDialog({
                   type="button"
                   className="cursor-pointer"
                   onClick={() => void handleSend()}
-                  disabled={!to.trim() || sending || !canSend}
+                  disabled={!to.trim() || sending || !canCompose}
                 >
                   {sending ? (
                     <Loader2Icon className="size-4 animate-spin" />

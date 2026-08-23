@@ -25,6 +25,7 @@ const BanknoteCheckIcon = createLucideIcon("BanknoteCheck", [
   ["circle", { cx: "12", cy: "12", r: "2" }],
 ]);
 import { toast } from "sonner";
+import { throwIfApiError, toastApiError } from "@/lib/billing/plan-api-error";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -180,15 +181,14 @@ export function InvoiceActions({
         method: "POST",
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? "Failed to duplicate");
+      throwIfApiError(response, data, "Failed to duplicate");
 
       toast.success(`Draft created from ${invoiceNumber}`, { id: toastId });
       router.push(`/invoices/${data.invoice.id}`);
       router.refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not duplicate invoice", {
-        id: toastId,
-      });
+      toast.dismiss(toastId);
+      toastApiError(error, "Could not duplicate invoice");
     } finally {
       setLoading(null);
     }

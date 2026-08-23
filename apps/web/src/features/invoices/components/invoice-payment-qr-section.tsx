@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { ExternalLinkIcon, Loader2Icon, QrCodeIcon, Trash2Icon } from "lucide-react";
 import { QRCode } from "react-qrcode-logo";
 import { toast } from "sonner";
+import { throwIfApiError, toastApiError } from "@/lib/billing/plan-api-error";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -85,7 +86,7 @@ export function InvoicePaymentQrSection({
         }),
       });
       const body = await response.json();
-      if (!response.ok) throw new Error(body.error ?? "Could not create payment QR");
+      throwIfApiError(response, body, "Could not create payment QR");
 
       setPaymentQr(body.paymentQr);
       toast.success(
@@ -95,7 +96,7 @@ export function InvoicePaymentQrSection({
       );
       router.refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not create payment QR");
+      toastApiError(error, "Could not create payment QR");
     } finally {
       setSaving(false);
     }

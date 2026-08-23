@@ -6,6 +6,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { Building2Icon, Loader2Icon } from "lucide-react";
 import { toast } from "sonner";
+import {
+  isPlanApiError,
+  throwIfApiError,
+  toastPlanError,
+} from "@/lib/billing/plan-api-error";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -59,13 +64,18 @@ export function AcceptInvitePage({ token }: AcceptInvitePageProps) {
         body: JSON.stringify({ token }),
       });
       const body = await response.json();
-      if (!response.ok) throw new Error(body.error ?? "Failed to accept invite");
+      throwIfApiError(response, body, "Failed to accept invite");
 
       toast.success(`You joined ${body.company.name}`);
       router.push("/dashboard");
       router.refresh();
     } catch (acceptError) {
       setAccepting(false);
+      if (isPlanApiError(acceptError)) {
+        toastPlanError(acceptError);
+        setError(acceptError.message);
+        return;
+      }
       const message =
         acceptError instanceof Error ? acceptError.message : "Could not accept invite";
       setError(message);

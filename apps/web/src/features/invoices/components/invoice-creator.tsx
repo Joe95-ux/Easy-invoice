@@ -48,6 +48,7 @@ import {
   type DiscountMode,
 } from "@/lib/calculator";
 import { validateInstallments } from "@/lib/invoice-payments-utils";
+import { throwIfApiError, toastApiError } from "@/lib/billing/plan-api-error";
 import type { ClientListItem } from "@/lib/clients";
 import { formatClientAddress } from "@/lib/clients";
 import { CURRENCY_OPTIONS } from "@/lib/geo/countries";
@@ -435,7 +436,9 @@ export function InvoiceCreator({
         body: JSON.stringify(buildPayload()),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? "Failed to save invoice");
+      if (!response.ok) {
+        throwIfApiError(response, data, "Failed to save invoice");
+      }
 
       const id = isEditing ? invoiceId! : data.invoice.id;
       allowNextNavigation();
@@ -455,7 +458,7 @@ export function InvoiceCreator({
       }
       router.refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not save invoice.");
+      toastApiError(error, "Could not save invoice.");
     } finally {
       setSaving(false);
     }

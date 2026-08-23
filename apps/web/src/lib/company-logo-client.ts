@@ -1,3 +1,8 @@
+import {
+  parsePlanApiError,
+  throwIfApiError,
+} from "@/lib/billing/plan-api-error";
+
 export async function uploadCompanyLogoFile(file: File): Promise<string> {
   const formData = new FormData();
   formData.append("file", file);
@@ -6,8 +11,8 @@ export async function uploadCompanyLogoFile(file: File): Promise<string> {
     method: "POST",
     body: formData,
   });
-  const body = await response.json();
-  if (!response.ok) throw new Error(body.error ?? "Upload failed");
+  const body = await response.json().catch(() => ({}));
+  throwIfApiError(response, body, "Upload failed");
   return body.logoUrl as string;
 }
 
@@ -17,8 +22,8 @@ export async function importCompanyLogoFromUrl(sourceUrl: string): Promise<strin
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ sourceUrl }),
   });
-  const body = await response.json();
-  if (!response.ok) throw new Error(body.error ?? "Import failed");
+  const body = await response.json().catch(() => ({}));
+  throwIfApiError(response, body, "Import failed");
   return body.logoUrl as string;
 }
 
@@ -30,3 +35,5 @@ export async function uploadPendingCompanyLogo(options: {
   if (options.sourceUrl) return importCompanyLogoFromUrl(options.sourceUrl);
   return null;
 }
+
+export { parsePlanApiError };
