@@ -242,12 +242,15 @@ export function StripeConnectSection({
         <div className="mt-6 border-t border-border pt-4.5">
           <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
             <div className="flex min-w-0 items-center gap-2.5">
-              <span
-                className="flex size-6 shrink-0 items-center justify-center rounded-[7px] bg-[#635BFF] text-[10px] font-extrabold text-white"
+              {/* eslint-disable-next-line @next/next/no-img-element -- static public brand asset */}
+              <img
+                src="/stripe-com-logo.png"
+                alt=""
+                width={24}
+                height={24}
+                className="size-6 shrink-0 rounded-[7px] object-contain"
                 aria-hidden
-              >
-                S
-              </span>
+              />
               <span className="text-sm font-semibold">Stripe</span>
             </div>
             <OverallStateBadge state={overallState} />
