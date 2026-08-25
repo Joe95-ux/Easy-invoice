@@ -10,6 +10,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { SwitchPlanDialog } from "@/features/settings/components/switch-plan-dialog";
@@ -20,6 +21,7 @@ import {
   type BillingInterval,
   type PlanId,
 } from "@/features/settings/lib/plans-catalog";
+import { openBillingPortal } from "@/features/settings/lib/open-billing-portal";
 import { billingButtonClassName } from "@/features/settings/lib/billing-ui";
 import { cn } from "@/lib/utils";
 
@@ -34,6 +36,7 @@ type UsageSnapshot = {
 
 type BillingCurrentPlanCardProps = {
   plan: string;
+  hasCustomer: boolean;
   hasSubscription: boolean;
   billingConfigured: boolean;
   hasYearlyPrice: boolean;
@@ -45,6 +48,7 @@ type BillingCurrentPlanCardProps = {
 
 export function BillingCurrentPlanCard({
   plan,
+  hasCustomer,
   hasSubscription,
   billingConfigured,
   hasYearlyPrice,
@@ -61,6 +65,7 @@ export function BillingCurrentPlanCard({
   const [portalLoading, setPortalLoading] = useState(false);
   const pastDue = subscriptionStatus === "past_due";
   const trialing = subscriptionStatus === "trialing";
+  const canOpenPortal = hasCustomer && billingConfigured;
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -87,24 +92,21 @@ export function BillingCurrentPlanCard({
     } else if (billing === "canceled") {
       toast.message("Checkout canceled");
       router.replace("/settings/billing");
+    } else if (billing === "portal") {
+      toast.message("Billing updated", {
+        description: "Any plan changes from the customer portal are synced automatically.",
+      });
+      router.replace("/settings/billing");
+      router.refresh();
     }
   }, [router]);
 
-  async function openPortal() {
+  async function handlePortal(
+    flow?: Parameters<typeof openBillingPortal>[0],
+  ) {
     setPortalLoading(true);
     try {
-      const response = await fetch("/api/stripe/billing", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "portal" }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? "Could not open billing portal");
-      if (data.url) {
-        window.location.href = data.url;
-        return;
-      }
-      throw new Error("No portal URL returned");
+      await openBillingPortal(flow);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Something went wrong");
       setPortalLoading(false);
@@ -133,6 +135,7 @@ export function BillingCurrentPlanCard({
                     "shrink-0 cursor-pointer text-muted-foreground hover:text-foreground",
                     billingButtonClassName,
                   )}
+                  disabled={portalLoading}
                 />
               }
             >
@@ -145,14 +148,45 @@ export function BillingCurrentPlanCard({
                 </>
               )}
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-40">
+            <DropdownMenuContent align="end" className="min-w-48">
               <DropdownMenuItem className="cursor-pointer" onClick={() => setSwitchOpen(true)}>
                 Switch plan
               </DropdownMenuItem>
-              {hasSubscription ? (
-                <DropdownMenuItem className="cursor-pointer" onClick={() => void openPortal()}>
-                  Manage billing
-                </DropdownMenuItem>
+              {canOpenPortal ? (
+                <>
+                  <DropdownMenuItem
+                    className="cursor-pointer"
+                    onClick={() => void handlePortal()}
+                  >
+                    Manage billing
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="cursor-pointer"
+                    onClick={() => void handlePortal("payment_method_update")}
+                  >
+                    Update payment method
+                  </DropdownMenuItem>
+                  {hasSubscription && hasYearlyPrice ? (
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={() => void handlePortal("subscription_update")}
+                    >
+                      Change billing interval
+                    </DropdownMenuItem>
+                  ) : null}
+                  {hasSubscription && !cancelAtPeriodEnd ? (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        variant="destructive"
+                        className="cursor-pointer"
+                        onClick={() => void handlePortal("subscription_cancel")}
+                      >
+                        Cancel subscription
+                      </DropdownMenuItem>
+                    </>
+                  ) : null}
+                </>
               ) : null}
             </DropdownMenuContent>
           </DropdownMenu>
@@ -169,15 +203,30 @@ export function BillingCurrentPlanCard({
           </p>
 
           {pastDue ? (
-            <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-              Payment past due. Update your card in Manage billing to keep Pro
-              features.
+            <div className="flex flex-col gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-destructive">
+                Payment past due. Update your card to keep Pro features.
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                className={cn(
+                  "shrink-0 cursor-pointer border-destructive/40 text-destructive hover:bg-destructive/10",
+                  billingButtonClassName,
+                )}
+                disabled={portalLoading || !canOpenPortal}
+                onClick={() => void handlePortal("payment_method_update")}
+              >
+                {portalLoading ? <Loader2Icon className="size-3.5 animate-spin" /> : null}
+                Update card
+              </Button>
             </div>
           ) : null}
 
           {cancelAtPeriodEnd ? (
             <div className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
-              Your Pro plan will end at the close of the current billing period.
+              Your Pro plan will end at the close of the current billing period. You can resume in
+              Manage billing before then.
             </div>
           ) : null}
 

@@ -14,6 +14,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
+import { billingButtonClassName } from "@/features/settings/lib/billing-ui";
+import { openBillingPortal } from "@/features/settings/lib/open-billing-portal";
 import {
   BILLING_PLANS,
   formatPlanPriceLabel,
@@ -21,7 +23,6 @@ import {
   type BillingInterval,
   type PlanId,
 } from "@/features/settings/lib/plans-catalog";
-import { billingButtonClassName } from "@/features/settings/lib/billing-ui";
 import { cn } from "@/lib/utils";
 
 type SwitchPlanDialogProps = {
@@ -82,18 +83,8 @@ export function SwitchPlanDialog({
       }
 
       if (downgradingToFree) {
-        const response = await fetch("/api/stripe/billing", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "portal" }),
-        });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error ?? "Could not open billing portal");
-        if (data.url) {
-          window.location.href = data.url;
-          return;
-        }
-        throw new Error("No portal URL returned");
+        await openBillingPortal("subscription_cancel");
+        return;
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Something went wrong");

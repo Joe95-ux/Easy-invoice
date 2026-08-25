@@ -156,14 +156,141 @@ export async function createProCheckoutSession(input: {
   return { url: session.url };
 }
 
+/** Deep-link destinations inside the Stripe Customer Portal. */
+export type BillingPortalFlow =
+  | "payment_method_update"
+  | "subscription_cancel"
+  | "subscription_update";
+
+/**
+ * Ensure a Customer Portal configuration exists with the features Invoice Desk needs.
+ * Reuses an active configuration that already enables cancel / payment method / invoices;
+ * otherwise creates one from Pro prices.
+ */
+export async function ensureBillingPortalConfiguration(): Promise<string | undefined> {
+  const listed = await stripe.billingPortal.configurations.list({ limit: 100 });
+  const suitable = listed.data.find(
+    (config) =>
+      config.active &&
+      config.features.payment_method_update?.enabled &&
+      config.features.invoice_history?.enabled &&
+      config.features.subscription_cancel?.enabled,
+  );
+  if (suitable) return suitable.id;
+
+  const monthlyPriceId = getProPriceId("monthly");
+  const yearlyPriceId = getProPriceId("yearly");
+  const priceIds = [monthlyPriceId, yearlyPriceId].filter(
+    (id): id is string => Boolean(id),
+  );
+
+  let productId: string | null = null;
+  if (monthlyPriceId) {
+    const price = await stripe.prices.retrieve(monthlyPriceId);
+    productId = typeof price.product === "string" ? price.product : price.product.id;
+  }
+
+  const configuration = await stripe.billingPortal.configurations.create({
+    business_profile: {
+      headline: "Manage your Invoice Desk subscription",
+    },
+    features: {
+      customer_update: {
+        enabled: true,
+        allowed_updates: ["email", "address", "phone", "tax_id"],
+      },
+      invoice_history: { enabled: true },
+      payment_method_update: { enabled: true },
+      subscription_cancel: {
+        enabled: true,
+        mode: "at_period_end",
+        cancellation_reason: {
+          enabled: true,
+          options: [
+            "too_expensive",
+            "missing_features",
+            "switched_service",
+            "unused",
+            "other",
+          ],
+        },
+      },
+      ...(productId && priceIds.length > 0
+        ? {
+            subscription_update: {
+              enabled: true,
+              default_allowed_updates: ["price" as const],
+              proration_behavior: "create_prorations" as const,
+              products: [{ product: productId, prices: priceIds }],
+            },
+          }
+        : {}),
+    },
+  });
+
+  return configuration.id;
+}
+
 export async function createBillingPortalSession(input: {
   customerId: string;
+  subscriptionId?: string | null;
+  flow?: BillingPortalFlow;
 }): Promise<{ url: string }> {
   const origin = await getAppOrigin();
-  const session = await stripe.billingPortal.sessions.create({
+  const returnUrl = `${origin}/settings/billing?billing=portal`;
+
+  let configuration: string | undefined;
+  try {
+    configuration = await ensureBillingPortalConfiguration();
+  } catch (error) {
+    // Fall back to the account default portal configuration in Stripe.
+    console.warn("[stripe-billing] Could not ensure portal configuration", error);
+  }
+
+  const needsSubscription =
+    input.flow === "subscription_cancel" || input.flow === "subscription_update";
+  if (needsSubscription && !input.subscriptionId) {
+    throw new Error("No active subscription to manage in the portal");
+  }
+
+  const sessionParams: Stripe.BillingPortal.SessionCreateParams = {
     customer: input.customerId,
-    return_url: `${origin}/settings/billing`,
-  });
+    return_url: returnUrl,
+    ...(configuration ? { configuration } : {}),
+  };
+
+  if (input.flow === "payment_method_update") {
+    sessionParams.flow_data = {
+      type: "payment_method_update",
+      after_completion: {
+        type: "redirect",
+        redirect: { return_url: returnUrl },
+      },
+    };
+  } else if (input.flow === "subscription_cancel" && input.subscriptionId) {
+    sessionParams.flow_data = {
+      type: "subscription_cancel",
+      subscription_cancel: { subscription: input.subscriptionId },
+      after_completion: {
+        type: "redirect",
+        redirect: { return_url: returnUrl },
+      },
+    };
+  } else if (input.flow === "subscription_update" && input.subscriptionId) {
+    sessionParams.flow_data = {
+      type: "subscription_update",
+      subscription_update: { subscription: input.subscriptionId },
+      after_completion: {
+        type: "redirect",
+        redirect: { return_url: returnUrl },
+      },
+    };
+  }
+
+  const session = await stripe.billingPortal.sessions.create(sessionParams);
+  if (!session.url) {
+    throw new Error("Could not open billing portal");
+  }
   return { url: session.url };
 }
 

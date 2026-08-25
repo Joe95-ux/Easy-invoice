@@ -8,7 +8,21 @@ import {
   isPaidPlan,
   isSubscriptionBillingConfigured,
   type BillingInterval,
+  type BillingPortalFlow,
 } from "@/lib/stripe-billing";
+
+const PORTAL_FLOWS = new Set<BillingPortalFlow>([
+  "payment_method_update",
+  "subscription_cancel",
+  "subscription_update",
+]);
+
+function parsePortalFlow(value: unknown): BillingPortalFlow | undefined {
+  if (typeof value !== "string") return undefined;
+  return PORTAL_FLOWS.has(value as BillingPortalFlow)
+    ? (value as BillingPortalFlow)
+    : undefined;
+}
 
 export async function GET() {
   const { member, response } = await requireApiCompanyAdmin();
@@ -46,13 +60,16 @@ export async function POST(request: Request) {
 
   let action: "checkout" | "portal" = "checkout";
   let interval: BillingInterval = "monthly";
+  let flow: BillingPortalFlow | undefined;
   try {
     const body = (await request.json()) as {
       action?: string;
       interval?: string;
+      flow?: string;
     };
     if (body.action === "portal") action = "portal";
     if (body.interval === "yearly") interval = "yearly";
+    flow = parsePortalFlow(body.flow);
   } catch {
     // default checkout monthly
   }
@@ -76,17 +93,33 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
-    const { url } = await createBillingPortalSession({
-      customerId: company.stripeCustomerId,
-    });
-    return NextResponse.json({ url });
+    try {
+      const { url } = await createBillingPortalSession({
+        customerId: company.stripeCustomerId,
+        subscriptionId: company.stripeSubscriptionId,
+        flow,
+      });
+      return NextResponse.json({ url });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Could not open billing portal";
+      return NextResponse.json({ error: message }, { status: 502 });
+    }
   }
 
   if (isPaidPlan(company.plan) && company.stripeSubscriptionId && company.stripeCustomerId) {
-    const { url } = await createBillingPortalSession({
-      customerId: company.stripeCustomerId,
-    });
-    return NextResponse.json({ url, managedExisting: true });
+    try {
+      const { url } = await createBillingPortalSession({
+        customerId: company.stripeCustomerId,
+        subscriptionId: company.stripeSubscriptionId,
+        flow: flow ?? "subscription_update",
+      });
+      return NextResponse.json({ url, managedExisting: true });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Could not open billing portal";
+      return NextResponse.json({ error: message }, { status: 502 });
+    }
   }
 
   if (interval === "yearly" && !getProPriceId("yearly")) {

@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { BillingCheckoutButton } from "@/features/settings/components/billing-checkout-button";
 import { SupportContactDialog } from "@/components/app-shell/support-contact-dialog";
 import { billingButtonClassName } from "@/features/settings/lib/billing-ui";
+import { openBillingPortal } from "@/features/settings/lib/open-billing-portal";
 import {
   formatPlanPriceLabel,
   normalizePlanId,
@@ -50,18 +51,7 @@ export function BillingPlansComparison({
   async function openPortal() {
     setPortalLoading(true);
     try {
-      const response = await fetch("/api/stripe/billing", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "portal" }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? "Could not open billing portal");
-      if (data.url) {
-        window.location.href = data.url;
-        return;
-      }
-      throw new Error("No portal URL returned");
+      await openBillingPortal("subscription_cancel");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Something went wrong");
       setPortalLoading(false);

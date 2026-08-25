@@ -2,7 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { ExternalLinkIcon, Loader2Icon } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { openBillingPortal } from "@/features/settings/lib/open-billing-portal";
+import { billingButtonClassName } from "@/features/settings/lib/billing-ui";
 import type { BillingInvoiceSummary } from "@/lib/stripe-billing";
 import { cn } from "@/lib/utils";
 
@@ -33,6 +37,7 @@ export function BillingInvoicesCard({ hasCustomer }: BillingInvoicesCardProps) {
   const [invoices, setInvoices] = useState<BillingInvoiceSummary[]>([]);
   const [loading, setLoading] = useState(hasCustomer);
   const [error, setError] = useState<string | null>(null);
+  const [portalLoading, setPortalLoading] = useState(false);
 
   useEffect(() => {
     if (!hasCustomer) {
@@ -67,13 +72,40 @@ export function BillingInvoicesCard({ hasCustomer }: BillingInvoicesCardProps) {
     };
   }, [hasCustomer]);
 
+  async function openPortal() {
+    setPortalLoading(true);
+    try {
+      await openBillingPortal();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not open billing portal");
+      setPortalLoading(false);
+    }
+  }
+
   return (
     <Card>
-      <CardHeader className="space-y-1">
-        <CardTitle className="text-base">Recent invoices</CardTitle>
-        <p className="text-sm text-muted-foreground">
-          Invoice Desk subscription charges from Stripe.
-        </p>
+      <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
+        <div className="space-y-1">
+          <CardTitle className="text-base">Recent invoices</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Invoice Desk subscription charges from Stripe.
+          </p>
+        </div>
+        {hasCustomer ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            className={cn(
+              "shrink-0 cursor-pointer text-muted-foreground hover:text-foreground",
+              billingButtonClassName,
+            )}
+            disabled={portalLoading}
+            onClick={() => void openPortal()}
+          >
+            {portalLoading ? <Loader2Icon className="size-3.5 animate-spin" /> : null}
+            Billing portal
+          </Button>
+        ) : null}
       </CardHeader>
       <CardContent>
         {!hasCustomer ? (

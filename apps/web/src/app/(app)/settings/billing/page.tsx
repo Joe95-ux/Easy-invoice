@@ -53,6 +53,7 @@ export default async function SettingsBillingPage() {
       <div className="space-y-6">
         <BillingCurrentPlanCard
           plan={company.plan}
+          hasCustomer={Boolean(company.stripeCustomerId)}
           hasSubscription={Boolean(company.stripeSubscriptionId)}
           billingConfigured={isSubscriptionBillingConfigured()}
           hasYearlyPrice={Boolean(getProPriceId("yearly"))}
