@@ -162,21 +162,156 @@ export type BillingPortalFlow =
   | "subscription_cancel"
   | "subscription_update";
 
-/**
- * Ensure a Customer Portal configuration exists with the features Invoice Desk needs.
- * Reuses an active configuration that already enables cancel / payment method / invoices;
- * otherwise creates one from Pro prices.
- */
-export async function ensureBillingPortalConfiguration(): Promise<string | undefined> {
-  const listed = await stripe.billingPortal.configurations.list({ limit: 100 });
-  const suitable = listed.data.find(
-    (config) =>
-      config.active &&
+const PORTAL_CONFIG_META_KEY = "invoice_desk";
+const PORTAL_CONFIG_META_VALUE = "saas_billing_portal";
+
+/** Process-lifetime cache so we don't list/create portal configs on every click. */
+let cachedPortalConfigurationId: string | undefined;
+/** True when the cached config is known to support subscription_update. */
+let cachedPortalSupportsSubscriptionUpdate = false;
+/** In-flight ensure — collapses concurrent first-time creates into one request. */
+let portalConfigEnsurePromise: Promise<string | undefined> | null = null;
+
+function portalConfigSupportsCoreFeatures(
+  config: Stripe.BillingPortal.Configuration,
+): boolean {
+  return Boolean(
+    config.active &&
       config.features.payment_method_update?.enabled &&
       config.features.invoice_history?.enabled &&
       config.features.subscription_cancel?.enabled,
   );
-  if (suitable) return suitable.id;
+}
+
+function portalConfigSupportsIntervalSwitch(
+  config: Stripe.BillingPortal.Configuration,
+): boolean {
+  return Boolean(config.features.subscription_update?.enabled);
+}
+
+async function buildPortalBusinessProfile(): Promise<
+  Stripe.BillingPortal.ConfigurationCreateParams.BusinessProfile
+> {
+  const origin = await getAppOrigin();
+  return {
+    headline: "Manage your Invoice Desk subscription",
+    privacy_policy_url: `${origin}/privacy`,
+    terms_of_service_url: `${origin}/terms`,
+  };
+}
+
+function businessProfileNeedsUpdate(
+  config: Stripe.BillingPortal.Configuration,
+  desired: Stripe.BillingPortal.ConfigurationCreateParams.BusinessProfile,
+): boolean {
+  const current = config.business_profile ?? {};
+  return (
+    current.headline !== desired.headline ||
+    current.privacy_policy_url !== desired.privacy_policy_url ||
+    current.terms_of_service_url !== desired.terms_of_service_url
+  );
+}
+
+/**
+ * Ensure a Customer Portal configuration exists with the features Invoice Desk needs.
+ * Prefers our tagged config, then any active config with core features; otherwise creates one.
+ * Concurrent callers share one in-flight promise to avoid duplicate creates.
+ */
+export async function ensureBillingPortalConfiguration(options?: {
+  requireSubscriptionUpdate?: boolean;
+}): Promise<string | undefined> {
+  const requireUpdate = Boolean(options?.requireSubscriptionUpdate);
+
+  if (
+    cachedPortalConfigurationId &&
+    (!requireUpdate || cachedPortalSupportsSubscriptionUpdate)
+  ) {
+    return cachedPortalConfigurationId;
+  }
+
+  if (portalConfigEnsurePromise) {
+    const id = await portalConfigEnsurePromise;
+    if (id && (!requireUpdate || cachedPortalSupportsSubscriptionUpdate)) {
+      return id;
+    }
+  }
+
+  portalConfigEnsurePromise = (async () => {
+    try {
+      return await resolveBillingPortalConfiguration({ requireUpdate });
+    } finally {
+      portalConfigEnsurePromise = null;
+    }
+  })();
+
+  return portalConfigEnsurePromise;
+}
+
+async function resolveBillingPortalConfiguration(input: {
+  requireUpdate: boolean;
+}): Promise<string | undefined> {
+  const { requireUpdate } = input;
+  const businessProfile = await buildPortalBusinessProfile();
+  const listed = await stripe.billingPortal.configurations.list({ limit: 100 });
+
+  const tagged = listed.data.find(
+    (config) =>
+      portalConfigSupportsCoreFeatures(config) &&
+      config.metadata?.[PORTAL_CONFIG_META_KEY] === PORTAL_CONFIG_META_VALUE &&
+      (!requireUpdate || portalConfigSupportsIntervalSwitch(config)),
+  );
+  if (tagged) {
+    if (businessProfileNeedsUpdate(tagged, businessProfile)) {
+      try {
+        await stripe.billingPortal.configurations.update(tagged.id, {
+          business_profile: businessProfile,
+        });
+      } catch (error) {
+        console.warn("[stripe-billing] Could not update portal branding", error);
+      }
+    }
+    cachedPortalConfigurationId = tagged.id;
+    cachedPortalSupportsSubscriptionUpdate = portalConfigSupportsIntervalSwitch(tagged);
+    return tagged.id;
+  }
+
+  const suitable = listed.data.find(
+    (config) =>
+      portalConfigSupportsCoreFeatures(config) &&
+      (!requireUpdate || portalConfigSupportsIntervalSwitch(config)),
+  );
+  if (suitable) {
+    try {
+      await stripe.billingPortal.configurations.update(suitable.id, {
+        metadata: {
+          ...(suitable.metadata ?? {}),
+          [PORTAL_CONFIG_META_KEY]: PORTAL_CONFIG_META_VALUE,
+        },
+        ...(businessProfileNeedsUpdate(suitable, businessProfile)
+          ? { business_profile: businessProfile }
+          : {}),
+      });
+    } catch (error) {
+      console.warn("[stripe-billing] Could not tag portal configuration", error);
+    }
+    cachedPortalConfigurationId = suitable.id;
+    cachedPortalSupportsSubscriptionUpdate = portalConfigSupportsIntervalSwitch(suitable);
+    return suitable.id;
+  }
+
+  // Another concurrent request may have created ours while we listed.
+  const listedAgain = await stripe.billingPortal.configurations.list({ limit: 100 });
+  const raced = listedAgain.data.find(
+    (config) =>
+      portalConfigSupportsCoreFeatures(config) &&
+      config.metadata?.[PORTAL_CONFIG_META_KEY] === PORTAL_CONFIG_META_VALUE &&
+      (!requireUpdate || portalConfigSupportsIntervalSwitch(config)),
+  );
+  if (raced) {
+    cachedPortalConfigurationId = raced.id;
+    cachedPortalSupportsSubscriptionUpdate = portalConfigSupportsIntervalSwitch(raced);
+    return raced.id;
+  }
 
   const monthlyPriceId = getProPriceId("monthly");
   const yearlyPriceId = getProPriceId("yearly");
@@ -191,8 +326,9 @@ export async function ensureBillingPortalConfiguration(): Promise<string | undef
   }
 
   const configuration = await stripe.billingPortal.configurations.create({
-    business_profile: {
-      headline: "Manage your Invoice Desk subscription",
+    business_profile: businessProfile,
+    metadata: {
+      [PORTAL_CONFIG_META_KEY]: PORTAL_CONFIG_META_VALUE,
     },
     features: {
       customer_update: {
@@ -228,6 +364,8 @@ export async function ensureBillingPortalConfiguration(): Promise<string | undef
     },
   });
 
+  cachedPortalConfigurationId = configuration.id;
+  cachedPortalSupportsSubscriptionUpdate = portalConfigSupportsIntervalSwitch(configuration);
   return configuration.id;
 }
 
@@ -239,18 +377,37 @@ export async function createBillingPortalSession(input: {
   const origin = await getAppOrigin();
   const returnUrl = `${origin}/settings/billing?billing=portal`;
 
-  let configuration: string | undefined;
+  // Reject deleted / stale Stripe customers early with a clear message.
   try {
-    configuration = await ensureBillingPortalConfiguration();
+    const customer = await stripe.customers.retrieve(input.customerId);
+    if ("deleted" in customer && customer.deleted) {
+      throw new Error("Billing account was removed in Stripe — contact support or re-subscribe");
+    }
   } catch (error) {
-    // Fall back to the account default portal configuration in Stripe.
-    console.warn("[stripe-billing] Could not ensure portal configuration", error);
+    if (error instanceof Error && error.message.includes("Billing account was removed")) {
+      throw error;
+    }
+    const stripeError = error as { code?: string; statusCode?: number };
+    if (stripeError.code === "resource_missing" || stripeError.statusCode === 404) {
+      throw new Error("Billing account not found — upgrade to Pro again to recreate it");
+    }
+    // Network / other errors: still attempt portal session below.
   }
 
   const needsSubscription =
     input.flow === "subscription_cancel" || input.flow === "subscription_update";
   if (needsSubscription && !input.subscriptionId) {
     throw new Error("No active subscription to manage in the portal");
+  }
+
+  let configuration: string | undefined;
+  try {
+    configuration = await ensureBillingPortalConfiguration({
+      requireSubscriptionUpdate: input.flow === "subscription_update",
+    });
+  } catch (error) {
+    // Fall back to the account default portal configuration in Stripe.
+    console.warn("[stripe-billing] Could not ensure portal configuration", error);
   }
 
   const sessionParams: Stripe.BillingPortal.SessionCreateParams = {
@@ -287,11 +444,27 @@ export async function createBillingPortalSession(input: {
     };
   }
 
-  const session = await stripe.billingPortal.sessions.create(sessionParams);
-  if (!session.url) {
-    throw new Error("Could not open billing portal");
+  try {
+    const session = await stripe.billingPortal.sessions.create(sessionParams);
+    if (!session.url) {
+      throw new Error("Could not open billing portal");
+    }
+    return { url: session.url };
+  } catch (error) {
+    // Stale cached config id — clear and retry once without a pinned configuration.
+    if (configuration && cachedPortalConfigurationId === configuration) {
+      cachedPortalConfigurationId = undefined;
+      cachedPortalSupportsSubscriptionUpdate = false;
+      const retryParams = { ...sessionParams };
+      delete retryParams.configuration;
+      const session = await stripe.billingPortal.sessions.create(retryParams);
+      if (!session.url) {
+        throw new Error("Could not open billing portal");
+      }
+      return { url: session.url };
+    }
+    throw error;
   }
-  return { url: session.url };
 }
 
 export type BillingInvoiceSummary = {

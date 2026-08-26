@@ -5,6 +5,7 @@ import {
   createBillingPortalSession,
   createProCheckoutSession,
   getProPriceId,
+  getSubscriptionBillingState,
   isPaidPlan,
   isSubscriptionBillingConfigured,
   type BillingInterval,
@@ -37,6 +38,8 @@ export async function GET() {
     },
   });
 
+  const subscription = await getSubscriptionBillingState(company.stripeSubscriptionId);
+
   return NextResponse.json({
     configured: isSubscriptionBillingConfigured(),
     hasYearly: Boolean(getProPriceId("yearly")),
@@ -44,6 +47,9 @@ export async function GET() {
     hasCustomer: Boolean(company.stripeCustomerId),
     hasSubscription: Boolean(company.stripeSubscriptionId),
     isPaid: isPaidPlan(company.plan),
+    cancelAtPeriodEnd: Boolean(subscription?.cancelAtPeriodEnd),
+    subscriptionStatus: subscription?.status ?? null,
+    billingInterval: subscription?.interval ?? null,
   });
 }
 

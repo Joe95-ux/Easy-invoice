@@ -21,7 +21,12 @@ import {
   type BillingInterval,
   type PlanId,
 } from "@/features/settings/lib/plans-catalog";
-import { openBillingPortal } from "@/features/settings/lib/open-billing-portal";
+import {
+  billingPortalSnapshotChanged,
+  openBillingPortal,
+  takeBillingPortalSnapshot,
+  type BillingPortalSnapshot,
+} from "@/features/settings/lib/open-billing-portal";
 import { billingButtonClassName } from "@/features/settings/lib/billing-ui";
 import { cn } from "@/lib/utils";
 
@@ -93,11 +98,48 @@ export function BillingCurrentPlanCard({
       toast.message("Checkout canceled");
       router.replace("/settings/billing");
     } else if (billing === "portal") {
-      toast.message("Billing updated", {
-        description: "Any plan changes from the customer portal are synced automatically.",
-      });
-      router.replace("/settings/billing");
-      router.refresh();
+      void (async () => {
+        const before = takeBillingPortalSnapshot();
+        // Give Stripe webhooks a brief moment to land, then compare.
+        await new Promise((resolve) => window.setTimeout(resolve, 600));
+        let after: BillingPortalSnapshot | null = null;
+        try {
+          const response = await fetch("/api/stripe/billing");
+          if (response.ok) {
+            const data = (await response.json()) as BillingPortalSnapshot;
+            if (
+              typeof data.plan === "string" &&
+              typeof data.hasSubscription === "boolean" &&
+              typeof data.hasCustomer === "boolean" &&
+              typeof data.isPaid === "boolean" &&
+              typeof data.cancelAtPeriodEnd === "boolean"
+            ) {
+              after = {
+                plan: data.plan,
+                hasSubscription: data.hasSubscription,
+                hasCustomer: data.hasCustomer,
+                isPaid: data.isPaid,
+                cancelAtPeriodEnd: data.cancelAtPeriodEnd,
+                subscriptionStatus:
+                  typeof data.subscriptionStatus === "string" || data.subscriptionStatus === null
+                    ? data.subscriptionStatus
+                    : null,
+              };
+            }
+          }
+        } catch {
+          // ignore — still refresh UI
+        }
+
+        if (before && after && billingPortalSnapshotChanged(before, after)) {
+          toast.success("Billing updated", {
+            description: "Your Invoice Desk plan was refreshed from Stripe.",
+          });
+        }
+
+        router.replace("/settings/billing");
+        router.refresh();
+      })();
     }
   }, [router]);
 
@@ -224,9 +266,21 @@ export function BillingCurrentPlanCard({
           ) : null}
 
           {cancelAtPeriodEnd ? (
-            <div className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
-              Your Pro plan will end at the close of the current billing period. You can resume in
-              Manage billing before then.
+            <div className="flex flex-col gap-3 rounded-lg border border-border bg-muted/40 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-muted-foreground">
+                Your Pro plan will end at the close of the current billing period. Open billing to
+                keep Pro before then.
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                className={cn("shrink-0 cursor-pointer", billingButtonClassName)}
+                disabled={portalLoading || !canOpenPortal}
+                onClick={() => void handlePortal()}
+              >
+                {portalLoading ? <Loader2Icon className="size-3.5 animate-spin" /> : null}
+                Manage billing
+              </Button>
             </div>
           ) : null}
 
