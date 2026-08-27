@@ -25,6 +25,7 @@ import { ClientEstimatesTab } from "@/features/clients/components/client-estimat
 import { ClientInvoicesTab } from "@/features/clients/components/client-invoices-tab";
 import { ClientOverviewTab } from "@/features/clients/components/client-overview-tab";
 import { ClientReceiptsTab } from "@/features/clients/components/client-receipts-tab";
+import { InviteClientPortalButton } from "@/features/clients/components/invite-client-portal-button";
 import type { ClientFinancialProfile } from "@/lib/clients/financial-profile";
 import { formatMoney } from "@/lib/invoices";
 import type { ClientInput } from "@/lib/schemas/client";
@@ -140,6 +141,7 @@ export function ClientDetail({ client, companyName }: ClientDetailProps) {
               <FileTextIcon className="size-4" />
               New invoice
             </Button>
+            <InviteClientPortalButton clientId={client.id} clientEmail={client.email} />
             <AlertDialog>
               <AlertDialogTrigger
                 render={

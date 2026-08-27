@@ -330,8 +330,43 @@ model Client {
   activeTimeTimers ActiveTimeTimer[]
   followUps FollowUp[]
   recurringInvoices RecurringInvoice[]
+  portalMagicLinks ClientPortalMagicLink[]
+  portalSessions   ClientPortalSession[]
 
   @@index([companyId])
+  @@index([email])
+}
+
+/// One-time email magic link for the client portal (hashed token).
+model ClientPortalMagicLink {
+  id         String    @id @default(cuid())
+  clientId   String
+  email      String
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([email])
+  @@index([expiresAt])
+}
+
+/// Opaque browser session for a logged-in client portal visitor.
+model ClientPortalSession {
+  id         String   @id @default(cuid())
+  clientId   String
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([expiresAt])
 }
 
 /// Reusable product/service for faster invoice and estimate line items.

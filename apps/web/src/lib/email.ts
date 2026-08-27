@@ -416,3 +416,58 @@ export async function sendTeamNotificationEmail(input: SendTeamNotificationEmail
 
   return data;
 }
+
+type SendClientPortalMagicLinkEmailInput = {
+  to: string;
+  links: Array<{ companyName: string; url: string }>;
+  clientName?: string;
+  /** When true, copy reads as a staff invite rather than a self-serve sign-in. */
+  invitedByStaff?: boolean;
+};
+
+/** Email one or more client-portal magic links (one button per company). */
+export async function sendClientPortalMagicLinkEmail(
+  input: SendClientPortalMagicLinkEmailInput,
+) {
+  const from = process.env.RESEND_FROM_EMAIL ?? "Easy Invoice <onboarding@resend.dev>";
+  const resend = getResend();
+
+  const buttons = input.links
+    .map(
+      (link) =>
+        `<p style="margin:16px 0"><a href="${escapeHtml(link.url)}" style="display:inline-block;padding:10px 16px;background:#1a1a1a;color:#fff;text-decoration:none;border-radius:999px;font-weight:600">Open ${escapeHtml(link.companyName)} portal</a></p>`,
+    )
+    .join("");
+
+  const greeting = input.clientName
+    ? `Hello ${escapeHtml(input.clientName)},`
+    : "Hello,";
+  const intro = input.invitedByStaff
+    ? input.links.length === 1
+      ? `<p>${escapeHtml(input.links[0].companyName)} invited you to their client portal so you can view invoices and estimates in one place.</p>`
+      : `<p>You have been invited to a client portal so you can view invoices and estimates in one place.</p>`
+    : `<p>Use the secure link${input.links.length > 1 ? "s" : ""} below to open your client portal and view invoices and estimates.</p>`;
+
+  const { data, error } = await resend.emails.send({
+    from,
+    to: input.to,
+    subject:
+      input.links.length === 1
+        ? input.invitedByStaff
+          ? `${input.links[0].companyName} invited you to their client portal`
+          : `Your ${input.links[0].companyName} client portal link`
+        : "Your Invoice Desk client portal links",
+    html: `
+      <p>${greeting}</p>
+      ${intro}
+      ${buttons}
+      <p style="color:#666;font-size:13px">This link expires in 30 minutes and can only be used once. If you did not expect this email, you can ignore it.</p>
+    `,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}
