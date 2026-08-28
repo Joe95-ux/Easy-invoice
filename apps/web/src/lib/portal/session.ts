@@ -19,7 +19,31 @@ export type PortalSessionClient = {
   companySlug: string;
 };
 
+function sessionCookieOptions(maxAge: number) {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax" as const,
+    path: "/",
+    maxAge,
+  };
+}
+
+async function clearSessionCookie() {
+  const cookieStore = await cookies();
+  cookieStore.set(PORTAL_SESSION_COOKIE, "", sessionCookieOptions(0));
+}
+
+/** Replace any existing portal session cookie + DB row, then create a new one. */
 export async function createPortalSession(clientId: string): Promise<string> {
+  const cookieStore = await cookies();
+  const previous = cookieStore.get(PORTAL_SESSION_COOKIE)?.value;
+  if (previous) {
+    await prisma.clientPortalSession.deleteMany({
+      where: { tokenHash: hashPortalToken(previous) },
+    });
+  }
+
   const rawToken = generatePortalToken();
   const tokenHash = hashPortalToken(rawToken);
   const expiresAt = new Date(Date.now() + PORTAL_SESSION_TTL_MS);
@@ -32,14 +56,11 @@ export async function createPortalSession(clientId: string): Promise<string> {
     },
   });
 
-  const cookieStore = await cookies();
-  cookieStore.set(PORTAL_SESSION_COOKIE, rawToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: Math.floor(PORTAL_SESSION_TTL_MS / 1000),
-  });
+  cookieStore.set(
+    PORTAL_SESSION_COOKIE,
+    rawToken,
+    sessionCookieOptions(Math.floor(PORTAL_SESSION_TTL_MS / 1000)),
+  );
 
   return rawToken;
 }
@@ -47,19 +68,18 @@ export async function createPortalSession(clientId: string): Promise<string> {
 export async function destroyPortalSession(): Promise<void> {
   const cookieStore = await cookies();
   const rawToken = cookieStore.get(PORTAL_SESSION_COOKIE)?.value;
-  cookieStore.set(PORTAL_SESSION_COOKIE, "", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 0,
-  });
+  await clearSessionCookie();
 
   if (!rawToken) return;
-  const tokenHash = hashPortalToken(rawToken);
-  await prisma.clientPortalSession.deleteMany({ where: { tokenHash } });
+  await prisma.clientPortalSession.deleteMany({
+    where: { tokenHash: hashPortalToken(rawToken) },
+  });
 }
 
+/**
+ * Read-only session lookup for RSC / layout.
+ * Never writes cookies here — Next forbids cookie mutation during render.
+ */
 export async function getPortalSession(): Promise<PortalSessionClient | null> {
   const cookieStore = await cookies();
   const rawToken = cookieStore.get(PORTAL_SESSION_COOKIE)?.value;
@@ -85,23 +105,18 @@ export async function getPortalSession(): Promise<PortalSessionClient | null> {
     if (session) {
       await prisma.clientPortalSession.deleteMany({ where: { id: session.id } });
     }
-    cookieStore.set(PORTAL_SESSION_COOKIE, "", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 0,
-    });
     return null;
   }
 
-  // Touch lastSeenAt occasionally (not every request).
   const touchAfterMs = 15 * 60 * 1000;
   if (Date.now() - session.lastSeenAt.getTime() > touchAfterMs) {
-    await prisma.clientPortalSession.update({
-      where: { id: session.id },
-      data: { lastSeenAt: new Date() },
-    });
+    // Fire-and-forget touch; ignore failures so a render never blocks on it.
+    void prisma.clientPortalSession
+      .update({
+        where: { id: session.id },
+        data: { lastSeenAt: new Date() },
+      })
+      .catch(() => undefined);
   }
 
   return {

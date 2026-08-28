@@ -9,6 +9,7 @@ import {
   EyeIcon,
   FileTextIcon,
   MoreHorizontalIcon,
+  SendIcon,
   Trash2Icon,
 } from "lucide-react";
 import { SortableTableHead } from "@/components/data-table/sortable-table-head";
@@ -29,6 +30,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  inviteClientToPortalRequest,
+  toastPortalInviteResult,
+} from "@/features/clients/lib/invite-client-portal";
 import { useListTable } from "@/hooks/use-list-table";
 import type { ClientListItem } from "@/lib/clients";
 import { formatPhoneForDisplay } from "@/lib/phone";
@@ -80,6 +85,23 @@ export function ClientsTable({ clients }: ClientsTableProps) {
       router.refresh();
     } catch {
       toast.error("Could not delete client");
+    } finally {
+      setLoadingId(null);
+    }
+  }
+
+  async function handleInviteToPortal(client: ClientListItem) {
+    if (!client.email?.trim()) {
+      toast.error("Add an email on this client before inviting them to the portal");
+      return;
+    }
+
+    setLoadingId(client.id);
+    try {
+      const result = await inviteClientToPortalRequest(client.id);
+      toastPortalInviteResult(result, client.email, toast);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not send invite");
     } finally {
       setLoadingId(null);
     }
@@ -185,6 +207,21 @@ export function ClientsTable({ clients }: ClientsTableProps) {
                       >
                         <ClipboardListIcon className="size-4" />
                         New estimate
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        disabled={!client.email?.trim() || loadingId === client.id}
+                        title={
+                          client.email?.trim()
+                            ? undefined
+                            : "Add an email on this client first"
+                        }
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void handleInviteToPortal(client);
+                        }}
+                      >
+                        <SendIcon className="size-4" />
+                        Invite to portal
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem

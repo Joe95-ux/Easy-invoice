@@ -33,9 +33,16 @@ type SendInvoiceEmailInput = {
   total: string;
   pdfBuffer: Buffer;
   viewUrl?: string;
+  /** Link to the client portal login (optionally prefilled). */
+  portalUrl?: string;
   message?: string;
   subject?: string;
 };
+
+function formatPortalLink(portalUrl?: string): string {
+  if (!portalUrl) return "";
+  return `<p style="margin-top:12px;font-size:14px"><a href="${escapeHtml(portalUrl)}">Open your client portal</a> to see all invoices and estimates from this business.</p>`;
+}
 
 export async function sendInvoiceEmail(input: SendInvoiceEmailInput) {
   const from = process.env.RESEND_FROM_EMAIL ?? "Easy Invoice <onboarding@resend.dev>";
@@ -44,6 +51,7 @@ export async function sendInvoiceEmail(input: SendInvoiceEmailInput) {
   const viewLink = input.viewUrl
     ? `<p><a href="${input.viewUrl}">View invoice online</a></p>`
     : "";
+  const portalLink = formatPortalLink(input.portalUrl);
   const personalMessage = formatPersonalMessage(input.message);
   const subject =
     input.subject?.trim() ||
@@ -59,6 +67,7 @@ export async function sendInvoiceEmail(input: SendInvoiceEmailInput) {
       <p>Please find attached invoice <strong>${input.invoiceNumber}</strong> from <strong>${input.companyName}</strong>.</p>
       <p>Total due: <strong>${input.total}</strong></p>
       ${viewLink}
+      ${portalLink}
       <p>Thank you for your business.</p>
     `,
     attachments: [
@@ -83,6 +92,7 @@ type SendEstimateEmailInput = {
   total: string;
   pdfBuffer: Buffer;
   viewUrl?: string;
+  portalUrl?: string;
   message?: string;
   subject?: string;
 };
@@ -94,6 +104,7 @@ export async function sendEstimateEmail(input: SendEstimateEmailInput) {
   const viewLink = input.viewUrl
     ? `<p><a href="${input.viewUrl}">View estimate online</a></p>`
     : "";
+  const portalLink = formatPortalLink(input.portalUrl);
   const personalMessage = formatPersonalMessage(input.message);
   const subject =
     input.subject?.trim() ||
@@ -109,6 +120,7 @@ export async function sendEstimateEmail(input: SendEstimateEmailInput) {
       <p>Please find attached estimate <strong>${input.estimateNumber}</strong> from <strong>${input.companyName}</strong>.</p>
       <p>Total estimate: <strong>${input.total}</strong></p>
       ${viewLink}
+      ${portalLink}
       <p>We look forward to working with you.</p>
     `,
     attachments: [
@@ -435,7 +447,7 @@ export async function sendClientPortalMagicLinkEmail(
   const buttons = input.links
     .map(
       (link) =>
-        `<p style="margin:16px 0"><a href="${escapeHtml(link.url)}" style="display:inline-block;padding:10px 16px;background:#1a1a1a;color:#fff;text-decoration:none;border-radius:999px;font-weight:600">Open ${escapeHtml(link.companyName)} portal</a></p>`,
+        `<p style="margin:16px 0"><a href="${escapeHtml(link.url)}" style="display:inline-block;padding:10px 16px;background:#3554a9;color:#fff;text-decoration:none;border-radius:999px;font-weight:600">Open ${escapeHtml(link.companyName)} portal</a></p>`,
     )
     .join("");
 

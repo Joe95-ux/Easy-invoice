@@ -9,8 +9,12 @@ import { Label } from "@/components/ui/label";
 
 type DebugLink = { companyName: string; url: string };
 
-export function PortalLoginForm() {
-  const [email, setEmail] = useState("");
+type PortalLoginFormProps = {
+  initialEmail?: string;
+};
+
+export function PortalLoginForm({ initialEmail = "" }: PortalLoginFormProps) {
+  const [email, setEmail] = useState(initialEmail);
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [debugLinks, setDebugLinks] = useState<DebugLink[] | null>(null);
@@ -46,7 +50,7 @@ export function PortalLoginForm() {
   if (sent) {
     return (
       <div className="space-y-4">
-        <div className="rounded-xl border border-border bg-muted/30 px-4 py-5">
+        <div>
           <p className="text-sm font-medium text-foreground">Check your inbox</p>
           <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
             If we found invoices or estimates for <span className="text-foreground">{email}</span>,
@@ -54,7 +58,7 @@ export function PortalLoginForm() {
           </p>
         </div>
         {debugLinks ? (
-          <div className="space-y-2 rounded-xl border border-dashed border-border px-4 py-4">
+          <div className="space-y-2 border-t border-border pt-4">
             <p className="text-xs font-medium text-muted-foreground">
               Dev mode — email is not configured. Use a link below:
             </p>

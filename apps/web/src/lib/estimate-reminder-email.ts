@@ -16,6 +16,7 @@ type SendEstimateReminderEmailInput = {
   total: string;
   validUntilLabel: string;
   viewUrl: string;
+  portalUrl?: string;
   kind: ReminderKind;
   pdfBuffer?: Buffer;
 };
@@ -69,6 +70,11 @@ export async function sendEstimateReminderEmail(input: SendEstimateReminderEmail
       <p>${lead}</p>
       <p>Estimate total: <strong>${input.total}</strong></p>
       <p><a href="${input.viewUrl}">Review and respond to this estimate</a></p>
+      ${
+        input.portalUrl
+          ? `<p style="margin-top:12px;font-size:14px"><a href="${input.portalUrl}">Open your client portal</a> to see all invoices and estimates.</p>`
+          : ""
+      }
       <p>If you have already replied, please disregard this message.</p>
       <p>— ${input.companyName}</p>
     `,

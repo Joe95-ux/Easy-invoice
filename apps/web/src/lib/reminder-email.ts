@@ -17,6 +17,7 @@ type SendPaymentReminderEmailInput = {
   total: string;
   dueDateLabel: string;
   viewUrl: string;
+  portalUrl?: string;
   kind: ReminderKind;
   pdfBuffer?: Buffer;
 };
@@ -75,6 +76,11 @@ export async function sendPaymentReminderEmail(input: SendPaymentReminderEmailIn
       <p>${lead}</p>
       <p>Amount due: <strong>${input.total}</strong></p>
       <p><a href="${input.viewUrl}">View and pay invoice online</a></p>
+      ${
+        input.portalUrl
+          ? `<p style="margin-top:12px;font-size:14px"><a href="${input.portalUrl}">Open your client portal</a> to see all invoices and estimates.</p>`
+          : ""
+      }
       <p>If you've already sent payment, please disregard this message.</p>
       <p>— ${input.companyName}</p>
     `,

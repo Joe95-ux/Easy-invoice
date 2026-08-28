@@ -13,6 +13,7 @@ import { buildReminderRevisionSummary } from "@/lib/document-revisions/snapshot"
 import { recordDocumentRevision } from "@/lib/document-revisions/service";
 import { createNotification } from "@/lib/notifications/service";
 import { ensureEstimatePublicToken } from "@/lib/public-documents";
+import { portalLoginUrl } from "@/lib/portal/urls";
 import { daysUntilDue, startOfUtcDay } from "@/lib/reminders/dates";
 import {
   estimateReminderSettingsFromCompany,
@@ -23,7 +24,7 @@ import { prisma } from "@/lib/db";
 
 const REMINDABLE_STATUSES: EstimateStatus[] = ["SENT", "VIEWED"];
 
-export async function isEstimatePastValidUntil(
+export function isEstimatePastValidUntil(
   validUntil: Date | null | undefined,
   now = new Date(),
 ): boolean {
@@ -215,6 +216,7 @@ export async function sendEstimateReminder(options: {
       total: formatMoney(estimate.total, estimate.currency),
       validUntilLabel: formatDueDateLabel(estimate.validUntil),
       viewUrl,
+      portalUrl: portalLoginUrl(origin, toEmail),
       kind: options.kind,
       pdfBuffer: settings.estimateReminderIncludePdf ? pdfBuffer : undefined,
     });

@@ -8,6 +8,9 @@ import {
 } from "@/lib/public-documents";
 import { estimatePublicPath, invoicePublicPath } from "@/lib/document-tokens";
 import { buildInvoicePaymentSummary } from "@/lib/invoice-payments-utils";
+import type { PortalEstimateListItem, PortalInvoiceListItem } from "@/lib/portal/types";
+
+export type { PortalEstimateListItem, PortalInvoiceListItem };
 
 const PORTAL_INVOICE_STATUSES: InvoiceStatus[] = [
   "SENT",
@@ -24,29 +27,6 @@ const PORTAL_ESTIMATE_STATUSES: EstimateStatus[] = [
   "DECLINED",
   "EXPIRED",
 ];
-
-export type PortalInvoiceListItem = {
-  id: string;
-  number: string;
-  status: InvoiceStatus;
-  total: number;
-  balanceDue: number;
-  currency: string;
-  dueDate: string | null;
-  issuedAt: string;
-  href: string;
-};
-
-export type PortalEstimateListItem = {
-  id: string;
-  number: string;
-  status: EstimateStatus;
-  total: number;
-  currency: string;
-  validUntil: string | null;
-  issuedAt: string;
-  href: string;
-};
 
 export type PortalDashboard = {
   invoices: PortalInvoiceListItem[];
@@ -85,7 +65,6 @@ export async function getPortalDashboard(input: {
         },
       },
       orderBy: [{ dueDate: "asc" }, { createdAt: "desc" }],
-      take: 50,
     }),
     prisma.estimate.findMany({
       where: {
@@ -94,7 +73,6 @@ export async function getPortalDashboard(input: {
         status: { in: PORTAL_ESTIMATE_STATUSES },
       },
       orderBy: [{ validUntil: "asc" }, { createdAt: "desc" }],
-      take: 50,
     }),
     prisma.company.findUniqueOrThrow({
       where: { id: input.companyId },

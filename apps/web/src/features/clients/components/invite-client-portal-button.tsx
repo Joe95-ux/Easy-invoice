@@ -5,6 +5,10 @@ import { Loader2Icon, SendIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { pageHeaderActionClass } from "@/components/app-shell/page-header";
+import {
+  inviteClientToPortalRequest,
+  toastPortalInviteResult,
+} from "@/features/clients/lib/invite-client-portal";
 
 type InviteClientPortalButtonProps = {
   clientId: string;
@@ -35,23 +39,8 @@ export function InviteClientPortalButton({
   async function handleInvite() {
     setLoading(true);
     try {
-      const response = await fetch(`/api/clients/${clientId}/portal-invite`, {
-        method: "POST",
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(
-          typeof data.error === "string" ? data.error : "Could not send invite",
-        );
-      }
-      if (typeof data.debugUrl === "string" && data.debugUrl) {
-        console.info("[portal invite debugUrl]", data.debugUrl);
-        toast.success("Invite created (dev — email not configured)", {
-          description: "Portal link logged to the browser console.",
-        });
-      } else {
-        toast.success(`Portal invite sent to ${data.email ?? clientEmail}`);
-      }
+      const result = await inviteClientToPortalRequest(clientId);
+      toastPortalInviteResult(result, clientEmail, toast);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not send invite");
     } finally {

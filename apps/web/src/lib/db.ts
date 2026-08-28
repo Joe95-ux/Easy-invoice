@@ -4,6 +4,7 @@ export {
   ReminderKind,
   ReminderDeliveryStatus,
   InvoiceStatus,
+  EstimateStatus,
   AuditCategory,
   AuditAction,
   NotificationType,

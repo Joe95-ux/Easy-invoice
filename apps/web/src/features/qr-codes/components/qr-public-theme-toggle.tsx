@@ -5,7 +5,16 @@ import { MoonIcon, SunIcon } from "lucide-react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 
-export function QrPublicThemeToggle() {
+type QrPublicThemeToggleProps = {
+  /** Hide Light/Dark labels; icons only (aria-label still set). */
+  iconOnly?: boolean;
+  className?: string;
+};
+
+export function QrPublicThemeToggle({
+  iconOnly = false,
+  className,
+}: QrPublicThemeToggleProps) {
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -17,22 +26,31 @@ export function QrPublicThemeToggle() {
   ] as const;
 
   return (
-    <div className="inline-flex rounded-full border border-border bg-muted p-[0.1rem]">
+    <div
+      className={cn(
+        "inline-flex shrink-0 rounded-full border border-border bg-muted p-[0.1rem]",
+        className,
+      )}
+    >
       {options.map((option) => (
         <button
           key={option.id}
           type="button"
           onClick={() => setTheme(option.id)}
           aria-label={`${option.label} theme`}
+          title={`${option.label} theme`}
           className={cn(
-            "flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+            "flex cursor-pointer items-center justify-center rounded-full text-xs font-medium transition-colors",
+            iconOnly ? "size-6 gap-0 p-0" : "gap-1.5 px-2.5 py-1.5 sm:px-3",
             option.active
               ? "bg-background text-foreground shadow-sm"
               : "text-muted-foreground hover:text-foreground",
           )}
         >
-          <option.icon className="size-3.5" />
-          {option.label}
+          <option.icon className="size-3.5 shrink-0" />
+          {iconOnly ? null : (
+            <span className="hidden sm:inline">{option.label}</span>
+          )}
         </button>
       ))}
     </div>

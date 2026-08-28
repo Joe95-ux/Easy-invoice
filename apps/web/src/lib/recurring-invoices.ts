@@ -15,6 +15,7 @@ import { publicDocumentUrl } from "@/lib/document-tokens";
 import { sendInvoiceEmail } from "@/lib/email";
 import { generateInvoicePdfBuffer } from "@/lib/invoice-service";
 import { formatMoney } from "@/lib/invoices";
+import { portalLoginUrl } from "@/lib/portal/urls";
 import { ensureInvoicePublicToken } from "@/lib/public-documents";
 import type {
   CreateRecurringFromInvoiceInput,
@@ -579,6 +580,7 @@ async function sendGeneratedInvoice(
     throw new Error("Client email is required for auto-send");
   }
 
+  const origin = await getAppOrigin();
   await sendInvoiceEmail({
     to: recipientEmail,
     companyName: invoice.company.name,
@@ -586,10 +588,11 @@ async function sendGeneratedInvoice(
     total: formatMoney(invoice.total, invoice.currency),
     pdfBuffer,
     viewUrl: publicDocumentUrl(
-      await getAppOrigin(),
+      origin,
       "invoice",
       (await ensureInvoicePublicToken(invoiceId, companyId))!,
     ),
+    portalUrl: portalLoginUrl(origin, recipientEmail),
   });
 
   await prisma.invoice.update({

@@ -5,6 +5,7 @@ import { publicDocumentUrl } from "@/lib/document-tokens";
 import { sendInvoiceEmail } from "@/lib/email";
 import { generateInvoicePdfBuffer } from "@/lib/invoice-service";
 import { formatMoney } from "@/lib/invoices";
+import { portalLoginUrl } from "@/lib/portal/urls";
 import { ensureInvoicePublicToken } from "@/lib/public-documents";
 import { recordDocumentRevision } from "@/lib/document-revisions/service";
 import { prisma } from "@/lib/db";
@@ -56,6 +57,7 @@ export async function POST(request: Request, context: RouteContext) {
       );
     }
 
+    const origin = await getAppOrigin();
     await sendInvoiceEmail({
       to: recipientEmail,
       companyName: invoice.company.name,
@@ -63,10 +65,11 @@ export async function POST(request: Request, context: RouteContext) {
       total: formatMoney(invoice.total, invoice.currency),
       pdfBuffer,
       viewUrl: publicDocumentUrl(
-        await getAppOrigin(),
+        origin,
         "invoice",
         (await ensureInvoicePublicToken(id, member.companyId))!,
       ),
+      portalUrl: portalLoginUrl(origin, recipientEmail),
       message: parsed.data.message,
       subject: parsed.data.subject,
     });

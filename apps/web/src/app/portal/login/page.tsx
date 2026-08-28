@@ -7,9 +7,17 @@ export const metadata = {
   description: "View your invoices and estimates from Invoice Desk.",
 };
 
-export default async function PortalLoginPage() {
+type PortalLoginPageProps = {
+  searchParams: Promise<{ email?: string }>;
+};
+
+export default async function PortalLoginPage({ searchParams }: PortalLoginPageProps) {
   const session = await getPortalSession();
   if (session) redirect("/portal");
+
+  const params = await searchParams;
+  const initialEmail =
+    typeof params.email === "string" ? params.email.trim().toLowerCase() : "";
 
   return (
     <div className="mx-auto max-w-md space-y-6">
@@ -23,7 +31,7 @@ export default async function PortalLoginPage() {
         </p>
       </div>
       <div className="rounded-xl border border-border bg-card p-5 shadow-sm sm:p-6">
-        <PortalLoginForm />
+        <PortalLoginForm initialEmail={initialEmail} />
       </div>
     </div>
   );

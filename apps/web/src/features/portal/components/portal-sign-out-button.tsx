@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { LogOutIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 
@@ -29,8 +30,11 @@ export function PortalSignOutButton() {
       className="cursor-pointer text-muted-foreground"
       disabled={loading}
       onClick={() => void signOut()}
+      aria-label={loading ? "Signing out" : "Sign out"}
+      title="Sign out"
     >
-      {loading ? "Signing out…" : "Sign out"}
+      <LogOutIcon className="size-4 sm:hidden" />
+      <span className="hidden sm:inline">{loading ? "Signing out…" : "Sign out"}</span>
     </Button>
   );
 }

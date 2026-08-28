@@ -13,6 +13,7 @@ import { buildReminderRevisionSummary } from "@/lib/document-revisions/snapshot"
 import { recordDocumentRevision } from "@/lib/document-revisions/service";
 import { createNotification } from "@/lib/notifications/service";
 import { ensureInvoicePublicToken } from "@/lib/public-documents";
+import { portalLoginUrl } from "@/lib/portal/urls";
 import { daysUntilDue, startOfUtcDay } from "@/lib/reminders/dates";
 import type { ReminderSettings } from "@/lib/reminders/settings";
 import { reminderSettingsFromCompany } from "@/lib/reminders/settings";
@@ -183,6 +184,7 @@ export async function sendInvoiceReminder(options: {
       ),
       dueDateLabel: formatDueDateLabel(effectiveDueDate),
       viewUrl,
+      portalUrl: portalLoginUrl(origin, toEmail),
       kind: options.kind,
       pdfBuffer: settings.reminderIncludePdf ? pdfBuffer : undefined,
     });

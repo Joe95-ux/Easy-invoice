@@ -5,6 +5,7 @@ import { publicDocumentUrl } from "@/lib/document-tokens";
 import { sendEstimateEmail } from "@/lib/email";
 import { generateEstimatePdfBuffer } from "@/lib/estimate-service";
 import { formatMoney } from "@/lib/estimates";
+import { portalLoginUrl } from "@/lib/portal/urls";
 import { ensureEstimatePublicToken } from "@/lib/public-documents";
 import { recordDocumentRevision } from "@/lib/document-revisions/service";
 import { prisma } from "@/lib/db";
@@ -44,6 +45,7 @@ export async function POST(request: Request, context: RouteContext) {
       );
     }
 
+    const origin = await getAppOrigin();
     await sendEstimateEmail({
       to: recipientEmail,
       companyName: estimate.company.name,
@@ -51,10 +53,11 @@ export async function POST(request: Request, context: RouteContext) {
       total: formatMoney(estimate.total, estimate.currency),
       pdfBuffer,
       viewUrl: publicDocumentUrl(
-        await getAppOrigin(),
+        origin,
         "estimate",
         (await ensureEstimatePublicToken(id, member.companyId))!,
       ),
+      portalUrl: portalLoginUrl(origin, recipientEmail),
       message: parsed.data.message,
       subject: parsed.data.subject,
     });
