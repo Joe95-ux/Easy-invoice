@@ -4,7 +4,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import { ClipboardListIcon, ClockIcon, FileTextIcon, Trash2Icon } from "lucide-react";
+import {
+  ClipboardListIcon,
+  ClockIcon,
+  FileTextIcon,
+  MoreHorizontalIcon,
+  Trash2Icon,
+} from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,9 +20,15 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageScroll } from "@/components/app-shell/app-shell";
 import { PageBackLink, PageHeader, pageHeaderActionClass } from "@/components/app-shell/page-header";
@@ -42,6 +54,7 @@ type ClientDetailProps = {
 export function ClientDetail({ client, companyName }: ClientDetailProps) {
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
   const tabTriggerRefs = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -90,6 +103,7 @@ export function ClientDetail({ client, companyName }: ClientDetailProps) {
     } catch {
       toast.error("Could not delete client");
       setDeleting(false);
+      setDeleteOpen(false);
     }
   }
 
@@ -109,31 +123,6 @@ export function ClientDetail({ client, companyName }: ClientDetailProps) {
         description={descriptionParts.join(" · ")}
         actions={
           <>
-            {summary.unbilledEntryCount > 0 && (
-              <Button
-                variant="outline"
-                className={pageHeaderActionClass}
-                render={
-                  <Link
-                    href={invoiceFromTimeUrl({
-                      clientId: client.id,
-                      openPicker: true,
-                    })}
-                  />
-                }
-              >
-                <ClockIcon className="size-4" />
-                Invoice time
-              </Button>
-            )}
-            <Button
-              variant="outline"
-              className={pageHeaderActionClass}
-              render={<Link href={`/estimates/new?clientId=${client.id}`} />}
-            >
-              <ClipboardListIcon className="size-4" />
-              New estimate
-            </Button>
             <Button
               className={pageHeaderActionClass}
               render={<Link href={`/invoices/new?clientId=${client.id}`} />}
@@ -142,16 +131,55 @@ export function ClientDetail({ client, companyName }: ClientDetailProps) {
               New invoice
             </Button>
             <InviteClientPortalButton clientId={client.id} clientEmail={client.email} />
-            <AlertDialog>
-              <AlertDialogTrigger
+            <DropdownMenu>
+              <DropdownMenuTrigger
                 render={
-                  <Button variant="destructive" className={pageHeaderActionClass} disabled={deleting}>
-                    <Trash2Icon className="size-4" />
-                    <span className="sm:hidden">Delete client</span>
-                    <span className="hidden sm:inline">Delete</span>
-                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="shrink-0"
+                    aria-label="More client actions"
+                    disabled={deleting}
+                  />
                 }
-              />
+              >
+                <MoreHorizontalIcon className="size-4" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-48">
+                <DropdownMenuItem
+                  render={<Link href={`/estimates/new?clientId=${client.id}`} />}
+                >
+                  <ClipboardListIcon className="size-4" />
+                  New estimate
+                </DropdownMenuItem>
+                {summary.unbilledEntryCount > 0 ? (
+                  <DropdownMenuItem
+                    render={
+                      <Link
+                        href={invoiceFromTimeUrl({
+                          clientId: client.id,
+                          openPicker: true,
+                        })}
+                      />
+                    }
+                  >
+                    <ClockIcon className="size-4" />
+                    Invoice time
+                  </DropdownMenuItem>
+                ) : null}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  variant="destructive"
+                  disabled={deleting}
+                  onClick={() => setDeleteOpen(true)}
+                >
+                  <Trash2Icon className="size-4" />
+                  Delete client
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
               <AlertDialogContent>
                 <AlertDialogHeader>
                   <AlertDialogTitle>Delete client?</AlertDialogTitle>
@@ -163,7 +191,7 @@ export function ClientDetail({ client, companyName }: ClientDetailProps) {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDelete}>
+                  <AlertDialogAction onClick={() => void handleDelete()}>
                     {deleting ? "Deleting..." : "Delete"}
                   </AlertDialogAction>
                 </AlertDialogFooter>

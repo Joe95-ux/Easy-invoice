@@ -1,8 +1,11 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 import { FormCard } from "@/components/forms/form-card";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { ClientForm } from "@/features/clients/components/client-form";
 import type { ClientFinancialProfile } from "@/lib/clients/financial-profile";
 import type { ClientInput } from "@/lib/schemas/client";
@@ -46,6 +49,21 @@ function SummaryCard({
   );
 }
 
+function clientToInput(client: ClientFinancialProfile, notes: string): ClientInput {
+  return {
+    name: client.name,
+    email: client.email ?? "",
+    phone: client.phone ?? "",
+    address: client.address ?? "",
+    city: client.city ?? "",
+    state: client.state ?? "",
+    zip: client.zip ?? "",
+    country: client.country ?? "US",
+    notes,
+    defaultHourlyRate: client.defaultHourlyRate,
+  };
+}
+
 export function ClientOverviewTab({
   client,
   saving,
@@ -55,6 +73,28 @@ export function ClientOverviewTab({
   const { summary } = client;
   const address = formatClientAddress(client);
   const hasUnbilledTime = summary.unbilledEntryCount > 0;
+  const [notes, setNotes] = useState(client.notes ?? "");
+  const [notesSaving, setNotesSaving] = useState(false);
+
+  useEffect(() => {
+    setNotes(client.notes ?? "");
+  }, [client.id, client.notes, client.updatedAt]);
+
+  async function saveNotesIfChanged() {
+    const next = notes.trimEnd();
+    const current = (client.notes ?? "").trimEnd();
+    if (next === current || notesSaving) return;
+
+    setNotesSaving(true);
+    try {
+      await onUpdate(clientToInput(client, next));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save notes");
+      setNotes(client.notes ?? "");
+    } finally {
+      setNotesSaving(false);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -160,12 +200,23 @@ export function ClientOverviewTab({
         </div>
       )}
 
-      {client.notes && (
-        <div className="rounded-xl border border-border bg-card p-4 text-sm ring-1 ring-foreground/10">
+      <div className="rounded-xl border border-border bg-card p-4 text-sm ring-1 ring-foreground/10">
+        <div className="flex items-center justify-between gap-3">
           <p className="font-medium">Notes</p>
-          <p className="mt-2 whitespace-pre-wrap text-muted-foreground">{client.notes}</p>
+          <p className="text-xs text-muted-foreground">
+            {notesSaving ? "Saving…" : "Saves when you leave the field"}
+          </p>
         </div>
-      )}
+        <Textarea
+          value={notes}
+          onChange={(event) => setNotes(event.target.value)}
+          onBlur={() => void saveNotesIfChanged()}
+          rows={4}
+          disabled={notesSaving}
+          placeholder="Preferred payment method, job history, etc."
+          className="mt-3 resize-y border-0 bg-transparent p-0 shadow-none focus-visible:ring-0"
+        />
+      </div>
 
       <FormCard
         title="Client details"
