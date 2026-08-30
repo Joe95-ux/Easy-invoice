@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { suggestedPartialAmount } from "@/lib/collections/advice";
 import { formatMoney } from "@/lib/invoices";
+import { portalHomePath } from "@/lib/portal/urls";
 
 type InvoicePayButtonProps = {
   token: string;
@@ -21,6 +22,8 @@ type InvoicePayButtonProps = {
    * Only true when the business enabled it in Settings.
    */
   canOfferPlan?: boolean;
+  /** When true (portal session), return to /portal after pay/cancel. */
+  returnToPortal?: boolean;
 };
 
 export function InvoicePayButton({
@@ -31,6 +34,7 @@ export function InvoicePayButton({
   alreadyPaid,
   nextDueAmount = null,
   canOfferPlan = false,
+  returnToPortal = false,
 }: InvoicePayButtonProps) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
@@ -51,6 +55,7 @@ export function InvoicePayButton({
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const fromPortal = returnToPortal || params.get("from") === "portal";
     if (params.get("paid") === "1") {
       const sessionId = params.get("session_id");
       void (async () => {
@@ -65,21 +70,41 @@ export function InvoicePayButton({
             // Webhook may still record the payment.
           }
         }
+        if (fromPortal) {
+          router.replace(portalHomePath({ paid: true }));
+          return;
+        }
         toast.success("Payment received — thank you!");
         router.replace(`/view/invoices/${token}`);
         router.refresh();
       })();
     } else if (params.get("canceled") === "1") {
+      if (fromPortal) {
+        router.replace(portalHomePath({ canceled: true }));
+        return;
+      }
       toast.message("Checkout canceled");
       router.replace(`/view/invoices/${token}`);
       router.refresh();
     }
-  }, [router, token]);
+  }, [router, token, returnToPortal]);
 
   if (alreadyPaid) {
     return (
-      <div className="rounded-lg border border-success/30 bg-success/10 px-4 py-3 text-sm text-foreground">
-        This invoice is paid in full.
+      <div className="flex w-full flex-col gap-2 sm:w-auto sm:items-end">
+        <div className="rounded-lg border border-success/30 bg-success/10 px-4 py-3 text-sm text-foreground">
+          This invoice is paid in full.
+        </div>
+        {returnToPortal ? (
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full cursor-pointer sm:w-auto"
+            onClick={() => router.push(portalHomePath())}
+          >
+            Back to portal
+          </Button>
+        ) : null}
       </div>
     );
   }

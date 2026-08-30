@@ -6,6 +6,7 @@ import { resolvePublicCheckoutAmount } from "@/lib/collections/advice";
 import { prisma } from "@/lib/db";
 import { buildInvoicePaymentSummary } from "@/lib/invoice-payments";
 import { INVOICE_CHECKOUT_META_TYPE, isStripeConfigured, stripe } from "@/lib/stripe";
+import { getPortalSession } from "@/lib/portal/session";
 
 type RouteContext = { params: Promise<{ token: string }> };
 
@@ -97,6 +98,9 @@ export async function POST(request: Request, context: RouteContext) {
     publicToken: token,
   };
 
+  const portalSession = await getPortalSession();
+  const portalReturn = portalSession ? "&from=portal" : "";
+
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     customer_email: invoice.client?.email?.trim() || undefined,
@@ -122,8 +126,8 @@ export async function POST(request: Request, context: RouteContext) {
       metadata,
     },
     metadata,
-    success_url: `${origin}/view/invoices/${token}?paid=1&session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${origin}/view/invoices/${token}?canceled=1`,
+    success_url: `${origin}/view/invoices/${token}?paid=1&session_id={CHECKOUT_SESSION_ID}${portalReturn}`,
+    cancel_url: `${origin}/view/invoices/${token}?canceled=1${portalReturn}`,
   });
 
   if (!session.url) {

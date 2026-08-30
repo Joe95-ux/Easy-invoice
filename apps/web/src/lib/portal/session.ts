@@ -62,6 +62,11 @@ export async function createPortalSession(clientId: string): Promise<string> {
     sessionCookieOptions(Math.floor(PORTAL_SESSION_TTL_MS / 1000)),
   );
 
+  // Activity + staff notification (throttled); never block sign-in.
+  void import("@/lib/portal/events")
+    .then(({ recordClientPortalOpened }) => recordClientPortalOpened(clientId))
+    .catch(() => undefined);
+
   return rawToken;
 }
 

@@ -7,11 +7,15 @@ import { EmptyState, PageHeader, pageHeaderActionClass } from "@/components/app-
 import { ClientsTable } from "@/features/clients/components/clients-table";
 import { requireMember } from "@/lib/auth";
 import { getClientsForMember } from "@/lib/clients";
+import { countClientEmailDuplicateGroups } from "@/lib/clients/count-duplicates";
 
 export default async function ClientsPage() {
   const member = await requireMember();
 
-  const clients = await getClientsForMember(member.companyId);
+  const [clients, duplicateEmailGroups] = await Promise.all([
+    getClientsForMember(member.companyId),
+    countClientEmailDuplicateGroups(member.companyId),
+  ]);
 
   return (
     <PageScroll>
@@ -40,7 +44,10 @@ export default async function ClientsPage() {
         />
       ) : (
         <Card className="overflow-hidden py-0">
-          <ClientsTable clients={clients} />
+          <ClientsTable
+            clients={clients}
+            duplicateEmailGroups={duplicateEmailGroups}
+          />
         </Card>
       )}
     </PageScroll>

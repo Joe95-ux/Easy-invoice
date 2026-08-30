@@ -8,6 +8,7 @@ import { useListTable } from "@/hooks/use-list-table";
 import { estimateStatusLabel, estimateStatusVariant } from "@/lib/estimates";
 import { formatMoney } from "@/lib/invoices";
 import type { PortalEstimateListItem } from "@/lib/portal/types";
+import { withPortalReturn } from "@/lib/portal/urls";
 import type { EstimateStatus } from "@easy-invoice/db";
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
@@ -55,7 +56,7 @@ export function PortalEstimatesSection({ estimates }: PortalEstimatesSectionProp
               {table.pageRows.map((estimate) => (
                 <li key={estimate.id}>
                   <Link
-                    href={estimate.href}
+                    href={withPortalReturn(estimate.href)}
                     className="flex items-center justify-between gap-3 px-4 py-3.5 transition-colors hover:bg-muted/40 sm:px-5"
                   >
                     <div className="min-w-0">

@@ -28,3 +28,14 @@ export type PortalEstimateListItem = {
   issuedAt: string;
   href: string;
 };
+
+export type PortalUpcomingItem = {
+  id: string;
+  kind: "recurring" | "installment";
+  title: string;
+  subtitle: string;
+  amount: number;
+  currency: string;
+  date: string;
+  href: string | null;
+};

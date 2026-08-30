@@ -102,6 +102,7 @@ enum AuditCategory {
 enum NotificationType {
   CLIENT_VIEWED_INVOICE
   CLIENT_VIEWED_ESTIMATE
+  CLIENT_PORTAL_OPENED
   ESTIMATE_ACCEPTED
   ESTIMATE_DECLINED
   ESTIMATE_EXPIRED
@@ -221,6 +222,7 @@ model Company {
   followUps         FollowUp[]
   products          Product[]
   recurringInvoices RecurringInvoice[]
+  portalEvents      ClientPortalEvent[]
 
   @@index([slug])
 }
@@ -332,6 +334,7 @@ model Client {
   recurringInvoices RecurringInvoice[]
   portalMagicLinks ClientPortalMagicLink[]
   portalSessions   ClientPortalSession[]
+  portalEvents     ClientPortalEvent[]
 
   @@index([companyId])
   @@index([email])
@@ -367,6 +370,22 @@ model ClientPortalSession {
 
   @@index([clientId])
   @@index([expiresAt])
+}
+
+/// Staff-visible trail of client portal usage (sign-in / open).
+model ClientPortalEvent {
+  id        String   @id @default(cuid())
+  clientId  String
+  companyId String
+  /// OPENED = signed in / opened the portal with a new session
+  kind      String
+  createdAt DateTime @default(now())
+
+  client  Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([clientId, createdAt])
+  @@index([companyId, createdAt])
 }
 
 /// Reusable product/service for faster invoice and estimate line items.

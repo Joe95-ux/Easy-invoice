@@ -21,6 +21,7 @@ export const NOTIFICATION_PREF_DEFAULTS: NotificationPreferences = {
 export const NOTIFICATION_TYPE_TO_PREF: Record<NotificationType, keyof NotificationPreferences> = {
   CLIENT_VIEWED_INVOICE: "notifyClientViewed",
   CLIENT_VIEWED_ESTIMATE: "notifyClientViewed",
+  CLIENT_PORTAL_OPENED: "notifyClientViewed",
   ESTIMATE_ACCEPTED: "notifyEstimateResponse",
   ESTIMATE_DECLINED: "notifyEstimateResponse",
   ESTIMATE_EXPIRED: "notifyEstimateResponse",
@@ -33,7 +34,7 @@ export const NOTIFICATION_TYPE_TO_PREF: Record<NotificationType, keyof Notificat
 export const NOTIFICATION_PREF_LABELS: Record<keyof NotificationPreferences, { title: string; description: string }> = {
   notifyClientViewed: {
     title: "Client viewed",
-    description: "When a client views your invoice or estimate",
+    description: "When a client views your invoice or estimate, or opens the client portal",
   },
   notifyEstimateResponse: {
     title: "Estimate response",

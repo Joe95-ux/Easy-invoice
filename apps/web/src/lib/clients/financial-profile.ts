@@ -48,7 +48,8 @@ export type ClientActivityKind =
   | "estimate_sent"
   | "reminder_sent"
   | "payment_confirmation_sent"
-  | "estimate_accepted";
+  | "estimate_accepted"
+  | "portal_opened";
 
 export type ClientActivityRow = {
   id: string;
@@ -111,6 +112,11 @@ export async function getClientFinancialProfile(
     where: { id: clientId, companyId },
     include: {
       company: { select: { currency: true } },
+      portalEvents: {
+        where: { kind: "OPENED" },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+      },
       invoices: {
         orderBy: { createdAt: "desc" },
         include: {
@@ -286,6 +292,16 @@ export async function getClientFinancialProfile(
       createdAt: estimate.createdAt.toISOString(),
     };
   });
+
+  for (const event of client.portalEvents) {
+    activity.push({
+      id: `portal-opened-${event.id}`,
+      kind: "portal_opened",
+      occurredAt: event.createdAt.toISOString(),
+      title: "Opened client portal",
+      description: "Signed in to view invoices and estimates",
+    });
+  }
 
   activity.sort(
     (a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime(),

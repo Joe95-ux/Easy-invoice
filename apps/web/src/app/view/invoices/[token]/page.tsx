@@ -9,12 +9,16 @@ import { buildInvoicePaymentSummary } from "@/lib/invoice-payments";
 import { MIN_PLAN_BALANCE } from "@/lib/collections/advice";
 import { formatDate, formatMoney } from "@/lib/invoices";
 import { getInvoiceByPublicToken, markInvoiceViewed } from "@/lib/public-documents";
+import { getPortalSession } from "@/lib/portal/session";
 
 type PageProps = { params: Promise<{ token: string }> };
 
 export default async function PublicInvoicePage({ params }: PageProps) {
   const { token } = await params;
-  const invoice = await getInvoiceByPublicToken(token);
+  const [invoice, portalSession] = await Promise.all([
+    getInvoiceByPublicToken(token),
+    getPortalSession(),
+  ]);
   if (!invoice) notFound();
 
   if (!invoice.viewedAt) {
@@ -77,6 +81,7 @@ export default async function PublicInvoicePage({ params }: PageProps) {
             alreadyPaid={invoice.status === "PAID" || summary.balanceDue <= 0.001}
             nextDueAmount={summary.nextDueAmount}
             canOfferPlan={canOfferPlan}
+            returnToPortal={Boolean(portalSession)}
           />
           <Button
             variant="outline"

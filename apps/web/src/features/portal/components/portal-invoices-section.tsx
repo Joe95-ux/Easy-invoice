@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useListTable } from "@/hooks/use-list-table";
 import { formatMoney, invoiceStatusLabel, invoiceStatusVariant } from "@/lib/invoices";
 import type { PortalInvoiceListItem } from "@/lib/portal/types";
+import { withPortalReturn } from "@/lib/portal/urls";
 import type { InvoiceStatus } from "@easy-invoice/db";
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
@@ -62,7 +63,7 @@ export function PortalInvoicesSection({ invoices }: PortalInvoicesSectionProps) 
               {table.pageRows.map((invoice) => (
                 <li key={invoice.id}>
                   <Link
-                    href={invoice.href}
+                    href={withPortalReturn(invoice.href)}
                     className="flex items-center justify-between gap-3 px-4 py-3.5 transition-colors hover:bg-muted/40 sm:px-5"
                   >
                     <div className="min-w-0">

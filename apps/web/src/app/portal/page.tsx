@@ -1,7 +1,10 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { PortalEstimatesSection } from "@/features/portal/components/portal-estimates-section";
+import { PortalFlashToasts } from "@/features/portal/components/portal-flash-toasts";
 import { PortalInvoicesSection } from "@/features/portal/components/portal-invoices-section";
+import { PortalUpcomingSection } from "@/features/portal/components/portal-upcoming-section";
 import { getPortalDashboard } from "@/lib/portal/queries";
 import { getPortalSession } from "@/lib/portal/session";
 import { formatMoney } from "@/lib/invoices";
@@ -22,6 +25,10 @@ export default async function PortalHomePage() {
 
   return (
     <div className="space-y-8">
+      <Suspense fallback={null}>
+        <PortalFlashToasts />
+      </Suspense>
+
       <div className="space-y-1">
         <p className="text-sm text-muted-foreground">{session.companyName}</p>
         <h1 className="font-heading text-2xl font-semibold tracking-tight">
@@ -55,6 +62,7 @@ export default async function PortalHomePage() {
         </Card>
       </div>
 
+      <PortalUpcomingSection upcoming={dashboard.upcoming} />
       <PortalInvoicesSection invoices={dashboard.invoices} />
       <PortalEstimatesSection estimates={dashboard.estimates} />
     </div>

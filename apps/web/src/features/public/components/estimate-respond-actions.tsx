@@ -18,12 +18,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SignaturePad } from "@/features/public/components/signature-pad";
 import type { EstimateStatus } from "@easy-invoice/db";
+import { portalHomePath } from "@/lib/portal/urls";
 
 type EstimateRespondActionsProps = {
   token: string;
   initialStatus: EstimateStatus;
   clientName?: string | null;
   validUntil?: string | null;
+  returnToPortal?: boolean;
 };
 
 const RESPONDED: EstimateStatus[] = ["ACCEPTED", "DECLINED", "CANCELLED", "EXPIRED"];
@@ -42,6 +44,7 @@ export function EstimateRespondActions({
   initialStatus,
   clientName,
   validUntil,
+  returnToPortal = false,
 }: EstimateRespondActionsProps) {
   const router = useRouter();
   const [status, setStatus] = useState(initialStatus);
@@ -52,6 +55,11 @@ export function EstimateRespondActions({
 
   const expiredByDate = isPastValidUntil(validUntil);
   const canRespond = !RESPONDED.includes(status) && !expiredByDate;
+
+  function goToPortal(flash: { estimateAccepted?: boolean; estimateDeclined?: boolean }) {
+    if (!returnToPortal) return;
+    router.push(portalHomePath(flash));
+  }
 
   async function decline() {
     setLoading("decline");
@@ -66,6 +74,10 @@ export function EstimateRespondActions({
         throw new Error(data.error ?? "Could not submit response");
       }
       setStatus(data.estimate.status);
+      if (returnToPortal) {
+        goToPortal({ estimateDeclined: true });
+        return;
+      }
       toast.success("Estimate declined");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Something went wrong");
@@ -97,8 +109,13 @@ export function EstimateRespondActions({
       }
       setStatus(data.estimate.status);
       setAcceptOpen(false);
+      if (returnToPortal) {
+        goToPortal({ estimateAccepted: true });
+        return;
+      }
       toast.success("Estimate signed and accepted", {
-        description: "A confirmation email with your signed copy is on its way if an email is on file.",
+        description:
+          "A confirmation email with your signed copy is on its way if an email is on file.",
       });
       router.refresh();
     } catch (error) {
@@ -111,23 +128,35 @@ export function EstimateRespondActions({
   if (!canRespond) {
     const isExpired = status === "EXPIRED" || expiredByDate;
     return (
-      <div className="flex items-start gap-3">
-        <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-          {status === "ACCEPTED" ? (
-            <CheckIcon className="size-4" />
-          ) : (
-            <XIcon className="size-4" />
-          )}
-        </span>
-        <p className="text-sm text-muted-foreground">
-          {status === "ACCEPTED"
-            ? "You signed and accepted this estimate. The sender has been notified, and a confirmation was emailed to you if an address is on file."
-            : status === "DECLINED"
-              ? "You declined this estimate."
-              : isExpired
-                ? "This estimate has expired and can no longer be accepted."
-                : "This estimate is no longer open for a response."}
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+            {status === "ACCEPTED" ? (
+              <CheckIcon className="size-4" />
+            ) : (
+              <XIcon className="size-4" />
+            )}
+          </span>
+          <p className="text-sm text-muted-foreground">
+            {status === "ACCEPTED"
+              ? "You signed and accepted this estimate. The sender has been notified, and a confirmation was emailed to you if an address is on file."
+              : status === "DECLINED"
+                ? "You declined this estimate."
+                : isExpired
+                  ? "This estimate has expired and can no longer be accepted."
+                  : "This estimate is no longer open for a response."}
+          </p>
+        </div>
+        {returnToPortal ? (
+          <Button
+            type="button"
+            variant="outline"
+            className="shrink-0 cursor-pointer"
+            onClick={() => router.push(portalHomePath())}
+          >
+            Back to portal
+          </Button>
+        ) : null}
       </div>
     );
   }

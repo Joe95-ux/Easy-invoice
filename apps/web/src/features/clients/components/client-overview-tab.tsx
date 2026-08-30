@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { FormCard } from "@/components/forms/form-card";
@@ -14,6 +14,7 @@ import { formatClientAddress } from "@/lib/clients";
 import { formatPhoneForDisplay, toTelHref } from "@/lib/phone";
 import { invoiceFromTimeUrl } from "@/lib/time-tracking/invoice-from-time";
 import { FileTextIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 type ClientOverviewTabProps = {
   client: ClientFinancialProfile;
@@ -75,14 +76,27 @@ export function ClientOverviewTab({
   const hasUnbilledTime = summary.unbilledEntryCount > 0;
   const [notes, setNotes] = useState(client.notes ?? "");
   const [notesSaving, setNotesSaving] = useState(false);
+  const [editingNotes, setEditingNotes] = useState(false);
+  const notesRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     setNotes(client.notes ?? "");
+    setEditingNotes(false);
   }, [client.id, client.notes, client.updatedAt]);
+
+  useEffect(() => {
+    if (!editingNotes) return;
+    const el = notesRef.current;
+    if (!el) return;
+    el.focus();
+    const len = el.value.length;
+    el.setSelectionRange(len, len);
+  }, [editingNotes]);
 
   async function saveNotesIfChanged() {
     const next = notes.trimEnd();
     const current = (client.notes ?? "").trimEnd();
+    setEditingNotes(false);
     if (next === current || notesSaving) return;
 
     setNotesSaving(true);
@@ -200,23 +214,44 @@ export function ClientOverviewTab({
         </div>
       )}
 
-      <div className="rounded-xl border border-border bg-card p-4 text-sm ring-1 ring-foreground/10">
-        <div className="flex items-center justify-between gap-3">
-          <p className="font-medium">Notes</p>
-          <p className="text-xs text-muted-foreground">
-            {notesSaving ? "Saving…" : "Saves when you leave the field"}
-          </p>
+      {(client.notes || editingNotes) && (
+        <div
+          className={cn(
+            "rounded-xl border border-border bg-card p-4 text-sm ring-1 ring-foreground/10",
+            !editingNotes && "cursor-text",
+          )}
+          onClick={() => {
+            if (!editingNotes && !notesSaving) setEditingNotes(true);
+          }}
+          onKeyDown={(event) => {
+            if (editingNotes) return;
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              setEditingNotes(true);
+            }
+          }}
+          role={editingNotes ? undefined : "button"}
+          tabIndex={editingNotes ? undefined : 0}
+          aria-label={editingNotes ? undefined : "Edit notes"}
+        >
+          <p className="font-medium">Notes{notesSaving ? " · Saving…" : ""}</p>
+          {editingNotes ? (
+            <Textarea
+              ref={notesRef}
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+              onBlur={() => void saveNotesIfChanged()}
+              onClick={(event) => event.stopPropagation()}
+              rows={4}
+              disabled={notesSaving}
+              placeholder="Preferred payment method, job history, etc."
+              className="mt-2 resize-y"
+            />
+          ) : (
+            <p className="mt-2 whitespace-pre-wrap text-muted-foreground">{client.notes}</p>
+          )}
         </div>
-        <Textarea
-          value={notes}
-          onChange={(event) => setNotes(event.target.value)}
-          onBlur={() => void saveNotesIfChanged()}
-          rows={4}
-          disabled={notesSaving}
-          placeholder="Preferred payment method, job history, etc."
-          className="mt-3 resize-y border-0 bg-transparent p-0 shadow-none focus-visible:ring-0"
-        />
-      </div>
+      )}
 
       <FormCard
         title="Client details"

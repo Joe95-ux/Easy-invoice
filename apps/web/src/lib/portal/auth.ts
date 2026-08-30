@@ -8,6 +8,7 @@ import {
   type PortalSessionClient,
 } from "@/lib/portal/session";
 import type { PortalAccountOption } from "@/lib/portal/types";
+import { mergeClientDuplicatesByEmail } from "@/lib/clients/merge-duplicates";
 import {
   generatePortalToken,
   hashPortalToken,
@@ -78,8 +79,8 @@ export async function requestPortalMagicLinks(
     return { ok: true };
   }
 
-  // One magic link per company — duplicate client rows with the same email
-  // must not produce multiple identical "Open X portal" buttons.
+  // One magic link per company — merge same-company email duplicates first,
+  // then pick a single client row per company.
   const uniqueByCompany = new Map<string, (typeof clients)[number]>();
   for (const client of clients) {
     if (!uniqueByCompany.has(client.companyId)) {
@@ -89,8 +90,14 @@ export async function requestPortalMagicLinks(
 
   const links: Array<{ companyName: string; url: string }> = [];
   for (const client of uniqueByCompany.values()) {
+    const merged = await mergeClientDuplicatesByEmail({
+      companyId: client.companyId,
+      email,
+      preferClientId: client.id,
+    });
+    const clientId = merged?.survivorId ?? client.id;
     const link = await createMagicLinkUrl({
-      clientId: client.id,
+      clientId,
       email: client.email ? normalizePortalEmail(client.email) : email,
     });
     links.push(link);
@@ -179,7 +186,14 @@ export async function inviteClientToPortal(input: {
     };
   }
 
-  const link = await createMagicLinkUrl({ clientId: client.id, email });
+  const merged = await mergeClientDuplicatesByEmail({
+    companyId: input.companyId,
+    email,
+    preferClientId: client.id,
+  });
+  const clientId = merged?.survivorId ?? client.id;
+
+  const link = await createMagicLinkUrl({ clientId, email });
 
   if (isEmailConfigured()) {
     try {

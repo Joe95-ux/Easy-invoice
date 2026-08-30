@@ -8,6 +8,8 @@ import {
   ClipboardListIcon,
   EyeIcon,
   FileTextIcon,
+  GitMergeIcon,
+  Loader2Icon,
   MoreHorizontalIcon,
   SendIcon,
   Trash2Icon,
@@ -15,6 +17,7 @@ import {
 import { SortableTableHead } from "@/components/data-table/sortable-table-head";
 import { TablePagination } from "@/components/data-table/table-pagination";
 import { TableToolbar } from "@/components/data-table/table-toolbar";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,11 +49,16 @@ const CLIENT_FILTER_OPTIONS = [
 
 type ClientsTableProps = {
   clients: ClientListItem[];
+  duplicateEmailGroups?: number;
 };
 
-export function ClientsTable({ clients }: ClientsTableProps) {
+export function ClientsTable({
+  clients,
+  duplicateEmailGroups = 0,
+}: ClientsTableProps) {
   const router = useRouter();
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [merging, setMerging] = useState(false);
 
   const table = useListTable<ClientListItem>({
     tableId: "clients",
@@ -72,6 +80,39 @@ export function ClientsTable({ clients }: ClientsTableProps) {
     },
   });
 
+  async function handleMergeDuplicates() {
+    if (
+      !confirm(
+        "Merge clients that share the same email? Invoices and estimates will move to one client record per email.",
+      )
+    ) {
+      return;
+    }
+    setMerging(true);
+    try {
+      const response = await fetch("/api/clients/merge-duplicates", { method: "POST" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(
+          typeof data.error === "string" ? data.error : "Could not merge duplicates",
+        );
+      }
+      const removed = typeof data.clientsRemoved === "number" ? data.clientsRemoved : 0;
+      const groups = typeof data.groupsMerged === "number" ? data.groupsMerged : 0;
+      if (removed === 0) {
+        toast.message("No duplicate clients to merge");
+      } else {
+        toast.success(
+          `Merged ${groups} email group${groups === 1 ? "" : "s"} (${removed} duplicate${removed === 1 ? "" : "s"} removed)`,
+        );
+      }
+      router.refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not merge duplicates");
+    } finally {
+      setMerging(false);
+    }
+  }
   async function handleDelete(client: ClientListItem) {
     if (!confirm(`Delete ${client.name}? Their invoices will remain but will no longer be linked to this client. Recurring invoice schedules for this client will be deleted.`)) {
       return;
@@ -109,6 +150,30 @@ export function ClientsTable({ clients }: ClientsTableProps) {
 
   return (
     <div>
+      {duplicateEmailGroups > 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/30 px-4 py-3">
+          <p className="text-sm text-muted-foreground">
+            {duplicateEmailGroups} email
+            {duplicateEmailGroups === 1 ? " appears" : "s appear"} on more than one client.
+            Merge to keep invoices and the portal in sync.
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="cursor-pointer"
+            disabled={merging}
+            onClick={() => void handleMergeDuplicates()}
+          >
+            {merging ? (
+              <Loader2Icon className="size-4 animate-spin" />
+            ) : (
+              <GitMergeIcon className="size-4" />
+            )}
+            {merging ? "Merging…" : "Merge duplicates"}
+          </Button>
+        </div>
+      ) : null}
       <TableToolbar
         search={table.searchQuery}
         onSearchChange={table.setSearchQuery}

@@ -7,6 +7,7 @@ import {
   CheckCircle2Icon,
   CircleDollarSignIcon,
   FileTextIcon,
+  LayoutDashboardIcon,
   MailCheckIcon,
   SendIcon,
 } from "lucide-react";
@@ -26,6 +27,7 @@ const ACTIVITY_ICONS: Record<ClientActivityKind, typeof FileTextIcon> = {
   reminder_sent: BellRingIcon,
   payment_confirmation_sent: MailCheckIcon,
   estimate_accepted: CheckCircle2Icon,
+  portal_opened: LayoutDashboardIcon,
 };
 
 type ClientActivityTabProps = {
@@ -60,7 +62,7 @@ export function ClientActivityTab({ activity, currency }: ClientActivityTabProps
       <div className="rounded-lg border border-dashed border-border px-6 py-12 text-center">
         <p className="text-sm font-medium">No activity yet</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Payments, sends, and reminders for this client will show up here.
+          Payments, sends, portal sign-ins, and reminders for this client will show up here.
         </p>
       </div>
     );

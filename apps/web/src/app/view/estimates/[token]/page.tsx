@@ -7,12 +7,16 @@ import { PublicDocumentFrame } from "@/features/public/components/public-documen
 import { renderEstimateHtmlForEstimate } from "@/lib/estimate-html";
 import { formatDate, formatMoney } from "@/lib/estimates";
 import { getEstimateByPublicToken, markEstimateViewed } from "@/lib/public-documents";
+import { getPortalSession } from "@/lib/portal/session";
 
 type PageProps = { params: Promise<{ token: string }> };
 
 export default async function PublicEstimatePage({ params }: PageProps) {
   const { token } = await params;
-  const estimate = await getEstimateByPublicToken(token);
+  const [estimate, portalSession] = await Promise.all([
+    getEstimateByPublicToken(token),
+    getPortalSession(),
+  ]);
   if (!estimate) notFound();
 
   if (!estimate.viewedAt) {
@@ -48,6 +52,7 @@ export default async function PublicEstimatePage({ params }: PageProps) {
           initialStatus={estimate.status}
           clientName={estimate.client?.name}
           validUntil={estimate.validUntil?.toISOString() ?? null}
+          returnToPortal={Boolean(portalSession)}
         />
       </div>
 
