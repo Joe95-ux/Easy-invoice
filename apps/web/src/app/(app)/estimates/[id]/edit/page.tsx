@@ -57,6 +57,7 @@ export default async function EditEstimatePage({ params }: PageProps) {
           clientEmail: estimate.client?.email ?? "",
           clientPhone: estimate.client?.phone ?? "",
           clientAddress: estimate.client?.address ?? "",
+          scope: estimate.scope,
           notes: estimate.notes,
           currency: estimate.currency,
           issueDate: estimate.issueDate.toISOString(),

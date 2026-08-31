@@ -40,6 +40,7 @@ export function estimateToHtmlData(
       discount: Number(estimate.discount),
       total: Number(estimate.total),
       notes: estimate.notes,
+      scope: estimate.scope,
     },
     items: estimate.items.map((item) => ({
       description: item.description,

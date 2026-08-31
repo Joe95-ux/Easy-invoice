@@ -116,6 +116,7 @@ function snapshotToPreview(
     expiryDate: kind === "estimate" ? snapshot.validUntil ?? undefined : snapshot.dueDate ?? undefined,
     currency: snapshot.currency,
     notes: snapshot.notes ?? undefined,
+    scope: kind === "estimate" ? snapshot.scope ?? undefined : undefined,
     items: snapshot.lineItems.map((item) => ({
       description: item.description,
       quantity: item.quantity,

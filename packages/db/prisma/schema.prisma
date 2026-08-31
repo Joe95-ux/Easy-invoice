@@ -667,6 +667,8 @@ model Estimate {
   taxAmount     Decimal        @default(0) @db.Decimal(12, 2)
   discount      Decimal        @default(0) @db.Decimal(12, 2)
   total         Decimal        @default(0) @db.Decimal(12, 2)
+  /// Project scope / deliverables shown before line items on the estimate PDF.
+  scope         String?
   notes         String?
   customFields  Json?
   templateId    String?

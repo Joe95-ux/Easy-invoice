@@ -40,6 +40,8 @@ export type DocumentSnapshot = {
   taxAmount: number;
   total: number;
   notes: string | null;
+  /** Estimate-only project scope. Omitted/null on invoices. */
+  scope?: string | null;
   templateId: string | null;
   remindersPaused?: boolean;
   installments?: DocumentSnapshotInstallment[];

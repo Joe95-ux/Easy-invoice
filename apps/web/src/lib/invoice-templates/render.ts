@@ -166,6 +166,9 @@ function documentLabels(kind: DocumentKind) {
       expiryLabel: "Valid Until",
       totalLabel: "Total estimate",
       footerPrefix: "Thank you for considering",
+      clientLabel: "Prepared for",
+      clientLabelSlug: "prepared_for",
+      acceptanceLabel: "Accepted by",
     };
   }
 
@@ -177,6 +180,9 @@ function documentLabels(kind: DocumentKind) {
     expiryLabel: "Due Date",
     totalLabel: "Total due",
     footerPrefix: "Thank you for choosing",
+    clientLabel: "Bill to",
+    clientLabelSlug: "bill_to",
+    acceptanceLabel: "Authorized signature",
   };
 }
 
@@ -409,6 +415,11 @@ function buildSections(data: InvoiceHtmlData) {
       ? `<div class="payment-info"><div class="payment-info-label">Payment information</div>${paymentRows}${paymentQrBlock}</div>`
       : "";
 
+  const projectScope =
+    kind === "estimate" && invoice.scope?.trim()
+      ? `<div class="project-scope"><div class="project-scope-label">Project scope</div><div class="project-scope-body">${escapeHtml(invoice.scope)}</div></div>`
+      : "";
+
   const termsNotes = invoice.notes
     ? `<div class="terms-notes"><div class="terms-notes-label">Terms &amp; Notes</div><div class="terms-notes-body">${escapeHtml(invoice.notes)}</div></div>`
     : "";
@@ -418,7 +429,7 @@ function buildSections(data: InvoiceHtmlData) {
       ? `<div class="watermark"><img src="${escapeHtml(company.logoUrl)}" alt="" /></div>`
       : "";
 
-  const acceptance = buildAcceptanceHtml(data);
+  const acceptance = buildAcceptanceHtml(data, labels.acceptanceLabel);
   const invoiceFooter = `<div class="invoice-footer">${labels.footerPrefix} ${escapeHtml(company.name)}</div>`;
 
   return {
@@ -429,7 +440,10 @@ function buildSections(data: InvoiceHtmlData) {
     company_details: companyDetails,
     invoice_number: escapeHtml(invoice.number),
     invoice_meta: invoiceMeta,
+    client_label: escapeHtml(labels.clientLabel),
+    client_label_slug: escapeHtml(labels.clientLabelSlug),
     client_section: clientSection,
+    project_scope: projectScope,
     line_items: lineItems,
     totals,
     totals_class,
@@ -441,7 +455,7 @@ function buildSections(data: InvoiceHtmlData) {
   };
 }
 
-function buildAcceptanceHtml(data: InvoiceHtmlData): string {
+function buildAcceptanceHtml(data: InvoiceHtmlData, acceptanceLabel: string): string {
   const acceptance = data.acceptance;
   if (!acceptance) return "";
 
@@ -458,7 +472,7 @@ function buildAcceptanceHtml(data: InvoiceHtmlData): string {
     : "";
 
   return `<div class="acceptance-block">
-    <div class="acceptance-label">Authorized signature</div>
+    <div class="acceptance-label">${escapeHtml(acceptanceLabel)}</div>
     ${signature}
     <div class="acceptance-name">${escapeHtml(signer ?? "—")}</div>
     ${signedAt}

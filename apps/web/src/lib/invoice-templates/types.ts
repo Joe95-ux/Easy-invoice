@@ -38,6 +38,8 @@ export type InvoiceHtmlData = {
     discount: number;
     total: number;
     notes?: string | null;
+    /** Estimate-only: project scope shown before line items. */
+    scope?: string | null;
     amountPaid?: number;
     balanceDue?: number;
   };

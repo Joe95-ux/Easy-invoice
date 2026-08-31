@@ -16,6 +16,7 @@ export const createEstimateSchema = z.object({
   clientEmail: z.string().email().optional().or(z.literal("")),
   clientPhone: z.string().optional(),
   clientAddress: z.string().optional(),
+  scope: z.string().optional(),
   notes: z.string().optional(),
   currency: z.string().length(3),
   taxRate: z.number().min(0).max(1),

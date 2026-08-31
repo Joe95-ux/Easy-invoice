@@ -60,7 +60,7 @@ const BASE_STEPS: FormStep[] = [
   { id: "client", title: "Client", description: "Who this estimate is for." },
   { id: "details", title: "Details", description: "Dates and currency for this estimate." },
   { id: "items", title: "Line items", description: "Sections and line items for this estimate." },
-  { id: "notes", title: "Notes", description: "Validity terms or anything else to include." },
+  { id: "notes", title: "Notes", description: "Project scope and terms for this estimate." },
 ];
 
 export type EstimateInitialValues = {
@@ -70,6 +70,7 @@ export type EstimateInitialValues = {
   clientEmail?: string | null;
   clientPhone?: string | null;
   clientAddress?: string | null;
+  scope?: string | null;
   notes?: string | null;
   currency?: string;
   issueDate?: string;
@@ -129,6 +130,7 @@ export function EstimateCreator({
   const [clientEmail, setClientEmail] = useState(initialValues?.clientEmail ?? "");
   const [clientPhone, setClientPhone] = useState(initialValues?.clientPhone ?? "");
   const [clientAddress, setClientAddress] = useState(initialValues?.clientAddress ?? "");
+  const [scope, setScope] = useState(initialValues?.scope ?? "");
   const [notes, setNotes] = useState(initialValues?.notes ?? "");
   const [currency, setCurrency] = useState(initialValues?.currency ?? defaultCurrency);
   const [issueDate, setIssueDate] = useState(
@@ -165,6 +167,7 @@ export function EstimateCreator({
         clientEmail.trim() ||
         clientPhone.trim() ||
         clientAddress.trim() ||
+        scope.trim() ||
         notes.trim() ||
         taxRate !== 0 ||
         discountValue !== 0 ||
@@ -181,6 +184,7 @@ export function EstimateCreator({
     clientEmail,
     clientPhone,
     clientAddress,
+    scope,
     notes,
     taxRate,
     discountValue,
@@ -384,6 +388,7 @@ export function EstimateCreator({
       clientEmail: clientEmail || undefined,
       clientPhone: clientPhone || undefined,
       clientAddress: clientAddress || undefined,
+      scope,
       notes,
       currency,
       issueDate: issueDate ? new Date(issueDate).toISOString() : undefined,
@@ -602,18 +607,32 @@ export function EstimateCreator({
       )}
 
       {currentStepId === "notes" && (
-        <Field>
-          <FieldLabel htmlFor="notes">Terms &amp; notes</FieldLabel>
-          <FieldContent>
-            <Textarea
-              id="notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={5}
-              placeholder="Validity terms, project details, or additional notes..."
-            />
-          </FieldContent>
-        </Field>
+        <div className="space-y-6">
+          <Field>
+            <FieldLabel htmlFor="scope">Project scope</FieldLabel>
+            <FieldContent>
+              <Textarea
+                id="scope"
+                value={scope}
+                onChange={(e) => setScope(e.target.value)}
+                rows={4}
+                placeholder="What work is included — deliverables, assumptions, what’s out of scope..."
+              />
+            </FieldContent>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="notes">Terms &amp; notes</FieldLabel>
+            <FieldContent>
+              <Textarea
+                id="notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={5}
+                placeholder="Validity, payment terms, exclusions, or other conditions..."
+              />
+            </FieldContent>
+          </Field>
+        </div>
       )}
     </div>
   );
@@ -695,6 +714,7 @@ export function EstimateCreator({
       expiryDate={validUntil}
       currency={currency}
       notes={notes}
+      scope={scope}
       items={lineItems}
       totals={totals}
       taxRate={taxRate}

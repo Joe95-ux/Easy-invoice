@@ -132,6 +132,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     where: { id },
     data: {
       ...(data.status !== undefined && { status: data.status }),
+      ...(data.scope !== undefined && { scope: data.scope }),
       ...(data.notes !== undefined && { notes: data.notes }),
       ...(data.validUntil !== undefined && {
         validUntil: data.validUntil ? new Date(data.validUntil) : null,

@@ -124,6 +124,7 @@ export default async function EstimateDetailPage({ params }: PageProps) {
               expiryDate: estimate.validUntil?.toISOString(),
               currency: estimate.currency,
               notes: estimate.notes ?? undefined,
+              scope: estimate.scope ?? undefined,
               items: estimate.items.map((item) => ({
                 description: item.description,
                 quantity: Number(item.quantity),
@@ -313,6 +314,17 @@ export default async function EstimateDetailPage({ params }: PageProps) {
           </div>
         </CardContent>
       </Card>
+
+      {estimate.scope && (
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Project scope</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm whitespace-pre-wrap">{estimate.scope}</p>
+          </CardContent>
+        </Card>
+      )}
 
       {estimate.notes && (
         <Card className="mt-6">

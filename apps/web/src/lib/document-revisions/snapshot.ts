@@ -101,6 +101,7 @@ export function estimateToSnapshot(estimate: {
   taxAmount: MoneyInput;
   total: MoneyInput;
   notes: string | null;
+  scope?: string | null;
   templateId: string | null;
   items: Array<{
     description: string;
@@ -125,6 +126,7 @@ export function estimateToSnapshot(estimate: {
     taxAmount: toNumber(estimate.taxAmount),
     total: toNumber(estimate.total),
     notes: estimate.notes,
+    scope: estimate.scope ?? null,
     templateId: estimate.templateId,
     lineItems: estimate.items.map((item) => ({
       description: item.description,
@@ -189,6 +191,10 @@ export function buildRevisionSummary(
 
   if (before && before.notes !== after.notes) {
     parts.push("Notes updated");
+  }
+
+  if (before && (before.scope ?? null) !== (after.scope ?? null)) {
+    parts.push("Scope updated");
   }
 
   if (

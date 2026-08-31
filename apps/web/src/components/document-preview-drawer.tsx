@@ -77,6 +77,7 @@ export function DocumentPreviewDrawer(props: DocumentPreviewDrawerProps) {
       buildOptions.issueDate,
       buildOptions.expiryDate,
       buildOptions.notes,
+      buildOptions.scope,
       buildOptions.taxRate,
       buildOptions.discount,
       buildOptions.client.name,

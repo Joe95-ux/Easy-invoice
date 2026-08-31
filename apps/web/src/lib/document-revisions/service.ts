@@ -374,6 +374,7 @@ async function applyEstimateSnapshot(
       taxAmount: snapshot.taxAmount,
       total: snapshot.total,
       notes: snapshot.notes,
+      scope: snapshot.scope ?? null,
       templateId: snapshot.templateId,
     },
   });
@@ -577,6 +578,7 @@ export async function duplicateDocumentFromRevision(
       discount: snapshot.discount,
       total: totals.total,
       notes: snapshot.notes,
+      scope: snapshot.scope ?? null,
       issueDate: new Date(),
       validUntil: snapshot.validUntil ? new Date(snapshot.validUntil) : null,
       items: { create: lineItems },
@@ -740,6 +742,7 @@ export async function duplicateEstimate(
       discount: snapshot.discount,
       total: totals.total,
       notes: snapshot.notes,
+      scope: snapshot.scope ?? null,
       issueDate: new Date(),
       validUntil: snapshot.validUntil ? new Date(snapshot.validUntil) : null,
       items: { create: lineItems },

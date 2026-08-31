@@ -86,6 +86,8 @@ export type BuildDocumentHtmlOptions = {
   expiryDate?: string;
   currency: string;
   notes?: string;
+  /** Estimate-only project scope shown before line items. */
+  scope?: string;
   items: PreviewLineItem[];
   totals: { subtotal: number; taxAmount: number; total: number };
   taxRate: number;
@@ -179,6 +181,7 @@ export function buildDocumentHtml(options: BuildDocumentHtmlOptions): string {
       discount: options.discount,
       total: options.totals.total,
       notes: options.notes?.trim() ? options.notes : null,
+      scope: options.scope?.trim() ? options.scope : null,
       amountPaid: options.amountPaid,
       balanceDue: options.balanceDue,
     },
@@ -198,6 +201,10 @@ export function buildDocumentHtml(options: BuildDocumentHtmlOptions): string {
 
   return renderFromTemplate(template.html, template.css, data);
 }
+
+/** Sample project scope for estimate template previews. */
+export const SAMPLE_PROJECT_SCOPE = `Website redesign for the marketing site, including homepage, pricing, and contact pages.
+Excludes ongoing content updates and third-party integrations unless listed below.`;
 
 /**
  * Representative sample data so template thumbnails always look populated and
@@ -236,6 +243,7 @@ export function buildSampleDocumentHtml(
     expiryDate: new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10),
     currency,
     notes: SAMPLE_TERMS_NOTES,
+    scope: kind === "estimate" ? SAMPLE_PROJECT_SCOPE : undefined,
     items,
     totals: { subtotal, taxAmount, total: subtotal + taxAmount },
     taxRate: 7.5,

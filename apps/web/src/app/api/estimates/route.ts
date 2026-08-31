@@ -54,6 +54,7 @@ export async function POST(request: Request) {
         taxAmount: totals.taxAmount,
         discount: parsed.data.discount,
         total: totals.total,
+        scope: parsed.data.scope,
         notes: parsed.data.notes,
         issueDate: parsed.data.issueDate ? new Date(parsed.data.issueDate) : new Date(),
         validUntil: parsed.data.validUntil ? new Date(parsed.data.validUntil) : null,

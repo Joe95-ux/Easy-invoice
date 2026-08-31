@@ -61,6 +61,25 @@ export const watermarkStyles = `
     line-height: 1.65;
     white-space: pre-wrap;
   }
+  .project-scope {
+    margin: 0 0 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  .project-scope-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #374151;
+    margin-bottom: 8px;
+  }
+  .project-scope-body {
+    color: #334155;
+    line-height: 1.65;
+    white-space: pre-wrap;
+    font-size: 13px;
+  }
   .payment-info { margin-top: 28px; }
   .payment-info-label {
     font-size: 11px;
@@ -190,10 +209,11 @@ const sharedBody = `
     </div>
     <div class="parties">
       <div class="party">
-        <div class="party-label">Bill to</div>
+        <div class="party-label">{{client_label}}</div>
         {{client_section}}
       </div>
     </div>
+    {{project_scope}}
     <table class="line-items">
       <thead>
         <tr>
@@ -230,11 +250,12 @@ const modernBody = `
     <div class="body-inner">
       <div class="meta-grid">
         <div class="bill-to">
-          <div class="block-label">Bill to</div>
+          <div class="block-label">{{client_label}}</div>
           {{client_section}}
         </div>
         <div class="doc-meta">{{invoice_meta}}</div>
       </div>
+      {{project_scope}}
       <table class="line-items">
         <thead>
           <tr>
@@ -272,11 +293,12 @@ const auroraBody = `
     </div>
     <div class="meta-grid">
       <div class="bill-to">
-        <div class="block-label">Bill to</div>
+        <div class="block-label">{{client_label}}</div>
         {{client_section}}
       </div>
       <div class="doc-meta">{{invoice_meta}}</div>
     </div>
+    {{project_scope}}
     <table class="line-items">
       <thead>
         <tr>
@@ -307,7 +329,7 @@ const onyxBody = `
     <div class="rule"></div>
     <div class="info-row">
       <div class="info-block">
-        <div class="block-label">Billed to</div>
+        <div class="block-label">{{client_label}}</div>
         {{client_section}}
       </div>
       <div class="info-block">
@@ -320,6 +342,7 @@ const onyxBody = `
         {{invoice_meta}}
       </div>
     </div>
+    {{project_scope}}
     <table class="line-items">
       <thead>
         <tr>
@@ -357,7 +380,7 @@ const telegraphBody = `
     <div class="segment-rule" aria-hidden="true"><span></span><span></span></div>
     <div class="meta-row">
       <div class="meta-block">
-        <div class="block-label">[ bill_to ]</div>
+        <div class="block-label">[ {{client_label_slug}} ]</div>
         {{client_section}}
       </div>
       <div class="meta-block meta-dates">
@@ -366,6 +389,7 @@ const telegraphBody = `
       </div>
     </div>
     <div class="segment-rule short" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+    {{project_scope}}
     <table class="line-items">
       <thead>
         <tr>
