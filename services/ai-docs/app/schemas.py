@@ -1,6 +1,13 @@
 from typing import Literal, Optional
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+
+def _blank_to_none(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return None
+    trimmed = value.strip()
+    return trimmed or None
 
 
 class LineItem(BaseModel):
@@ -30,6 +37,37 @@ class InvoiceDraft(BaseModel):
     line_items: list[LineItem] = Field(default_factory=list)
     detected_language: Optional[str] = None
     confidence: Optional[float] = Field(default=None, ge=0, le=1)
+
+    @field_validator(
+        "client_email",
+        "client_phone",
+        "client_address",
+        "notes",
+        "issue_date",
+        "due_date",
+        "detected_language",
+        mode="before",
+    )
+    @classmethod
+    def empty_strings_to_none(cls, value: object) -> object:
+        if isinstance(value, str):
+            return _blank_to_none(value)
+        return value
+
+    @field_validator("currency", mode="before")
+    @classmethod
+    def normalize_currency(cls, value: object) -> object:
+        if isinstance(value, str) and value.strip():
+            return value.strip().upper()
+        return value
+
+    @field_validator("tax_rate", mode="before")
+    @classmethod
+    def normalize_tax_rate(cls, value: object) -> object:
+        if isinstance(value, (int, float)) and value > 1:
+            # Model sometimes returns 7.5 for 7.5% instead of 0.075.
+            return round(float(value) / 100, 4)
+        return value
 
     @model_validator(mode="after")
     def normalize_sections(self) -> "InvoiceDraft":

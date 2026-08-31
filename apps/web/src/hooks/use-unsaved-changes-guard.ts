@@ -81,7 +81,11 @@ export function useUnsavedChangesGuard({ enabled }: UseUnsavedChangesGuardOption
       return;
     }
 
-    bypassRef.current = false;
+    // After allowNextNavigation() (successful save), keep bypass armed and do not
+    // push a new history entry — that can cancel an in-flight router.push.
+    if (bypassRef.current) {
+      return;
+    }
 
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
       if (bypassRef.current || !enabledRef.current) return;

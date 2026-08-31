@@ -18,22 +18,47 @@ const draftDateSchema = z.preprocess(
   z.string().optional().nullable(),
 );
 
+/** AI often returns "" instead of null for missing contact fields. */
+const optionalEmailSchema = z.preprocess((value) => {
+  if (value == null) return null;
+  if (typeof value !== "string") return value;
+  const trimmed = value.trim();
+  return trimmed === "" ? null : trimmed;
+}, z.string().email().nullable().optional());
+
+const optionalTextSchema = z.preprocess((value) => {
+  if (value == null) return null;
+  if (typeof value !== "string") return value;
+  const trimmed = value.trim();
+  return trimmed === "" ? null : trimmed;
+}, z.string().nullable().optional());
+
+const currencySchema = z.preprocess((value) => {
+  if (typeof value === "string" && value.trim()) return value.trim().toUpperCase();
+  return value;
+}, z.string().length(3).default("USD"));
+
+const taxRateSchema = z.preprocess((value) => {
+  if (typeof value === "number" && value > 1) return Math.round((value / 100) * 10000) / 10000;
+  return value;
+}, z.number().min(0).max(1).default(0));
+
 export const invoiceDraftSchema = z
   .object({
     client_name: z.string().min(1),
-    client_email: z.string().email().optional().nullable(),
-    client_phone: z.string().optional().nullable(),
-    client_address: z.string().optional().nullable(),
-    currency: z.string().length(3).default("USD"),
+    client_email: optionalEmailSchema,
+    client_phone: optionalTextSchema,
+    client_address: optionalTextSchema,
+    currency: currencySchema,
     issue_date: draftDateSchema,
     due_date: draftDateSchema,
-    notes: z.string().optional().nullable(),
-    tax_rate: z.number().min(0).max(1).default(0),
+    notes: optionalTextSchema,
+    tax_rate: taxRateSchema,
     discount: z.number().min(0).default(0),
     /** Prefer sections when the job is partitioned (upstairs / downstairs, etc.). */
     sections: z.array(draftSectionSchema).optional(),
     line_items: z.array(lineItemSchema).optional(),
-    detected_language: z.string().optional().nullable(),
+    detected_language: optionalTextSchema,
     confidence: z.number().min(0).max(1).optional().nullable(),
   })
   .transform((draft) => {
@@ -49,18 +74,18 @@ export const invoiceDraftSchema = z
   .pipe(
     z.object({
       client_name: z.string().min(1),
-      client_email: z.string().email().optional().nullable(),
-      client_phone: z.string().optional().nullable(),
-      client_address: z.string().optional().nullable(),
+      client_email: z.string().email().nullable().optional(),
+      client_phone: z.string().nullable().optional(),
+      client_address: z.string().nullable().optional(),
       currency: z.string().length(3),
       issue_date: draftDateSchema,
       due_date: draftDateSchema,
-      notes: z.string().optional().nullable(),
+      notes: z.string().nullable().optional(),
       tax_rate: z.number().min(0).max(1),
       discount: z.number().min(0),
       sections: z.array(draftSectionSchema).min(1),
       line_items: z.array(lineItemSchema).min(1),
-      detected_language: z.string().optional().nullable(),
+      detected_language: z.string().nullable().optional(),
       confidence: z.number().min(0).max(1).optional().nullable(),
     }),
   );

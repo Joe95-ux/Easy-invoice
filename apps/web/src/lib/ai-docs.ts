@@ -1,3 +1,4 @@
+import { ZodError } from "zod";
 import type { DocumentExtractionMode, InvoiceDraft, ParseDocumentResponse } from "@/lib/schemas/invoice";
 import { invoiceDraftSchema, parseDocumentResponseSchema } from "@/lib/schemas/invoice";
 
@@ -34,43 +35,73 @@ export type ParseDocumentContext = ParseInvoiceContext & {
   extractionMode: DocumentExtractionMode;
 };
 
+async function readAiErrorMessage(response: Response, fallback: string): Promise<string> {
+  try {
+    const data = (await response.json()) as { detail?: string; error?: string };
+    if (typeof data.detail === "string" && data.detail.trim()) return data.detail;
+    if (typeof data.error === "string" && data.error.trim()) return data.error;
+  } catch {
+    try {
+      const text = await response.text();
+      if (text.trim()) return text.trim();
+    } catch {
+      /* ignore */
+    }
+  }
+  return fallback;
+}
+
+function parseDraftOrThrow(data: unknown): InvoiceDraft {
+  try {
+    return invoiceDraftSchema.parse(data);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      const first = error.issues[0];
+      const path = first?.path?.length ? first.path.join(".") : "draft";
+      throw new Error(`AI returned an invalid draft (${path}: ${first?.message ?? "invalid"}). Try again.`);
+    }
+    throw error;
+  }
+}
+
 export async function parseInvoiceFromText(
   text: string,
   context: ParseInvoiceContext = {},
 ): Promise<InvoiceDraft> {
-  const response = await fetch(`${AI_DOCS_URL}/parse-invoice`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Service-Secret": AI_DOCS_SECRET,
-    },
-    body: JSON.stringify({
-      text,
-      document_kind: context.documentKind ?? "invoice",
-      extraction_mode: context.extractionMode ?? "full",
-      locale_hint: context.localeHint,
-      company_name: context.companyName,
-      company_currency: context.companyCurrency,
-      output_language: context.outputLanguage ?? "en",
-      reference_date: context.referenceDate,
-      known_client_name: context.knownClientName,
-    }),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${AI_DOCS_URL}/parse-invoice`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Service-Secret": AI_DOCS_SECRET,
+      },
+      body: JSON.stringify({
+        text,
+        document_kind: context.documentKind ?? "invoice",
+        extraction_mode: context.extractionMode ?? "full",
+        locale_hint: context.localeHint,
+        company_name: context.companyName,
+        company_currency: context.companyCurrency,
+        output_language: context.outputLanguage ?? "en",
+        reference_date: context.referenceDate,
+        known_client_name: context.knownClientName,
+      }),
+    });
+  } catch {
+    throw new Error(
+      "Could not reach the AI docs service. Is it running on port 8000?",
+    );
+  }
 
   if (!response.ok) {
-    let message = `AI parse failed (${response.status})`;
-    try {
-      const data = (await response.json()) as { detail?: string };
-      if (data.detail) message = data.detail;
-    } catch {
-      const text = await response.text();
-      if (text) message = text;
-    }
-    throw new Error(message);
+    throw new Error(
+      await readAiErrorMessage(response, `AI parse failed (${response.status})`),
+    );
   }
 
   const data = await response.json();
-  return invoiceDraftSchema.parse(data);
+  return parseDraftOrThrow(data);
 }
 
 export async function transcribeAudio(
@@ -146,19 +177,24 @@ export async function parseDocumentFromFile(
   }
 
   if (!response.ok) {
-    let message = `Document parse failed (${response.status})`;
-    try {
-      const data = (await response.json()) as { detail?: string };
-      if (data.detail) message = data.detail;
-    } catch {
-      const text = await response.text();
-      if (text) message = text;
-    }
-    throw new Error(message);
+    throw new Error(
+      await readAiErrorMessage(response, `Document parse failed (${response.status})`),
+    );
   }
 
   const data = await response.json();
-  return parseDocumentResponseSchema.parse(data);
+  try {
+    return parseDocumentResponseSchema.parse(data);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      const first = error.issues[0];
+      const path = first?.path?.length ? first.path.join(".") : "draft";
+      throw new Error(
+        `AI returned an invalid document draft (${path}: ${first?.message ?? "invalid"}). Try again.`,
+      );
+    }
+    throw error;
+  }
 }
 
 export async function renderInvoicePdf(html: string): Promise<Buffer> {

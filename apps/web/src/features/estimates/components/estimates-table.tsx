@@ -14,6 +14,7 @@ import {
   Trash2Icon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 import { SortableTableHead } from "@/components/data-table/sortable-table-head";
 import { TablePagination } from "@/components/data-table/table-pagination";
 import { TableToolbar } from "@/components/data-table/table-toolbar";
@@ -71,6 +72,8 @@ export function EstimatesTable({ estimates, companyName }: EstimatesTableProps) 
   const router = useRouter();
   const { openPdfDownload, pdfDownloadDialog } = usePdfDownload();
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<EstimateRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const table = useListTable<EstimateRow>({
     tableId: "estimates",
@@ -122,18 +125,21 @@ export function EstimatesTable({ estimates, companyName }: EstimatesTableProps) 
     }
   }
 
-  async function handleDelete(estimate: EstimateRow) {
-    if (!confirm(`Delete estimate ${estimate.number}?`)) return;
+  async function confirmDelete() {
+    if (!pendingDelete) return;
 
-    setLoadingId(estimate.id);
+    setDeleting(true);
+    setLoadingId(pendingDelete.id);
     try {
-      const response = await fetch(`/api/estimates/${estimate.id}`, { method: "DELETE" });
+      const response = await fetch(`/api/estimates/${pendingDelete.id}`, { method: "DELETE" });
       if (!response.ok) throw new Error("Failed to delete");
       toast.success("Estimate deleted");
+      setPendingDelete(null);
       router.refresh();
     } catch {
       toast.error("Could not delete estimate");
     } finally {
+      setDeleting(false);
       setLoadingId(null);
     }
   }
@@ -253,7 +259,7 @@ export function EstimatesTable({ estimates, companyName }: EstimatesTableProps) 
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         variant="destructive"
-                        onClick={() => handleDelete(estimate)}
+                        onClick={() => setPendingDelete(estimate)}
                       >
                         <Trash2Icon className="size-4" />
                         Delete
@@ -279,6 +285,27 @@ export function EstimatesTable({ estimates, companyName }: EstimatesTableProps) 
         onPageSizeChange={table.setPageSize}
       />
       {pdfDownloadDialog}
+      <ConfirmActionDialog
+        open={Boolean(pendingDelete)}
+        onOpenChange={(open) => {
+          if (!open && !deleting) setPendingDelete(null);
+        }}
+        title="Delete estimate?"
+        description={
+          <>
+            This will permanently delete{" "}
+            <span className="font-medium text-foreground">
+              {pendingDelete?.number ?? "this estimate"}
+            </span>
+            . This action cannot be undone.
+          </>
+        }
+        confirmLabel="Delete"
+        confirmingLabel="Deleting..."
+        confirming={deleting}
+        destructive
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }

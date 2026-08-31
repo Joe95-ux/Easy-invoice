@@ -16,6 +16,7 @@ import {
   Trash2Icon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 import { SortableTableHead } from "@/components/data-table/sortable-table-head";
 import { TablePagination } from "@/components/data-table/table-pagination";
 import { TableToolbar } from "@/components/data-table/table-toolbar";
@@ -78,6 +79,8 @@ export function InvoicesTable({ invoices, companyName }: InvoicesTableProps) {
   const { openPdfDownload, pdfDownloadDialog } = usePdfDownload();
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [makeRecurringInvoice, setMakeRecurringInvoice] = useState<InvoiceRow | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<InvoiceRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const table = useListTable<InvoiceRow>({
     tableId: "invoices",
@@ -128,18 +131,21 @@ export function InvoicesTable({ invoices, companyName }: InvoicesTableProps) {
     }
   }
 
-  async function handleDelete(invoice: InvoiceRow) {
-    if (!confirm(`Delete invoice ${invoice.number}?`)) return;
+  async function confirmDelete() {
+    if (!pendingDelete) return;
 
-    setLoadingId(invoice.id);
+    setDeleting(true);
+    setLoadingId(pendingDelete.id);
     try {
-      const response = await fetch(`/api/invoices/${invoice.id}`, { method: "DELETE" });
+      const response = await fetch(`/api/invoices/${pendingDelete.id}`, { method: "DELETE" });
       if (!response.ok) throw new Error("Failed to delete");
       toast.success("Invoice deleted");
+      setPendingDelete(null);
       router.refresh();
     } catch {
       toast.error("Could not delete invoice");
     } finally {
+      setDeleting(false);
       setLoadingId(null);
     }
   }
@@ -270,7 +276,7 @@ export function InvoicesTable({ invoices, companyName }: InvoicesTableProps) {
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         variant="destructive"
-                        onClick={() => handleDelete(invoice)}
+                        onClick={() => setPendingDelete(invoice)}
                       >
                         <Trash2Icon className="size-4" />
                         Delete
@@ -296,6 +302,27 @@ export function InvoicesTable({ invoices, companyName }: InvoicesTableProps) {
         onPageSizeChange={table.setPageSize}
       />
       {pdfDownloadDialog}
+      <ConfirmActionDialog
+        open={Boolean(pendingDelete)}
+        onOpenChange={(open) => {
+          if (!open && !deleting) setPendingDelete(null);
+        }}
+        title="Delete invoice?"
+        description={
+          <>
+            This will permanently delete{" "}
+            <span className="font-medium text-foreground">
+              {pendingDelete?.number ?? "this invoice"}
+            </span>
+            . This action cannot be undone.
+          </>
+        }
+        confirmLabel="Delete"
+        confirmingLabel="Deleting..."
+        confirming={deleting}
+        destructive
+        onConfirm={confirmDelete}
+      />
       <MakeRecurringDialog
         open={Boolean(makeRecurringInvoice)}
         onOpenChange={(open) => {

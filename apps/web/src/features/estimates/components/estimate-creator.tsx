@@ -117,7 +117,9 @@ export function EstimateCreator({
   preselectedTimeEntryIds = [],
 }: EstimateCreatorProps) {
   const router = useRouter();
-  const isEditing = Boolean(estimateId);
+  const [activeEstimateId, setActiveEstimateId] = useState(estimateId);
+  const [leaveAfterSave, setLeaveAfterSave] = useState(false);
+  const isEditing = Boolean(activeEstimateId);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewTemplateId, setPreviewTemplateId] = useState<string | null>(null);
   const [selectedClientId, setSelectedClientId] = useState(
@@ -160,7 +162,7 @@ export function EstimateCreator({
   const canAddFromTime = Boolean(selectedClientId) && !isEditing;
 
   const isDirty = useMemo(() => {
-    if (isEditing) return false;
+    if (isEditing || leaveAfterSave) return false;
     return Boolean(
       selectedClientId ||
         clientName.trim() ||
@@ -179,6 +181,7 @@ export function EstimateCreator({
     );
   }, [
     isEditing,
+    leaveAfterSave,
     selectedClientId,
     clientName,
     clientEmail,
@@ -409,37 +412,50 @@ export function EstimateCreator({
   async function handleSave(downloadAfter = false) {
     setSaving(true);
     try {
-      const url = isEditing ? `/api/estimates/${estimateId}` : "/api/estimates";
+      const creating = !estimateId;
+      const url = activeEstimateId ? `/api/estimates/${activeEstimateId}` : "/api/estimates";
       const response = await fetch(url, {
-        method: isEditing ? "PATCH" : "POST",
+        method: activeEstimateId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(buildPayload()),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Failed to save estimate");
 
-      const id = isEditing ? estimateId! : data.estimate.id;
-      allowNextNavigation();
+      const id = activeEstimateId ?? data.estimate.id;
 
-      if (isEditing) {
+      allowNextNavigation();
+      setLeaveAfterSave(true);
+      if (!activeEstimateId) {
+        setActiveEstimateId(id);
+      }
+
+      if (!creating) {
         toast.success("Estimate updated");
         router.push(`/estimates/${id}`);
-      } else {
-        toast.success("Estimate created");
-
-        if (downloadAfter) {
-          router.push(`/estimates/${id}?download=pdf`);
-          return;
-        }
-
-        router.push(`/estimates/${id}`);
+        router.refresh();
+        return;
       }
-      router.refresh();
+
+      toast.success(
+        downloadAfter ? "Estimate created — opening download…" : "Estimate created",
+      );
+      window.location.assign(
+        downloadAfter ? `/estimates/${id}?download=pdf` : `/estimates/${id}`,
+      );
     } catch (error) {
+      setLeaveAfterSave(false);
       toast.error(error instanceof Error ? error.message : "Could not save estimate.");
     } finally {
       setSaving(false);
     }
+  }
+
+  function handleDownloadOnly() {
+    if (!activeEstimateId) return;
+    allowNextNavigation();
+    setLeaveAfterSave(true);
+    window.location.assign(`/estimates/${activeEstimateId}?download=pdf`);
   }
 
   const formBody = (
@@ -675,13 +691,22 @@ export function EstimateCreator({
                   ? "Save changes"
                   : "Create estimate"}
             </Button>
-            {!isEditing && (
+            {!estimateId && !activeEstimateId && (
               <Button
                 variant="outline"
                 onClick={() => handleSave(true)}
                 disabled={saving || !clientName.trim()}
               >
                 {saving ? "Creating..." : "Create & download PDF"}
+              </Button>
+            )}
+            {!estimateId && activeEstimateId && (
+              <Button
+                variant="outline"
+                onClick={handleDownloadOnly}
+                disabled={saving}
+              >
+                Download PDF
               </Button>
             )}
           </>

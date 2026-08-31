@@ -126,7 +126,9 @@ export function InvoiceCreator({
   preselectedTimeEntryIds = [],
 }: InvoiceCreatorProps) {
   const router = useRouter();
-  const isEditing = Boolean(invoiceId);
+  const [activeInvoiceId, setActiveInvoiceId] = useState(invoiceId);
+  const [leaveAfterSave, setLeaveAfterSave] = useState(false);
+  const isEditing = Boolean(activeInvoiceId);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewTemplateId, setPreviewTemplateId] = useState<string | null>(null);
   const [selectedClientId, setSelectedClientId] = useState(
@@ -170,7 +172,7 @@ export function InvoiceCreator({
     Boolean(selectedClientId) && (!isEditing || invoiceStatus === "DRAFT");
 
   const isDirty = useMemo(() => {
-    if (isEditing) return false;
+    if (isEditing || leaveAfterSave) return false;
     return Boolean(
       selectedClientId ||
         clientName.trim() ||
@@ -189,6 +191,7 @@ export function InvoiceCreator({
     );
   }, [
     isEditing,
+    leaveAfterSave,
     selectedClientId,
     clientName,
     clientEmail,
@@ -429,9 +432,10 @@ export function InvoiceCreator({
 
     setSaving(true);
     try {
-      const url = isEditing ? `/api/invoices/${invoiceId}` : "/api/invoices";
+      const creating = !invoiceId;
+      const url = activeInvoiceId ? `/api/invoices/${activeInvoiceId}` : "/api/invoices";
       const response = await fetch(url, {
-        method: isEditing ? "PATCH" : "POST",
+        method: activeInvoiceId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(buildPayload()),
       });
@@ -440,28 +444,40 @@ export function InvoiceCreator({
         throwIfApiError(response, data, "Failed to save invoice");
       }
 
-      const id = isEditing ? invoiceId! : data.invoice.id;
-      allowNextNavigation();
+      const id = activeInvoiceId ?? data.invoice.id;
 
-      if (isEditing) {
+      allowNextNavigation();
+      setLeaveAfterSave(true);
+      if (!activeInvoiceId) {
+        setActiveInvoiceId(id);
+      }
+
+      if (!creating) {
         toast.success("Invoice updated");
         router.push(`/invoices/${id}`);
-      } else {
-        toast.success("Invoice created");
-
-        if (downloadAfter) {
-          router.push(`/invoices/${id}?download=pdf`);
-          return;
-        }
-
-        router.push(`/invoices/${id}`);
+        router.refresh();
+        return;
       }
-      router.refresh();
+
+      toast.success(
+        downloadAfter ? "Invoice created — opening download…" : "Invoice created",
+      );
+      window.location.assign(
+        downloadAfter ? `/invoices/${id}?download=pdf` : `/invoices/${id}`,
+      );
     } catch (error) {
+      setLeaveAfterSave(false);
       toastApiError(error, "Could not save invoice.");
     } finally {
       setSaving(false);
     }
+  }
+
+  function handleDownloadOnly() {
+    if (!activeInvoiceId) return;
+    allowNextNavigation();
+    setLeaveAfterSave(true);
+    window.location.assign(`/invoices/${activeInvoiceId}?download=pdf`);
   }
 
   const formBody = (
@@ -689,13 +705,22 @@ export function InvoiceCreator({
                   ? "Save changes"
                   : "Create invoice"}
             </Button>
-            {!isEditing && (
+            {!invoiceId && !activeInvoiceId && (
               <Button
                 variant="outline"
                 onClick={() => handleSave(true)}
                 disabled={saving || !clientName.trim()}
               >
                 {saving ? "Creating..." : "Create & download PDF"}
+              </Button>
+            )}
+            {!invoiceId && activeInvoiceId && (
+              <Button
+                variant="outline"
+                onClick={handleDownloadOnly}
+                disabled={saving}
+              >
+                Download PDF
               </Button>
             )}
           </>

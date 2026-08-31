@@ -14,6 +14,7 @@ import {
   Trash2Icon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -69,6 +70,8 @@ export function ClientInvoicesTable({
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [sendInvoice, setSendInvoice] = useState<ClientInvoiceRow | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<ClientInvoiceRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   function openPreview(invoiceId: string) {
     setPreviewId(invoiceId);
@@ -84,18 +87,21 @@ export function ClientInvoicesTable({
     });
   }
 
-  async function handleDelete(invoice: ClientInvoiceRow) {
-    if (!confirm(`Delete invoice ${invoice.number}?`)) return;
+  async function confirmDelete() {
+    if (!pendingDelete) return;
 
-    setLoadingId(invoice.id);
+    setDeleting(true);
+    setLoadingId(pendingDelete.id);
     try {
-      const response = await fetch(`/api/invoices/${invoice.id}`, { method: "DELETE" });
+      const response = await fetch(`/api/invoices/${pendingDelete.id}`, { method: "DELETE" });
       if (!response.ok) throw new Error("Failed to delete");
       toast.success("Invoice deleted");
+      setPendingDelete(null);
       router.refresh();
     } catch {
       toast.error("Could not delete invoice");
     } finally {
+      setDeleting(false);
       setLoadingId(null);
     }
   }
@@ -198,7 +204,7 @@ export function ClientInvoicesTable({
                       variant="destructive"
                       onClick={(event) => {
                         event.stopPropagation();
-                        handleDelete(invoice);
+                        setPendingDelete(invoice);
                       }}
                     >
                       <Trash2Icon className="size-4" />
@@ -237,6 +243,28 @@ export function ClientInvoicesTable({
       )}
 
       {pdfDownloadDialog}
+
+      <ConfirmActionDialog
+        open={Boolean(pendingDelete)}
+        onOpenChange={(open) => {
+          if (!open && !deleting) setPendingDelete(null);
+        }}
+        title="Delete invoice?"
+        description={
+          <>
+            This will permanently delete{" "}
+            <span className="font-medium text-foreground">
+              {pendingDelete?.number ?? "this invoice"}
+            </span>
+            . This action cannot be undone.
+          </>
+        }
+        confirmLabel="Delete"
+        confirmingLabel="Deleting..."
+        confirming={deleting}
+        destructive
+        onConfirm={confirmDelete}
+      />
     </>
   );
 }

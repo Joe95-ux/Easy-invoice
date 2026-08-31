@@ -17,6 +17,7 @@ import {
 import { SortableTableHead } from "@/components/data-table/sortable-table-head";
 import { TablePagination } from "@/components/data-table/table-pagination";
 import { TableToolbar } from "@/components/data-table/table-toolbar";
+import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -59,6 +60,9 @@ export function ClientsTable({
   const router = useRouter();
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [merging, setMerging] = useState(false);
+  const [mergeOpen, setMergeOpen] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<ClientListItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const table = useListTable<ClientListItem>({
     tableId: "clients",
@@ -80,14 +84,7 @@ export function ClientsTable({
     },
   });
 
-  async function handleMergeDuplicates() {
-    if (
-      !confirm(
-        "Merge clients that share the same email? Invoices and estimates will move to one client record per email.",
-      )
-    ) {
-      return;
-    }
+  async function confirmMergeDuplicates() {
     setMerging(true);
     try {
       const response = await fetch("/api/clients/merge-duplicates", { method: "POST" });
@@ -106,6 +103,7 @@ export function ClientsTable({
           `Merged ${groups} email group${groups === 1 ? "" : "s"} (${removed} duplicate${removed === 1 ? "" : "s"} removed)`,
         );
       }
+      setMergeOpen(false);
       router.refresh();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not merge duplicates");
@@ -113,20 +111,22 @@ export function ClientsTable({
       setMerging(false);
     }
   }
-  async function handleDelete(client: ClientListItem) {
-    if (!confirm(`Delete ${client.name}? Their invoices will remain but will no longer be linked to this client. Recurring invoice schedules for this client will be deleted.`)) {
-      return;
-    }
 
-    setLoadingId(client.id);
+  async function confirmDelete() {
+    if (!pendingDelete) return;
+
+    setDeleting(true);
+    setLoadingId(pendingDelete.id);
     try {
-      const response = await fetch(`/api/clients/${client.id}`, { method: "DELETE" });
+      const response = await fetch(`/api/clients/${pendingDelete.id}`, { method: "DELETE" });
       if (!response.ok) throw new Error("Failed to delete");
       toast.success("Client deleted");
+      setPendingDelete(null);
       router.refresh();
     } catch {
       toast.error("Could not delete client");
     } finally {
+      setDeleting(false);
       setLoadingId(null);
     }
   }
@@ -163,7 +163,7 @@ export function ClientsTable({
             size="sm"
             className="cursor-pointer"
             disabled={merging}
-            onClick={() => void handleMergeDuplicates()}
+            onClick={() => setMergeOpen(true)}
           >
             {merging ? (
               <Loader2Icon className="size-4 animate-spin" />
@@ -293,7 +293,7 @@ export function ClientsTable({
                         variant="destructive"
                         onClick={(event) => {
                           event.stopPropagation();
-                          handleDelete(client);
+                          setPendingDelete(client);
                         }}
                       >
                         <Trash2Icon className="size-4" />
@@ -318,6 +318,42 @@ export function ClientsTable({
         rangeEnd={table.rangeEnd}
         onPageChange={table.setPage}
         onPageSizeChange={table.setPageSize}
+      />
+
+      <ConfirmActionDialog
+        open={mergeOpen}
+        onOpenChange={(open) => {
+          if (!open && !merging) setMergeOpen(false);
+        }}
+        title="Merge duplicate clients?"
+        description="Clients that share the same email will be merged. Invoices and estimates move to one client record per email."
+        confirmLabel="Merge"
+        confirmingLabel="Merging..."
+        confirming={merging}
+        onConfirm={confirmMergeDuplicates}
+      />
+
+      <ConfirmActionDialog
+        open={Boolean(pendingDelete)}
+        onOpenChange={(open) => {
+          if (!open && !deleting) setPendingDelete(null);
+        }}
+        title="Delete client?"
+        description={
+          <>
+            Delete{" "}
+            <span className="font-medium text-foreground">
+              {pendingDelete?.name ?? "this client"}
+            </span>
+            ? Their invoices will remain but will no longer be linked to this client.
+            Recurring invoice schedules for this client will be deleted.
+          </>
+        }
+        confirmLabel="Delete"
+        confirmingLabel="Deleting..."
+        confirming={deleting}
+        destructive
+        onConfirm={confirmDelete}
       />
     </div>
   );
