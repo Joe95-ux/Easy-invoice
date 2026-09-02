@@ -46,10 +46,21 @@ export async function PATCH(request: Request, context: RouteContext) {
     }
   }
 
+  if (data.projectId) {
+    const project = await prisma.project.findFirst({
+      where: { id: data.projectId, companyId: member.companyId },
+      select: { id: true },
+    });
+    if (!project) {
+      return NextResponse.json({ error: "Project not found" }, { status: 404 });
+    }
+  }
+
   const entry = await prisma.timeEntry.update({
     where: { id },
     data: {
       ...(data.clientId !== undefined && { clientId: data.clientId || null }),
+      ...(data.projectId !== undefined && { projectId: data.projectId || null }),
       ...(data.description !== undefined && { description: data.description.trim() }),
       ...(data.date !== undefined && { date: new Date(data.date) }),
       ...(data.hours !== undefined && { durationMinutes: hoursToMinutes(data.hours) }),
@@ -58,6 +69,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     },
     include: {
       client: { select: { id: true, name: true } },
+      project: { select: { id: true, name: true } },
       invoice: { select: { id: true, number: true } },
       member: { select: { id: true, name: true, email: true } },
     },

@@ -7,6 +7,7 @@ export const estimateDetailInclude = {
   client: true,
   company: true,
   template: true,
+  project: { select: { id: true, name: true } },
   items: { orderBy: { sortOrder: "asc" as const } },
   convertedInvoice: { select: { id: true, number: true } },
 } satisfies Prisma.EstimateInclude;

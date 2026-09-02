@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { Suspense } from "react";
 import { PageScroll } from "@/components/app-shell/app-shell";
 import { PageBackLink, PageHeader } from "@/components/app-shell/page-header";
@@ -75,6 +76,17 @@ export default async function EstimateDetailPage({ params }: PageProps) {
             {estimate.sentAt && ` · Sent ${formatDate(estimate.sentAt)}`}
             {estimate.viewedAt && ` · Viewed ${formatDate(estimate.viewedAt)}`}
             {estimate.acceptedAt && ` · Accepted ${formatDate(estimate.acceptedAt)}`}
+            {estimate.project ? (
+              <>
+                {" · "}
+                <Link
+                  href={`/projects/${estimate.project.id}`}
+                  className="underline-offset-2 hover:underline"
+                >
+                  Project: {estimate.project.name}
+                </Link>
+              </>
+            ) : null}
           </>
         }
         actions={
@@ -89,6 +101,7 @@ export default async function EstimateDetailPage({ params }: PageProps) {
             validUntil={estimate.validUntil ? estimate.validUntil.toISOString().slice(0, 10) : null}
             convertedInvoiceId={estimate.convertedInvoice?.id}
             convertedInvoiceNumber={estimate.convertedInvoice?.number}
+            projectId={estimate.projectId}
           />
         }
       />

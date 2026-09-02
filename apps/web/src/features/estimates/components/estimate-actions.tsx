@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
+  BriefcaseIcon,
   CheckCheckIcon,
   CopyIcon,
   DownloadIcon,
@@ -55,6 +56,7 @@ type EstimateActionsProps = {
   validUntil?: string | null;
   convertedInvoiceId?: string | null;
   convertedInvoiceNumber?: string | null;
+  projectId?: string | null;
 };
 
 const TERMINAL_STATUSES: EstimateStatus[] = ["ACCEPTED", "DECLINED", "EXPIRED", "CANCELLED"];
@@ -70,6 +72,7 @@ export function EstimateActions({
   validUntil,
   convertedInvoiceId,
   convertedInvoiceNumber,
+  projectId,
 }: EstimateActionsProps) {
   const router = useRouter();
   const { openPdfDownload, pdfDownloadDialog } = usePdfDownload();
@@ -196,6 +199,30 @@ export function EstimateActions({
     } catch (error) {
       toast.dismiss(toastId);
       toastApiError(error, "Could not convert estimate");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function handleCreateProject() {
+    setLoading("project");
+    const toastId = toast.loading("Creating project…");
+    try {
+      const response = await fetch(`/api/estimates/${estimateId}/create-project`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ force: true }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Failed to create project");
+
+      toast.success("Project created from estimate", { id: toastId });
+      router.push(`/projects/${data.project.id}`);
+      router.refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not create project", {
+        id: toastId,
+      });
     } finally {
       setLoading(null);
     }
@@ -340,6 +367,17 @@ export function EstimateActions({
                 <DropdownMenuItem onClick={handleConvertToInvoice}>
                   <FileTextIcon className="size-4" />
                   Convert to invoice
+                </DropdownMenuItem>
+              )}
+              {projectId ? (
+                <DropdownMenuItem render={<Link href={`/projects/${projectId}`} />}>
+                  <BriefcaseIcon className="size-4" />
+                  View project
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem onClick={() => void handleCreateProject()} disabled={isBusy}>
+                  <BriefcaseIcon className="size-4" />
+                  {loading === "project" ? "Creating…" : "Create project"}
                 </DropdownMenuItem>
               )}
               {canSend && (

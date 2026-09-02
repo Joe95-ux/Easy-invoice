@@ -95,6 +95,17 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
             {invoice.sentAt && ` · Sent ${formatDate(invoice.sentAt)}`}
             {invoice.viewedAt && ` · Viewed ${formatDate(invoice.viewedAt)}`}
             {invoice.paidAt && ` · Paid ${formatDate(invoice.paidAt)}`}
+            {invoice.project ? (
+              <>
+                {" · "}
+                <Link
+                  href={`/projects/${invoice.project.id}`}
+                  className="underline-offset-2 hover:underline"
+                >
+                  Project: {invoice.project.name}
+                </Link>
+              </>
+            ) : null}
             {recurringSchedule ? (
               <>
                 {" · "}

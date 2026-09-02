@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { BellIcon, UsersRoundIcon } from "lucide-react";
 import { CompanySettingsForm } from "@/features/settings/components/company-settings-form";
+import { ProjectSettingsSection } from "@/features/settings/components/project-settings-section";
 import { ReminderSettingsSection } from "@/features/settings/components/reminder-settings-section";
 import { SettingsDefaultTemplateSection } from "@/features/settings/components/settings-default-template-section";
 import { requireCompanyAdmin } from "@/lib/auth";
@@ -110,6 +111,12 @@ export default async function SettingsGeneralPage() {
               />
             </CardContent>
           </Card>
+        </section>
+
+        <section id="settings-projects" className="scroll-mt-20">
+          <ProjectSettingsSection
+            createProjectOnEstimateAccept={company.createProjectOnEstimateAccept}
+          />
         </section>
 
         <section id="settings-reminders" className="scroll-mt-20">

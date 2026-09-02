@@ -29,6 +29,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Client not found" }, { status: 404 });
   }
 
+  let projectId = parsed.data.projectId || null;
+  if (projectId) {
+    const project = await prisma.project.findFirst({
+      where: { id: projectId, companyId: member.companyId },
+      select: { id: true },
+    });
+    if (!project) {
+      return NextResponse.json({ error: "Project not found" }, { status: 404 });
+    }
+  }
+
   let templateId = parsed.data.templateId;
   if (templateId) {
     const template = await getTemplateById(templateId, member.companyId);
@@ -46,6 +57,7 @@ export async function POST(request: Request) {
       data: {
         companyId: member.companyId,
         clientId: client.id,
+        projectId,
         templateId: templateId ?? null,
         number: await generateNextEstimateNumber(member.companyId),
         currency: parsed.data.currency,

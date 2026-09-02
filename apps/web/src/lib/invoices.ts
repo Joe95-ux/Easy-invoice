@@ -9,6 +9,7 @@ export async function getInvoiceForMember(invoiceId: string, companyId: string) 
       client: true,
       company: true,
       template: true,
+      project: { select: { id: true, name: true } },
       items: { orderBy: { sortOrder: "asc" } },
       payments: { orderBy: { paidAt: "desc" } },
       installments: { orderBy: { sortOrder: "asc" } },

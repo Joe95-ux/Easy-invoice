@@ -24,10 +24,18 @@ import { RecentDescriptionsField } from "@/features/time/components/recent-descr
 import { invoiceFromTimeUrl } from "@/lib/time-tracking/invoice-from-time";
 import { resolveHourlyRateFromDefaults } from "@/lib/time-tracking/resolve-hourly-rate";
 
+type ProjectOption = {
+  id: string;
+  name: string;
+  clientId: string | null;
+};
+
 type SerializedTimeEntry = {
   id: string;
   clientId: string | null;
   clientName: string | null;
+  projectId?: string | null;
+  projectName?: string | null;
   description: string;
   date: string;
   hours: number;
@@ -39,8 +47,10 @@ type LogTimeDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   clients: ClientListItem[];
+  projects?: ProjectOption[];
   defaultHourlyRate?: number | null;
   initialClientId?: string;
+  initialProjectId?: string;
   entry?: SerializedTimeEntry | null;
   recentDescriptions?: string[];
 };
@@ -49,14 +59,17 @@ export function LogTimeDialog({
   open,
   onOpenChange,
   clients,
+  projects = [],
   defaultHourlyRate = null,
   initialClientId,
+  initialProjectId,
   entry = null,
   recentDescriptions = [],
 }: LogTimeDialogProps) {
   const router = useRouter();
   const isEditing = Boolean(entry);
   const [clientId, setClientId] = useState(entry?.clientId ?? initialClientId ?? "");
+  const [projectId, setProjectId] = useState(entry?.projectId ?? initialProjectId ?? "");
   const [addNewClient, setAddNewClient] = useState(false);
   const [newClientName, setNewClientName] = useState("");
   const [description, setDescription] = useState(entry?.description ?? "");
@@ -81,15 +94,36 @@ export function LogTimeDialog({
   function handleClientChange(value: string | null) {
     const nextClientId = value ?? "";
     setClientId(nextClientId);
+    if (projectId) {
+      const selected = projects.find((project) => project.id === projectId);
+      if (selected?.clientId && selected.clientId !== nextClientId) {
+        setProjectId("");
+      }
+    }
     if (!isEditing) {
       setHourlyRate(rateForClient(nextClientId));
+    }
+  }
+
+  function handleProjectChange(value: string | null) {
+    const nextProjectId = value === "__none__" || !value ? "" : value;
+    setProjectId(nextProjectId);
+    if (!nextProjectId) return;
+    const selected = projects.find((project) => project.id === nextProjectId);
+    if (selected?.clientId && selected.clientId !== clientId) {
+      setClientId(selected.clientId);
+      if (!isEditing) {
+        setHourlyRate(rateForClient(selected.clientId));
+      }
     }
   }
 
   useEffect(() => {
     if (!open) return;
     const nextClientId = entry?.clientId ?? initialClientId ?? "";
+    const nextProjectId = entry?.projectId ?? initialProjectId ?? "";
     setClientId(nextClientId);
+    setProjectId(nextProjectId);
     setAddNewClient(false);
     setNewClientName("");
     setDescription(entry?.description ?? "");
@@ -99,9 +133,15 @@ export function LogTimeDialog({
       entry?.hourlyRate?.toString() ?? rateForClient(nextClientId),
     );
     setBillable(entry?.billable ?? true);
-  }, [open, entry, initialClientId, defaultHourlyRate, clients]);
+  }, [open, entry, initialClientId, initialProjectId, defaultHourlyRate, clients]);
 
   const clientOptions = clients.map((client) => ({ value: client.id, label: client.name }));
+  const projectOptions = [
+    { value: "__none__", label: "No project" },
+    ...projects
+      .filter((project) => !clientId || !project.clientId || project.clientId === clientId)
+      .map((project) => ({ value: project.id, label: project.name })),
+  ];
 
   async function handleSubmit() {
     const parsedHours = Number(hours);
@@ -145,6 +185,7 @@ export function LogTimeDialog({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           clientId: resolvedClientId,
+          projectId: projectId || null,
           description: description.trim(),
           date,
           hours: parsedHours,
@@ -158,11 +199,19 @@ export function LogTimeDialog({
       onOpenChange(false);
       router.refresh();
 
-      if (!isEditing && billable && resolvedClientId) {
+      if (!isEditing && billable && (resolvedClientId || body.entry?.clientId)) {
+        const invoiceClientId = resolvedClientId || body.entry.clientId;
         toast.success("Time logged", {
           action: {
             label: "Create invoice",
-            onClick: () => router.push(invoiceFromTimeUrl({ clientId: resolvedClientId!, openPicker: true })),
+            onClick: () =>
+              router.push(
+                invoiceFromTimeUrl({
+                  clientId: invoiceClientId,
+                  openPicker: true,
+                  projectId: projectId || undefined,
+                }),
+              ),
           },
         });
       } else {
@@ -236,6 +285,17 @@ export function LogTimeDialog({
               placeholder="Select client (optional)"
             />
           )}
+
+          {projects.length > 0 && !addNewClient ? (
+            <SearchableSelect
+              id="time-project"
+              label="Project"
+              value={projectId || "__none__"}
+              options={projectOptions}
+              onChange={handleProjectChange}
+              placeholder="Optional project"
+            />
+          ) : null}
 
           <div className="space-y-2">
             <Label htmlFor="time-description">Description</Label>

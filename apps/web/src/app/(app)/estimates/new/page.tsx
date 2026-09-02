@@ -9,6 +9,7 @@ import { EstimateCreator } from "@/features/estimates/components/estimate-creato
 type PageProps = {
   searchParams: Promise<{
     clientId?: string;
+    projectId?: string;
     addTime?: string;
     timeEntryIds?: string;
   }>;
@@ -17,7 +18,7 @@ type PageProps = {
 export default async function NewEstimatePage({ searchParams }: PageProps) {
   const member = await requireMember();
 
-  const { clientId, addTime, timeEntryIds } = await searchParams;
+  const { clientId, projectId, addTime, timeEntryIds } = await searchParams;
   const preselectedTimeEntryIds = timeEntryIds
     ? timeEntryIds.split(",").filter(Boolean)
     : [];
@@ -47,6 +48,7 @@ export default async function NewEstimatePage({ searchParams }: PageProps) {
         clients={clients}
         templates={templates}
         initialClientId={clientId}
+        initialProjectId={projectId}
         defaultTemplateId={defaultTemplateId}
         autoOpenTimeDialog={addTime === "1"}
         preselectedTimeEntryIds={preselectedTimeEntryIds}

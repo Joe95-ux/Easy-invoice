@@ -42,6 +42,21 @@ enum EstimateStatus {
   CANCELLED
 }
 
+enum ProjectStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+/// Lifecycle of a project-attached intake form sent to a client.
+enum ProjectFormStatus {
+  DRAFT
+  SENT
+  COMPLETED
+  CANCELLED
+}
+
 enum UserRole {
   OWNER
   ADMIN
@@ -195,6 +210,8 @@ model Company {
   estimateReminderDaysBefore   Int[]   @default([7, 3])
   estimateReminderOnExpiryDay  Boolean @default(true)
   estimateReminderIncludePdf   Boolean @default(true)
+  /// When true, accepting an estimate auto-creates a linked project (if none exists).
+  createProjectOnEstimateAccept Boolean @default(false)
   documentPrefix       String?
   invoiceSequence      Int      @default(0)
   estimateSequence     Int      @default(0)
@@ -211,6 +228,7 @@ model Company {
   clients   Client[]
   invoices  Invoice[]
   estimates Estimate[]
+  projects  Project[]
   templates InvoiceTemplate[]
   defaultTemplate InvoiceTemplate? @relation("CompanyDefaultTemplate", fields: [defaultTemplateId], references: [id], onDelete: SetNull)
   timeEntries TimeEntry[]
@@ -223,6 +241,7 @@ model Company {
   products          Product[]
   recurringInvoices RecurringInvoice[]
   portalEvents      ClientPortalEvent[]
+  formTemplates     FormTemplate[]
 
   @@index([slug])
 }
@@ -328,6 +347,7 @@ model Client {
   company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   invoices Invoice[]
   estimates Estimate[]
+  projects Project[]
   timeEntries TimeEntry[]
   activeTimeTimers ActiveTimeTimer[]
   followUps FollowUp[]
@@ -472,6 +492,7 @@ model ActiveTimeTimer {
   companyId   String
   memberId    String   @unique
   clientId    String?
+  projectId   String?
   description String
   startedAt   DateTime
   billable    Boolean  @default(true)
@@ -482,14 +503,17 @@ model ActiveTimeTimer {
   company Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
   member  CompanyMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
   client  Client?       @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  project Project?      @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
   @@index([companyId])
+  @@index([projectId])
 }
 
 model Invoice {
   id            String        @id @default(cuid())
   companyId     String
   clientId      String?
+  projectId     String?
   number        String
   status        InvoiceStatus @default(DRAFT)
   issueDate     DateTime      @default(now())
@@ -515,6 +539,7 @@ model Invoice {
 
   company   Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
   client    Client?           @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  project   Project?          @relation(fields: [projectId], references: [id], onDelete: SetNull)
   template  InvoiceTemplate?  @relation(fields: [templateId], references: [id], onDelete: SetNull)
   sourceEstimate Estimate?    @relation("EstimateToInvoice", fields: [sourceEstimateId], references: [id], onDelete: SetNull)
   recurringInvoice RecurringInvoice? @relation(fields: [recurringInvoiceId], references: [id], onDelete: SetNull)
@@ -530,6 +555,7 @@ model Invoice {
   @@unique([companyId, number])
   @@index([companyId, status])
   @@index([recurringInvoiceId])
+  @@index([projectId])
 }
 
 model InvoiceReminder {
@@ -627,6 +653,7 @@ model TimeEntry {
   id                String    @id @default(cuid())
   companyId         String
   clientId          String?
+  projectId         String?
   memberId          String?
   description       String
   date              DateTime  @db.Date
@@ -643,20 +670,50 @@ model TimeEntry {
 
   company         Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
   client          Client?        @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  project         Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
   member          CompanyMember? @relation(fields: [memberId], references: [id], onDelete: SetNull)
   invoice         Invoice?       @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
   invoiceLineItem InvoiceLineItem? @relation(fields: [invoiceLineItemId], references: [id], onDelete: SetNull)
 
   @@index([companyId, invoicedAt])
   @@index([companyId, clientId])
+  @@index([projectId])
   @@index([invoiceId])
   @@unique([companyId, externalSource, externalId])
+}
+
+/// Financial job container linking estimates, invoices, and time for one piece of client work.
+model Project {
+  id          String        @id @default(cuid())
+  companyId   String
+  clientId    String?
+  name        String
+  status      ProjectStatus @default(ACTIVE)
+  startDate   DateTime?     @db.Date
+  dueDate     DateTime?     @db.Date
+  currency    String        @default("USD")
+  budget      Decimal?      @db.Decimal(12, 2)
+  notes       String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  company   Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  client    Client?     @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  estimates Estimate[]
+  invoices  Invoice[]
+  timeEntries TimeEntry[]
+  activeTimeTimers ActiveTimeTimer[]
+  forms ProjectForm[]
+
+  @@index([companyId, status])
+  @@index([clientId])
 }
 
 model Estimate {
   id            String         @id @default(cuid())
   companyId     String
   clientId      String?
+  projectId     String?
   number        String
   status        EstimateStatus @default(DRAFT)
   issueDate     DateTime       @default(now())
@@ -690,6 +747,7 @@ model Estimate {
 
   company  Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
   client   Client?          @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  project  Project?         @relation(fields: [projectId], references: [id], onDelete: SetNull)
   template InvoiceTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
   convertedInvoice Invoice? @relation("EstimateToInvoice")
   items     EstimateLineItem[]
@@ -698,6 +756,7 @@ model Estimate {
 
   @@unique([companyId, number])
   @@index([companyId, status])
+  @@index([projectId])
 }
 
 model EstimateReminder {
@@ -846,4 +905,58 @@ model FollowUp {
   @@index([companyId, dueDate])
   @@index([invoiceId])
   @@index([estimateId])
+}
+
+/// Reusable intake form definition (e.g. Website Requirements) owned by a company.
+model FormTemplate {
+  id          String   @id @default(cuid())
+  companyId   String
+  name        String
+  description String?
+  /// Ordered field defs: [{ id, type, label, required, options? }]
+  fields      Json     @default("[]")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  forms   ProjectForm[]
+
+  @@index([companyId])
+}
+
+/// A form instance attached to a project and optionally shared via publicToken.
+model ProjectForm {
+  id           String            @id @default(cuid())
+  projectId    String
+  templateId   String?
+  name         String
+  status       ProjectFormStatus @default(DRAFT)
+  /// Snapshot of fields at send time (or live draft fields).
+  fields       Json              @default("[]")
+  publicToken  String?           @unique
+  sentAt       DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  project     Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  template    FormTemplate?       @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  submissions FormSubmission[]
+
+  @@index([projectId, status])
+  @@index([templateId])
+}
+
+model FormSubmission {
+  id              String   @id @default(cuid())
+  projectFormId   String
+  /// Answers keyed by field id.
+  answers         Json
+  submitterName   String?
+  submitterEmail  String?
+  submittedAt     DateTime @default(now())
+
+  projectForm ProjectForm @relation(fields: [projectFormId], references: [id], onDelete: Cascade)
+
+  @@index([projectFormId, submittedAt(sort: Desc)])
 }

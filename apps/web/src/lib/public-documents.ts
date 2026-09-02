@@ -260,6 +260,10 @@ export async function respondToPublicEstimate(
   if (action === "accept") {
     const { resolveFollowUpsForEstimate } = await import("@/lib/follow-ups/service");
     await resolveFollowUpsForEstimate(estimate.companyId, estimate.id).catch(() => undefined);
+    const { maybeCreateProjectFromAcceptedEstimate } = await import("@/lib/projects");
+    await maybeCreateProjectFromAcceptedEstimate(estimate.companyId, estimate.id).catch(
+      () => undefined,
+    );
   }
 
   const clientName = evidence?.signerName?.trim() || estimate.client?.name || "Client";

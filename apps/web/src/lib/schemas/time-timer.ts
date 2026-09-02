@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export const startTimeTimerSchema = z.object({
   clientId: z.string().optional().nullable(),
+  projectId: z.string().min(1).optional().nullable(),
   description: z.string().min(1, "Description is required"),
   billable: z.boolean().default(true),
   hourlyRate: z.number().nonnegative().optional(),

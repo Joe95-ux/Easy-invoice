@@ -7,6 +7,7 @@ export async function getTimeEntriesForCompany(
   companyId: string,
   options?: {
     clientId?: string;
+    projectId?: string;
     ids?: string[];
     unbilledOnly?: boolean;
     billableOnly?: boolean;
@@ -17,12 +18,14 @@ export async function getTimeEntriesForCompany(
     where: {
       companyId,
       ...(options?.clientId && { clientId: options.clientId }),
+      ...(options?.projectId && { projectId: options.projectId }),
       ...(options?.ids?.length && { id: { in: options.ids } }),
       ...(options?.unbilledOnly && { invoicedAt: null, billable: true }),
       ...(options?.billableOnly && { billable: true }),
     },
     include: {
       client: { select: { id: true, name: true } },
+      project: { select: { id: true, name: true } },
       invoice: { select: { id: true, number: true } },
       member: { select: { id: true, name: true, email: true } },
     },
@@ -44,14 +47,24 @@ export async function createTimeEntry(
   memberId: string,
   input: TimeEntryInput,
 ) {
-  const hourlyRate = await resolveHourlyRate(companyId, {
-    clientId: input.clientId,
-    explicitRate: input.hourlyRate,
-  });
+  let clientId = input.clientId || null;
+  let projectId = input.projectId || null;
+  if (projectId) {
+    const project = await prisma.project.findFirst({
+      where: { id: projectId, companyId },
+      select: { id: true, clientId: true },
+    });
+    if (!project) {
+      throw new Error("Project not found");
+    }
+    if (!clientId && project.clientId) {
+      clientId = project.clientId;
+    }
+  }
 
-  if (input.clientId) {
+  if (clientId) {
     const client = await prisma.client.findFirst({
-      where: { id: input.clientId, companyId },
+      where: { id: clientId, companyId },
       select: { id: true },
     });
     if (!client) {
@@ -59,11 +72,17 @@ export async function createTimeEntry(
     }
   }
 
+  const hourlyRate = await resolveHourlyRate(companyId, {
+    clientId,
+    explicitRate: input.hourlyRate,
+  });
+
   return prisma.timeEntry.create({
     data: {
       companyId,
       memberId,
-      clientId: input.clientId || null,
+      clientId,
+      projectId,
       description: input.description.trim(),
       date: new Date(input.date),
       durationMinutes: hoursToMinutes(input.hours),
@@ -72,6 +91,7 @@ export async function createTimeEntry(
     },
     include: {
       client: { select: { id: true, name: true } },
+      project: { select: { id: true, name: true } },
       invoice: { select: { id: true, number: true } },
       member: { select: { id: true, name: true, email: true } },
     },
@@ -99,7 +119,7 @@ export async function linkTimeEntriesToInvoice(
 
   const invoice = await prisma.invoice.findFirst({
     where: { id: invoiceId, companyId },
-    select: { clientId: true },
+    select: { clientId: true, projectId: true },
   });
   if (!invoice) throw new Error("Invoice not found");
 
@@ -141,6 +161,7 @@ export async function linkTimeEntriesToInvoice(
         invoiceId,
         invoiceLineItemId: lineItem.id,
         invoicedAt: now,
+        ...(invoice.projectId ? { projectId: invoice.projectId } : {}),
       },
     });
   }
@@ -164,6 +185,8 @@ export function serializeTimeEntry(
     id: entry.id,
     clientId: entry.clientId,
     clientName: entry.client?.name ?? null,
+    projectId: entry.projectId,
+    projectName: entry.project?.name ?? null,
     memberId: entry.memberId,
     memberName: entry.member?.name ?? entry.member?.email ?? null,
     description: entry.description,

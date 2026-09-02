@@ -1,6 +1,7 @@
 import {
   BarChart3Icon,
   BellIcon,
+  BriefcaseIcon,
   CheckSquareIcon,
   ClipboardListIcon,
   ClockIcon,
@@ -43,6 +44,7 @@ export const APP_WORKSPACE_ITEMS: AppNavItem[] = [
   { href: "/invoices", label: "Invoices", icon: FileTextIcon },
   { href: "/recurring-invoices", label: "Recurring", icon: RefreshCwIcon },
   { href: "/estimates", label: "Estimates", icon: ClipboardListIcon },
+  { href: "/projects", label: "Projects", icon: BriefcaseIcon },
   { href: "/templates", label: "Templates", icon: LayoutTemplateIcon },
   { href: "/clients", label: "Clients", icon: UsersRoundIcon },
   { href: "/products", label: "Products", icon: PackageIcon },

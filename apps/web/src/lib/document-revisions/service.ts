@@ -712,6 +712,11 @@ export async function duplicateEstimate(
   const snapshot = await loadEstimateSnapshot(companyId, estimateId);
   if (!snapshot) throw new Error("Estimate not found");
 
+  const source = await prisma.estimate.findFirst({
+    where: { id: estimateId, companyId },
+    select: { projectId: true },
+  });
+
   const clientName = await resolveSnapshotClientName(companyId, snapshot.clientId);
   const { lineItems, totals } = buildEstimateTotals({
     clientName,
@@ -732,6 +737,7 @@ export async function duplicateEstimate(
     data: {
       companyId,
       clientId: snapshot.clientId,
+      projectId: source?.projectId ?? null,
       templateId: snapshot.templateId,
       number: await generateNextEstimateNumber(companyId),
       status: "DRAFT",

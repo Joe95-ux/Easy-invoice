@@ -88,6 +88,7 @@ export async function convertEstimateToInvoice(estimateId: string, companyId: st
       data: {
         companyId,
         clientId: estimate.clientId,
+        projectId: estimate.projectId,
         templateId: estimate.templateId,
         sourceEstimateId: estimate.id,
         number: await generateNextInvoiceNumber(companyId),
@@ -128,6 +129,16 @@ export async function convertEstimateToInvoice(estimateId: string, companyId: st
   if (estimate.status !== "ACCEPTED") {
     const { resolveFollowUpsForEstimate } = await import("@/lib/follow-ups/service");
     await resolveFollowUpsForEstimate(companyId, estimateId).catch(() => undefined);
+  }
+
+  const { maybeCreateProjectFromAcceptedEstimate, linkInvoiceToProject } = await import(
+    "@/lib/projects"
+  );
+  const project = await maybeCreateProjectFromAcceptedEstimate(companyId, estimateId).catch(
+    () => null,
+  );
+  if (project && !invoice.projectId) {
+    await linkInvoiceToProject(companyId, project.id, invoice.id).catch(() => undefined);
   }
 
   return { invoice, created: true };

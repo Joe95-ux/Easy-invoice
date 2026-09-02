@@ -93,6 +93,7 @@ type EstimateCreatorProps = {
   clients?: ClientListItem[];
   templates?: TemplateSummary[];
   initialClientId?: string;
+  initialProjectId?: string;
   defaultTemplateId?: string;
   estimateId?: string;
   estimateNumber?: string;
@@ -109,6 +110,7 @@ export function EstimateCreator({
   clients = [],
   templates = [],
   initialClientId,
+  initialProjectId,
   defaultTemplateId,
   estimateId,
   estimateNumber,
@@ -125,6 +127,7 @@ export function EstimateCreator({
   const [selectedClientId, setSelectedClientId] = useState(
     initialValues?.clientId ?? initialClientId ?? "",
   );
+  const [projectId] = useState(initialProjectId ?? "");
   const [templateId, setTemplateId] = useState(
     initialValues?.templateId ?? defaultTemplateId ?? templates[0]?.id ?? "",
   );
@@ -386,6 +389,7 @@ export function EstimateCreator({
   function buildPayload() {
     return {
       clientId: selectedClientId || undefined,
+      projectId: projectId || undefined,
       templateId: templateId || undefined,
       clientName,
       clientEmail: clientEmail || undefined,

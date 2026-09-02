@@ -111,6 +111,7 @@ const invoiceInstallmentInputSchema = z.object({
 
 export const createInvoiceSchema = z.object({
   clientId: z.string().optional(),
+  projectId: z.string().min(1).optional().nullable(),
   templateId: z.string().optional(),
   clientName: z.string().min(1),
   clientEmail: z.string().email().optional().or(z.literal("")),

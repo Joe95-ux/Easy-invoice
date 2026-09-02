@@ -76,6 +76,8 @@ export type SerializedTimeEntry = {
   id: string;
   clientId: string | null;
   clientName: string | null;
+  projectId?: string | null;
+  projectName?: string | null;
   memberId: string | null;
   memberName: string | null;
   description: string;
@@ -167,6 +169,7 @@ function TimeEntryActions({
 type TimePageContentProps = {
   entries: SerializedTimeEntry[];
   clients: ClientListItem[];
+  projects?: Array<{ id: string; name: string; clientId: string | null }>;
   currency: string;
   defaultHourlyRate: number | null;
   recentDescriptions?: string[];
@@ -175,6 +178,7 @@ type TimePageContentProps = {
 export function TimePageContent({
   entries: initialEntries,
   clients,
+  projects = [],
   currency,
   defaultHourlyRate,
   recentDescriptions = [],
@@ -777,6 +781,7 @@ export function TimePageContent({
         open={logOpen}
         onOpenChange={setLogOpen}
         clients={clients}
+        projects={projects}
         defaultHourlyRate={defaultHourlyRate}
         entry={editingEntry}
         recentDescriptions={recentDescriptions}

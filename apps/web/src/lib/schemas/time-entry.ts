@@ -6,6 +6,7 @@ export type TimeGroupMode = z.infer<typeof timeGroupModeSchema>;
 
 export const timeEntrySchema = z.object({
   clientId: z.string().optional().nullable(),
+  projectId: z.string().min(1).optional().nullable(),
   description: z.string().min(1, "Description is required"),
   date: z.string().min(1, "Date is required"),
   hours: z.number().positive("Hours must be greater than zero").max(24 * 7),

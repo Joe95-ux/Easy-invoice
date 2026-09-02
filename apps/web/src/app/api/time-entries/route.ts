@@ -18,11 +18,13 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const clientId = searchParams.get("clientId") ?? undefined;
+  const projectId = searchParams.get("projectId") ?? undefined;
   const unbilledOnly = searchParams.get("unbilledOnly") === "true";
   const ids = searchParams.get("ids")?.split(",").filter(Boolean);
 
   const entries = await getTimeEntriesForCompany(member.companyId, {
     clientId,
+    projectId,
     ids: ids?.length ? ids : undefined,
     unbilledOnly,
     billableOnly: unbilledOnly,
