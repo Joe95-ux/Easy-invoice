@@ -53,6 +53,7 @@ export default async function EditInvoicePage({ params }: PageProps) {
         invoiceId={invoice.id}
         invoiceNumber={invoice.number}
         invoiceStatus={invoice.status}
+        initialProjectId={invoice.projectId ?? undefined}
         initialValues={{
           clientId: invoice.clientId,
           templateId: invoice.templateId,

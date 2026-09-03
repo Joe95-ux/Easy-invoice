@@ -110,6 +110,22 @@ export async function PATCH(request: Request, context: RouteContext) {
     });
   }
 
+  let projectId = existing.projectId;
+  if (data.projectId !== undefined) {
+    if (data.projectId) {
+      const project = await prisma.project.findFirst({
+        where: { id: data.projectId, companyId: member.companyId },
+        select: { id: true },
+      });
+      if (!project) {
+        return NextResponse.json({ error: "Project not found" }, { status: 404 });
+      }
+      projectId = project.id;
+    } else {
+      projectId = null;
+    }
+  }
+
   const hasLineItems = data.lineItems && data.lineItems.length > 0;
   let totalsUpdate: Record<string, number> = {};
 

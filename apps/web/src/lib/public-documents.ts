@@ -10,6 +10,7 @@ const INVOICE_INCLUDE = {
   client: true,
   company: true,
   template: true,
+  project: { select: { id: true, name: true } },
   items: { orderBy: { sortOrder: "asc" as const } },
   payments: { orderBy: { paidAt: "desc" as const } },
   installments: { orderBy: { sortOrder: "asc" as const } },
@@ -19,6 +20,7 @@ const ESTIMATE_INCLUDE = {
   client: true,
   company: true,
   template: true,
+  project: { select: { id: true, name: true } },
   items: { orderBy: { sortOrder: "asc" as const } },
   convertedInvoice: { select: { id: true, number: true } },
 } as const;

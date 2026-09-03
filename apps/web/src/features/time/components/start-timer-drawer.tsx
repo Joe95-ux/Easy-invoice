@@ -21,14 +21,22 @@ import { RecentDescriptionsField } from "@/features/time/components/recent-descr
 import type { ClientListItem } from "@/lib/clients";
 import { resolveHourlyRateFromDefaults } from "@/lib/time-tracking/resolve-hourly-rate";
 
+type ProjectOption = {
+  id: string;
+  name: string;
+  clientId: string | null;
+};
+
 type StartTimerDrawerProps = {
   clients: ClientListItem[];
+  projects?: ProjectOption[];
   recentDescriptions?: string[];
   onClientsChange?: () => Promise<void> | void;
 };
 
 export function StartTimerDrawer({
   clients,
+  projects = [],
   recentDescriptions = [],
   onClientsChange,
 }: StartTimerDrawerProps) {
@@ -41,6 +49,7 @@ export function StartTimerDrawer({
   } = useTimeTimer();
 
   const [clientId, setClientId] = useState("");
+  const [projectId, setProjectId] = useState("");
   const [addNewClient, setAddNewClient] = useState(false);
   const [newClientName, setNewClientName] = useState("");
   const [description, setDescription] = useState("");
@@ -65,12 +74,30 @@ export function StartTimerDrawer({
   function handleClientChange(value: string | null) {
     const nextClientId = value ?? "";
     setClientId(nextClientId);
+    if (projectId) {
+      const selected = projects.find((project) => project.id === projectId);
+      if (selected?.clientId && selected.clientId !== nextClientId) {
+        setProjectId("");
+      }
+    }
     setHourlyRate(rateForClient(nextClientId));
+  }
+
+  function handleProjectChange(value: string | null) {
+    const nextProjectId = value === "__none__" || !value ? "" : value;
+    setProjectId(nextProjectId);
+    if (!nextProjectId) return;
+    const selected = projects.find((project) => project.id === nextProjectId);
+    if (selected?.clientId && selected.clientId !== clientId) {
+      setClientId(selected.clientId);
+      setHourlyRate(rateForClient(selected.clientId));
+    }
   }
 
   useEffect(() => {
     if (!startDrawerOpen) return;
     setClientId("");
+    setProjectId("");
     setAddNewClient(false);
     setNewClientName("");
     setDescription("");
@@ -82,6 +109,12 @@ export function StartTimerDrawer({
     value: client.id,
     label: client.name,
   }));
+  const projectOptions = [
+    { value: "__none__", label: "No project" },
+    ...projects
+      .filter((project) => !clientId || !project.clientId || project.clientId === clientId)
+      .map((project) => ({ value: project.id, label: project.name })),
+  ];
 
   async function handleStart() {
     if (!description.trim()) {
@@ -116,6 +149,7 @@ export function StartTimerDrawer({
 
       await startTimer({
         clientId: resolvedClientId,
+        projectId: projectId || null,
         description: description.trim(),
         hourlyRate: parsedRate,
         billable,
@@ -179,6 +213,18 @@ export function StartTimerDrawer({
               </p>
             )}
           </div>
+
+          {projects.length > 0 && !addNewClient ? (
+            <SearchableSelect
+              id="timer-project"
+              label="Project"
+              value={projectId || "__none__"}
+              options={projectOptions}
+              onChange={handleProjectChange}
+              placeholder="Optional project"
+              container={popupContainer}
+            />
+          ) : null}
 
           <div className="space-y-2">
             <Label htmlFor="timer-description">Description</Label>

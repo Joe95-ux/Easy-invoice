@@ -50,6 +50,7 @@ export default async function EditEstimatePage({ params }: PageProps) {
         defaultTemplateId={defaultTemplateId}
         estimateId={estimate.id}
         estimateNumber={estimate.number}
+        initialProjectId={estimate.projectId ?? undefined}
         initialValues={{
           clientId: estimate.clientId,
           templateId: estimate.templateId,

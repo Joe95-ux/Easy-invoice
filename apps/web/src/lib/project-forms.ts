@@ -1,6 +1,10 @@
 import { prisma } from "@/lib/db";
 import { generatePublicToken } from "@/lib/document-tokens";
-import type { CreateProjectFormInput, SubmitProjectFormInput } from "@/lib/schemas/project-form";
+import type {
+  CreateProjectFormInput,
+  FormFieldDef,
+  SubmitProjectFormInput,
+} from "@/lib/schemas/project-form";
 
 const DEFAULT_FIELDS = [
   { id: "business_name", type: "text", label: "Business name", required: true },
@@ -9,8 +13,19 @@ const DEFAULT_FIELDS = [
   { id: "notes", type: "textarea", label: "Anything else?", required: false },
 ] as const;
 
-export function defaultIntakeFields() {
+export function defaultIntakeFields(): FormFieldDef[] {
   return DEFAULT_FIELDS.map((field) => ({ ...field }));
+}
+
+function parseFormFields(fields: unknown): FormFieldDef[] {
+  if (!Array.isArray(fields)) return [];
+  return fields.filter(
+    (field): field is FormFieldDef =>
+      Boolean(field) &&
+      typeof field === "object" &&
+      typeof (field as FormFieldDef).id === "string" &&
+      typeof (field as FormFieldDef).label === "string",
+  );
 }
 
 export async function listProjectForms(companyId: string, projectId: string) {
@@ -29,6 +44,20 @@ export async function listProjectForms(companyId: string, projectId: string) {
   });
 }
 
+export async function getProjectFormForCompany(
+  companyId: string,
+  projectId: string,
+  formId: string,
+) {
+  return prisma.projectForm.findFirst({
+    where: { id: formId, projectId, project: { companyId } },
+    include: {
+      submissions: { orderBy: { submittedAt: "desc" } },
+      _count: { select: { submissions: true } },
+    },
+  });
+}
+
 export async function createProjectForm(
   companyId: string,
   projectId: string,
@@ -40,7 +69,7 @@ export async function createProjectForm(
   });
   if (!project) throw new Error("Project not found");
 
-  let fields: CreateProjectFormInput["fields"] = input.fields?.length
+  let fields: FormFieldDef[] = input.fields?.length
     ? input.fields
     : defaultIntakeFields();
   let templateId: string | null = input.templateId ?? null;
@@ -51,8 +80,9 @@ export async function createProjectForm(
       select: { id: true, name: true, fields: true },
     });
     if (!template) throw new Error("Template not found");
-    if (Array.isArray(template.fields) && template.fields.length > 0) {
-      fields = template.fields as NonNullable<CreateProjectFormInput["fields"]>;
+    const templateFields = parseFormFields(template.fields);
+    if (templateFields.length > 0) {
+      fields = templateFields;
     }
   }
 
@@ -61,7 +91,7 @@ export async function createProjectForm(
       projectId,
       templateId,
       name: input.name.trim(),
-      fields: fields ?? defaultIntakeFields(),
+      fields,
       status: "DRAFT",
     },
     include: { _count: { select: { submissions: true } } },
@@ -126,7 +156,24 @@ export async function submitProjectFormByToken(token: string, input: SubmitProje
     select: { id: true, status: true, fields: true },
   });
   if (!form) throw new Error("Form not found");
-  if (form.status === "CANCELLED") throw new Error("This form is no longer accepting responses");
+  if (form.status === "CANCELLED") {
+    throw new Error("This form is no longer accepting responses");
+  }
+  if (form.status === "COMPLETED") {
+    throw new Error("This form has already been submitted");
+  }
+  if (form.status === "DRAFT") {
+    throw new Error("This form is not open for responses yet");
+  }
+
+  const fields = parseFormFields(form.fields);
+  for (const field of fields) {
+    if (!field.required) continue;
+    const value = input.answers[field.id];
+    if (typeof value !== "string" || !value.trim()) {
+      throw new Error(`${field.label} is required`);
+    }
+  }
 
   const submission = await prisma.formSubmission.create({
     data: {
@@ -160,5 +207,25 @@ export function serializeProjectForm(
     sentAt: form.sentAt?.toISOString() ?? null,
     completedAt: form.completedAt?.toISOString() ?? null,
     createdAt: form.createdAt.toISOString(),
+  };
+}
+
+export function serializeProjectFormDetail(
+  form: NonNullable<Awaited<ReturnType<typeof getProjectFormForCompany>>>,
+) {
+  const fields = parseFormFields(form.fields);
+  return {
+    ...serializeProjectForm(form),
+    fields,
+    submissions: form.submissions.map((submission) => ({
+      id: submission.id,
+      answers:
+        submission.answers && typeof submission.answers === "object"
+          ? (submission.answers as Record<string, string>)
+          : {},
+      submitterName: submission.submitterName,
+      submitterEmail: submission.submitterEmail,
+      submittedAt: submission.submittedAt.toISOString(),
+    })),
   };
 }

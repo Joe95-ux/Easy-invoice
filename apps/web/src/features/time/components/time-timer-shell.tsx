@@ -6,9 +6,16 @@ import { ActiveTimerDrawer } from "@/features/time/components/active-timer-drawe
 import { StartTimerDrawer } from "@/features/time/components/start-timer-drawer";
 import { useTimeTimer } from "@/features/time/components/time-timer-provider";
 
+type ProjectOption = {
+  id: string;
+  name: string;
+  clientId: string | null;
+};
+
 export function TimeTimerShell({ activeCompanyId }: { activeCompanyId: string }) {
   const { timer, recentDescriptions } = useTimeTimer();
   const [clients, setClients] = useState<ClientListItem[]>([]);
+  const [projects, setProjects] = useState<ProjectOption[]>([]);
 
   const reloadClients = useCallback(async () => {
     try {
@@ -21,15 +28,37 @@ export function TimeTimerShell({ activeCompanyId }: { activeCompanyId: string })
     }
   }, []);
 
+  const reloadProjects = useCallback(async () => {
+    try {
+      const response = await fetch("/api/projects");
+      const body = await response.json();
+      if (!response.ok) return;
+      setProjects(
+        (body.projects ?? []).map(
+          (project: { id: string; name: string; clientId: string | null }) => ({
+            id: project.id,
+            name: project.name,
+            clientId: project.clientId,
+          }),
+        ),
+      );
+    } catch {
+      // Optional project picker.
+    }
+  }, []);
+
   useEffect(() => {
     setClients([]);
+    setProjects([]);
     void reloadClients();
-  }, [activeCompanyId, reloadClients]);
+    void reloadProjects();
+  }, [activeCompanyId, reloadClients, reloadProjects]);
 
   return (
     <>
       <StartTimerDrawer
         clients={clients}
+        projects={projects}
         recentDescriptions={recentDescriptions}
         onClientsChange={reloadClients}
       />

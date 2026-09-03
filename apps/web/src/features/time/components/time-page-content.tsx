@@ -282,19 +282,29 @@ export function TimePageContent({
     }
   }, [isInvoicing]);
 
+  function resolveSharedProjectId(timeEntryIds: string[]) {
+    const matched = initialEntries.filter((entry) => timeEntryIds.includes(entry.id));
+    const projectIds = [
+      ...new Set(matched.map((entry) => entry.projectId).filter(Boolean)),
+    ] as string[];
+    return projectIds.length === 1 ? projectIds[0] : undefined;
+  }
+
   function handleInvoiceFromTime(clientId: string, timeEntryIds: string[]) {
     if (isInvoicing) return;
+    const projectId = resolveSharedProjectId(timeEntryIds);
 
     startInvoicing(() => {
-      router.push(invoiceFromTimeUrl({ clientId, timeEntryIds }));
+      router.push(invoiceFromTimeUrl({ clientId, timeEntryIds, projectId }));
     });
   }
 
   function handleEstimateFromTime(clientId: string, timeEntryIds: string[]) {
     if (isInvoicing) return;
+    const projectId = resolveSharedProjectId(timeEntryIds);
 
     startInvoicing(() => {
-      router.push(estimateFromTimeUrl({ clientId, timeEntryIds }));
+      router.push(estimateFromTimeUrl({ clientId, timeEntryIds, projectId }));
     });
   }
 

@@ -3,6 +3,7 @@ export function estimateFromTimeUrl(options: {
   clientId: string;
   timeEntryIds?: string[];
   openPicker?: boolean;
+  projectId?: string;
 }) {
   const params = new URLSearchParams({
     clientId: options.clientId,
@@ -11,6 +12,9 @@ export function estimateFromTimeUrl(options: {
   if (options.timeEntryIds?.length) {
     params.set("timeEntryIds", options.timeEntryIds.join(","));
     params.set("addTime", "0");
+  }
+  if (options.projectId) {
+    params.set("projectId", options.projectId);
   }
   return `/estimates/new?${params.toString()}`;
 }
