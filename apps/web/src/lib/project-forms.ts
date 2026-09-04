@@ -1,30 +1,74 @@
 import { prisma } from "@/lib/db";
 import { generatePublicToken } from "@/lib/document-tokens";
 import type {
+  CreateFormTemplateInput,
   CreateProjectFormInput,
   FormFieldDef,
   SubmitProjectFormInput,
+  UpdateFormTemplateInput,
+  UpdateProjectFormInput,
 } from "@/lib/schemas/project-form";
 
-const DEFAULT_FIELDS = [
+const DEFAULT_FIELDS: FormFieldDef[] = [
   { id: "business_name", type: "text", label: "Business name", required: true },
   { id: "contact_email", type: "email", label: "Contact email", required: true },
   { id: "goals", type: "textarea", label: "Goals / requirements", required: true },
   { id: "notes", type: "textarea", label: "Anything else?", required: false },
-] as const;
+];
+
+const STARTER_TEMPLATES: Array<{
+  name: string;
+  description: string;
+  fields: FormFieldDef[];
+}> = [
+  {
+    name: "Website Requirements",
+    description: "Pages, brand assets, hosting, and launch goals for a website build.",
+    fields: [
+      { id: "business_name", type: "text", label: "Business name", required: true },
+      { id: "contact_email", type: "email", label: "Primary contact email", required: true },
+      { id: "website_url", type: "url", label: "Current website (if any)", required: false },
+      { id: "pages", type: "textarea", label: "Pages / sections needed", required: true },
+      { id: "brand", type: "textarea", label: "Brand / logo notes", required: false },
+      { id: "hosting", type: "textarea", label: "Domain & hosting details", required: false },
+      { id: "launch", type: "text", label: "Preferred launch timing", required: false },
+    ],
+  },
+  {
+    name: "Design Brief",
+    description: "Audience, style references, and deliverables for design work.",
+    fields: [
+      { id: "project_goal", type: "textarea", label: "Project goal", required: true },
+      { id: "audience", type: "textarea", label: "Target audience", required: true },
+      { id: "references", type: "textarea", label: "Style references / links", required: false },
+      { id: "deliverables", type: "textarea", label: "Deliverables needed", required: true },
+      { id: "deadline", type: "text", label: "Deadline", required: false },
+    ],
+  },
+  {
+    name: "General Requirements",
+    description: "A simple intake form for any job.",
+    fields: DEFAULT_FIELDS,
+  },
+];
 
 export function defaultIntakeFields(): FormFieldDef[] {
   return DEFAULT_FIELDS.map((field) => ({ ...field }));
 }
 
-function parseFormFields(fields: unknown): FormFieldDef[] {
+export function newFormFieldId() {
+  return `field_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+export function parseFormFields(fields: unknown): FormFieldDef[] {
   if (!Array.isArray(fields)) return [];
   return fields.filter(
     (field): field is FormFieldDef =>
       Boolean(field) &&
       typeof field === "object" &&
       typeof (field as FormFieldDef).id === "string" &&
-      typeof (field as FormFieldDef).label === "string",
+      typeof (field as FormFieldDef).label === "string" &&
+      typeof (field as FormFieldDef).type === "string",
   );
 }
 
@@ -39,6 +83,7 @@ export async function listProjectForms(companyId: string, projectId: string) {
     where: { projectId },
     include: {
       _count: { select: { submissions: true } },
+      template: { select: { id: true, name: true } },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -54,6 +99,7 @@ export async function getProjectFormForCompany(
     include: {
       submissions: { orderBy: { submittedAt: "desc" } },
       _count: { select: { submissions: true } },
+      template: { select: { id: true, name: true } },
     },
   });
 }
@@ -72,7 +118,7 @@ export async function createProjectForm(
   let fields: FormFieldDef[] = input.fields?.length
     ? input.fields
     : defaultIntakeFields();
-  let templateId: string | null = input.templateId ?? null;
+  const templateId: string | null = input.templateId ?? null;
 
   if (templateId) {
     const template = await prisma.formTemplate.findFirst({
@@ -94,28 +140,106 @@ export async function createProjectForm(
       fields,
       status: "DRAFT",
     },
-    include: { _count: { select: { submissions: true } } },
+    include: {
+      _count: { select: { submissions: true } },
+      template: { select: { id: true, name: true } },
+    },
   });
+}
+
+export async function updateProjectForm(
+  companyId: string,
+  projectId: string,
+  formId: string,
+  input: UpdateProjectFormInput,
+) {
+  const existing = await prisma.projectForm.findFirst({
+    where: { id: formId, projectId, project: { companyId } },
+    select: { id: true, status: true, _count: { select: { submissions: true } } },
+  });
+  if (!existing) return null;
+
+  if (input.fields && existing.status !== "DRAFT") {
+    throw new Error("Fields can only be edited while the form is a draft");
+  }
+  if (input.status === "CANCELLED") {
+    if (existing.status === "COMPLETED") {
+      throw new Error("Completed forms cannot be cancelled");
+    }
+    if (existing.status === "CANCELLED") {
+      return prisma.projectForm.findFirst({
+        where: { id: formId },
+        include: {
+          _count: { select: { submissions: true } },
+          template: { select: { id: true, name: true } },
+        },
+      });
+    }
+  } else if (input.status !== undefined && input.status !== existing.status) {
+    throw new Error("Invalid status change");
+  }
+
+  return prisma.projectForm.update({
+    where: { id: formId },
+    data: {
+      ...(input.name !== undefined && { name: input.name.trim() }),
+      ...(input.fields !== undefined && { fields: input.fields }),
+      ...(input.status === "CANCELLED" && {
+        status: "CANCELLED" as const,
+        publicToken: null,
+      }),
+    },
+    include: {
+      _count: { select: { submissions: true } },
+      template: { select: { id: true, name: true } },
+    },
+  });
+}
+
+export async function deleteProjectForm(
+  companyId: string,
+  projectId: string,
+  formId: string,
+) {
+  const existing = await prisma.projectForm.findFirst({
+    where: { id: formId, projectId, project: { companyId } },
+    select: { id: true },
+  });
+  if (!existing) return false;
+
+  await prisma.projectForm.delete({ where: { id: formId } });
+  return true;
 }
 
 export async function ensureProjectFormShareLink(companyId: string, formId: string) {
   const form = await prisma.projectForm.findFirst({
     where: { id: formId, project: { companyId } },
-    select: { id: true, publicToken: true, status: true },
+    select: { id: true, publicToken: true, status: true, fields: true },
   });
   if (!form) return null;
+  if (form.status === "CANCELLED") throw new Error("Cancelled forms cannot be shared");
+  if (form.status === "COMPLETED") throw new Error("Completed forms cannot be re-shared");
+
+  const fields = parseFormFields(form.fields);
+  if (fields.length === 0) throw new Error("Add at least one field before sharing");
 
   if (form.publicToken) {
     if (form.status === "DRAFT") {
       return prisma.projectForm.update({
         where: { id: form.id },
         data: { status: "SENT", sentAt: new Date() },
-        include: { _count: { select: { submissions: true } } },
+        include: {
+          _count: { select: { submissions: true } },
+          template: { select: { id: true, name: true } },
+        },
       });
     }
     return prisma.projectForm.findFirst({
       where: { id: form.id },
-      include: { _count: { select: { submissions: true } } },
+      include: {
+        _count: { select: { submissions: true } },
+        template: { select: { id: true, name: true } },
+      },
     });
   }
 
@@ -123,10 +247,13 @@ export async function ensureProjectFormShareLink(companyId: string, formId: stri
     where: { id: form.id },
     data: {
       publicToken: generatePublicToken(),
-      status: form.status === "DRAFT" ? "SENT" : form.status,
-      sentAt: form.status === "DRAFT" ? new Date() : undefined,
+      status: "SENT",
+      sentAt: new Date(),
     },
-    include: { _count: { select: { submissions: true } } },
+    include: {
+      _count: { select: { submissions: true } },
+      template: { select: { id: true, name: true } },
+    },
   });
 }
 
@@ -195,6 +322,85 @@ export async function submitProjectFormByToken(token: string, input: SubmitProje
   return submission;
 }
 
+export async function ensureStarterFormTemplates(companyId: string) {
+  const count = await prisma.formTemplate.count({ where: { companyId } });
+  if (count > 0) return;
+
+  await prisma.formTemplate.createMany({
+    data: STARTER_TEMPLATES.map((template) => ({
+      companyId,
+      name: template.name,
+      description: template.description,
+      fields: template.fields,
+    })),
+  });
+}
+
+export async function listFormTemplates(companyId: string) {
+  await ensureStarterFormTemplates(companyId);
+  return prisma.formTemplate.findMany({
+    where: { companyId },
+    orderBy: { name: "asc" },
+  });
+}
+
+export async function createFormTemplate(companyId: string, input: CreateFormTemplateInput) {
+  return prisma.formTemplate.create({
+    data: {
+      companyId,
+      name: input.name.trim(),
+      description: input.description?.trim() || null,
+      fields: input.fields,
+    },
+  });
+}
+
+export async function updateFormTemplate(
+  companyId: string,
+  templateId: string,
+  input: UpdateFormTemplateInput,
+) {
+  const existing = await prisma.formTemplate.findFirst({
+    where: { id: templateId, companyId },
+    select: { id: true },
+  });
+  if (!existing) return null;
+
+  return prisma.formTemplate.update({
+    where: { id: templateId },
+    data: {
+      ...(input.name !== undefined && { name: input.name.trim() }),
+      ...(input.description !== undefined && {
+        description: input.description?.trim() || null,
+      }),
+      ...(input.fields !== undefined && { fields: input.fields }),
+    },
+  });
+}
+
+export async function deleteFormTemplate(companyId: string, templateId: string) {
+  const existing = await prisma.formTemplate.findFirst({
+    where: { id: templateId, companyId },
+    select: { id: true },
+  });
+  if (!existing) return false;
+  await prisma.formTemplate.delete({ where: { id: templateId } });
+  return true;
+}
+
+export function serializeFormTemplate(
+  template: Awaited<ReturnType<typeof listFormTemplates>>[number],
+) {
+  return {
+    id: template.id,
+    name: template.name,
+    description: template.description,
+    fields: parseFormFields(template.fields),
+    createdAt: template.createdAt.toISOString(),
+    updatedAt: template.updatedAt.toISOString(),
+  };
+}
+
 export function serializeProjectForm(
   form: Awaited<ReturnType<typeof listProjectForms>>[number],
 ) {
@@ -204,6 +410,9 @@ export function serializeProjectForm(
     status: form.status,
     publicToken: form.publicToken,
     submissionCount: form._count.submissions,
+    templateId: form.templateId,
+    templateName: form.template?.name ?? null,
+    fieldCount: parseFormFields(form.fields).length,
     sentAt: form.sentAt?.toISOString() ?? null,
     completedAt: form.completedAt?.toISOString() ?? null,
     createdAt: form.createdAt.toISOString(),

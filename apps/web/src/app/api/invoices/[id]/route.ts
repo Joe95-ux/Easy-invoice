@@ -213,6 +213,7 @@ export async function PATCH(request: Request, context: RouteContext) {
         issueDate: data.issueDate ? new Date(data.issueDate) : existing.issueDate,
       }),
       ...(clientId !== undefined && { clientId }),
+      ...(data.projectId !== undefined && { projectId }),
       ...totalsUpdate,
       ...(data.status === "PAID" && { paidAt: new Date() }),
       ...(data.status === "SENT" && !existing.sentAt && { sentAt: new Date() }),

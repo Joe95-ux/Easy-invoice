@@ -19,10 +19,14 @@ export async function POST(_request: Request, context: RouteContext) {
     return NextResponse.json({ error: "Form not found" }, { status: 404 });
   }
 
-  const form = await ensureProjectFormShareLink(member.companyId, formId);
-  if (!form) {
-    return NextResponse.json({ error: "Form not found" }, { status: 404 });
+  try {
+    const form = await ensureProjectFormShareLink(member.companyId, formId);
+    if (!form) {
+      return NextResponse.json({ error: "Form not found" }, { status: 404 });
+    }
+    return NextResponse.json({ form: serializeProjectForm(form) });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Could not create share link";
+    return NextResponse.json({ error: message }, { status: 400 });
   }
-
-  return NextResponse.json({ form: serializeProjectForm(form) });
 }

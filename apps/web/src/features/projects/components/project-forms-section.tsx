@@ -8,12 +8,23 @@ import {
   EyeIcon,
   LinkIcon,
   Loader2Icon,
+  MoreHorizontalIcon,
+  PencilIcon,
   PlusIcon,
+  Trash2Icon,
 } from "lucide-react";
 import { toast } from "sonner";
+import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -22,6 +33,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ProjectAddFormDialog } from "@/features/projects/components/project-add-form-dialog";
+import { ProjectFormEditorDialog } from "@/features/projects/components/project-form-editor-dialog";
 import { ProjectFormSubmissionsDialog } from "@/features/projects/components/project-form-submissions-dialog";
 import type { serializeProjectForm } from "@/lib/project-forms";
 
@@ -63,32 +76,24 @@ function statusVariant(status: string): "secondary" | "info" | "success" | "dest
 export function ProjectFormsSection({ projectId, forms: initialForms }: ProjectFormsSectionProps) {
   const router = useRouter();
   const [forms, setForms] = useState(initialForms);
-  const [creating, setCreating] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
   const [sharingId, setSharingId] = useState<string | null>(null);
   const [viewingForm, setViewingForm] = useState<ProjectFormRow | null>(null);
+  const [editingForm, setEditingForm] = useState<ProjectFormRow | null>(null);
+  const [pendingCancel, setPendingCancel] = useState<ProjectFormRow | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<ProjectFormRow | null>(null);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     setForms(initialForms);
   }, [initialForms]);
 
-  async function handleCreate() {
-    setCreating(true);
-    try {
-      const response = await fetch(`/api/projects/${projectId}/forms`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: "Requirements" }),
-      });
-      const body = await response.json();
-      if (!response.ok) throw new Error(body.error ?? "Failed to create form");
-      setForms((prev) => [body.form, ...prev]);
-      toast.success("Requirements form added");
-      router.refresh();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not create form");
-    } finally {
-      setCreating(false);
-    }
+  function upsertForm(form: ProjectFormRow) {
+    setForms((prev) => {
+      const exists = prev.some((row) => row.id === form.id);
+      if (!exists) return [form, ...prev];
+      return prev.map((row) => (row.id === form.id ? form : row));
+    });
   }
 
   async function handleShare(formId: string) {
@@ -100,7 +105,7 @@ export function ProjectFormsSection({ projectId, forms: initialForms }: ProjectF
       const body = await response.json();
       if (!response.ok) throw new Error(body.error ?? "Failed to create link");
 
-      setForms((prev) => prev.map((form) => (form.id === formId ? body.form : form)));
+      upsertForm(body.form);
       const url = `${window.location.origin}/f/${body.form.publicToken}`;
       await navigator.clipboard.writeText(url);
       toast.success("Share link copied", { description: url });
@@ -118,6 +123,48 @@ export function ProjectFormsSection({ projectId, forms: initialForms }: ProjectF
     toast.success("Link copied");
   }
 
+  async function handleCancel() {
+    if (!pendingCancel) return;
+    setBusy(true);
+    try {
+      const response = await fetch(`/api/projects/${projectId}/forms/${pendingCancel.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "CANCELLED" }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error ?? "Failed to cancel");
+      upsertForm(body.form);
+      setPendingCancel(null);
+      toast.success("Form cancelled");
+      router.refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not cancel form");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!pendingDelete) return;
+    setBusy(true);
+    try {
+      const response = await fetch(`/api/projects/${projectId}/forms/${pendingDelete.id}`, {
+        method: "DELETE",
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error ?? "Failed to delete");
+      setForms((prev) => prev.filter((form) => form.id !== pendingDelete.id));
+      setPendingDelete(null);
+      toast.success("Form deleted");
+      router.refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not delete form");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <>
       <Card className="overflow-hidden py-0">
@@ -128,23 +175,19 @@ export function ProjectFormsSection({ projectId, forms: initialForms }: ProjectF
               Forms
             </CardTitle>
             <CardDescription>
-              Collect requirements from the client for this job. Not a standalone form product —
-              forms stay on the project.
+              Collect requirements from the client for this job. Edit questions, share a link, then
+              review answers here.
             </CardDescription>
           </div>
-          <Button size="sm" onClick={() => void handleCreate()} disabled={creating}>
-            {creating ? (
-              <Loader2Icon className="size-4 animate-spin" />
-            ) : (
-              <PlusIcon className="size-4" />
-            )}
-            Add requirements form
+          <Button size="sm" onClick={() => setAddOpen(true)}>
+            <PlusIcon className="size-4" />
+            Add form
           </Button>
         </CardHeader>
         <CardContent className="p-0">
           {forms.length === 0 ? (
             <p className="px-4 py-8 text-center text-sm text-muted-foreground">
-              No intake forms yet. Add one, then share the link with your client.
+              No intake forms yet. Add one from a template, edit the questions, then share the link.
             </p>
           ) : (
             <Table>
@@ -152,6 +195,7 @@ export function ProjectFormsSection({ projectId, forms: initialForms }: ProjectF
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Fields</TableHead>
                   <TableHead>Responses</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -159,10 +203,16 @@ export function ProjectFormsSection({ projectId, forms: initialForms }: ProjectF
               <TableBody>
                 {forms.map((form) => (
                   <TableRow key={form.id}>
-                    <TableCell className="font-medium">{form.name}</TableCell>
+                    <TableCell>
+                      <div className="font-medium">{form.name}</div>
+                      {form.templateName ? (
+                        <div className="text-xs text-muted-foreground">{form.templateName}</div>
+                      ) : null}
+                    </TableCell>
                     <TableCell>
                       <Badge variant={statusVariant(form.status)}>{statusLabel(form.status)}</Badge>
                     </TableCell>
+                    <TableCell>{form.fieldCount}</TableCell>
                     <TableCell>{form.submissionCount}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
@@ -173,33 +223,82 @@ export function ProjectFormsSection({ projectId, forms: initialForms }: ProjectF
                             onClick={() => setViewingForm(form)}
                           >
                             <EyeIcon className="size-4" />
-                            View responses
+                            Responses
                           </Button>
                         ) : null}
-                        {form.publicToken ? (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => void handleCopy(form.publicToken!)}
+                        {form.status === "DRAFT" || form.status === "SENT" ? (
+                          form.publicToken && form.status !== "DRAFT" ? (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => void handleCopy(form.publicToken!)}
+                            >
+                              <CopyIcon className="size-4" />
+                              Copy link
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={sharingId === form.id}
+                              onClick={() => void handleShare(form.id)}
+                            >
+                              {sharingId === form.id ? (
+                                <Loader2Icon className="size-4 animate-spin" />
+                              ) : (
+                                <LinkIcon className="size-4" />
+                              )}
+                              Share
+                            </Button>
+                          )
+                        ) : null}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger
+                            className="inline-flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
+                            aria-label="Form actions"
                           >
-                            <CopyIcon className="size-4" />
-                            Copy link
-                          </Button>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={sharingId === form.id}
-                            onClick={() => void handleShare(form.id)}
-                          >
-                            {sharingId === form.id ? (
-                              <Loader2Icon className="size-4 animate-spin" />
-                            ) : (
-                              <LinkIcon className="size-4" />
-                            )}
-                            Get share link
-                          </Button>
-                        )}
+                            <MoreHorizontalIcon className="size-4" />
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => setEditingForm(form)}>
+                              <PencilIcon className="size-4" />
+                              Edit
+                            </DropdownMenuItem>
+                            {form.submissionCount > 0 ? (
+                              <DropdownMenuItem onClick={() => setViewingForm(form)}>
+                                <EyeIcon className="size-4" />
+                                View responses
+                              </DropdownMenuItem>
+                            ) : null}
+                            {form.publicToken ? (
+                              <DropdownMenuItem onClick={() => void handleCopy(form.publicToken!)}>
+                                <CopyIcon className="size-4" />
+                                Copy link
+                              </DropdownMenuItem>
+                            ) : form.status !== "CANCELLED" && form.status !== "COMPLETED" ? (
+                              <DropdownMenuItem onClick={() => void handleShare(form.id)}>
+                                <LinkIcon className="size-4" />
+                                Get share link
+                              </DropdownMenuItem>
+                            ) : null}
+                            {form.status !== "CANCELLED" && form.status !== "COMPLETED" ? (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => setPendingCancel(form)}>
+                                  Cancel form
+                                </DropdownMenuItem>
+                              </>
+                            ) : null}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              variant="destructive"
+                              onClick={() => setPendingDelete(form)}
+                            >
+                              <Trash2Icon className="size-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -210,6 +309,30 @@ export function ProjectFormsSection({ projectId, forms: initialForms }: ProjectF
         </CardContent>
       </Card>
 
+      <ProjectAddFormDialog
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        projectId={projectId}
+        onCreated={(form) => {
+          upsertForm(form as ProjectFormRow);
+          setEditingForm(form as ProjectFormRow);
+          router.refresh();
+        }}
+      />
+
+      <ProjectFormEditorDialog
+        open={Boolean(editingForm)}
+        onOpenChange={(open) => {
+          if (!open) setEditingForm(null);
+        }}
+        projectId={projectId}
+        formId={editingForm?.id ?? null}
+        onSaved={(form) => {
+          upsertForm(form as ProjectFormRow);
+          router.refresh();
+        }}
+      />
+
       <ProjectFormSubmissionsDialog
         open={Boolean(viewingForm)}
         onOpenChange={(open) => {
@@ -218,6 +341,49 @@ export function ProjectFormsSection({ projectId, forms: initialForms }: ProjectF
         projectId={projectId}
         formId={viewingForm?.id ?? null}
         formName={viewingForm?.name}
+      />
+
+      <ConfirmActionDialog
+        open={Boolean(pendingCancel)}
+        onOpenChange={(open) => {
+          if (!open && !busy) setPendingCancel(null);
+        }}
+        title="Cancel form?"
+        description={
+          <>
+            Clients will no longer be able to open the share link for{" "}
+            <span className="font-medium text-foreground">
+              {pendingCancel?.name ?? "this form"}
+            </span>
+            .
+          </>
+        }
+        confirmLabel="Cancel form"
+        confirmingLabel="Cancelling..."
+        confirming={busy}
+        onConfirm={handleCancel}
+      />
+
+      <ConfirmActionDialog
+        open={Boolean(pendingDelete)}
+        onOpenChange={(open) => {
+          if (!open && !busy) setPendingDelete(null);
+        }}
+        title="Delete form?"
+        description={
+          <>
+            Permanently delete{" "}
+            <span className="font-medium text-foreground">
+              {pendingDelete?.name ?? "this form"}
+            </span>{" "}
+            and any responses. This cannot be undone.
+          </>
+        }
+        confirmLabel="Delete"
+        confirmingLabel="Deleting..."
+        confirming={busy}
+        destructive
+        onConfirm={handleDelete}
       />
     </>
   );
