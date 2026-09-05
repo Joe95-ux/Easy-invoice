@@ -19,6 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ProjectExpensesSection } from "@/features/projects/components/project-expenses-section";
 import { ProjectFormsSection } from "@/features/projects/components/project-forms-section";
 import { ProjectLogTimeButton } from "@/features/projects/components/project-log-time-button";
 import { ProjectStatusSelect } from "@/features/projects/components/project-status-select";
@@ -149,6 +150,51 @@ export default async function ProjectDetailPage({ params }: PageProps) {
               {financials.budget == null
                 ? "—"
                 : formatMoney(financials.budget, financials.currency)}
+            </CardTitle>
+          </CardHeader>
+        </Card>
+      </div>
+
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Costs</CardDescription>
+            <CardTitle className="text-2xl tabular-nums">
+              {formatMoney(financials.costs, financials.currency)}
+            </CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Profit</CardDescription>
+            <CardTitle
+              className={`text-2xl tabular-nums ${
+                financials.profit < 0 ? "text-destructive" : ""
+              }`}
+            >
+              {formatMoney(financials.profit, financials.currency)}
+            </CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Margin</CardDescription>
+            <CardTitle
+              className={`text-2xl tabular-nums ${
+                financials.marginPercent != null && financials.marginPercent < 0
+                  ? "text-destructive"
+                  : ""
+              }`}
+            >
+              {financials.marginPercent == null ? "—" : `${financials.marginPercent}%`}
+            </CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Billable expenses</CardDescription>
+            <CardTitle className="text-2xl tabular-nums">
+              {formatMoney(financials.expensesBillableUninvoiced, financials.currency)}
             </CardTitle>
           </CardHeader>
         </Card>
@@ -354,6 +400,14 @@ export default async function ProjectDetailPage({ params }: PageProps) {
           )}
         </CardContent>
       </Card>
+
+      <div className="mt-6">
+        <ProjectExpensesSection
+          projectId={detail.id}
+          currency={detail.currency}
+          expenses={detail.expenses}
+        />
+      </div>
 
       <div className="mt-6">
         <ProjectFormsSection projectId={detail.id} forms={forms} />

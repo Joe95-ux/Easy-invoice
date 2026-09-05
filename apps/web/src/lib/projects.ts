@@ -75,6 +75,21 @@ export const projectDetailInclude = {
       invoiceId: true,
     },
   },
+  expenses: {
+    orderBy: [{ date: "desc" as const }, { createdAt: "desc" as const }],
+    take: 100,
+    select: {
+      id: true,
+      description: true,
+      date: true,
+      amount: true,
+      currency: true,
+      billable: true,
+      invoicedAt: true,
+      invoiceId: true,
+      invoice: { select: { id: true, number: true } },
+    },
+  },
 } satisfies Prisma.ProjectInclude;
 
 export type ProjectListRow = Awaited<ReturnType<typeof getProjectsForCompany>>[number];
@@ -143,6 +158,11 @@ export function summarizeProjectFinancials(
       billable: boolean;
       invoicedAt: Date | null;
     }>;
+    expenses?: Array<{
+      amount: { toString(): string } | number;
+      billable: boolean;
+      invoicedAt: Date | null;
+    }>;
   },
 ) {
   const currency = project.currency;
@@ -172,6 +192,25 @@ export function summarizeProjectFinancials(
     }
   }
 
+  let expensesTotal = 0;
+  let expensesBillableUninvoiced = 0;
+  for (const expense of project.expenses ?? []) {
+    const amount = toNumber(expense.amount);
+    expensesTotal += amount;
+    if (expense.billable && !expense.invoicedAt) {
+      expensesBillableUninvoiced += amount;
+    }
+  }
+  expensesTotal = Math.round(expensesTotal * 100) / 100;
+  expensesBillableUninvoiced = Math.round(expensesBillableUninvoiced * 100) / 100;
+
+  /** Revenue for margin uses Paid (cash collected). */
+  const revenue = paid;
+  const costs = expensesTotal;
+  const profit = Math.round((revenue - costs) * 100) / 100;
+  const marginPercent =
+    revenue > 0 ? Math.round((profit / revenue) * 1000) / 10 : null;
+
   return {
     currency,
     budget,
@@ -182,6 +221,12 @@ export function summarizeProjectFinancials(
     timeMinutes,
     unbilledMinutes,
     unbilledAmount: Math.round(unbilledAmount * 100) / 100,
+    expensesTotal,
+    expensesBillableUninvoiced,
+    revenue,
+    costs,
+    profit,
+    marginPercent,
   };
 }
 
@@ -410,6 +455,9 @@ export function serializeProjectDetail(project: ProjectDetail) {
   const unbilledTimeIds = project.timeEntries
     .filter((entry) => entry.billable && !entry.invoicedAt)
     .map((entry) => entry.id);
+  const unbilledExpenseIds = project.expenses
+    .filter((expense) => expense.billable && !expense.invoicedAt)
+    .map((expense) => expense.id);
 
   return {
     id: project.id,
@@ -463,8 +511,20 @@ export function serializeProjectDetail(project: ProjectDetail) {
       invoiceId: row.invoiceId,
       amount: Math.round((row.durationMinutes / 60) * toNumber(row.hourlyRate) * 100) / 100,
     })),
+    expenses: project.expenses.map((row) => ({
+      id: row.id,
+      description: row.description,
+      date: row.date.toISOString(),
+      amount: toNumber(row.amount),
+      currency: row.currency,
+      billable: row.billable,
+      invoicedAt: row.invoicedAt?.toISOString() ?? null,
+      invoiceId: row.invoiceId,
+      invoiceNumber: row.invoice?.number ?? null,
+    })),
     financials,
     unbilledTimeIds,
+    unbilledExpenseIds,
     createdAt: project.createdAt.toISOString(),
     updatedAt: project.updatedAt.toISOString(),
   };
