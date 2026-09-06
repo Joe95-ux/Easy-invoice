@@ -58,7 +58,7 @@ export function ProjectStatusSelect({ projectId, status }: ProjectStatusSelectPr
         label: projectStatusLabel(option),
       }))}
     >
-      <SelectTrigger className="w-full sm:w-40" aria-label="Project status">
+      <SelectTrigger size="sm" className="w-full sm:w-40" aria-label="Project status">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

@@ -19,6 +19,8 @@ export type SerializedActiveTimer = {
   id: string;
   clientId: string | null;
   clientName: string | null;
+  projectId?: string | null;
+  projectName?: string | null;
   description: string;
   startedAt: string;
   billable: boolean;

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { PlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { LogTimeDialog } from "@/features/time/components/log-time-dialog";
+import { LogTimeDrawer } from "@/features/time/components/log-time-drawer";
 import type { ClientListItem } from "@/lib/clients";
 
 type ProjectLogTimeButtonProps = {
@@ -31,7 +31,7 @@ export function ProjectLogTimeButton({
         <PlusIcon className="size-4" />
         Log time
       </Button>
-      <LogTimeDialog
+      <LogTimeDrawer
         open={open}
         onOpenChange={setOpen}
         clients={clients}

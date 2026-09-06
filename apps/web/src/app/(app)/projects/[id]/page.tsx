@@ -3,14 +3,13 @@ import { notFound } from "next/navigation";
 import {
   ClipboardListIcon,
   ClockIcon,
-  FileTextIcon,
   PlusIcon,
 } from "lucide-react";
 import { PageScroll } from "@/components/app-shell/app-shell";
-import { PageBackLink, PageHeader, pageHeaderActionClass } from "@/components/app-shell/page-header";
+import { PageBackLink, PageHeader } from "@/components/app-shell/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -20,6 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ProjectExpensesSection } from "@/features/projects/components/project-expenses-section";
+import { ProjectFinancialSummary } from "@/features/projects/components/project-financial-summary";
 import { ProjectFormsSection } from "@/features/projects/components/project-forms-section";
 import { ProjectLogTimeButton } from "@/features/projects/components/project-log-time-button";
 import { ProjectStatusSelect } from "@/features/projects/components/project-status-select";
@@ -37,7 +37,6 @@ import {
 } from "@/lib/projects";
 import { formatDuration } from "@/lib/time-tracking/format";
 import { getRecentTimeDescriptions } from "@/lib/time-tracking/service";
-import { invoiceFromTimeUrl } from "@/lib/time-tracking/invoice-from-time";
 
 type PageProps = { params: Promise<{ id: string }> };
 
@@ -55,8 +54,6 @@ export default async function ProjectDetailPage({ params }: PageProps) {
   const detail = serializeProjectDetail(project);
   const forms = formRows.map(serializeProjectForm);
   const { financials } = detail;
-  const canInvoiceUnbilled =
-    Boolean(detail.client?.id) && detail.unbilledTimeIds.length > 0;
   const defaultHourlyRate = member.company.defaultHourlyRate
     ? Number(member.company.defaultHourlyRate)
     : null;
@@ -85,13 +82,13 @@ export default async function ProjectDetailPage({ params }: PageProps) {
           </>
         }
         actions={
-          <div className={`flex w-full flex-col gap-2 sm:w-auto sm:flex-row ${pageHeaderActionClass}`}>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
             <ProjectStatusSelect projectId={detail.id} status={detail.status} />
             {detail.client?.id ? (
               <>
                 <Button
                   variant="outline"
-                  className="flex-1 sm:flex-none"
+                  className="h-8 w-full min-h-8 sm:w-auto"
                   render={
                     <Link
                       href={`/estimates/new?clientId=${detail.client.id}&projectId=${detail.id}`}
@@ -102,7 +99,7 @@ export default async function ProjectDetailPage({ params }: PageProps) {
                   New estimate
                 </Button>
                 <Button
-                  className="flex-1 sm:flex-none"
+                  className="h-8 w-full min-h-8 sm:w-auto"
                   render={
                     <Link
                       href={`/invoices/new?clientId=${detail.client.id}&projectId=${detail.id}`}
@@ -118,117 +115,23 @@ export default async function ProjectDetailPage({ params }: PageProps) {
         }
       />
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Invoiced</CardDescription>
-            <CardTitle className="text-2xl tabular-nums">
-              {formatMoney(financials.invoiced, financials.currency)}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Paid</CardDescription>
-            <CardTitle className="text-2xl tabular-nums">
-              {formatMoney(financials.paid, financials.currency)}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Remaining</CardDescription>
-            <CardTitle className="text-2xl tabular-nums">
-              {formatMoney(financials.remaining, financials.currency)}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Budget</CardDescription>
-            <CardTitle className="text-2xl tabular-nums">
-              {financials.budget == null
-                ? "—"
-                : formatMoney(financials.budget, financials.currency)}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-      </div>
-
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Costs</CardDescription>
-            <CardTitle className="text-2xl tabular-nums">
-              {formatMoney(financials.costs, financials.currency)}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Profit</CardDescription>
-            <CardTitle
-              className={`text-2xl tabular-nums ${
-                financials.profit < 0 ? "text-destructive" : ""
-              }`}
-            >
-              {formatMoney(financials.profit, financials.currency)}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Margin</CardDescription>
-            <CardTitle
-              className={`text-2xl tabular-nums ${
-                financials.marginPercent != null && financials.marginPercent < 0
-                  ? "text-destructive"
-                  : ""
-              }`}
-            >
-              {financials.marginPercent == null ? "—" : `${financials.marginPercent}%`}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Billable expenses</CardDescription>
-            <CardTitle className="text-2xl tabular-nums">
-              {formatMoney(financials.expensesBillableUninvoiced, financials.currency)}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-      </div>
-
-      {canInvoiceUnbilled ? (
-        <Card className="mb-6 border-dashed">
-          <CardContent className="flex flex-col gap-3 pt-6 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="font-medium">
-                {formatDuration(financials.unbilledMinutes)} unbilled ·{" "}
-                {formatMoney(financials.unbilledAmount, financials.currency)}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Billable time on this project that is not on an invoice yet.
-              </p>
-            </div>
-            <Button
-              render={
-                <Link
-                  href={invoiceFromTimeUrl({
-                    clientId: detail.client!.id,
-                    timeEntryIds: detail.unbilledTimeIds,
-                    projectId: detail.id,
-                  })}
-                />
-              }
-            >
-              <FileTextIcon className="size-4" />
-              Invoice unbilled time
-            </Button>
-          </CardContent>
-        </Card>
-      ) : null}
+      <ProjectFinancialSummary
+        currency={financials.currency}
+        revenue={financials.revenue ?? financials.paid}
+        costs={financials.costs ?? 0}
+        profit={financials.profit ?? 0}
+        marginPercent={financials.marginPercent ?? null}
+        invoiced={financials.invoiced}
+        remaining={financials.remaining}
+        budget={financials.budget}
+        unbilledMinutes={financials.unbilledMinutes}
+        unbilledAmount={financials.unbilledAmount}
+        unbilledTimeIds={detail.unbilledTimeIds}
+        expensesBillableUninvoiced={financials.expensesBillableUninvoiced ?? 0}
+        unbilledExpenseIds={detail.unbilledExpenseIds ?? []}
+        clientId={detail.client?.id ?? null}
+        projectId={detail.id}
+      />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="overflow-hidden py-0">

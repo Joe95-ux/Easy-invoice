@@ -5,10 +5,12 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { FormCard } from "@/components/forms/form-card";
 import { FormField } from "@/components/forms/form-field";
+import { DatePicker } from "@/components/forms/date-picker";
 import { SearchableSelect } from "@/components/forms/searchable-select";
 import { PageScroll } from "@/components/app-shell/app-shell";
 import { PageBackLink, PageHeader } from "@/components/app-shell/page-header";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -154,35 +156,52 @@ export function NewProjectForm({ clients, defaultCurrency }: NewProjectPageProps
                 </SelectContent>
               </Select>
             </div>
-            <FormField
-              label="Budget"
-              id="project-budget"
-              type="number"
-              min={0}
-              step="0.01"
-              value={budget}
-              onChange={setBudget}
-              error={errors.budget}
-              placeholder="Optional"
-              description={`In ${defaultCurrency}`}
-            />
+            <div className="space-y-2">
+              <Label htmlFor="project-budget">Budget</Label>
+              <Input
+                id="project-budget"
+                type="number"
+                min={0}
+                step="0.01"
+                value={budget}
+                onChange={(event) => setBudget(event.target.value)}
+                placeholder="Optional"
+                aria-invalid={Boolean(errors.budget)}
+                aria-describedby={
+                  errors.budget ? "project-budget-error" : "project-budget-hint"
+                }
+              />
+              {errors.budget ? (
+                <p id="project-budget-error" className="text-sm text-destructive">
+                  {errors.budget}
+                </p>
+              ) : (
+                <p id="project-budget-hint" className="text-sm text-muted-foreground">
+                  In {defaultCurrency}
+                </p>
+              )}
+            </div>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <FormField
-              label="Start date"
-              id="project-start"
-              type="date"
-              value={startDate}
-              onChange={setStartDate}
-            />
-            <FormField
-              label="Due date"
-              id="project-due"
-              type="date"
-              value={dueDate}
-              onChange={setDueDate}
-            />
+            <div className="space-y-2">
+              <Label htmlFor="project-start">Start date</Label>
+              <DatePicker
+                id="project-start"
+                value={startDate}
+                onChange={setStartDate}
+                placeholder="Optional"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="project-due">Due date</Label>
+              <DatePicker
+                id="project-due"
+                value={dueDate}
+                onChange={setDueDate}
+                placeholder="Optional"
+              />
+            </div>
           </div>
 
           <div className="space-y-2">

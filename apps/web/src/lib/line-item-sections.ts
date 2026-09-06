@@ -9,6 +9,7 @@ export type SectionableLineItem = {
   sectionTitle?: string | null;
   sectionSortOrder?: number;
   timeEntryIds?: string[];
+  expenseIds?: string[];
 };
 
 export type LineItemSectionInput<TItem = SectionableLineItem> = {
@@ -26,6 +27,7 @@ export type FlattenedLineItemInput = {
   sectionTitle: string | null;
   sectionSortOrder: number;
   timeEntryIds?: string[];
+  expenseIds?: string[];
 };
 
 function newSectionKey(): string {
@@ -100,6 +102,7 @@ export function flattenSectionsToLineItems<
     quantity: number;
     unitPrice: number;
     timeEntryIds?: string[];
+    expenseIds?: string[];
   },
 >(sections: LineItemSectionInput<TItem>[]): FlattenedLineItemInput[] {
   const result: FlattenedLineItemInput[] = [];
@@ -116,6 +119,7 @@ export function flattenSectionsToLineItems<
         sectionTitle: title,
         sectionSortOrder,
         ...(item.timeEntryIds?.length ? { timeEntryIds: item.timeEntryIds } : {}),
+        ...(item.expenseIds?.length ? { expenseIds: item.expenseIds } : {}),
       });
     }
   });

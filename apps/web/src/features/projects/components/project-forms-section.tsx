@@ -36,7 +36,11 @@ import {
 import { ProjectAddFormDialog } from "@/features/projects/components/project-add-form-dialog";
 import { ProjectFormEditorDialog } from "@/features/projects/components/project-form-editor-dialog";
 import { ProjectFormSubmissionsDialog } from "@/features/projects/components/project-form-submissions-dialog";
+import { SectionInfoPopover } from "@/features/projects/components/section-info-popover";
 import type { serializeProjectForm } from "@/lib/project-forms";
+
+const FORMS_DESCRIPTION =
+  "Collect requirements from the client for this job. Edit questions, share a link, then review answers here.";
 
 type ProjectFormRow = ReturnType<typeof serializeProjectForm>;
 
@@ -168,18 +172,18 @@ export function ProjectFormsSection({ projectId, forms: initialForms }: ProjectF
   return (
     <>
       <Card className="overflow-hidden py-0">
-        <CardHeader className="flex flex-row items-start justify-between gap-3 border-b py-4">
-          <div className="space-y-1">
+        <CardHeader className="flex flex-row items-center justify-between gap-3 border-b py-4">
+          <div className="min-w-0 space-y-1">
             <CardTitle className="flex items-center gap-2 text-base">
-              <ClipboardListIcon className="size-4" />
+              <ClipboardListIcon className="size-4 shrink-0" />
               Forms
+              <span className="lg:hidden">
+                <SectionInfoPopover label="About forms">{FORMS_DESCRIPTION}</SectionInfoPopover>
+              </span>
             </CardTitle>
-            <CardDescription>
-              Collect requirements from the client for this job. Edit questions, share a link, then
-              review answers here.
-            </CardDescription>
+            <CardDescription className="hidden lg:block">{FORMS_DESCRIPTION}</CardDescription>
           </div>
-          <Button size="sm" onClick={() => setAddOpen(true)}>
+          <Button size="sm" className="shrink-0" onClick={() => setAddOpen(true)}>
             <PlusIcon className="size-4" />
             Add form
           </Button>

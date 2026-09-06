@@ -100,6 +100,7 @@ const invoiceLineItemInputSchema = z.object({
   sectionTitle: z.string().trim().max(120).nullable().optional(),
   sectionSortOrder: z.number().int().nonnegative().optional(),
   timeEntryIds: z.array(z.string()).optional(),
+  expenseIds: z.array(z.string()).optional(),
 });
 
 const invoiceInstallmentInputSchema = z.object({

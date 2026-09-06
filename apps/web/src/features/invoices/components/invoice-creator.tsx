@@ -108,6 +108,7 @@ type InvoiceCreatorProps = {
   initialValues?: InvoiceInitialValues;
   autoOpenTimeDialog?: boolean;
   preselectedTimeEntryIds?: string[];
+  preselectedExpenseIds?: string[];
 };
 
 export function InvoiceCreator({
@@ -126,6 +127,7 @@ export function InvoiceCreator({
   initialValues,
   autoOpenTimeDialog = false,
   preselectedTimeEntryIds = [],
+  preselectedExpenseIds = [],
 }: InvoiceCreatorProps) {
   const router = useRouter();
   const [activeInvoiceId, setActiveInvoiceId] = useState(invoiceId);
@@ -296,6 +298,10 @@ export function InvoiceCreator({
     () => preselectedTimeEntryIds.join(","),
     [preselectedTimeEntryIds],
   );
+  const preselectedExpenseIdsKey = useMemo(
+    () => preselectedExpenseIds.join(","),
+    [preselectedExpenseIds],
+  );
 
   useEffect(() => {
     if (isEditing || !autoOpenTimeDialog || !selectedClientId || itemsStepIndex < 0) return;
@@ -307,6 +313,59 @@ export function InvoiceCreator({
     if (isEditing || !preselectedTimeIdsKey || !selectedClientId || itemsStepIndex < 0) return;
     setStep(itemsStepIndex);
   }, [isEditing, preselectedTimeIdsKey, selectedClientId, itemsStepIndex]);
+
+  useEffect(() => {
+    if (isEditing || !preselectedExpenseIdsKey || itemsStepIndex < 0) return;
+
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const response = await fetch(
+          `/api/expenses?ids=${encodeURIComponent(preselectedExpenseIdsKey)}`,
+        );
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.error ?? "Failed to load expenses");
+        if (cancelled) return;
+
+        const expenses = (body.expenses ?? []) as Array<{
+          id: string;
+          description: string;
+          amount: number;
+        }>;
+        if (expenses.length === 0) return;
+
+        const items: LineItemInput[] = expenses.map((expense) => ({
+          description: expense.description,
+          quantity: 1,
+          unitPrice: expense.amount,
+          expenseIds: [expense.id],
+        }));
+
+        setSections((current) => {
+          const usedIds = new Set(
+            current.flatMap((section) =>
+              section.items.flatMap((item) => item.expenseIds ?? []),
+            ),
+          );
+          const freshItems = items.filter(
+            (item) => !item.expenseIds?.some((id) => usedIds.has(id)),
+          );
+          if (freshItems.length === 0) return current;
+          return appendItemsToLastSection(current, freshItems);
+        });
+        setStep(itemsStepIndex);
+      } catch (error) {
+        if (!cancelled) {
+          toast.error(error instanceof Error ? error.message : "Could not load expenses");
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isEditing, preselectedExpenseIdsKey, itemsStepIndex]);
 
   function applyDraft(draft: InvoiceDraft, meta?: AiApplyMeta) {
     const linesOnly = meta?.extraction_mode === "lines_only";
@@ -420,6 +479,7 @@ export function InvoiceCreator({
         sectionTitle: item.sectionTitle,
         sectionSortOrder: item.sectionSortOrder,
         ...(item.timeEntryIds?.length ? { timeEntryIds: item.timeEntryIds } : {}),
+        ...(item.expenseIds?.length ? { expenseIds: item.expenseIds } : {}),
       })),
       ...(installments.length > 0 ? { installments } : {}),
     };

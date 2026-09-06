@@ -8,6 +8,9 @@ import {
   resolveClientForInvoice,
 } from "@/lib/invoice-service";
 import { linkTimeEntriesToInvoice } from "@/lib/time-tracking/service";
+import {
+  linkProjectExpensesToInvoice,
+} from "@/lib/project-expenses";
 import { createInvoiceSchema } from "@/lib/schemas/invoice";
 import { getDefaultTemplateId, getTemplateById } from "@/lib/templates";
 import {
@@ -40,7 +43,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Client not found" }, { status: 404 });
   }
 
-  let projectId = parsed.data.projectId || null;
+  const projectId = parsed.data.projectId || null;
   if (projectId) {
     const project = await prisma.project.findFirst({
       where: { id: projectId, companyId: member.companyId },
@@ -106,6 +109,18 @@ export async function POST(request: Request) {
       parsed.data.lineItems.map((item, index) => ({
         sortOrder: item.sortOrder ?? index,
         timeEntryIds: item.timeEntryIds,
+      })),
+    ).catch(async (error) => {
+      await prisma.invoice.delete({ where: { id: invoice.id } });
+      throw error;
+    });
+
+    await linkProjectExpensesToInvoice(
+      member.companyId,
+      invoice.id,
+      parsed.data.lineItems.map((item, index) => ({
+        sortOrder: item.sortOrder ?? index,
+        expenseIds: item.expenseIds,
       })),
     ).catch(async (error) => {
       await prisma.invoice.delete({ where: { id: invoice.id } });

@@ -18,6 +18,7 @@ export type LineItemInput = {
   quantity: number;
   unitPrice: number;
   timeEntryIds?: string[];
+  expenseIds?: string[];
 };
 
 export type { LineItemSectionInput };

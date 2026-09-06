@@ -65,6 +65,7 @@ export function TimeTimerShell({ activeCompanyId }: { activeCompanyId: string })
       {timer ? (
         <ActiveTimerDrawer
           clients={clients}
+          projects={projects}
           recentDescriptions={recentDescriptions}
           onClientsChange={reloadClients}
         />

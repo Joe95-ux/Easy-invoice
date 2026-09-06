@@ -52,9 +52,10 @@ export async function getInvoiceRemindersForMember(invoiceId: string, companyId:
   });
 }
 
-type MoneyInput = number | string | Decimal;
+type MoneyInput = number | string | Decimal | null | undefined;
 
 function toNumber(amount: MoneyInput): number {
+  if (amount == null) return 0;
   return typeof amount === "number" ? amount : parseFloat(amount.toString());
 }
 

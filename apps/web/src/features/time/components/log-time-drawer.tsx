@@ -6,14 +6,13 @@ import { Loader2Icon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SearchableSelect } from "@/components/forms/searchable-select";
@@ -43,7 +42,7 @@ type SerializedTimeEntry = {
   billable: boolean;
 };
 
-type LogTimeDialogProps = {
+type LogTimeDrawerProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   clients: ClientListItem[];
@@ -55,7 +54,7 @@ type LogTimeDialogProps = {
   recentDescriptions?: string[];
 };
 
-export function LogTimeDialog({
+export function LogTimeDrawer({
   open,
   onOpenChange,
   clients,
@@ -65,7 +64,7 @@ export function LogTimeDialog({
   initialProjectId,
   entry = null,
   recentDescriptions = [],
-}: LogTimeDialogProps) {
+}: LogTimeDrawerProps) {
   const router = useRouter();
   const isEditing = Boolean(entry);
   const [clientId, setClientId] = useState(entry?.clientId ?? initialClientId ?? "");
@@ -80,6 +79,8 @@ export function LogTimeDialog({
   );
   const [billable, setBillable] = useState(entry?.billable ?? true);
   const [saving, setSaving] = useState(false);
+  // Popups must portal inside the drawer so Vaul's focus trap keeps them usable.
+  const [popupContainer, setPopupContainer] = useState<HTMLElement | null>(null);
 
   function rateForClient(selectedClientId: string) {
     const client = clients.find((item) => item.id === selectedClientId);
@@ -129,9 +130,7 @@ export function LogTimeDialog({
     setDescription(entry?.description ?? "");
     setDate(entry?.date.slice(0, 10) ?? new Date().toISOString().slice(0, 10));
     setHours(entry?.hours?.toString() ?? "1");
-    setHourlyRate(
-      entry?.hourlyRate?.toString() ?? rateForClient(nextClientId),
-    );
+    setHourlyRate(entry?.hourlyRate?.toString() ?? rateForClient(nextClientId));
     setBillable(entry?.billable ?? true);
   }, [open, entry, initialClientId, initialProjectId, defaultHourlyRate, clients]);
 
@@ -225,16 +224,17 @@ export function LogTimeDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{isEditing ? "Edit time entry" : "Log time"}</DialogTitle>
-          <DialogDescription>
+    <Drawer direction="right" open={open} onOpenChange={onOpenChange}>
+      <DrawerContent className="data-[vaul-drawer-direction=right]:w-full data-[vaul-drawer-direction=right]:sm:max-w-md">
+        <div ref={setPopupContainer} />
+        <DrawerHeader className="border-b">
+          <DrawerTitle>{isEditing ? "Edit time entry" : "Log time"}</DrawerTitle>
+          <DrawerDescription>
             Record billable hours to add them to invoices later.
-          </DialogDescription>
-        </DialogHeader>
+          </DrawerDescription>
+        </DrawerHeader>
 
-        <DialogBody className="space-y-4">
+        <div className="flex-1 space-y-4 overflow-y-auto p-4">
           {!isEditing && (
             <div className="space-y-3">
               {clients.length > 0 && !addNewClient && (
@@ -245,6 +245,7 @@ export function LogTimeDialog({
                   options={clientOptions}
                   onChange={handleClientChange}
                   placeholder="Select client (optional)"
+                  container={popupContainer}
                 />
               )}
               {addNewClient ? (
@@ -283,6 +284,7 @@ export function LogTimeDialog({
               options={clientOptions}
               onChange={handleClientChange}
               placeholder="Select client (optional)"
+              container={popupContainer}
             />
           )}
 
@@ -294,6 +296,7 @@ export function LogTimeDialog({
               options={projectOptions}
               onChange={handleProjectChange}
               placeholder="Optional project"
+              container={popupContainer}
             />
           ) : null}
 
@@ -321,6 +324,7 @@ export function LogTimeDialog({
                 value={date}
                 onChange={setDate}
                 placeholder="Select date"
+                container={popupContainer}
               />
             </div>
             <div className="space-y-2">
@@ -350,18 +354,21 @@ export function LogTimeDialog({
           </div>
 
           <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
-            <div>
+            <div className="min-w-0">
               <Label htmlFor="time-billable">Billable</Label>
-              <p className="text-xs text-muted-foreground">Only billable entries can be invoiced.</p>
+              <p className="text-xs text-muted-foreground">
+                Only billable entries can be invoiced.
+              </p>
             </div>
-            <Switch id="time-billable" checked={billable} onCheckedChange={setBillable} />
+            <Switch
+              id="time-billable"
+              checked={billable}
+              onCheckedChange={(checked) => setBillable(checked === true)}
+            />
           </div>
-        </DialogBody>
+        </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
+        <DrawerFooter className="border-t">
           <Button onClick={() => void handleSubmit()} disabled={saving}>
             {saving ? (
               <>
@@ -374,8 +381,11 @@ export function LogTimeDialog({
               "Log time"
             )}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+        </DrawerFooter>
+      </DrawerContent>
+    </Drawer>
   );
 }

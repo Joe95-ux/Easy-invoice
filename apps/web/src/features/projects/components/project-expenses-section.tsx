@@ -34,7 +34,11 @@ import {
   ProjectExpenseDialog,
   type ProjectExpenseRow,
 } from "@/features/projects/components/project-expense-dialog";
+import { SectionInfoPopover } from "@/features/projects/components/section-info-popover";
 import { formatDate, formatMoney } from "@/lib/invoices";
+
+const EXPENSES_DESCRIPTION =
+  "Job costs used for profit and margin. Billable items can be passed through on invoices later.";
 
 type ProjectExpensesSectionProps = {
   projectId: string;
@@ -90,19 +94,22 @@ export function ProjectExpensesSection({
   return (
     <>
       <Card className="overflow-hidden py-0">
-        <CardHeader className="flex flex-row items-start justify-between gap-3 border-b py-4">
-          <div className="space-y-1">
+        <CardHeader className="flex flex-row items-center justify-between gap-3 border-b py-4">
+          <div className="min-w-0 space-y-1">
             <CardTitle className="flex items-center gap-2 text-base">
-              <ReceiptIcon className="size-4" />
+              <ReceiptIcon className="size-4 shrink-0" />
               Expenses
+              <span className="lg:hidden">
+                <SectionInfoPopover label="About expenses">
+                  {EXPENSES_DESCRIPTION}
+                </SectionInfoPopover>
+              </span>
             </CardTitle>
-            <CardDescription>
-              Job costs used for profit and margin. Billable items can be passed through on invoices
-              later.
-            </CardDescription>
+            <CardDescription className="hidden lg:block">{EXPENSES_DESCRIPTION}</CardDescription>
           </div>
           <Button
             size="sm"
+            className="shrink-0"
             onClick={() => {
               setEditing(null);
               setDialogOpen(true);

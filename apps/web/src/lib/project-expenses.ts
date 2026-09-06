@@ -116,6 +116,143 @@ export async function deleteProjectExpense(
   return true;
 }
 
+type LineItemExpenseLink = {
+  sortOrder: number;
+  expenseIds?: string[];
+};
+
+/** Stamp billable expenses onto an invoice (invoiceId + invoicedAt). */
+export async function linkProjectExpensesToInvoice(
+  companyId: string,
+  invoiceId: string,
+  lineItems: LineItemExpenseLink[],
+) {
+  const links = lineItems
+    .map((item, index) => ({
+      sortOrder: item.sortOrder ?? index,
+      expenseIds: item.expenseIds ?? [],
+    }))
+    .filter((item) => item.expenseIds.length > 0);
+
+  if (links.length === 0) return;
+
+  const invoice = await prisma.invoice.findFirst({
+    where: { id: invoiceId, companyId },
+    select: { clientId: true, projectId: true },
+  });
+  if (!invoice) throw new Error("Invoice not found");
+
+  const allExpenseIds = [...new Set(links.flatMap((item) => item.expenseIds))];
+  const expenses = await prisma.projectExpense.findMany({
+    where: {
+      id: { in: allExpenseIds },
+      companyId,
+      billable: true,
+      invoicedAt: null,
+      ...(invoice.clientId
+        ? { OR: [{ clientId: invoice.clientId }, { clientId: null }] }
+        : {}),
+      ...(invoice.projectId ? { projectId: invoice.projectId } : {}),
+    },
+    select: { id: true },
+  });
+
+  if (expenses.length !== allExpenseIds.length) {
+    throw new Error("One or more expenses are no longer available to bill");
+  }
+
+  const now = new Date();
+  await prisma.projectExpense.updateMany({
+    where: {
+      id: { in: allExpenseIds },
+      companyId,
+      invoicedAt: null,
+    },
+    data: {
+      invoiceId,
+      invoicedAt: now,
+      ...(invoice.clientId ? { clientId: invoice.clientId } : {}),
+    },
+  });
+}
+
+export async function releaseProjectExpensesForInvoice(invoiceId: string) {
+  await prisma.projectExpense.updateMany({
+    where: { invoiceId },
+    data: {
+      invoiceId: null,
+      invoicedAt: null,
+    },
+  });
+}
+
+export async function getBillableExpensesByIds(companyId: string, ids: string[]) {
+  if (ids.length === 0) return [];
+  return prisma.projectExpense.findMany({
+    where: {
+      id: { in: ids },
+      companyId,
+      billable: true,
+      invoicedAt: null,
+    },
+    include: expenseInclude,
+    orderBy: [{ date: "asc" }, { createdAt: "asc" }],
+  });
+}
+
+export async function getExpensesForInvoice(companyId: string, invoiceId: string) {
+  return prisma.projectExpense.findMany({
+    where: { companyId, invoiceId },
+    select: {
+      id: true,
+      description: true,
+      amount: true,
+    },
+    orderBy: [{ date: "asc" }, { createdAt: "asc" }],
+  });
+}
+
+/**
+ * Attach expenseIds onto invoice line items for draft edit hydration.
+ * Matches qty-1 lines by description + amount; each expense used once.
+ */
+export function attachExpenseIdsToLineItems<
+  T extends {
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    timeEntryIds?: string[];
+    expenseIds?: string[];
+  },
+>(
+  lineItems: T[],
+  expenses: Array<{ id: string; description: string; amount: { toString(): string } | number }>,
+): T[] {
+  const remaining = expenses.map((expense) => ({
+    id: expense.id,
+    description: expense.description.trim(),
+    amount: toNumber(expense.amount),
+  }));
+
+  return lineItems.map((item) => {
+    if ((item.timeEntryIds?.length ?? 0) > 0) return item;
+    if (item.quantity !== 1) return item;
+
+    const matchIndex = remaining.findIndex(
+      (expense) =>
+        expense.description === item.description.trim() &&
+        Math.abs(expense.amount - item.unitPrice) < 0.005,
+    );
+    if (matchIndex < 0) return item;
+
+    const [matched] = remaining.splice(matchIndex, 1);
+    return {
+      ...item,
+      expenseIds: [matched!.id],
+    };
+  });
+}
+
 export function serializeProjectExpense(
   expense: Awaited<ReturnType<typeof listProjectExpenses>>[number],
 ) {

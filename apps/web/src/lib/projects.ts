@@ -455,7 +455,7 @@ export function serializeProjectDetail(project: ProjectDetail) {
   const unbilledTimeIds = project.timeEntries
     .filter((entry) => entry.billable && !entry.invoicedAt)
     .map((entry) => entry.id);
-  const unbilledExpenseIds = project.expenses
+  const unbilledExpenseIds = (project.expenses ?? [])
     .filter((expense) => expense.billable && !expense.invoicedAt)
     .map((expense) => expense.id);
 
@@ -511,7 +511,7 @@ export function serializeProjectDetail(project: ProjectDetail) {
       invoiceId: row.invoiceId,
       amount: Math.round((row.durationMinutes / 60) * toNumber(row.hourlyRate) * 100) / 100,
     })),
-    expenses: project.expenses.map((row) => ({
+    expenses: (project.expenses ?? []).map((row) => ({
       id: row.id,
       description: row.description,
       date: row.date.toISOString(),
@@ -522,7 +522,15 @@ export function serializeProjectDetail(project: ProjectDetail) {
       invoiceId: row.invoiceId,
       invoiceNumber: row.invoice?.number ?? null,
     })),
-    financials,
+    financials: {
+      ...financials,
+      costs: financials.costs ?? 0,
+      profit: financials.profit ?? 0,
+      expensesTotal: financials.expensesTotal ?? 0,
+      expensesBillableUninvoiced: financials.expensesBillableUninvoiced ?? 0,
+      revenue: financials.revenue ?? financials.paid ?? 0,
+      marginPercent: financials.marginPercent ?? null,
+    },
     unbilledTimeIds,
     unbilledExpenseIds,
     createdAt: project.createdAt.toISOString(),

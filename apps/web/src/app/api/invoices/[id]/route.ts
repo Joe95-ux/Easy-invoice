@@ -9,6 +9,10 @@ import {
 } from "@/lib/invoice-service";
 import { getInvoiceForMember } from "@/lib/invoices";
 import { releaseTimeEntriesForInvoice, linkTimeEntriesToInvoice } from "@/lib/time-tracking/service";
+import {
+  linkProjectExpensesToInvoice,
+  releaseProjectExpensesForInvoice,
+} from "@/lib/project-expenses";
 import { updateInvoiceSchema } from "@/lib/schemas/invoice";
 import { getTemplateById } from "@/lib/templates";
 import {
@@ -150,6 +154,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     };
 
     await releaseTimeEntriesForInvoice(id);
+    await releaseProjectExpensesForInvoice(id);
     await prisma.invoiceLineItem.deleteMany({ where: { invoiceId: id } });
     await prisma.invoiceLineItem.createMany({
       data: lineItems.map((item) => ({
@@ -171,6 +176,14 @@ export async function PATCH(request: Request, context: RouteContext) {
         data.lineItems.map((item, index) => ({
           sortOrder: item.sortOrder ?? index,
           timeEntryIds: item.timeEntryIds,
+        })),
+      );
+      await linkProjectExpensesToInvoice(
+        member.companyId,
+        id,
+        data.lineItems.map((item, index) => ({
+          sortOrder: item.sortOrder ?? index,
+          expenseIds: item.expenseIds,
         })),
       );
     }
@@ -265,6 +278,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
   }
 
   await releaseTimeEntriesForInvoice(id);
+  await releaseProjectExpensesForInvoice(id);
   await prisma.invoice.delete({ where: { id } });
 
   await recordAuditEvent({

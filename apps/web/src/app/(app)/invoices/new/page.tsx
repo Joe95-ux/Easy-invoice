@@ -12,15 +12,19 @@ type PageProps = {
     projectId?: string;
     addTime?: string;
     timeEntryIds?: string;
+    expenseIds?: string;
   }>;
 };
 
 export default async function NewInvoicePage({ searchParams }: PageProps) {
   const member = await requireMember();
 
-  const { clientId, projectId, addTime, timeEntryIds } = await searchParams;
+  const { clientId, projectId, addTime, timeEntryIds, expenseIds } = await searchParams;
   const preselectedTimeEntryIds = timeEntryIds
     ? timeEntryIds.split(",").filter(Boolean)
+    : [];
+  const preselectedExpenseIds = expenseIds
+    ? expenseIds.split(",").filter(Boolean)
     : [];
   const [clients, templates, defaultTemplateId] = await Promise.all([
     getClientsForMember(member.companyId),
@@ -52,6 +56,7 @@ export default async function NewInvoicePage({ searchParams }: PageProps) {
         defaultTemplateId={defaultTemplateId}
         autoOpenTimeDialog={addTime === "1"}
         preselectedTimeEntryIds={preselectedTimeEntryIds}
+        preselectedExpenseIds={preselectedExpenseIds}
       />
     </PageScroll>
   );

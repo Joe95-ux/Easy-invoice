@@ -129,6 +129,10 @@ export function ProjectAddFormDialog({
       ? null
       : templates.find((template) => template.id === templateId) ?? null;
 
+  const selectedTemplateLabel =
+    templateItems.find((item) => item.value === templateId)?.label ??
+    "Blank (general intake)";
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
@@ -148,8 +152,10 @@ export function ProjectAddFormDialog({
               disabled={loadingTemplates}
               items={templateItems}
             >
-              <SelectTrigger id="add-form-template">
-                <SelectValue placeholder={loadingTemplates ? "Loading…" : "Choose a template"} />
+              <SelectTrigger id="add-form-template" className="text-foreground">
+                <SelectValue>
+                  {loadingTemplates ? "Loading…" : selectedTemplateLabel}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {templateItems.map((item) => (

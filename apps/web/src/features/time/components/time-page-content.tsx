@@ -60,7 +60,7 @@ import { EmptyState, PageHeader, pageHeaderActionClass } from "@/components/app-
 import { SortableTableHead } from "@/components/data-table/sortable-table-head";
 import { TablePagination } from "@/components/data-table/table-pagination";
 import { TableToolbar } from "@/components/data-table/table-toolbar";
-import { LogTimeDialog } from "@/features/time/components/log-time-dialog";
+import { LogTimeDrawer } from "@/features/time/components/log-time-drawer";
 import { ImportTimeDialog } from "@/features/time/components/import-time-dialog";
 import { useTimeTimer } from "@/features/time/components/time-timer-provider";
 import { useListTable } from "@/hooks/use-list-table";
@@ -787,7 +787,7 @@ export function TimePageContent({
         </Card>
       )}
 
-      <LogTimeDialog
+      <LogTimeDrawer
         open={logOpen}
         onOpenChange={setLogOpen}
         clients={clients}

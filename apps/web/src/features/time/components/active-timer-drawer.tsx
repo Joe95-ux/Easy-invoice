@@ -20,8 +20,15 @@ import { RecentDescriptionsField } from "@/features/time/components/recent-descr
 import type { ClientListItem } from "@/lib/clients";
 import { formatElapsedClock } from "@/lib/time-tracking/format";
 
+type ProjectOption = {
+  id: string;
+  name: string;
+  clientId: string | null;
+};
+
 type ActiveTimerDrawerProps = {
   clients: ClientListItem[];
+  projects?: ProjectOption[];
   recentDescriptions?: string[];
   onClientsChange?: () => Promise<void> | void;
 };
@@ -30,6 +37,7 @@ const SNAP_POINTS = [0.5, 1] as const;
 
 export function ActiveTimerDrawer({
   clients,
+  projects = [],
   recentDescriptions = [],
   onClientsChange,
 }: ActiveTimerDrawerProps) {
@@ -47,6 +55,7 @@ export function ActiveTimerDrawer({
   const [snap, setSnap] = useState<number | string>(SNAP_POINTS[0]);
   const [description, setDescription] = useState("");
   const [clientId, setClientId] = useState("");
+  const [projectId, setProjectId] = useState("");
   const [addNewClient, setAddNewClient] = useState(false);
   const [newClientName, setNewClientName] = useState("");
   const [hourlyRate, setHourlyRate] = useState("");
@@ -63,6 +72,7 @@ export function ActiveTimerDrawer({
     if (!timer) return;
     setDescription(timer.description);
     setClientId(timer.clientId ?? "");
+    setProjectId(timer.projectId ?? "");
     setAddNewClient(false);
     setNewClientName("");
     setHourlyRate(String(timer.hourlyRate));
@@ -84,7 +94,38 @@ export function ActiveTimerDrawer({
     [clients],
   );
 
+  const projectOptions = useMemo(
+    () => [
+      { value: "__none__", label: "No project" },
+      ...projects
+        .filter((project) => !clientId || !project.clientId || project.clientId === clientId)
+        .map((project) => ({ value: project.id, label: project.name })),
+    ],
+    [projects, clientId],
+  );
+
   if (!timer) return null;
+
+  function handleClientChange(value: string | null) {
+    const nextClientId = value ?? "";
+    setClientId(nextClientId);
+    if (projectId) {
+      const selected = projects.find((project) => project.id === projectId);
+      if (selected?.clientId && selected.clientId !== nextClientId) {
+        setProjectId("");
+      }
+    }
+  }
+
+  function handleProjectChange(value: string | null) {
+    const nextProjectId = value === "__none__" || !value ? "" : value;
+    setProjectId(nextProjectId);
+    if (!nextProjectId) return;
+    const selected = projects.find((project) => project.id === nextProjectId);
+    if (selected?.clientId && selected.clientId !== clientId) {
+      setClientId(selected.clientId);
+    }
+  }
 
   async function handleStop() {
     setPendingAction("stop");
@@ -133,6 +174,7 @@ export function ActiveTimerDrawer({
       await updateTimer({
         description: description.trim(),
         clientId: resolvedClientId,
+        projectId: projectId || null,
         hourlyRate: Number(hourlyRate),
         billable,
       });
@@ -144,6 +186,10 @@ export function ActiveTimerDrawer({
       setPendingAction(null);
     }
   }
+
+  const projectLabel =
+    projects.find((project) => project.id === (projectId || timer.projectId))?.name ??
+    timer.projectName;
 
   return (
     <Drawer
@@ -175,7 +221,7 @@ export function ActiveTimerDrawer({
               {timer.description}
             </p>
             <p className="text-sm text-muted-foreground">
-              {timer.clientName ?? "No client"}
+              {[timer.clientName ?? "No client", projectLabel].filter(Boolean).join(" · ")}
             </p>
           </div>
 
@@ -228,7 +274,7 @@ export function ActiveTimerDrawer({
                   label="Client"
                   value={clientId}
                   options={clientOptions}
-                  onChange={(value) => setClientId(value ?? "")}
+                  onChange={handleClientChange}
                   placeholder="Select client (optional)"
                   container={popupContainer}
                 />
@@ -259,6 +305,18 @@ export function ActiveTimerDrawer({
                 </p>
               )}
             </div>
+
+            {projects.length > 0 && !addNewClient ? (
+              <SearchableSelect
+                id="active-timer-project"
+                label="Project"
+                value={projectId || "__none__"}
+                options={projectOptions}
+                onChange={handleProjectChange}
+                placeholder="Optional project"
+                container={popupContainer}
+              />
+            ) : null}
 
             <div className="space-y-2">
               <Label htmlFor="active-timer-description">Description</Label>
@@ -295,7 +353,7 @@ export function ActiveTimerDrawer({
               <Switch
                 id="active-timer-billable"
                 checked={billable}
-                onCheckedChange={setBillable}
+                onCheckedChange={(checked) => setBillable(checked === true)}
               />
             </div>
 

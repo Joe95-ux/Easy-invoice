@@ -6,6 +6,10 @@ import { requireMember } from "@/lib/auth";
 import { getClientsForMember } from "@/lib/clients";
 import { getInvoiceForMember, getInvoiceLineItemsWithTimeEntries } from "@/lib/invoices";
 import { companyBrandingFields } from "@/lib/company-branding";
+import {
+  attachExpenseIdsToLineItems,
+  getExpensesForInvoice,
+} from "@/lib/project-expenses";
 import { getDefaultTemplateId, getTemplatesForCompany } from "@/lib/templates";
 
 type PageProps = { params: Promise<{ id: string }> };
@@ -14,15 +18,28 @@ export default async function EditInvoicePage({ params }: PageProps) {
   const member = await requireMember();
 
   const { id } = await params;
-  const [invoice, clients, templates, defaultTemplateId, lineItemsWithTime] =
+  const [invoice, clients, templates, defaultTemplateId, lineItemsWithTime, linkedExpenses] =
     await Promise.all([
     getInvoiceForMember(id, member.companyId),
     getClientsForMember(member.companyId),
     getTemplatesForCompany(member.companyId),
     getDefaultTemplateId(member.companyId),
     getInvoiceLineItemsWithTimeEntries(id, member.companyId),
+    getExpensesForInvoice(member.companyId, id),
   ]);
   if (!invoice) notFound();
+
+  const lineItems = attachExpenseIdsToLineItems(
+    lineItemsWithTime.map((item) => ({
+      description: item.description,
+      quantity: Number(item.quantity),
+      unitPrice: Number(item.unitPrice),
+      sectionTitle: item.sectionTitle,
+      sectionSortOrder: item.sectionSortOrder,
+      timeEntryIds: item.timeEntries.map((entry) => entry.id),
+    })),
+    linkedExpenses,
+  );
 
   return (
     <PageScroll>
@@ -67,14 +84,7 @@ export default async function EditInvoicePage({ params }: PageProps) {
           dueDate: invoice.dueDate?.toISOString() ?? null,
           taxRate: Number(invoice.taxRate),
           discount: Number(invoice.discount),
-          lineItems: lineItemsWithTime.map((item) => ({
-            description: item.description,
-            quantity: Number(item.quantity),
-            unitPrice: Number(item.unitPrice),
-            sectionTitle: item.sectionTitle,
-            sectionSortOrder: item.sectionSortOrder,
-            timeEntryIds: item.timeEntries.map((entry) => entry.id),
-          })),
+          lineItems,
           installments: invoice.installments.map((row) => ({
             dueDate: row.dueDate.toISOString(),
             amount: Number(row.amount),

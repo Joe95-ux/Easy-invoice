@@ -33,6 +33,7 @@ import {
   linkTimeEntriesToInvoice,
   releaseTimeEntriesForInvoice,
 } from "@/lib/time-tracking/service";
+import { releaseProjectExpensesForInvoice } from "@/lib/project-expenses";
 import { syncInvoiceInstallments, validateInstallments } from "@/lib/invoice-payments";
 import { formatRevisionActor } from "@/lib/member-email";
 
@@ -296,6 +297,7 @@ async function applyInvoiceSnapshot(
   snapshot: DocumentSnapshot,
 ) {
   await releaseTimeEntriesForInvoice(invoiceId);
+  await releaseProjectExpensesForInvoice(invoiceId);
   await prisma.invoiceLineItem.deleteMany({ where: { invoiceId } });
 
   await prisma.invoice.update({

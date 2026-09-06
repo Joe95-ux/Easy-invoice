@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { PlusIcon, Trash2Icon } from "lucide-react";
 import { toast } from "sonner";
+import { FormFieldsEditor } from "@/features/projects/components/form-fields-editor";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,26 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import type { FormFieldDef, FormFieldType } from "@/lib/schemas/project-form";
-
-const FIELD_TYPES: Array<{ value: FormFieldType; label: string }> = [
-  { value: "text", label: "Short text" },
-  { value: "email", label: "Email" },
-  { value: "url", label: "URL" },
-  { value: "textarea", label: "Long text" },
-];
-
-function newFieldId() {
-  return `field_${Math.random().toString(36).slice(2, 10)}`;
-}
+import type { FormFieldDef } from "@/lib/schemas/project-form";
 
 type ProjectFormEditorDialogProps = {
   open: boolean;
@@ -89,28 +70,6 @@ export function ProjectFormEditorDialog({
   }, [open, formId, projectId, onOpenChange]);
 
   const canEditFields = status === "DRAFT";
-
-  function updateField(index: number, patch: Partial<FormFieldDef>) {
-    setFields((current) =>
-      current.map((field, i) => (i === index ? { ...field, ...patch } : field)),
-    );
-  }
-
-  function removeField(index: number) {
-    setFields((current) => current.filter((_, i) => i !== index));
-  }
-
-  function addField() {
-    setFields((current) => [
-      ...current,
-      {
-        id: newFieldId(),
-        type: "text",
-        label: "New question",
-        required: false,
-      },
-    ]);
-  }
 
   async function handleSave() {
     if (!formId) return;
@@ -202,88 +161,11 @@ export function ProjectFormEditorDialog({
                 />
               </div>
 
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label>Questions</Label>
-                  {canEditFields ? (
-                    <Button type="button" size="sm" variant="outline" onClick={addField}>
-                      <PlusIcon className="size-4" />
-                      Add field
-                    </Button>
-                  ) : null}
-                </div>
-
-                {fields.length === 0 ? (
-                  <p className="rounded-lg border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
-                    No fields yet.
-                  </p>
-                ) : (
-                  <div className="space-y-3">
-                    {fields.map((field, index) => (
-                      <div
-                        key={field.id}
-                        className="space-y-3 rounded-lg border p-3"
-                      >
-                        <div className="flex items-start gap-2">
-                          <div className="grid flex-1 gap-3 sm:grid-cols-[1fr_8rem]">
-                            <Input
-                              value={field.label}
-                              disabled={!canEditFields}
-                              onChange={(event) =>
-                                updateField(index, { label: event.target.value })
-                              }
-                              placeholder="Question label"
-                            />
-                            <Select
-                              value={field.type}
-                              disabled={!canEditFields}
-                              onValueChange={(value) =>
-                                value && updateField(index, { type: value as FormFieldType })
-                              }
-                              items={FIELD_TYPES}
-                            >
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {FIELD_TYPES.map((type) => (
-                                  <SelectItem key={type.value} value={type.value}>
-                                    {type.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          {canEditFields ? (
-                            <Button
-                              type="button"
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => removeField(index)}
-                              aria-label="Remove field"
-                            >
-                              <Trash2Icon className="size-4" />
-                            </Button>
-                          ) : null}
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <Label htmlFor={`required-${field.id}`} className="text-sm font-normal">
-                            Required
-                          </Label>
-                          <Switch
-                            id={`required-${field.id}`}
-                            checked={field.required}
-                            disabled={!canEditFields}
-                            onCheckedChange={(checked) =>
-                              updateField(index, { required: checked })
-                            }
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <FormFieldsEditor
+                fields={fields}
+                onChange={setFields}
+                disabled={!canEditFields}
+              />
             </>
           )}
         </DialogBody>
