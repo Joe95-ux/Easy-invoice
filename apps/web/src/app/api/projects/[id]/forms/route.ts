@@ -4,6 +4,7 @@ import {
   createProjectForm,
   listProjectForms,
   serializeProjectForm,
+  serializeProjectFormDetail,
 } from "@/lib/project-forms";
 import { createProjectFormSchema } from "@/lib/schemas/project-form";
 
@@ -31,7 +32,7 @@ export async function POST(request: Request, context: RouteContext) {
 
   try {
     const form = await createProjectForm(member.companyId, projectId, parsed.data);
-    return NextResponse.json({ form: serializeProjectForm(form) }, { status: 201 });
+    return NextResponse.json({ form: serializeProjectFormDetail(form) }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not create form";
     const status = message === "Project not found" || message === "Template not found" ? 404 : 400;

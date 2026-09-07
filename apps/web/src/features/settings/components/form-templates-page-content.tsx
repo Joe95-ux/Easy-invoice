@@ -115,7 +115,7 @@ export function FormTemplatesPageContent() {
         </p>
       ) : (
         <div className="rounded-lg border">
-          <Table>
+          <Table stickyColumns={0}>
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>

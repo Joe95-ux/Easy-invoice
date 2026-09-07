@@ -125,6 +125,7 @@ enum NotificationType {
   INVOICE_OVERDUE
   TEAM_INVITE_RECEIVED
   MEMBER_ROLE_CHANGED
+  FORM_SUBMITTED
 }
 
 enum FollowUpStatus {
@@ -263,6 +264,7 @@ model CompanyMember {
   notifyPaymentReceived  Boolean @default(true)
   notifyInvoiceOverdue   Boolean @default(true)
   notifyTeamChanges      Boolean @default(true)
+  notifyFormSubmitted    Boolean @default(true)
   celebrateInvoicePaid   Boolean @default(false)
 
   company     Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)

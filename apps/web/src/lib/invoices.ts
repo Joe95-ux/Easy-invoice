@@ -30,6 +30,8 @@ export async function getInvoiceLineItemsWithTimeEntries(
           description: true,
           quantity: true,
           unitPrice: true,
+          sectionTitle: true,
+          sectionSortOrder: true,
           timeEntries: { select: { id: true } },
         },
       },

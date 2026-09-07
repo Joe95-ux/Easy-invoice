@@ -37,6 +37,17 @@ type ProjectAddFormDialogProps = {
   onCreated: (form: unknown) => void;
 };
 
+/** Dev route compile can 404 on the first hit — retry briefly before failing. */
+async function fetchWithNotFoundRetry(input: RequestInfo, init?: RequestInit, attempts = 4) {
+  let response: Response | null = null;
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    response = await fetch(input, init);
+    if (response.status !== 404 || attempt === attempts - 1) return response;
+    await new Promise((resolve) => setTimeout(resolve, 120 * (attempt + 1)));
+  }
+  return response!;
+}
+
 export function ProjectAddFormDialog({
   open,
   onOpenChange,
@@ -59,7 +70,7 @@ export function ProjectAddFormDialog({
 
     void (async () => {
       try {
-        const response = await fetch("/api/form-templates");
+        const response = await fetchWithNotFoundRetry("/api/form-templates");
         const body = await response.json();
         if (!response.ok) throw new Error(body.error ?? "Failed to load templates");
         if (!cancelled) setTemplates(body.templates ?? []);
@@ -96,7 +107,7 @@ export function ProjectAddFormDialog({
 
     setCreating(true);
     try {
-      const response = await fetch(`/api/projects/${projectId}/forms`, {
+      const response = await fetchWithNotFoundRetry(`/api/projects/${projectId}/forms`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

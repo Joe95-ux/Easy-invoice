@@ -12,6 +12,7 @@ import { NOTIFICATION_TYPE_TO_PREF } from "@/lib/notifications/types";
 const EMAIL_NOTIFICATION_TYPES = new Set<NotificationType>([
   "ESTIMATE_ACCEPTED",
   "ESTIMATE_DECLINED",
+  "FORM_SUBMITTED",
 ]);
 
 type CreateNotificationInput = {
@@ -73,6 +74,7 @@ export async function createNotification(input: CreateNotificationInput) {
           id: n.id,
           ...payload,
           createdAt: n.createdAt.toISOString(),
+          metadata: input.metadata ?? null,
         }),
       ),
     );

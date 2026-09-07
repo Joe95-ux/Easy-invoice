@@ -56,10 +56,6 @@ export function defaultIntakeFields(): FormFieldDef[] {
   return DEFAULT_FIELDS.map((field) => ({ ...field }));
 }
 
-export function newFormFieldId() {
-  return `field_${Math.random().toString(36).slice(2, 10)}`;
-}
-
 export function parseFormFields(fields: unknown): FormFieldDef[] {
   if (!Array.isArray(fields)) return [];
   return fields.filter(
@@ -141,6 +137,7 @@ export async function createProjectForm(
       status: "DRAFT",
     },
     include: {
+      submissions: { orderBy: { submittedAt: "desc" } },
       _count: { select: { submissions: true } },
       template: { select: { id: true, name: true } },
     },
@@ -280,7 +277,20 @@ export async function getProjectFormByPublicToken(token: string) {
 export async function submitProjectFormByToken(token: string, input: SubmitProjectFormInput) {
   const form = await prisma.projectForm.findFirst({
     where: { publicToken: token },
-    select: { id: true, status: true, fields: true },
+    select: {
+      id: true,
+      name: true,
+      status: true,
+      fields: true,
+      project: {
+        select: {
+          id: true,
+          name: true,
+          companyId: true,
+          client: { select: { name: true } },
+        },
+      },
+    },
   });
   if (!form) throw new Error("Form not found");
   if (form.status === "CANCELLED") {
@@ -319,7 +329,24 @@ export async function submitProjectFormByToken(token: string, input: SubmitProje
     },
   });
 
-  return submission;
+  const submitter =
+    input.submitterName?.trim() ||
+    input.submitterEmail?.trim() ||
+    form.project.client?.name ||
+    "Someone";
+
+  return {
+    submission,
+    notify: {
+      companyId: form.project.companyId,
+      projectId: form.project.id,
+      projectName: form.project.name,
+      formId: form.id,
+      formName: form.name,
+      submitter,
+      submissionId: submission.id,
+    },
+  };
 }
 
 export async function ensureStarterFormTemplates(companyId: string) {

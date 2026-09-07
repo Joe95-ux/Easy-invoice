@@ -11,6 +11,7 @@ export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
   INVOICE_OVERDUE: "Invoice overdue",
   TEAM_INVITE_RECEIVED: "Team invite",
   MEMBER_ROLE_CHANGED: "Role changed",
+  FORM_SUBMITTED: "Form submitted",
 };
 
 export const NOTIFICATION_TYPE_VARIANT: Record<
@@ -27,4 +28,5 @@ export const NOTIFICATION_TYPE_VARIANT: Record<
   INVOICE_OVERDUE: "warning",
   TEAM_INVITE_RECEIVED: "default",
   MEMBER_ROLE_CHANGED: "outline",
+  FORM_SUBMITTED: "success",
 };

@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { newFormFieldId } from "@/lib/project-forms";
+import { newFormFieldId } from "@/lib/project-form-ids";
 import type { FormFieldDef, FormFieldType } from "@/lib/schemas/project-form";
 
 const FIELD_TYPES: Array<{ value: FormFieldType; label: string }> = [

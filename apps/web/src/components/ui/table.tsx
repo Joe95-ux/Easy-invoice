@@ -28,6 +28,9 @@ function Table({
   const [isScrolling, setIsScrolling] = React.useState(false)
 
   const [width0, width1] = stickyColumnWidths ?? DEFAULT_STICKY_WIDTHS
+  const stickySurface = surface === "background" ? "var(--background)" : "var(--card)"
+  const stickyHoverBg = `color-mix(in oklch, var(--muted) 50%, ${stickySurface})`
+  const stickySelectedBg = `color-mix(in oklch, var(--muted) 100%, ${stickySurface})`
   const stickyCol1Bg =
     surface === "background"
       ? "[&_th:nth-child(1)]:bg-background [&_td:nth-child(1)]:bg-background"
@@ -41,6 +44,8 @@ function Table({
       ? ({
           "--table-sticky-0-width": width0,
           "--table-sticky-1-width": width1 ?? DEFAULT_STICKY_WIDTHS[1],
+          "--table-sticky-hover-bg": stickyHoverBg,
+          "--table-sticky-selected-bg": stickySelectedBg,
         } as React.CSSProperties)
       : undefined
 
@@ -81,13 +86,13 @@ function Table({
               "[&_th:nth-child(1)]:sticky [&_td:nth-child(1)]:sticky",
               "[&_th:nth-child(1)]:left-0 [&_td:nth-child(1)]:left-0",
               "[&_th:nth-child(1)]:z-20 [&_td:nth-child(1)]:z-10",
-              "[&_th:nth-child(1)]:min-w-[var(--table-sticky-0-width)] [&_td:nth-child(1)]:min-w-[var(--table-sticky-0-width)]",
+              "[&_th:nth-child(1)]:min-w-(--table-sticky-0-width) [&_td:nth-child(1)]:min-w-(--table-sticky-0-width)",
               stickyCol1Bg,
-              "[&_tr:hover>td:nth-child(1)]:bg-muted/50",
-              "[&_tr[data-state=selected]>td:nth-child(1)]:bg-muted",
+              "[&_tr:hover>td:nth-child(1)]:bg-(--table-sticky-hover-bg)",
+              "[&_tr[data-state=selected]>td:nth-child(1)]:bg-(--table-sticky-selected-bg)",
               stickyColumns === 1 &&
                 cn(
-                  "[&_th:nth-child(1)]:max-w-[var(--table-sticky-0-width)] [&_td:nth-child(1)]:max-w-[var(--table-sticky-0-width)]",
+                  "[&_th:nth-child(1)]:max-w-(--table-sticky-0-width) [&_td:nth-child(1)]:max-w-(--table-sticky-0-width)",
                   "[&_td:nth-child(1)]:truncate",
                   "[&_th:nth-child(1)]:transition-[box-shadow,border-color]",
                   "[&_td:nth-child(1)]:transition-[box-shadow,border-color]",
@@ -104,14 +109,14 @@ function Table({
           stickyColumns >= 2 &&
             cn(
               "[&_th:nth-child(2)]:sticky [&_td:nth-child(2)]:sticky",
-              "[&_th:nth-child(2)]:left-[var(--table-sticky-0-width)] [&_td:nth-child(2)]:left-[var(--table-sticky-0-width)]",
+              "[&_th:nth-child(2)]:left-(--table-sticky-0-width) [&_td:nth-child(2)]:left-(--table-sticky-0-width)",
               "[&_th:nth-child(2)]:z-20 [&_td:nth-child(2)]:z-10",
-              "[&_th:nth-child(2)]:min-w-[var(--table-sticky-1-width)] [&_td:nth-child(2)]:min-w-[var(--table-sticky-1-width)]",
-              "[&_th:nth-child(2)]:max-w-[var(--table-sticky-1-width)] [&_td:nth-child(2)]:max-w-[var(--table-sticky-1-width)]",
+              "[&_th:nth-child(2)]:min-w-(--table-sticky-1-width) [&_td:nth-child(2)]:min-w-(--table-sticky-1-width)",
+              "[&_th:nth-child(2)]:max-w-(--table-sticky-1-width) [&_td:nth-child(2)]:max-w-(--table-sticky-1-width)",
               "[&_td:nth-child(2)]:truncate",
               stickyCol2Bg,
-              "[&_tr:hover>td:nth-child(2)]:bg-muted/50",
-              "[&_tr[data-state=selected]>td:nth-child(2)]:bg-muted",
+              "[&_tr:hover>td:nth-child(2)]:bg-(--table-sticky-hover-bg)",
+              "[&_tr[data-state=selected]>td:nth-child(2)]:bg-(--table-sticky-selected-bg)",
               "[&_th:nth-child(2)]:transition-[box-shadow,border-color]",
               "[&_td:nth-child(2)]:transition-[box-shadow,border-color]",
               "group-data-[table-scrolling]/table-container:[&_th:nth-child(2)]:border-r",

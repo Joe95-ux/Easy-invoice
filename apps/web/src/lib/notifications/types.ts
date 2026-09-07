@@ -6,6 +6,7 @@ export type NotificationPreferences = {
   notifyPaymentReceived: boolean;
   notifyInvoiceOverdue: boolean;
   notifyTeamChanges: boolean;
+  notifyFormSubmitted: boolean;
   celebrateInvoicePaid: boolean;
 };
 
@@ -15,6 +16,7 @@ export const NOTIFICATION_PREF_DEFAULTS: NotificationPreferences = {
   notifyPaymentReceived: true,
   notifyInvoiceOverdue: true,
   notifyTeamChanges: true,
+  notifyFormSubmitted: true,
   celebrateInvoicePaid: false,
 };
 
@@ -29,6 +31,7 @@ export const NOTIFICATION_TYPE_TO_PREF: Record<NotificationType, keyof Notificat
   INVOICE_OVERDUE: "notifyInvoiceOverdue",
   TEAM_INVITE_RECEIVED: "notifyTeamChanges",
   MEMBER_ROLE_CHANGED: "notifyTeamChanges",
+  FORM_SUBMITTED: "notifyFormSubmitted",
 };
 
 export const NOTIFICATION_PREF_LABELS: Record<keyof NotificationPreferences, { title: string; description: string }> = {
@@ -51,6 +54,10 @@ export const NOTIFICATION_PREF_LABELS: Record<keyof NotificationPreferences, { t
   notifyTeamChanges: {
     title: "Team changes",
     description: "When you receive a team invite or your role changes",
+  },
+  notifyFormSubmitted: {
+    title: "Form submitted",
+    description: "When a client submits a project intake form",
   },
   celebrateInvoicePaid: {
     title: "Celebrate paid invoices",

@@ -313,7 +313,11 @@ export default async function ProjectDetailPage({ params }: PageProps) {
       </div>
 
       <div className="mt-6">
-        <ProjectFormsSection projectId={detail.id} forms={forms} />
+        <ProjectFormsSection
+          projectId={detail.id}
+          memberId={member.id}
+          forms={forms}
+        />
       </div>
 
       {detail.notes ? (

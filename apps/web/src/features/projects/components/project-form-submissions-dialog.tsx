@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2Icon } from "lucide-react";
+import { Loader2Icon, MailIcon, UserIcon } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -14,6 +14,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/invoices";
 import type { FormFieldDef } from "@/lib/schemas/project-form";
+import { cn } from "@/lib/utils";
 
 type SubmissionRow = {
   id: string;
@@ -47,6 +48,7 @@ export function ProjectFormSubmissionsDialog({
 }: ProjectFormSubmissionsDialogProps) {
   const [loading, setLoading] = useState(false);
   const [detail, setDetail] = useState<FormDetail | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open || !formId) return;
@@ -54,13 +56,17 @@ export function ProjectFormSubmissionsDialog({
     let cancelled = false;
     setLoading(true);
     setDetail(null);
+    setSelectedId(null);
 
     void (async () => {
       try {
         const response = await fetch(`/api/projects/${projectId}/forms/${formId}`);
         const body = await response.json();
         if (!response.ok) throw new Error(body.error ?? "Failed to load responses");
-        if (!cancelled) setDetail(body.form);
+        if (cancelled) return;
+        const form = body.form as FormDetail;
+        setDetail(form);
+        setSelectedId(form.submissions[0]?.id ?? null);
       } catch (error) {
         if (!cancelled) {
           toast.error(error instanceof Error ? error.message : "Could not load responses");
@@ -76,12 +82,19 @@ export function ProjectFormSubmissionsDialog({
     };
   }, [open, formId, projectId, onOpenChange]);
 
+  const selected =
+    detail?.submissions.find((submission) => submission.id === selectedId) ??
+    detail?.submissions[0] ??
+    null;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{formName ?? detail?.name ?? "Form responses"}</DialogTitle>
-          <DialogDescription>Answers submitted by the client for this job.</DialogDescription>
+          <DialogDescription>
+            Review the answers submitted for this intake form.
+          </DialogDescription>
         </DialogHeader>
         <DialogBody className="space-y-4">
           {loading ? (
@@ -94,32 +107,71 @@ export function ProjectFormSubmissionsDialog({
               No responses yet.
             </p>
           ) : (
-            detail.submissions.map((submission) => (
-              <div key={submission.id} className="space-y-3 rounded-lg border p-4">
-                <div className="flex flex-wrap items-center gap-2 text-sm">
-                  <Badge variant="secondary">
-                    {formatDate(submission.submittedAt)}
-                  </Badge>
-                  {submission.submitterName || submission.submitterEmail ? (
-                    <span className="text-muted-foreground">
-                      {[submission.submitterName, submission.submitterEmail]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </span>
-                  ) : null}
-                </div>
-                <dl className="space-y-3">
-                  {detail.fields.map((field) => (
-                    <div key={field.id}>
-                      <dt className="text-xs font-medium text-muted-foreground">{field.label}</dt>
-                      <dd className="mt-1 whitespace-pre-wrap text-sm">
-                        {submission.answers[field.id]?.trim() || "—"}
-                      </dd>
-                    </div>
+            <>
+              {detail.submissions.length > 1 ? (
+                <div className="flex flex-wrap gap-2">
+                  {detail.submissions.map((submission, index) => (
+                    <button
+                      key={submission.id}
+                      type="button"
+                      onClick={() => setSelectedId(submission.id)}
+                      className={cn(
+                        "cursor-pointer rounded-lg border px-3 py-1.5 text-left text-sm transition-colors",
+                        selected?.id === submission.id
+                          ? "border-foreground/20 bg-muted text-foreground"
+                          : "border-border text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+                      )}
+                    >
+                      Response {detail.submissions.length - index}
+                      <span className="ml-2 text-xs opacity-80">
+                        {formatDate(submission.submittedAt)}
+                      </span>
+                    </button>
                   ))}
-                </dl>
-              </div>
-            ))
+                </div>
+              ) : null}
+
+              {selected ? (
+                <div className="overflow-hidden rounded-xl border">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b bg-muted/40 px-4 py-3">
+                    <Badge variant="secondary">{formatDate(selected.submittedAt)}</Badge>
+                    {selected.submitterName ? (
+                      <span className="inline-flex items-center gap-1.5 text-sm text-foreground">
+                        <UserIcon className="size-3.5 text-muted-foreground" />
+                        {selected.submitterName}
+                      </span>
+                    ) : null}
+                    {selected.submitterEmail ? (
+                      <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+                        <MailIcon className="size-3.5" />
+                        {selected.submitterEmail}
+                      </span>
+                    ) : null}
+                    {!selected.submitterName && !selected.submitterEmail ? (
+                      <span className="text-sm text-muted-foreground">Anonymous submitter</span>
+                    ) : null}
+                  </div>
+
+                  <div className="divide-y">
+                    {detail.fields.map((field) => {
+                      const answer = selected.answers[field.id]?.trim();
+                      return (
+                        <div key={field.id} className="grid gap-1 px-4 py-3 sm:grid-cols-[11rem_1fr] sm:gap-4">
+                          <div className="text-sm font-medium text-muted-foreground">
+                            {field.label}
+                          </div>
+                          <div className="whitespace-pre-wrap text-sm text-foreground">
+                            {answer || (
+                              <span className="text-muted-foreground">No answer</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+            </>
           )}
         </DialogBody>
       </DialogContent>

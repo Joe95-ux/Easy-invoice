@@ -13,6 +13,7 @@ import {
   PlusIcon,
   Trash2Icon,
 } from "lucide-react";
+import Pusher from "pusher-js";
 import { toast } from "sonner";
 import { ConfirmActionDialog } from "@/components/confirm-action-dialog";
 import { Button } from "@/components/ui/button";
@@ -38,14 +39,29 @@ import { ProjectFormEditorDialog } from "@/features/projects/components/project-
 import { ProjectFormSubmissionsDialog } from "@/features/projects/components/project-form-submissions-dialog";
 import { SectionInfoPopover } from "@/features/projects/components/section-info-popover";
 import type { serializeProjectForm } from "@/lib/project-forms";
+import type { FormFieldDef } from "@/lib/schemas/project-form";
 
 const FORMS_DESCRIPTION =
   "Collect requirements from the client for this job. Edit questions, share a link, then review answers here.";
 
-type ProjectFormRow = ReturnType<typeof serializeProjectForm>;
+type ProjectFormRow = ReturnType<typeof serializeProjectForm> & {
+  fields?: FormFieldDef[];
+};
+
+type FormSubmittedRealtime = {
+  type?: string;
+  title?: string;
+  body?: string;
+  linkUrl?: string | null;
+  metadata?: {
+    projectId?: string;
+    formId?: string;
+  } | null;
+};
 
 type ProjectFormsSectionProps = {
   projectId: string;
+  memberId: string;
   forms: ProjectFormRow[];
 };
 
@@ -77,7 +93,11 @@ function statusVariant(status: string): "secondary" | "info" | "success" | "dest
   }
 }
 
-export function ProjectFormsSection({ projectId, forms: initialForms }: ProjectFormsSectionProps) {
+export function ProjectFormsSection({
+  projectId,
+  memberId,
+  forms: initialForms,
+}: ProjectFormsSectionProps) {
   const router = useRouter();
   const [forms, setForms] = useState(initialForms);
   const [addOpen, setAddOpen] = useState(false);
@@ -91,6 +111,61 @@ export function ProjectFormsSection({ projectId, forms: initialForms }: ProjectF
   useEffect(() => {
     setForms(initialForms);
   }, [initialForms]);
+
+  // Warm form-template route so Add form rarely hits a cold 404 in dev.
+  useEffect(() => {
+    void fetch("/api/form-templates").catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    const key = process.env.NEXT_PUBLIC_PUSHER_KEY;
+    const cluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER;
+    if (!key || !cluster || !memberId) return;
+
+    let pusher: Pusher | null = null;
+    try {
+      pusher = new Pusher(key, {
+        cluster,
+        channelAuthorization: {
+          endpoint: "/api/pusher/auth",
+          transport: "ajax",
+        },
+      });
+
+      const channel = pusher.subscribe(`private-member-${memberId}`);
+      channel.bind("notification", (data: FormSubmittedRealtime) => {
+        const forThisProject =
+          data.type === "FORM_SUBMITTED" &&
+          (data.metadata?.projectId === projectId ||
+            data.linkUrl === `/projects/${projectId}` ||
+            data.linkUrl?.startsWith(`/projects/${projectId}?`));
+        if (!forThisProject) return;
+
+        void (async () => {
+          try {
+            const response = await fetch(`/api/projects/${projectId}/forms`);
+            const body = await response.json();
+            if (!response.ok) return;
+            setForms(body.forms ?? []);
+            router.refresh();
+          } catch {
+            router.refresh();
+          }
+        })();
+      });
+    } catch {
+      // Realtime is optional.
+    }
+
+    return () => {
+      try {
+        pusher?.unsubscribe(`private-member-${memberId}`);
+        pusher?.disconnect();
+      } catch {
+        // ignore
+      }
+    };
+  }, [memberId, projectId, router]);
 
   function upsertForm(form: ProjectFormRow) {
     setForms((prev) => {
@@ -194,14 +269,14 @@ export function ProjectFormsSection({ projectId, forms: initialForms }: ProjectF
               No intake forms yet. Add one from a template, edit the questions, then share the link.
             </p>
           ) : (
-            <Table>
+            <Table stickyColumns={0}>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Fields</TableHead>
-                  <TableHead>Responses</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead className="text-[0.80rem]">Name</TableHead>
+                  <TableHead className="text-[0.80rem]">Status</TableHead>
+                  <TableHead className="text-[0.80rem]">Fields</TableHead>
+                  <TableHead className="text-[0.80rem]">Responses</TableHead>
+                  <TableHead className="text-right text-[0.80rem]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -331,6 +406,16 @@ export function ProjectFormsSection({ projectId, forms: initialForms }: ProjectF
         }}
         projectId={projectId}
         formId={editingForm?.id ?? null}
+        seed={
+          editingForm?.fields
+            ? {
+                id: editingForm.id,
+                name: editingForm.name,
+                status: editingForm.status,
+                fields: editingForm.fields,
+              }
+            : null
+        }
         onSaved={(form) => {
           upsertForm(form as ProjectFormRow);
           router.refresh();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { FormFieldsEditor } from "@/features/projects/components/form-fields-editor";
 import { Button } from "@/components/ui/button";
@@ -17,19 +17,39 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { FormFieldDef } from "@/lib/schemas/project-form";
 
+type FormEditorSeed = {
+  id: string;
+  name: string;
+  status: string;
+  fields: FormFieldDef[];
+};
+
 type ProjectFormEditorDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   projectId: string;
   formId: string | null;
+  /** When provided for the same formId, skip the initial GET (e.g. right after create). */
+  seed?: FormEditorSeed | null;
   onSaved: (form: unknown) => void;
 };
+
+async function fetchWithNotFoundRetry(input: RequestInfo, init?: RequestInit, attempts = 4) {
+  let response: Response | null = null;
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    response = await fetch(input, init);
+    if (response.status !== 404 || attempt === attempts - 1) return response;
+    await new Promise((resolve) => setTimeout(resolve, 120 * (attempt + 1)));
+  }
+  return response!;
+}
 
 export function ProjectFormEditorDialog({
   open,
   onOpenChange,
   projectId,
   formId,
+  seed = null,
   onSaved,
 }: ProjectFormEditorDialogProps) {
   const [loading, setLoading] = useState(false);
@@ -38,16 +58,30 @@ export function ProjectFormEditorDialog({
   const [name, setName] = useState("");
   const [fields, setFields] = useState<FormFieldDef[]>([]);
   const [status, setStatus] = useState("DRAFT");
+  const seedRef = useRef(seed);
+  seedRef.current = seed;
 
   useEffect(() => {
     if (!open || !formId) return;
 
     let cancelled = false;
+    const currentSeed = seedRef.current;
+
+    if (currentSeed && currentSeed.id === formId) {
+      setName(currentSeed.name);
+      setFields(currentSeed.fields ?? []);
+      setStatus(currentSeed.status);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
 
     void (async () => {
       try {
-        const response = await fetch(`/api/projects/${projectId}/forms/${formId}`);
+        const response = await fetchWithNotFoundRetry(
+          `/api/projects/${projectId}/forms/${formId}`,
+        );
         const body = await response.json();
         if (!response.ok) throw new Error(body.error ?? "Failed to load form");
         if (cancelled) return;
@@ -88,7 +122,7 @@ export function ProjectFormEditorDialog({
 
     setSaving(true);
     try {
-      const response = await fetch(`/api/projects/${projectId}/forms/${formId}`, {
+      const response = await fetchWithNotFoundRetry(`/api/projects/${projectId}/forms/${formId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -115,7 +149,7 @@ export function ProjectFormEditorDialog({
     }
     setSavingTemplate(true);
     try {
-      const response = await fetch("/api/form-templates", {
+      const response = await fetchWithNotFoundRetry("/api/form-templates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

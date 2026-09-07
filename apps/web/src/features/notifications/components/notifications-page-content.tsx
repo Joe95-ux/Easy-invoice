@@ -47,7 +47,7 @@ const READ_FILTER_ITEMS: { value: ReadFilter; label: string }[] = [
 ];
 
 export const NOTIFICATIONS_INFO =
-  "Updates about client activity, payments, and team changes for your account. Mark items read, delete them, or open linked invoices and estimates.";
+  "Updates about client activity, form submissions, payments, and team changes for your account. Mark items read, delete them, or open linked invoices, estimates, and projects.";
 
 export function NotificationsInfoPopover() {
   return (

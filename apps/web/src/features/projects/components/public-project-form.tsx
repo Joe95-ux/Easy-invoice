@@ -1,11 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2Icon } from "lucide-react";
+import { CheckCircle2Icon, Loader2Icon } from "lucide-react";
 import { toast } from "sonner";
+import { FormField } from "@/components/forms/form-field";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import {
+  Field,
+  FieldContent,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import type { FormFieldDef } from "@/lib/schemas/project-form";
 
@@ -57,67 +61,80 @@ export function PublicProjectForm({ token, fields, alreadySubmitted }: PublicPro
 
   if (done) {
     return (
-      <div className="rounded-xl border bg-background p-6 text-sm text-muted-foreground">
-        This form has been submitted. You can close this page.
+      <div className="flex flex-col items-center gap-3 rounded-xl border bg-card px-6 py-10 text-center shadow-sm">
+        <CheckCircle2Icon className="size-8 text-success" />
+        <div className="space-y-1">
+          <p className="text-base font-medium text-foreground">Response submitted</p>
+          <p className="text-sm text-muted-foreground">
+            Thanks — you can close this page.
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5 rounded-xl border bg-background p-6">
+    <form
+      onSubmit={handleSubmit}
+      className="space-y-6 rounded-xl border bg-card p-5 shadow-sm sm:p-6"
+    >
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="submitter-name">Your name</Label>
-          <Input
-            id="submitter-name"
-            value={submitterName}
-            onChange={(event) => setSubmitterName(event.target.value)}
-            placeholder="Optional"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="submitter-email">Your email</Label>
-          <Input
-            id="submitter-email"
-            type="email"
-            value={submitterEmail}
-            onChange={(event) => setSubmitterEmail(event.target.value)}
-            placeholder="Optional"
-          />
-        </div>
+        <FormField
+          id="submitter-name"
+          label="Your name"
+          value={submitterName}
+          onChange={setSubmitterName}
+          placeholder="Optional"
+          autoComplete="name"
+        />
+        <FormField
+          id="submitter-email"
+          label="Your email"
+          type="email"
+          value={submitterEmail}
+          onChange={setSubmitterEmail}
+          placeholder="Optional"
+          autoComplete="email"
+        />
       </div>
 
-      {fields.map((field) => (
-        <div key={field.id} className="space-y-2">
-          <Label htmlFor={field.id}>
-            {field.label}
-            {field.required ? <span className="text-destructive"> *</span> : null}
-          </Label>
-          {field.type === "textarea" ? (
-            <Textarea
-              id={field.id}
-              value={answers[field.id] ?? ""}
-              onChange={(event) =>
-                setAnswers((prev) => ({ ...prev, [field.id]: event.target.value }))
-              }
-              rows={4}
-              required={field.required}
-            />
+      <div className="space-y-4 border-t pt-5">
+        {fields.map((field) =>
+          field.type === "textarea" ? (
+            <Field key={field.id}>
+              <FieldLabel htmlFor={field.id}>
+                {field.label}
+                {field.required ? <span className="text-destructive"> *</span> : null}
+              </FieldLabel>
+              <FieldContent>
+                <Textarea
+                  id={field.id}
+                  value={answers[field.id] ?? ""}
+                  onChange={(event) =>
+                    setAnswers((prev) => ({ ...prev, [field.id]: event.target.value }))
+                  }
+                  rows={4}
+                  required={field.required}
+                />
+              </FieldContent>
+            </Field>
           ) : (
-            <Input
+            <FormField
+              key={field.id}
               id={field.id}
+              label={field.label}
               type={field.type === "email" ? "email" : field.type === "url" ? "url" : "text"}
               value={answers[field.id] ?? ""}
-              onChange={(event) =>
-                setAnswers((prev) => ({ ...prev, [field.id]: event.target.value }))
+              onChange={(value) =>
+                setAnswers((prev) => ({ ...prev, [field.id]: value }))
               }
               required={field.required}
             />
-          )}
-        </div>
-      ))}
+          ),
+        )}
+      </div>
 
-      <Button type="submit" className="w-full" disabled={submitting}>
+      <Button type="submit" size="lg" className="h-9 w-full" disabled={submitting}>
         {submitting ? (
           <>
             <Loader2Icon className="animate-spin" />
