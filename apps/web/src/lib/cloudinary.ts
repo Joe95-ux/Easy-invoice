@@ -9,6 +9,7 @@ const ALLOWED_MIME_TYPES = new Set([
 ]);
 
 const MAX_LOGO_BYTES = 2 * 1024 * 1024;
+const MAX_FORM_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_QR_PDF_BYTES = 10 * 1024 * 1024;
 
 export function isCloudinaryConfigured(): boolean {
@@ -52,6 +53,57 @@ export function validateQrSocialImageFile(file: File): string | null {
     return "Photo must be under 2 MB";
   }
   return null;
+}
+
+export function validateFormImageFile(file: File): string | null {
+  if (!ALLOWED_MIME_TYPES.has(file.type)) {
+    return "Images must be JPEG, PNG, WebP, or GIF";
+  }
+  if (file.size > MAX_FORM_IMAGE_BYTES) {
+    return "Each image must be under 5 MB";
+  }
+  return null;
+}
+
+export type FormImageUploadResult = {
+  imageUrl: string;
+  publicId: string;
+};
+
+/** Public form attachment uploaded against a project form instance. */
+export async function uploadFormSubmissionImage(
+  companyId: string,
+  formId: string,
+  buffer: Buffer,
+): Promise<FormImageUploadResult> {
+  const cld = configureCloudinary();
+  const leafId = randomBytes(12).toString("hex");
+  const folder = `easy-invoice/forms/${companyId}/${formId}`;
+
+  const result = await new Promise<UploadApiResponse>((resolve, reject) => {
+    const stream = cld.uploader.upload_stream(
+      {
+        folder,
+        public_id: leafId,
+        resource_type: "image",
+        overwrite: false,
+      },
+      (error, uploadResult) => {
+        if (error || !uploadResult) {
+          reject(error ?? new Error("Upload failed"));
+          return;
+        }
+        resolve(uploadResult);
+      },
+    );
+
+    stream.end(buffer);
+  });
+
+  return {
+    imageUrl: result.secure_url,
+    publicId: result.public_id,
+  };
 }
 
 export async function uploadCompanyLogo(

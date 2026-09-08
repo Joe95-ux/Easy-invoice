@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { FormFieldDef } from "@/lib/schemas/project-form";
+import { isAnswerableFormField } from "@/lib/schemas/project-form";
 
 export type FormTemplateListItem = {
   id: string;
@@ -64,12 +65,22 @@ export function FormTemplateEditorDialog({
       toast.error("Name is required");
       return;
     }
-    if (fields.length === 0) {
-      toast.error("Add at least one field");
+    if (fields.filter(isAnswerableFormField).length === 0) {
+      toast.error("Add at least one question");
       return;
     }
     if (fields.some((field) => !field.label.trim())) {
       toast.error("Every field needs a label");
+      return;
+    }
+    if (
+      fields.some(
+        (field) =>
+          (field.type === "select" || field.type === "radio") &&
+          (!field.options || field.options.length === 0),
+      )
+    ) {
+      toast.error("Choice fields need at least one option");
       return;
     }
 

@@ -16,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { FormFieldDef } from "@/lib/schemas/project-form";
+import { isAnswerableFormField } from "@/lib/schemas/project-form";
 
 type FormEditorSeed = {
   id: string;
@@ -111,12 +112,23 @@ export function ProjectFormEditorDialog({
       toast.error("Name is required");
       return;
     }
-    if (canEditFields && fields.length === 0) {
-      toast.error("Add at least one field");
+    if (canEditFields && fields.filter(isAnswerableFormField).length === 0) {
+      toast.error("Add at least one question");
       return;
     }
     if (canEditFields && fields.some((field) => !field.label.trim())) {
       toast.error("Every field needs a label");
+      return;
+    }
+    if (
+      canEditFields &&
+      fields.some(
+        (field) =>
+          (field.type === "select" || field.type === "radio") &&
+          (!field.options || field.options.length === 0),
+      )
+    ) {
+      toast.error("Choice fields need at least one option");
       return;
     }
 
@@ -143,8 +155,8 @@ export function ProjectFormEditorDialog({
   }
 
   async function handleSaveAsTemplate() {
-    if (!name.trim() || fields.length === 0) {
-      toast.error("Name and fields are required to save a template");
+    if (!name.trim() || fields.filter(isAnswerableFormField).length === 0) {
+      toast.error("Name and questions are required to save a template");
       return;
     }
     setSavingTemplate(true);
@@ -208,7 +220,7 @@ export function ProjectFormEditorDialog({
           <Button
             type="button"
             variant="outline"
-            disabled={loading || savingTemplate || fields.length === 0}
+            disabled={loading || savingTemplate || fields.filter(isAnswerableFormField).length === 0}
             onClick={() => void handleSaveAsTemplate()}
           >
             {savingTemplate ? "Saving…" : "Save as template"}

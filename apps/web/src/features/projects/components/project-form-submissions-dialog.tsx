@@ -13,7 +13,11 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/invoices";
-import type { FormFieldDef } from "@/lib/schemas/project-form";
+import {
+  isAnswerableFormField,
+  parseImageAnswer,
+  type FormFieldDef,
+} from "@/lib/schemas/project-form";
 import { cn } from "@/lib/utils";
 
 type SubmissionRow = {
@@ -153,17 +157,18 @@ export function ProjectFormSubmissionsDialog({
                   </div>
 
                   <div className="divide-y">
-                    {detail.fields.map((field) => {
-                      const answer = selected.answers[field.id]?.trim();
+                    {detail.fields.filter(isAnswerableFormField).map((field) => {
+                      const raw = selected.answers[field.id];
                       return (
-                        <div key={field.id} className="grid gap-1 px-4 py-3 sm:grid-cols-[11rem_1fr] sm:gap-4">
+                        <div
+                          key={field.id}
+                          className="grid gap-1 px-4 py-3 sm:grid-cols-[11rem_1fr] sm:gap-4"
+                        >
                           <div className="text-sm font-medium text-muted-foreground">
                             {field.label}
                           </div>
-                          <div className="whitespace-pre-wrap text-sm text-foreground">
-                            {answer || (
-                              <span className="text-muted-foreground">No answer</span>
-                            )}
+                          <div className="text-sm text-foreground">
+                            {renderAnswer(field, raw)}
                           </div>
                         </div>
                       );
@@ -177,4 +182,43 @@ export function ProjectFormSubmissionsDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+function renderAnswer(field: FormFieldDef, raw: string | undefined) {
+  if (field.type === "images") {
+    const urls = parseImageAnswer(raw);
+    if (urls.length === 0) {
+      return <span className="text-muted-foreground">No images</span>;
+    }
+    return (
+      <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {urls.map((url) => (
+          <li key={url}>
+            <a href={url} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-md border">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={url} alt="" className="aspect-square w-full object-cover" />
+            </a>
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
+  if (field.type === "select" || field.type === "radio") {
+    const option = field.options?.find((item) => item.value === raw);
+    const label = option?.label ?? raw?.trim();
+    if (!label) return <span className="text-muted-foreground">No answer</span>;
+    return (
+      <span>
+        {label}
+        {option?.description ? (
+          <span className="mt-0.5 block text-xs text-muted-foreground">{option.description}</span>
+        ) : null}
+      </span>
+    );
+  }
+
+  const answer = raw?.trim();
+  if (!answer) return <span className="text-muted-foreground">No answer</span>;
+  return <span className="whitespace-pre-wrap">{answer}</span>;
 }

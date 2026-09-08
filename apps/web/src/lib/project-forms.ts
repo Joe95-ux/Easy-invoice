@@ -8,12 +8,52 @@ import type {
   UpdateFormTemplateInput,
   UpdateProjectFormInput,
 } from "@/lib/schemas/project-form";
+import {
+  formFieldSchema,
+  isAnswerableFormField,
+  parseImageAnswer,
+} from "@/lib/schemas/project-form";
 
 const DEFAULT_FIELDS: FormFieldDef[] = [
-  { id: "business_name", type: "text", label: "Business name", required: true },
+  {
+    id: "sec_basics",
+    type: "section",
+    label: "Project basics",
+    required: false,
+    description: "Core details that identify the job and define the requested outcome.",
+  },
+  { id: "business_name", type: "text", label: "Business / project name", required: true },
   { id: "contact_email", type: "email", label: "Contact email", required: true },
-  { id: "goals", type: "textarea", label: "Goals / requirements", required: true },
-  { id: "notes", type: "textarea", label: "Anything else?", required: false },
+  {
+    id: "goals",
+    type: "textarea",
+    label: "What do you need completed?",
+    required: true,
+    description: "Describe the expected result and any important constraints.",
+  },
+  {
+    id: "sec_files",
+    type: "section",
+    label: "Files",
+    required: false,
+    description: "Share logos, brand assets, or supporting images.",
+  },
+  {
+    id: "attachments",
+    type: "images",
+    label: "Reference images",
+    required: false,
+    maxFiles: 8,
+    description: "Upload multiple images at once (JPEG, PNG, WebP, or GIF).",
+  },
+  {
+    id: "sec_notes",
+    type: "section",
+    label: "Final notes",
+    required: false,
+    description: "Anything else that could affect scope, schedule, or pricing.",
+  },
+  { id: "notes", type: "textarea", label: "Anything else we should know?", required: false },
 ];
 
 const STARTER_TEMPLATES: Array<{
@@ -25,12 +65,72 @@ const STARTER_TEMPLATES: Array<{
     name: "Website Requirements",
     description: "Pages, brand assets, hosting, and launch goals for a website build.",
     fields: [
+      {
+        id: "sec_basics",
+        type: "section",
+        label: "Project basics",
+        required: false,
+        description: "Identify the business and what the website should achieve.",
+      },
       { id: "business_name", type: "text", label: "Business name", required: true },
       { id: "contact_email", type: "email", label: "Primary contact email", required: true },
+      {
+        id: "project_type",
+        type: "radio",
+        label: "Project type",
+        required: true,
+        options: [
+          { value: "website", label: "Website", description: "New site, redesign, or landing page" },
+          { value: "store", label: "Online store", description: "Products, payments, and shipping" },
+          { value: "custom", label: "Custom work", description: "App, integration, or other build" },
+        ],
+      },
+      {
+        id: "pages",
+        type: "textarea",
+        label: "Pages / sections needed",
+        required: true,
+      },
+      {
+        id: "sec_brand",
+        type: "section",
+        label: "Brand & content",
+        required: false,
+        description: "What already exists and what still needs to be produced.",
+      },
+      {
+        id: "logo_status",
+        type: "select",
+        label: "Do you have a logo?",
+        required: false,
+        options: [
+          { value: "yes", label: "Yes" },
+          { value: "no", label: "No" },
+          { value: "update", label: "Needs updating" },
+        ],
+      },
+      {
+        id: "brand_files",
+        type: "images",
+        label: "Brand / reference images",
+        required: false,
+        maxFiles: 10,
+        description: "Logo, moodboards, screenshots, or other visual references.",
+      },
+      {
+        id: "sec_tech",
+        type: "section",
+        label: "Technical details",
+        required: false,
+        description: "Access and systems that affect delivery.",
+      },
       { id: "website_url", type: "url", label: "Current website (if any)", required: false },
-      { id: "pages", type: "textarea", label: "Pages / sections needed", required: true },
-      { id: "brand", type: "textarea", label: "Brand / logo notes", required: false },
-      { id: "hosting", type: "textarea", label: "Domain & hosting details", required: false },
+      {
+        id: "hosting",
+        type: "textarea",
+        label: "Domain & hosting details",
+        required: false,
+      },
       { id: "launch", type: "text", label: "Preferred launch timing", required: false },
     ],
   },
@@ -38,9 +138,35 @@ const STARTER_TEMPLATES: Array<{
     name: "Design Brief",
     description: "Audience, style references, and deliverables for design work.",
     fields: [
+      {
+        id: "sec_goal",
+        type: "section",
+        label: "Project goal",
+        required: false,
+        description: "Clarify the outcome before exploring style.",
+      },
       { id: "project_goal", type: "textarea", label: "Project goal", required: true },
       { id: "audience", type: "textarea", label: "Target audience", required: true },
-      { id: "references", type: "textarea", label: "Style references / links", required: false },
+      {
+        id: "sec_style",
+        type: "section",
+        label: "Style & deliverables",
+        required: false,
+        description: "References and what you need delivered.",
+      },
+      {
+        id: "references",
+        type: "textarea",
+        label: "Style references / links",
+        required: false,
+      },
+      {
+        id: "moodboard",
+        type: "images",
+        label: "Moodboard images",
+        required: false,
+        maxFiles: 12,
+      },
       { id: "deliverables", type: "textarea", label: "Deliverables needed", required: true },
       { id: "deadline", type: "text", label: "Deadline", required: false },
     ],
@@ -53,19 +179,20 @@ const STARTER_TEMPLATES: Array<{
 ];
 
 export function defaultIntakeFields(): FormFieldDef[] {
-  return DEFAULT_FIELDS.map((field) => ({ ...field }));
+  return DEFAULT_FIELDS.map((field) => ({
+    ...field,
+    options: field.options?.map((option) => ({ ...option })),
+  }));
 }
 
 export function parseFormFields(fields: unknown): FormFieldDef[] {
   if (!Array.isArray(fields)) return [];
-  return fields.filter(
-    (field): field is FormFieldDef =>
-      Boolean(field) &&
-      typeof field === "object" &&
-      typeof (field as FormFieldDef).id === "string" &&
-      typeof (field as FormFieldDef).label === "string" &&
-      typeof (field as FormFieldDef).type === "string",
-  );
+  const parsed: FormFieldDef[] = [];
+  for (const field of fields) {
+    const result = formFieldSchema.safeParse(field);
+    if (result.success) parsed.push(result.data);
+  }
+  return parsed;
 }
 
 export async function listProjectForms(companyId: string, projectId: string) {
@@ -305,8 +432,14 @@ export async function submitProjectFormByToken(token: string, input: SubmitProje
 
   const fields = parseFormFields(form.fields);
   for (const field of fields) {
-    if (!field.required) continue;
+    if (!isAnswerableFormField(field) || !field.required) continue;
     const value = input.answers[field.id];
+    if (field.type === "images") {
+      if (parseImageAnswer(value).length === 0) {
+        throw new Error(`${field.label} is required`);
+      }
+      continue;
+    }
     if (typeof value !== "string" || !value.trim()) {
       throw new Error(`${field.label} is required`);
     }
@@ -439,7 +572,7 @@ export function serializeProjectForm(
     submissionCount: form._count.submissions,
     templateId: form.templateId,
     templateName: form.template?.name ?? null,
-    fieldCount: parseFormFields(form.fields).length,
+    fieldCount: parseFormFields(form.fields).filter(isAnswerableFormField).length,
     sentAt: form.sentAt?.toISOString() ?? null,
     completedAt: form.completedAt?.toISOString() ?? null,
     createdAt: form.createdAt.toISOString(),
