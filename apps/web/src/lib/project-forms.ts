@@ -598,3 +598,53 @@ export function serializeProjectFormDetail(
     })),
   };
 }
+
+/** Load a form submission for estimate scope prefill (company-scoped). */
+export async function getFormSubmissionForEstimatePrefill(
+  companyId: string,
+  submissionId: string,
+) {
+  const submission = await prisma.formSubmission.findFirst({
+    where: {
+      id: submissionId,
+      projectForm: { project: { companyId } },
+    },
+    select: {
+      id: true,
+      answers: true,
+      submitterName: true,
+      submitterEmail: true,
+      projectForm: {
+        select: {
+          id: true,
+          name: true,
+          fields: true,
+          project: {
+            select: {
+              id: true,
+              clientId: true,
+            },
+          },
+        },
+      },
+    },
+  });
+  if (!submission) return null;
+
+  const answers =
+    submission.answers && typeof submission.answers === "object"
+      ? (submission.answers as Record<string, string>)
+      : {};
+
+  return {
+    submissionId: submission.id,
+    formId: submission.projectForm.id,
+    formName: submission.projectForm.name,
+    fields: parseFormFields(submission.projectForm.fields),
+    answers,
+    submitterName: submission.submitterName,
+    submitterEmail: submission.submitterEmail,
+    projectId: submission.projectForm.project.id,
+    clientId: submission.projectForm.project.clientId,
+  };
+}

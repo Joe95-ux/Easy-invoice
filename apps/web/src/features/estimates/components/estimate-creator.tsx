@@ -272,13 +272,14 @@ export function EstimateCreator({
   }
 
   useEffect(() => {
-    if (initialValues || !initialClientId) return;
+    if (!initialClientId) return;
+    if (initialValues?.clientName) return;
     const client = clients.find((c) => c.id === initialClientId);
     if (client) {
       setSelectedClientId(client.id);
       applyClient(client);
     }
-  }, [initialClientId, clients, initialValues]);
+  }, [initialClientId, clients, initialValues?.clientName]);
 
   const itemsStepIndex = useMemo(() => steps.findIndex((s) => s.id === "items"), [steps]);
   const preselectedTimeIdsKey = useMemo(

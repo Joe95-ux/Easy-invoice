@@ -316,6 +316,7 @@ export default async function ProjectDetailPage({ params }: PageProps) {
         <ProjectFormsSection
           projectId={detail.id}
           memberId={member.id}
+          clientId={detail.client?.id ?? null}
           forms={forms}
         />
       </div>

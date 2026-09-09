@@ -1,17 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2Icon, MailIcon, UserIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ClipboardListIcon, Loader2Icon, MailIcon, UserIcon } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
   DialogBody,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { estimateFromSubmissionUrl } from "@/lib/form-submission-to-estimate";
 import { formatDate } from "@/lib/invoices";
 import {
   isAnswerableFormField,
@@ -39,6 +43,7 @@ type ProjectFormSubmissionsDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   projectId: string;
+  clientId?: string | null;
   formId: string | null;
   formName?: string;
 };
@@ -47,9 +52,11 @@ export function ProjectFormSubmissionsDialog({
   open,
   onOpenChange,
   projectId,
+  clientId,
   formId,
   formName,
 }: ProjectFormSubmissionsDialogProps) {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [detail, setDetail] = useState<FormDetail | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -90,6 +97,17 @@ export function ProjectFormSubmissionsDialog({
     detail?.submissions.find((submission) => submission.id === selectedId) ??
     detail?.submissions[0] ??
     null;
+
+  function handleCreateEstimate() {
+    if (!selected) return;
+    router.push(
+      estimateFromSubmissionUrl({
+        projectId,
+        submissionId: selected.id,
+        clientId,
+      }),
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -179,6 +197,17 @@ export function ProjectFormSubmissionsDialog({
             </>
           )}
         </DialogBody>
+        {selected ? (
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Close
+            </Button>
+            <Button type="button" onClick={handleCreateEstimate}>
+              <ClipboardListIcon className="size-4" />
+              Create estimate
+            </Button>
+          </DialogFooter>
+        ) : null}
       </DialogContent>
     </Dialog>
   );
@@ -194,7 +223,12 @@ function renderAnswer(field: FormFieldDef, raw: string | undefined) {
       <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {urls.map((url) => (
           <li key={url}>
-            <a href={url} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-md border">
+            <a
+              href={url}
+              target="_blank"
+              rel="noreferrer"
+              className="block overflow-hidden rounded-md border"
+            >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={url} alt="" className="aspect-square w-full object-cover" />
             </a>

@@ -62,6 +62,7 @@ type FormSubmittedRealtime = {
 type ProjectFormsSectionProps = {
   projectId: string;
   memberId: string;
+  clientId?: string | null;
   forms: ProjectFormRow[];
 };
 
@@ -96,6 +97,7 @@ function statusVariant(status: string): "secondary" | "info" | "success" | "dest
 export function ProjectFormsSection({
   projectId,
   memberId,
+  clientId,
   forms: initialForms,
 }: ProjectFormsSectionProps) {
   const router = useRouter();
@@ -428,6 +430,7 @@ export function ProjectFormsSection({
           if (!open) setViewingForm(null);
         }}
         projectId={projectId}
+        clientId={clientId}
         formId={viewingForm?.id ?? null}
         formName={viewingForm?.name}
       />
