@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { CheckCircle2Icon, Loader2Icon } from "lucide-react";
 import { toast } from "sonner";
 import { FormField } from "@/components/forms/form-field";
+import { DatePicker } from "@/components/forms/date-picker";
 import { PublicFormImageUpload } from "@/features/projects/components/public-form-image-upload";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,7 +41,13 @@ type PublicProjectFormProps = {
 };
 
 function isHalfWidth(field: FormFieldDef) {
-  return field.type === "text" || field.type === "email" || field.type === "url" || field.type === "select";
+  return (
+    field.type === "text" ||
+    field.type === "email" ||
+    field.type === "url" ||
+    field.type === "date" ||
+    field.type === "select"
+  );
 }
 
 export function PublicProjectForm({
@@ -240,6 +247,28 @@ export function PublicProjectForm({
               rows={4}
               required={field.required}
               placeholder="Type your answer"
+            />
+          </FieldContent>
+        </Field>
+      );
+    }
+
+    if (field.type === "date") {
+      return (
+        <Field>
+          <FieldLabel htmlFor={field.id}>
+            {field.label}
+            {requiredMark}
+          </FieldLabel>
+          {field.description ? (
+            <FieldDescription>{field.description}</FieldDescription>
+          ) : null}
+          <FieldContent>
+            <DatePicker
+              id={field.id}
+              value={answers[field.id] || undefined}
+              onChange={(value) => setAnswer(field.id, value)}
+              placeholder="Pick a date"
             />
           </FieldContent>
         </Field>

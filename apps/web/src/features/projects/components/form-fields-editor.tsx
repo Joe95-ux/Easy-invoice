@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   ArrowDownIcon,
   ArrowUpIcon,
@@ -20,12 +21,14 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { newFormFieldId } from "@/lib/project-form-ids";
 import type { FormFieldDef, FormFieldType } from "@/lib/schemas/project-form";
+import { cn } from "@/lib/utils";
 
 const FIELD_TYPES: Array<{ value: FormFieldType; label: string }> = [
   { value: "section", label: "Section" },
   { value: "text", label: "Short text" },
   { value: "email", label: "Email" },
   { value: "url", label: "URL" },
+  { value: "date", label: "Date" },
   { value: "textarea", label: "Long text" },
   { value: "select", label: "Dropdown" },
   { value: "radio", label: "Choice cards" },
@@ -45,36 +48,58 @@ function defaultOptions() {
   ];
 }
 
+function buildField(type: FormFieldType): FormFieldDef {
+  const base: FormFieldDef = {
+    id: newFormFieldId(),
+    type,
+    label: type === "section" ? "New section" : "New question",
+    required: false,
+  };
+  if (type === "select" || type === "radio") {
+    base.options = defaultOptions();
+  }
+  if (type === "images") {
+    base.maxFiles = 8;
+  }
+  if (type === "section") {
+    base.description = "Short description for this section";
+  }
+  return base;
+}
+
 export function FormFieldsEditor({
   fields,
   onChange,
   disabled = false,
 }: FormFieldsEditorProps) {
+  /** Insert new items after this index; null = append at end. */
+  const [insertAfterIndex, setInsertAfterIndex] = useState<number | null>(null);
+
   function updateField(index: number, patch: Partial<FormFieldDef>) {
     onChange(fields.map((field, i) => (i === index ? { ...field, ...patch } : field)));
   }
 
   function removeField(index: number) {
     onChange(fields.filter((_, i) => i !== index));
+    setInsertAfterIndex((current) => {
+      if (current == null) return current;
+      if (current === index) return null;
+      if (current > index) return current - 1;
+      return current;
+    });
   }
 
   function addField(type: FormFieldType = "text") {
-    const base: FormFieldDef = {
-      id: newFormFieldId(),
-      type,
-      label: type === "section" ? "New section" : "New question",
-      required: false,
-    };
-    if (type === "select" || type === "radio") {
-      base.options = defaultOptions();
+    const next = buildField(type);
+    if (insertAfterIndex == null || insertAfterIndex < 0 || insertAfterIndex >= fields.length) {
+      onChange([...fields, next]);
+      setInsertAfterIndex(fields.length);
+      return;
     }
-    if (type === "images") {
-      base.maxFiles = 8;
-    }
-    if (type === "section") {
-      base.description = "Short description for this section";
-    }
-    onChange([...fields, base]);
+    const copy = [...fields];
+    copy.splice(insertAfterIndex + 1, 0, next);
+    onChange(copy);
+    setInsertAfterIndex(insertAfterIndex + 1);
   }
 
   function changeType(index: number, type: FormFieldType) {
@@ -101,10 +126,19 @@ export function FormFieldsEditor({
   function moveField(index: number, direction: -1 | 1) {
     const target = index + direction;
     if (target < 0 || target >= fields.length) return;
+    moveFieldToPosition(index, target);
+  }
+
+  /** Move field at `from` to 0-based index `to`. */
+  function moveFieldToPosition(from: number, to: number) {
+    if (from === to || from < 0 || to < 0 || from >= fields.length || to >= fields.length) {
+      return;
+    }
     const next = [...fields];
-    const [item] = next.splice(index, 1);
-    next.splice(target, 0, item!);
+    const [item] = next.splice(from, 1);
+    next.splice(to, 0, item!);
     onChange(next);
+    setInsertAfterIndex(to);
   }
 
   function updateOption(
@@ -138,10 +172,24 @@ export function FormFieldsEditor({
     updateField(fieldIndex, { options });
   }
 
+  const positionItems = fields.map((_, index) => ({
+    value: String(index + 1),
+    label: `Position ${index + 1}`,
+  }));
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <Label>Questions</Label>
+        <div className="min-w-0">
+          <Label>Questions</Label>
+          {!disabled && fields.length > 0 ? (
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {insertAfterIndex == null
+                ? "New items append at the end. Select a row to insert below it."
+                : `New items insert below #${insertAfterIndex + 1}.`}
+            </p>
+          ) : null}
+        </div>
         {!disabled ? (
           <div className="flex flex-wrap gap-2">
             <Button type="button" size="sm" variant="outline" onClick={() => addField("section")}>
@@ -164,20 +212,33 @@ export function FormFieldsEditor({
         <div className="space-y-3">
           {fields.map((field, index) => {
             const isSection = field.type === "section";
+            const selected = insertAfterIndex === index;
             return (
               <div
                 key={field.id}
-                className={
-                  isSection
-                    ? "space-y-3 rounded-lg border border-dashed bg-muted/20 p-3"
-                    : "space-y-3 rounded-lg border p-3"
-                }
+                role="button"
+                tabIndex={0}
+                onClick={() => !disabled && setInsertAfterIndex(index)}
+                onKeyDown={(event) => {
+                  if (disabled) return;
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    setInsertAfterIndex(index);
+                  }
+                }}
+                className={cn(
+                  "space-y-3 rounded-lg border p-3 text-left outline-none transition-colors",
+                  isSection && "border-dashed bg-muted/20",
+                  selected && "border-primary ring-1 ring-primary/40",
+                  !disabled && "cursor-pointer",
+                )}
               >
                 <div className="flex items-start gap-2">
                   <div className="grid flex-1 gap-3 sm:grid-cols-[1fr_9rem]">
                     <Input
                       value={field.label}
                       disabled={disabled}
+                      onClick={(event) => event.stopPropagation()}
                       onChange={(event) => updateField(index, { label: event.target.value })}
                       placeholder={isSection ? "Section title" : "Question label"}
                     />
@@ -187,7 +248,10 @@ export function FormFieldsEditor({
                       onValueChange={(value) => value && changeType(index, value as FormFieldType)}
                       items={FIELD_TYPES}
                     >
-                      <SelectTrigger className="text-foreground">
+                      <SelectTrigger
+                        className="text-foreground"
+                        onClick={(event) => event.stopPropagation()}
+                      >
                         <SelectValue>
                           {FIELD_TYPES.find((type) => type.value === field.type)?.label ??
                             field.type}
@@ -203,7 +267,10 @@ export function FormFieldsEditor({
                     </Select>
                   </div>
                   {!disabled ? (
-                    <div className="flex shrink-0 flex-col gap-0.5">
+                    <div
+                      className="flex shrink-0 flex-col items-center gap-0.5"
+                      onClick={(event) => event.stopPropagation()}
+                    >
                       <Button
                         type="button"
                         size="icon"
@@ -226,18 +293,40 @@ export function FormFieldsEditor({
                       >
                         <ArrowDownIcon className="size-4" />
                       </Button>
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        className="size-8"
+                        onClick={() => removeField(index)}
+                        aria-label="Remove field"
+                      >
+                        <Trash2Icon className="size-4" />
+                      </Button>
+                      <Select
+                        value={String(index + 1)}
+                        onValueChange={(value) => {
+                          if (!value) return;
+                          moveFieldToPosition(index, Number(value) - 1);
+                        }}
+                        items={positionItems}
+                      >
+                        <SelectTrigger
+                          size="sm"
+                          className="mt-0.5 h-7 w-[4.75rem] px-1.5 text-[0.7rem] text-foreground"
+                          aria-label={`Move to position (currently ${index + 1})`}
+                        >
+                          <SelectValue>{index + 1}</SelectValue>
+                        </SelectTrigger>
+                        <SelectContent align="end">
+                          {positionItems.map((item) => (
+                            <SelectItem key={item.value} value={item.value}>
+                              {item.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
-                  ) : null}
-                  {!disabled ? (
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => removeField(index)}
-                      aria-label="Remove field"
-                    >
-                      <Trash2Icon className="size-4" />
-                    </Button>
                   ) : null}
                 </div>
 
@@ -246,13 +335,17 @@ export function FormFieldsEditor({
                   disabled={disabled}
                   rows={2}
                   placeholder={isSection ? "Section description" : "Optional helper text"}
+                  onClick={(event) => event.stopPropagation()}
                   onChange={(event) =>
                     updateField(index, { description: event.target.value || null })
                   }
                 />
 
                 {!isSection ? (
-                  <div className="flex items-center justify-between">
+                  <div
+                    className="flex items-center justify-between"
+                    onClick={(event) => event.stopPropagation()}
+                  >
                     <Label htmlFor={`required-${field.id}`} className="text-sm font-normal">
                       Required
                     </Label>
@@ -268,7 +361,7 @@ export function FormFieldsEditor({
                 ) : null}
 
                 {field.type === "images" ? (
-                  <div className="space-y-2">
+                  <div className="space-y-2" onClick={(event) => event.stopPropagation()}>
                     <Label htmlFor={`max-files-${field.id}`}>Max images</Label>
                     <Input
                       id={`max-files-${field.id}`}
@@ -287,7 +380,10 @@ export function FormFieldsEditor({
                 ) : null}
 
                 {(field.type === "select" || field.type === "radio") && (
-                  <div className="space-y-2 rounded-md border bg-muted/20 p-2">
+                  <div
+                    className="space-y-2 rounded-md border bg-muted/20 p-2"
+                    onClick={(event) => event.stopPropagation()}
+                  >
                     <div className="flex items-center justify-between">
                       <Label className="text-xs">Options</Label>
                       {!disabled ? (

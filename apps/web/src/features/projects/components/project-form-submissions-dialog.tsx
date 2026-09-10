@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { format, parseISO } from "date-fns";
 import { ClipboardListIcon, Loader2Icon, MailIcon, UserIcon } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -250,6 +251,16 @@ function renderAnswer(field: FormFieldDef, raw: string | undefined) {
         ) : null}
       </span>
     );
+  }
+
+  if (field.type === "date") {
+    const answer = raw?.trim();
+    if (!answer) return <span className="text-muted-foreground">No answer</span>;
+    try {
+      return <span>{format(parseISO(answer), "PPP")}</span>;
+    } catch {
+      return <span>{answer}</span>;
+    }
   }
 
   const answer = raw?.trim();

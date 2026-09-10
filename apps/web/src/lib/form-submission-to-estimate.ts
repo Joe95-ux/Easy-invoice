@@ -1,3 +1,4 @@
+import { format, parseISO } from "date-fns";
 import {
   groupFormFieldsIntoSections,
   isAnswerableFormField,
@@ -67,6 +68,16 @@ function formatAnswerLine(field: FormFieldDef, raw: string | undefined): string 
     const option = field.options?.find((item) => item.value === raw);
     const label = option?.label ?? raw?.trim();
     return label || null;
+  }
+
+  if (field.type === "date") {
+    const value = raw?.trim();
+    if (!value) return null;
+    try {
+      return format(parseISO(value), "PPP");
+    } catch {
+      return value;
+    }
   }
 
   const value = raw?.trim();
