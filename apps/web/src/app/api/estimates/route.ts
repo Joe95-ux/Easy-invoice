@@ -8,6 +8,11 @@ import {
   resolveClientForEstimate,
 } from "@/lib/estimate-service";
 import { createEstimateSchema } from "@/lib/schemas/estimate";
+import {
+  normalizeCustomFieldDefinitions,
+  sanitizeCustomFieldValuesForSave,
+  validateRequiredCustomFields,
+} from "@/lib/custom-fields";
 import { getDefaultTemplateId, getTemplateById } from "@/lib/templates";
 import {
   loadEstimateSnapshot,
@@ -23,6 +28,23 @@ export async function POST(request: Request) {
 
   const parsed = createEstimateSchema.safeParse(body);
   if (!parsed.success) return validationError(parsed.error);
+
+  const fieldDefinitions = normalizeCustomFieldDefinitions(
+    member.company.customFieldDefinitions,
+  );
+  const customFields = sanitizeCustomFieldValuesForSave(
+    fieldDefinitions,
+    "estimate",
+    parsed.data.customFields,
+  );
+  const customFieldsError = validateRequiredCustomFields(
+    fieldDefinitions,
+    "estimate",
+    customFields,
+  );
+  if (customFieldsError) {
+    return NextResponse.json({ error: customFieldsError }, { status: 400 });
+  }
 
   const client = await resolveClientForEstimate(member.companyId, parsed.data);
   if (!client) {
@@ -68,6 +90,7 @@ export async function POST(request: Request) {
         total: totals.total,
         scope: parsed.data.scope,
         notes: parsed.data.notes,
+        customFields,
         issueDate: parsed.data.issueDate ? new Date(parsed.data.issueDate) : new Date(),
         validUntil: parsed.data.validUntil ? new Date(parsed.data.validUntil) : null,
         items: { create: lineItems },

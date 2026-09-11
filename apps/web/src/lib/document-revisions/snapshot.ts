@@ -3,6 +3,7 @@ import type { ContentRevisionSource } from "@/lib/document-revisions/types";
 import type { Decimal } from "@prisma/client/runtime/library";
 import { formatMoney } from "@/lib/invoices";
 import type { DocumentSnapshot, DocumentSnapshotLineItem } from "@/lib/document-revisions/types";
+import { normalizeCustomFieldValues } from "@/lib/custom-fields";
 
 type MoneyInput = number | string | Decimal;
 
@@ -34,6 +35,7 @@ export function invoiceToSnapshot(
     taxAmount: MoneyInput;
     total: MoneyInput;
     notes: string | null;
+    customFields?: unknown;
     templateId: string | null;
     remindersPaused?: boolean;
     installments?: Array<{
@@ -67,6 +69,7 @@ export function invoiceToSnapshot(
     taxAmount: toNumber(invoice.taxAmount),
     total: toNumber(invoice.total),
     notes: invoice.notes,
+    customFields: normalizeCustomFieldValues(invoice.customFields),
     templateId: invoice.templateId,
     remindersPaused: invoice.remindersPaused,
     installments: invoice.installments?.map((row) => ({
@@ -102,6 +105,7 @@ export function estimateToSnapshot(estimate: {
   total: MoneyInput;
   notes: string | null;
   scope?: string | null;
+  customFields?: unknown;
   templateId: string | null;
   items: Array<{
     description: string;
@@ -127,6 +131,7 @@ export function estimateToSnapshot(estimate: {
     total: toNumber(estimate.total),
     notes: estimate.notes,
     scope: estimate.scope ?? null,
+    customFields: normalizeCustomFieldValues(estimate.customFields),
     templateId: estimate.templateId,
     lineItems: estimate.items.map((item) => ({
       description: item.description,
@@ -191,6 +196,13 @@ export function buildRevisionSummary(
 
   if (before && before.notes !== after.notes) {
     parts.push("Notes updated");
+  }
+
+  if (
+    before &&
+    JSON.stringify(before.customFields ?? {}) !== JSON.stringify(after.customFields ?? {})
+  ) {
+    parts.push("Custom fields updated");
   }
 
   if (before && (before.scope ?? null) !== (after.scope ?? null)) {

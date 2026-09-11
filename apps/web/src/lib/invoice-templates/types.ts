@@ -43,6 +43,8 @@ export type InvoiceHtmlData = {
     amountPaid?: number;
     balanceDue?: number;
   };
+  /** Resolved custom field rows for PDF/preview (label + display value). */
+  customFields?: Array<{ label: string; value: string; multiline?: boolean }>;
   items: Array<{
     description: string;
     quantity: number;

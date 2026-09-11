@@ -119,4 +119,4 @@ All protected endpoints require header: `X-Service-Secret: <your-secret>`.
 ## Next steps
 
 - [ ] Stripe Checkout + plan limits
-- [ ] Drag-and-drop custom fields
+- [x] Custom fields on invoices / estimates

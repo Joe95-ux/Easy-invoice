@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { normalizeDraftDate } from "@/lib/draft-dates";
+import { customFieldValuesSchema } from "@/lib/schemas/custom-fields";
 
 const lineItemSchema = z.object({
   description: z.string().min(1),
@@ -119,6 +120,7 @@ export const createInvoiceSchema = z.object({
   clientPhone: z.string().optional(),
   clientAddress: z.string().optional(),
   notes: z.string().optional(),
+  customFields: customFieldValuesSchema,
   currency: z.string().length(3),
   taxRate: z.number().min(0).max(1),
   discount: z.number().min(0),

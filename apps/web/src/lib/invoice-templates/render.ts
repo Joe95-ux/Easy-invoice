@@ -424,6 +424,17 @@ function buildSections(data: InvoiceHtmlData) {
     ? `<div class="terms-notes"><div class="terms-notes-label">Terms &amp; Notes</div><div class="terms-notes-body">${escapeHtml(invoice.notes)}</div></div>`
     : "";
 
+  const customFieldRows = (data.customFields ?? [])
+    .map((row) => {
+      const bodyClass = row.multiline ? "custom-field-value custom-field-value--multiline" : "custom-field-value";
+      return `<div class="custom-field-row"><div class="custom-field-label">${escapeHtml(row.label)}</div><div class="${bodyClass}">${escapeHtml(row.value)}</div></div>`;
+    })
+    .join("");
+
+  const custom_fields = customFieldRows
+    ? `<div class="custom-fields"><div class="custom-fields-label">Details</div>${customFieldRows}</div>`
+    : "";
+
   const watermark =
     placement === "watermark" && company.logoUrl
       ? `<div class="watermark"><img src="${escapeHtml(company.logoUrl)}" alt="" /></div>`
@@ -449,6 +460,7 @@ function buildSections(data: InvoiceHtmlData) {
     totals_class,
     payment_schedule,
     payment_info,
+    custom_fields,
     terms_notes: termsNotes,
     watermark,
     invoice_footer: `${acceptance}${invoiceFooter}`,

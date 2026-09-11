@@ -72,6 +72,7 @@ export const APP_TEAM_ITEMS: AppNavItem[] = [
     icon: SettingsIcon,
     children: [
       { href: "/settings/general", label: "General" },
+      { href: "/settings/custom-fields", label: "Custom fields" },
       { href: "/settings/form-templates", label: "Form templates" },
       { href: "/settings/billing", label: "Billing" },
     ],
@@ -96,6 +97,7 @@ export function isAppWorkspaceItemActive(pathname: string, href: string) {
 
 const SETTINGS_SECTION_PATHS = [
   "/settings/general",
+  "/settings/custom-fields",
   "/settings/form-templates",
   "/settings/billing",
 ] as const;

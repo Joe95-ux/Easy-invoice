@@ -9,6 +9,11 @@ import {
 } from "@/lib/estimate-service";
 import { getEstimateForMember } from "@/lib/estimates";
 import { updateEstimateSchema } from "@/lib/schemas/estimate";
+import {
+  normalizeCustomFieldDefinitions,
+  sanitizeCustomFieldValuesForSave,
+  validateRequiredCustomFields,
+} from "@/lib/custom-fields";
 import { getTemplateById } from "@/lib/templates";
 import {
   loadEstimateSnapshot,
@@ -144,12 +149,33 @@ export async function PATCH(request: Request, context: RouteContext) {
     });
   }
 
+  let customFieldsUpdate: Record<string, string> | undefined;
+  if (data.customFields !== undefined) {
+    const fieldDefinitions = normalizeCustomFieldDefinitions(
+      member.company.customFieldDefinitions,
+    );
+    customFieldsUpdate = sanitizeCustomFieldValuesForSave(
+      fieldDefinitions,
+      "estimate",
+      data.customFields,
+    );
+    const customFieldsError = validateRequiredCustomFields(
+      fieldDefinitions,
+      "estimate",
+      customFieldsUpdate,
+    );
+    if (customFieldsError) {
+      return NextResponse.json({ error: customFieldsError }, { status: 400 });
+    }
+  }
+
   const estimate = await prisma.estimate.update({
     where: { id },
     data: {
       ...(data.status !== undefined && { status: data.status }),
       ...(data.scope !== undefined && { scope: data.scope }),
       ...(data.notes !== undefined && { notes: data.notes }),
+      ...(customFieldsUpdate !== undefined && { customFields: customFieldsUpdate }),
       ...(data.validUntil !== undefined && {
         validUntil: data.validUntil ? new Date(data.validUntil) : null,
       }),

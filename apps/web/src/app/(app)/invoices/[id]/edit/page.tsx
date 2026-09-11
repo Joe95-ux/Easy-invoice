@@ -6,6 +6,7 @@ import { requireMember } from "@/lib/auth";
 import { getClientsForMember } from "@/lib/clients";
 import { getInvoiceForMember, getInvoiceLineItemsWithTimeEntries } from "@/lib/invoices";
 import { companyBrandingFields } from "@/lib/company-branding";
+import { normalizeCustomFieldDefinitions, normalizeCustomFieldValues } from "@/lib/custom-fields";
 import {
   attachExpenseIdsToLineItems,
   getExpensesForInvoice,
@@ -64,6 +65,9 @@ export default async function EditInvoicePage({ params }: PageProps) {
           zip: member.company.zip,
           country: member.company.country,
         }}
+        customFieldDefinitions={normalizeCustomFieldDefinitions(
+          member.company.customFieldDefinitions,
+        )}
         clients={clients}
         templates={templates}
         defaultTemplateId={defaultTemplateId}
@@ -79,6 +83,7 @@ export default async function EditInvoicePage({ params }: PageProps) {
           clientPhone: invoice.client?.phone ?? "",
           clientAddress: invoice.client?.address ?? "",
           notes: invoice.notes,
+          customFields: normalizeCustomFieldValues(invoice.customFields),
           currency: invoice.currency,
           issueDate: invoice.issueDate.toISOString(),
           dueDate: invoice.dueDate?.toISOString() ?? null,

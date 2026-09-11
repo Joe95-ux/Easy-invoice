@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { DocumentLineItemsTable } from "@/components/document-line-items-table";
+import { DocumentCustomFieldsDisplay } from "@/features/custom-fields/components/document-custom-fields-display";
 import { InvoiceActions } from "@/features/invoices/components/invoice-actions";
 import { InvoiceAutoDownload } from "@/features/invoices/components/invoice-auto-download";
 import { InvoiceGetPaidSection } from "@/features/invoices/components/invoice-get-paid-section";
@@ -35,6 +36,7 @@ import {
 import { getTemplatesForCompany } from "@/lib/templates";
 import { buildInvoicePaymentSummary } from "@/lib/invoice-payments";
 import { getPaymentConfirmationsByInvoice } from "@/lib/payment-confirmation";
+import { normalizeCustomFieldDefinitions, buildCustomFieldDisplayRows } from "@/lib/custom-fields";
 import {
   getCompanyPaymentLinkMethods,
   getInvoicePaymentQr,
@@ -69,6 +71,14 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
       });
 
   const paymentSummary = buildInvoicePaymentSummary(invoice);
+  const customFieldDefinitions = normalizeCustomFieldDefinitions(
+    invoice.company.customFieldDefinitions,
+  );
+  const customFieldRows = buildCustomFieldDisplayRows(
+    customFieldDefinitions,
+    "invoice",
+    invoice.customFields,
+  );
 
   return (
     <PageScroll>
@@ -318,6 +328,23 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
           </div>
         </CardContent>
       </Card>
+
+      {customFieldRows.length > 0 ? (
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Custom fields
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <DocumentCustomFieldsDisplay
+              kind="invoice"
+              definitions={customFieldDefinitions}
+              values={invoice.customFields}
+            />
+          </CardContent>
+        </Card>
+      ) : null}
 
       {invoice.notes && (
         <Card className="mt-6">

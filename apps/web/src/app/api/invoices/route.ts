@@ -12,6 +12,11 @@ import {
   linkProjectExpensesToInvoice,
 } from "@/lib/project-expenses";
 import { createInvoiceSchema } from "@/lib/schemas/invoice";
+import {
+  normalizeCustomFieldDefinitions,
+  sanitizeCustomFieldValuesForSave,
+  validateRequiredCustomFields,
+} from "@/lib/custom-fields";
 import { getDefaultTemplateId, getTemplateById } from "@/lib/templates";
 import {
   loadInvoiceSnapshot,
@@ -37,6 +42,23 @@ export async function POST(request: Request) {
 
   const parsed = createInvoiceSchema.safeParse(body);
   if (!parsed.success) return validationError(parsed.error);
+
+  const fieldDefinitions = normalizeCustomFieldDefinitions(
+    member.company.customFieldDefinitions,
+  );
+  const customFields = sanitizeCustomFieldValuesForSave(
+    fieldDefinitions,
+    "invoice",
+    parsed.data.customFields,
+  );
+  const customFieldsError = validateRequiredCustomFields(
+    fieldDefinitions,
+    "invoice",
+    customFields,
+  );
+  if (customFieldsError) {
+    return NextResponse.json({ error: customFieldsError }, { status: 400 });
+  }
 
   const client = await resolveClientForInvoice(member.companyId, parsed.data);
   if (!client) {
@@ -96,6 +118,7 @@ export async function POST(request: Request) {
         discount: parsed.data.discount,
         total: totals.total,
         notes: parsed.data.notes,
+        customFields,
         issueDate: parsed.data.issueDate ? new Date(parsed.data.issueDate) : new Date(),
         dueDate: parsed.data.dueDate ? new Date(parsed.data.dueDate) : null,
         items: { create: lineItems },

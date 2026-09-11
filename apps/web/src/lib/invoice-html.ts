@@ -3,6 +3,10 @@ import { SYSTEM_TEMPLATES } from "@/lib/invoice-templates/definitions";
 import { renderFromTemplate } from "@/lib/invoice-templates/render";
 import { inlineCompanyLogo } from "@/lib/inline-company-logo";
 import { companyBrandingFields } from "@/lib/company-branding";
+import {
+  buildCustomFieldDisplayRows,
+  normalizeCustomFieldDefinitions,
+} from "@/lib/custom-fields";
 import { prisma } from "@/lib/db";
 import { getInvoiceForMember } from "@/lib/invoices";
 import { buildInvoicePaymentSummary, PAYMENT_METHOD_LABELS } from "@/lib/invoice-payments";
@@ -29,6 +33,15 @@ export function invoiceToHtmlData(
   invoice: InvoiceWithRelations,
 ): InvoiceHtmlData {
   const paymentSummary = buildInvoicePaymentSummary(invoice);
+  const definitions = normalizeCustomFieldDefinitions(
+    invoice.company.customFieldDefinitions,
+  );
+  const customFieldRows = buildCustomFieldDisplayRows(
+    definitions,
+    "invoice",
+    invoice.customFields,
+    { forPdf: true },
+  );
 
   return {
     documentKind: "invoice",
@@ -60,6 +73,11 @@ export function invoiceToHtmlData(
       amountPaid: paymentSummary.amountPaid,
       balanceDue: paymentSummary.balanceDue,
     },
+    customFields: customFieldRows.map((row) => ({
+      label: row.label,
+      value: row.value,
+      multiline: row.multiline,
+    })),
     items: invoice.items.map((item) => ({
       description: item.description,
       quantity: Number(item.quantity),

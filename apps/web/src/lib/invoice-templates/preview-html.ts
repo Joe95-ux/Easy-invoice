@@ -2,6 +2,8 @@ import { SYSTEM_TEMPLATES } from "@/lib/invoice-templates/definitions";
 import { renderFromTemplate } from "@/lib/invoice-templates/render";
 import type { DocumentKind, InvoiceHtmlData } from "@/lib/invoice-templates/types";
 import type { CompanyPaymentMethod } from "@/lib/company-payment-methods";
+import { buildCustomFieldDisplayRows } from "@/lib/custom-fields";
+import type { CustomFieldDefinition } from "@/lib/schemas/custom-fields";
 
 /** Sample terms shown in template previews (payment methods live separately). */
 export const SAMPLE_TERMS_NOTES = `Payment due within 14 days.
@@ -88,6 +90,8 @@ export type BuildDocumentHtmlOptions = {
   notes?: string;
   /** Estimate-only project scope shown before line items. */
   scope?: string;
+  customFields?: Record<string, string>;
+  customFieldDefinitions?: CustomFieldDefinition[];
   items: PreviewLineItem[];
   totals: { subtotal: number; taxAmount: number; total: number };
   taxRate: number;
@@ -185,6 +189,16 @@ export function buildDocumentHtml(options: BuildDocumentHtmlOptions): string {
       amountPaid: options.amountPaid,
       balanceDue: options.balanceDue,
     },
+    customFields: buildCustomFieldDisplayRows(
+      options.customFieldDefinitions ?? [],
+      options.kind === "estimate" ? "estimate" : "invoice",
+      options.customFields,
+      { forPdf: true },
+    ).map((row) => ({
+      label: row.label,
+      value: row.value,
+      multiline: row.multiline,
+    })),
     items,
     ...(installments.length > 0 ? { installments } : {}),
     ...(options.acceptance

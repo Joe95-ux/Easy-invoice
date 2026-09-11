@@ -221,6 +221,8 @@ model Company {
   timerRoundToMinutes  Int      @default(1)
   /// Ordered payment options shown on invoices/estimates, e.g. [{ "label": "PayPal", "value": "pay@co.com" }]
   paymentMethods       Json?
+  /// Ordered custom field definitions for invoices/estimates (label, type, options, appliesTo).
+  customFieldDefinitions Json?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

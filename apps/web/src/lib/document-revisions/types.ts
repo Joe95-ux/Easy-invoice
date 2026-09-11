@@ -42,6 +42,7 @@ export type DocumentSnapshot = {
   notes: string | null;
   /** Estimate-only project scope. Omitted/null on invoices. */
   scope?: string | null;
+  customFields?: Record<string, string> | null;
   templateId: string | null;
   remindersPaused?: boolean;
   installments?: DocumentSnapshotInstallment[];

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { DocumentLineItemsTable } from "@/components/document-line-items-table";
+import { DocumentCustomFieldsDisplay } from "@/features/custom-fields/components/document-custom-fields-display";
 import { EstimateActions } from "@/features/estimates/components/estimate-actions";
 import { EstimateAutoDownload } from "@/features/estimates/components/estimate-auto-download";
 import { EstimateRemindersSection } from "@/features/estimates/components/estimate-reminders-section";
@@ -29,6 +30,10 @@ import {
   estimateStatusVariant,
 } from "@/lib/estimates";
 import { getTemplatesForCompany } from "@/lib/templates";
+import {
+  buildCustomFieldDisplayRows,
+  normalizeCustomFieldDefinitions,
+} from "@/lib/custom-fields";
 
 type PageProps = { params: Promise<{ id: string }> };
 
@@ -50,6 +55,15 @@ export default async function EstimateDetailPage({ params }: PageProps) {
     getEstimateRemindersForMember(id, member.companyId),
   ]);
   if (!estimate) notFound();
+
+  const customFieldDefinitions = normalizeCustomFieldDefinitions(
+    estimate.company.customFieldDefinitions,
+  );
+  const customFieldRows = buildCustomFieldDisplayRows(
+    customFieldDefinitions,
+    "estimate",
+    estimate.customFields,
+  );
 
   return (
     <PageScroll>
@@ -338,6 +352,23 @@ export default async function EstimateDetailPage({ params }: PageProps) {
           </CardContent>
         </Card>
       )}
+
+      {customFieldRows.length > 0 ? (
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Custom fields
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <DocumentCustomFieldsDisplay
+              kind="estimate"
+              definitions={customFieldDefinitions}
+              values={estimate.customFields}
+            />
+          </CardContent>
+        </Card>
+      ) : null}
 
       {estimate.notes && (
         <Card className="mt-6">

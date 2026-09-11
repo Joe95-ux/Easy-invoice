@@ -60,6 +60,13 @@ import {
 } from "@/lib/line-item-sections";
 import type { AiApplyMeta, InvoiceDraft } from "@/lib/schemas/invoice";
 import { AiSourceNotesPanel } from "@/features/invoices/components/ai-source-notes-panel";
+import { DocumentCustomFieldsForm } from "@/features/custom-fields/components/document-custom-fields-form";
+import {
+  normalizeCustomFieldDefinitions,
+  normalizeCustomFieldValues,
+  validateRequiredCustomFields,
+} from "@/lib/custom-fields";
+import type { CustomFieldDefinition, CustomFieldValues } from "@/lib/schemas/custom-fields";
 import type { TemplateSummary } from "@/lib/templates";
 
 const BASE_STEPS: FormStep[] = [
@@ -78,6 +85,7 @@ export type InvoiceInitialValues = {
   clientPhone?: string | null;
   clientAddress?: string | null;
   notes?: string | null;
+  customFields?: CustomFieldValues | null;
   currency?: string;
   issueDate?: string;
   dueDate?: string | null;
@@ -98,6 +106,7 @@ type InvoiceCreatorProps = {
   currency: string;
   company: PreviewCompany;
   clients?: ClientListItem[];
+  customFieldDefinitions?: CustomFieldDefinition[];
   templates?: TemplateSummary[];
   initialClientId?: string;
   initialProjectId?: string;
@@ -117,6 +126,7 @@ export function InvoiceCreator({
   currency: defaultCurrency,
   company,
   clients = [],
+  customFieldDefinitions = [],
   templates = [],
   initialClientId,
   initialProjectId,
@@ -147,6 +157,13 @@ export function InvoiceCreator({
   const [clientPhone, setClientPhone] = useState(initialValues?.clientPhone ?? "");
   const [clientAddress, setClientAddress] = useState(initialValues?.clientAddress ?? "");
   const [notes, setNotes] = useState(initialValues?.notes ?? "");
+  const [customFields, setCustomFields] = useState<CustomFieldValues>(() =>
+    normalizeCustomFieldValues(initialValues?.customFields),
+  );
+  const fieldDefinitions = useMemo(
+    () => normalizeCustomFieldDefinitions(customFieldDefinitions),
+    [customFieldDefinitions],
+  );
   const [currency, setCurrency] = useState(initialValues?.currency ?? defaultCurrency);
   const [issueDate, setIssueDate] = useState(
     initialValues?.issueDate?.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
@@ -185,6 +202,7 @@ export function InvoiceCreator({
         clientPhone.trim() ||
         clientAddress.trim() ||
         notes.trim() ||
+        Object.values(customFields).some((value) => value.trim()) ||
         taxRate !== 0 ||
         discountValue !== 0 ||
         installments.length > 0 ||
@@ -203,6 +221,7 @@ export function InvoiceCreator({
     clientPhone,
     clientAddress,
     notes,
+    customFields,
     taxRate,
     discountValue,
     installments.length,
@@ -466,6 +485,7 @@ export function InvoiceCreator({
       clientPhone: clientPhone || undefined,
       clientAddress: clientAddress || undefined,
       notes,
+      customFields,
       currency,
       issueDate: issueDate ? new Date(issueDate).toISOString() : undefined,
       dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
@@ -492,6 +512,16 @@ export function InvoiceCreator({
         toast.error(installmentError);
         return;
       }
+    }
+
+    const customFieldsError = validateRequiredCustomFields(
+      fieldDefinitions,
+      "invoice",
+      customFields,
+    );
+    if (customFieldsError) {
+      toast.error(customFieldsError);
+      return;
     }
 
     setSaving(true);
@@ -718,18 +748,26 @@ export function InvoiceCreator({
       )}
 
       {currentStepId === "notes" && (
-        <Field>
-          <FieldLabel htmlFor="notes">Terms &amp; notes</FieldLabel>
-          <FieldContent>
-            <Textarea
-              id="notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={5}
-              placeholder="e.g. Payment due in 14 days. Late fees or net terms..."
-            />
-          </FieldContent>
-        </Field>
+        <div className="space-y-6">
+          <DocumentCustomFieldsForm
+            kind="invoice"
+            definitions={fieldDefinitions}
+            values={customFields}
+            onChange={setCustomFields}
+          />
+          <Field>
+            <FieldLabel htmlFor="notes">Terms &amp; notes</FieldLabel>
+            <FieldContent>
+              <Textarea
+                id="notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={5}
+                placeholder="e.g. Payment due in 14 days. Late fees or net terms..."
+              />
+            </FieldContent>
+          </Field>
+        </div>
       )}
     </div>
   );
@@ -817,6 +855,8 @@ export function InvoiceCreator({
       expiryDate={dueDate}
       currency={currency}
       notes={notes}
+      customFields={customFields}
+      customFieldDefinitions={fieldDefinitions}
       items={lineItems}
       totals={totals}
       taxRate={taxRate}

@@ -53,6 +53,13 @@ import {
 } from "@/lib/line-item-sections";
 import type { AiApplyMeta, InvoiceDraft } from "@/lib/schemas/invoice";
 import { AiSourceNotesPanel } from "@/features/invoices/components/ai-source-notes-panel";
+import { DocumentCustomFieldsForm } from "@/features/custom-fields/components/document-custom-fields-form";
+import {
+  normalizeCustomFieldDefinitions,
+  normalizeCustomFieldValues,
+  validateRequiredCustomFields,
+} from "@/lib/custom-fields";
+import type { CustomFieldDefinition, CustomFieldValues } from "@/lib/schemas/custom-fields";
 import type { TemplateSummary } from "@/lib/templates";
 
 const BASE_STEPS: FormStep[] = [
@@ -72,6 +79,7 @@ export type EstimateInitialValues = {
   clientAddress?: string | null;
   scope?: string | null;
   notes?: string | null;
+  customFields?: CustomFieldValues | null;
   currency?: string;
   issueDate?: string;
   validUntil?: string | null;
@@ -91,6 +99,7 @@ type EstimateCreatorProps = {
   currency: string;
   company: PreviewCompany;
   clients?: ClientListItem[];
+  customFieldDefinitions?: CustomFieldDefinition[];
   templates?: TemplateSummary[];
   initialClientId?: string;
   initialProjectId?: string;
@@ -108,6 +117,7 @@ export function EstimateCreator({
   currency: defaultCurrency,
   company,
   clients = [],
+  customFieldDefinitions = [],
   templates = [],
   initialClientId,
   initialProjectId,
@@ -137,6 +147,13 @@ export function EstimateCreator({
   const [clientAddress, setClientAddress] = useState(initialValues?.clientAddress ?? "");
   const [scope, setScope] = useState(initialValues?.scope ?? "");
   const [notes, setNotes] = useState(initialValues?.notes ?? "");
+  const [customFields, setCustomFields] = useState<CustomFieldValues>(() =>
+    normalizeCustomFieldValues(initialValues?.customFields),
+  );
+  const fieldDefinitions = useMemo(
+    () => normalizeCustomFieldDefinitions(customFieldDefinitions),
+    [customFieldDefinitions],
+  );
   const [currency, setCurrency] = useState(initialValues?.currency ?? defaultCurrency);
   const [issueDate, setIssueDate] = useState(
     initialValues?.issueDate?.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
@@ -174,6 +191,7 @@ export function EstimateCreator({
         clientAddress.trim() ||
         scope.trim() ||
         notes.trim() ||
+        Object.values(customFields).some((value) => value.trim()) ||
         taxRate !== 0 ||
         discountValue !== 0 ||
         aiSourceNotes ||
@@ -192,6 +210,7 @@ export function EstimateCreator({
     clientAddress,
     scope,
     notes,
+    customFields,
     taxRate,
     discountValue,
     aiSourceNotes,
@@ -398,6 +417,7 @@ export function EstimateCreator({
       clientAddress: clientAddress || undefined,
       scope,
       notes,
+      customFields,
       currency,
       issueDate: issueDate ? new Date(issueDate).toISOString() : undefined,
       validUntil: validUntil ? new Date(validUntil).toISOString() : undefined,
@@ -415,6 +435,16 @@ export function EstimateCreator({
   }
 
   async function handleSave(downloadAfter = false) {
+    const customFieldsError = validateRequiredCustomFields(
+      fieldDefinitions,
+      "estimate",
+      customFields,
+    );
+    if (customFieldsError) {
+      toast.error(customFieldsError);
+      return;
+    }
+
     setSaving(true);
     try {
       const creating = !estimateId;
@@ -629,6 +659,12 @@ export function EstimateCreator({
 
       {currentStepId === "notes" && (
         <div className="space-y-6">
+          <DocumentCustomFieldsForm
+            kind="estimate"
+            definitions={fieldDefinitions}
+            values={customFields}
+            onChange={setCustomFields}
+          />
           <Field>
             <FieldLabel htmlFor="scope">Project scope</FieldLabel>
             <FieldContent>
@@ -745,6 +781,8 @@ export function EstimateCreator({
       currency={currency}
       notes={notes}
       scope={scope}
+      customFields={customFields}
+      customFieldDefinitions={fieldDefinitions}
       items={lineItems}
       totals={totals}
       taxRate={taxRate}

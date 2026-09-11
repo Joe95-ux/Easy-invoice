@@ -14,6 +14,11 @@ import {
   releaseProjectExpensesForInvoice,
 } from "@/lib/project-expenses";
 import { updateInvoiceSchema } from "@/lib/schemas/invoice";
+import {
+  normalizeCustomFieldDefinitions,
+  sanitizeCustomFieldValuesForSave,
+  validateRequiredCustomFields,
+} from "@/lib/custom-fields";
 import { getTemplateById } from "@/lib/templates";
 import {
   loadInvoiceSnapshot,
@@ -210,11 +215,32 @@ export async function PATCH(request: Request, context: RouteContext) {
     }
   }
 
+  let customFieldsUpdate: Record<string, string> | undefined;
+  if (data.customFields !== undefined) {
+    const fieldDefinitions = normalizeCustomFieldDefinitions(
+      member.company.customFieldDefinitions,
+    );
+    customFieldsUpdate = sanitizeCustomFieldValuesForSave(
+      fieldDefinitions,
+      "invoice",
+      data.customFields,
+    );
+    const customFieldsError = validateRequiredCustomFields(
+      fieldDefinitions,
+      "invoice",
+      customFieldsUpdate,
+    );
+    if (customFieldsError) {
+      return NextResponse.json({ error: customFieldsError }, { status: 400 });
+    }
+  }
+
   const invoice = await prisma.invoice.update({
     where: { id },
     data: {
       ...(data.status !== undefined && { status: data.status }),
       ...(data.notes !== undefined && { notes: data.notes }),
+      ...(customFieldsUpdate !== undefined && { customFields: customFieldsUpdate }),
       ...(data.dueDate !== undefined && {
         dueDate: data.dueDate ? new Date(data.dueDate) : null,
       }),

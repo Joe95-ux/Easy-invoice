@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BellIcon, ClipboardListIcon, UsersRoundIcon } from "lucide-react";
+import { BellIcon, ClipboardListIcon, ListTreeIcon, UsersRoundIcon } from "lucide-react";
 import { CompanySettingsForm } from "@/features/settings/components/company-settings-form";
 import { ProjectSettingsSection } from "@/features/settings/components/project-settings-section";
 import { ReminderSettingsSection } from "@/features/settings/components/reminder-settings-section";
@@ -53,6 +53,14 @@ export default async function SettingsGeneralPage() {
             >
               <UsersRoundIcon className="size-4" />
               Members
+            </Button>
+            <Button
+              variant="outline"
+              className={pageHeaderActionClass}
+              render={<Link href="/settings/custom-fields" />}
+            >
+              <ListTreeIcon className="size-4" />
+              Custom fields
             </Button>
             <Button
               variant="outline"

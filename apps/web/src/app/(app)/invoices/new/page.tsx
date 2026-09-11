@@ -5,6 +5,7 @@ import { getClientsForMember } from "@/lib/clients";
 import { companyBrandingFields } from "@/lib/company-branding";
 import { getDefaultTemplateId, getTemplatesForCompany } from "@/lib/templates";
 import { InvoiceCreator } from "@/features/invoices/components/invoice-creator";
+import { normalizeCustomFieldDefinitions } from "@/lib/custom-fields";
 
 type PageProps = {
   searchParams: Promise<{
@@ -49,6 +50,9 @@ export default async function NewInvoicePage({ searchParams }: PageProps) {
           zip: member.company.zip,
           country: member.company.country,
         }}
+        customFieldDefinitions={normalizeCustomFieldDefinitions(
+          member.company.customFieldDefinitions,
+        )}
         clients={clients}
         templates={templates}
         initialClientId={clientId}

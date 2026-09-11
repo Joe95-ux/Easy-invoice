@@ -218,9 +218,17 @@ Later: scan analytics over time, more types (app store), frames/labels.
 
 ### 8. Custom fields (UI)
 
-**Status:** Planned
+**Status:** Done
 
-`customFields` JSON exists on models; needs form + template rendering.
+Company-defined field definitions (text, textarea, number, date, select, checkbox) for invoices and/or estimates. Values store on existing `Invoice.customFields` / `Estimate.customFields` JSON. Settings editor, create/edit forms, detail pages, PDF/`{{custom_fields}}`, convert estimate→invoice copy, and revision snapshots.
+
+| Piece | Location |
+|-------|----------|
+| Schema | `Company.customFieldDefinitions`; values on `Invoice` / `Estimate` `customFields` |
+| Lib | `lib/custom-fields.ts`, `lib/schemas/custom-fields.ts` |
+| API | `GET/PATCH /api/company/custom-fields`; create/PATCH invoices & estimates |
+| Settings | `/settings/custom-fields` |
+| UI | Notes step on invoice/estimate creators; detail cards; PDF section |
 
 ---
 

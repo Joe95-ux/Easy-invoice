@@ -3,6 +3,7 @@ import { PageBackLink } from "@/components/app-shell/page-header";
 import { requireMember } from "@/lib/auth";
 import { getClientsForMember } from "@/lib/clients";
 import { companyBrandingFields } from "@/lib/company-branding";
+import { normalizeCustomFieldDefinitions } from "@/lib/custom-fields";
 import { formatSubmissionAsScope } from "@/lib/form-submission-to-estimate";
 import { getFormSubmissionForEstimatePrefill } from "@/lib/project-forms";
 import { getDefaultTemplateId, getTemplatesForCompany } from "@/lib/templates";
@@ -68,6 +69,9 @@ export default async function NewEstimatePage({ searchParams }: PageProps) {
           zip: member.company.zip,
           country: member.company.country,
         }}
+        customFieldDefinitions={normalizeCustomFieldDefinitions(
+          member.company.customFieldDefinitions,
+        )}
         clients={clients}
         templates={templates}
         initialClientId={resolvedClientId}

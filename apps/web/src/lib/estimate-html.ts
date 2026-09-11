@@ -3,6 +3,10 @@ import { SYSTEM_TEMPLATES } from "@/lib/invoice-templates/definitions";
 import { renderFromTemplate } from "@/lib/invoice-templates/render";
 import { inlineCompanyLogo } from "@/lib/inline-company-logo";
 import { companyBrandingFields } from "@/lib/company-branding";
+import {
+  buildCustomFieldDisplayRows,
+  normalizeCustomFieldDefinitions,
+} from "@/lib/custom-fields";
 import { getEstimateForMember } from "@/lib/estimates";
 import { ensureSystemTemplates, getDefaultTemplateId, getTemplateById } from "@/lib/templates";
 
@@ -12,6 +16,16 @@ export function estimateToHtmlData(
   const accepted =
     estimate.status === "ACCEPTED" &&
     (estimate.signerName || estimate.signatureDataUrl || estimate.acceptedAt);
+
+  const definitions = normalizeCustomFieldDefinitions(
+    estimate.company.customFieldDefinitions,
+  );
+  const customFieldRows = buildCustomFieldDisplayRows(
+    definitions,
+    "estimate",
+    estimate.customFields,
+    { forPdf: true },
+  );
 
   return {
     documentKind: "estimate",
@@ -42,6 +56,11 @@ export function estimateToHtmlData(
       notes: estimate.notes,
       scope: estimate.scope,
     },
+    customFields: customFieldRows.map((row) => ({
+      label: row.label,
+      value: row.value,
+      multiline: row.multiline,
+    })),
     items: estimate.items.map((item) => ({
       description: item.description,
       quantity: Number(item.quantity),

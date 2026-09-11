@@ -99,6 +99,7 @@ export async function convertEstimateToInvoice(estimateId: string, companyId: st
         discount: estimate.discount,
         total: estimate.total,
         notes: estimate.notes,
+        customFields: estimate.customFields ?? undefined,
         issueDate: new Date(),
         dueDate: estimate.validUntil,
         publicToken: generatePublicToken(),

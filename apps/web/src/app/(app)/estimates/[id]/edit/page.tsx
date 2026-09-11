@@ -6,6 +6,7 @@ import { requireMember } from "@/lib/auth";
 import { getClientsForMember } from "@/lib/clients";
 import { getEstimateForMember } from "@/lib/estimates";
 import { companyBrandingFields } from "@/lib/company-branding";
+import { normalizeCustomFieldDefinitions, normalizeCustomFieldValues } from "@/lib/custom-fields";
 import { getDefaultTemplateId, getTemplatesForCompany } from "@/lib/templates";
 
 type PageProps = { params: Promise<{ id: string }> };
@@ -45,6 +46,9 @@ export default async function EditEstimatePage({ params }: PageProps) {
           zip: member.company.zip,
           country: member.company.country,
         }}
+        customFieldDefinitions={normalizeCustomFieldDefinitions(
+          member.company.customFieldDefinitions,
+        )}
         clients={clients}
         templates={templates}
         defaultTemplateId={defaultTemplateId}
@@ -60,6 +64,7 @@ export default async function EditEstimatePage({ params }: PageProps) {
           clientAddress: estimate.client?.address ?? "",
           scope: estimate.scope,
           notes: estimate.notes,
+          customFields: normalizeCustomFieldValues(estimate.customFields),
           currency: estimate.currency,
           issueDate: estimate.issueDate.toISOString(),
           validUntil: estimate.validUntil?.toISOString() ?? null,

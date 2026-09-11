@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { customFieldValuesSchema } from "@/lib/schemas/custom-fields";
 
 const estimateLineItemInputSchema = z.object({
   description: z.string().min(1),
@@ -19,6 +20,7 @@ export const createEstimateSchema = z.object({
   clientAddress: z.string().optional(),
   scope: z.string().optional(),
   notes: z.string().optional(),
+  customFields: customFieldValuesSchema,
   currency: z.string().length(3),
   taxRate: z.number().min(0).max(1),
   discount: z.number().min(0),

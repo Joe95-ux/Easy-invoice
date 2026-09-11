@@ -61,6 +61,27 @@ export const watermarkStyles = `
     line-height: 1.65;
     white-space: pre-wrap;
   }
+  .custom-fields { margin-top: 28px; }
+  .custom-fields-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #374151;
+    margin-bottom: 10px;
+  }
+  .custom-field-row { margin-bottom: 10px; }
+  .custom-field-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #6b7280;
+    margin-bottom: 2px;
+  }
+  .custom-field-value {
+    color: #475569;
+    line-height: 1.5;
+  }
+  .custom-field-value--multiline { white-space: pre-wrap; }
   .project-scope {
     margin: 0 0 24px;
     padding-bottom: 16px;
@@ -228,6 +249,7 @@ const sharedBody = `
     <div class="totals {{totals_class}}">{{totals}}</div>
     {{payment_schedule}}
     {{payment_info}}
+    {{custom_fields}}
     {{terms_notes}}
     {{invoice_footer}}
   </div>
@@ -270,6 +292,7 @@ const modernBody = `
       <div class="totals-wrap"><div class="totals {{totals_class}}">{{totals}}</div></div>
       {{payment_schedule}}
       {{payment_info}}
+      {{custom_fields}}
       {{terms_notes}}
       {{invoice_footer}}
     </div>
@@ -313,6 +336,7 @@ const auroraBody = `
     <div class="totals-wrap"><div class="totals {{totals_class}}">{{totals}}</div></div>
     {{payment_schedule}}
     {{payment_info}}
+    {{custom_fields}}
     {{terms_notes}}
     {{invoice_footer}}
   </div>
@@ -357,6 +381,7 @@ const onyxBody = `
     <div class="totals-wrap"><div class="totals {{totals_class}}">{{totals}}</div></div>
     {{payment_schedule}}
     {{payment_info}}
+    {{custom_fields}}
     {{terms_notes}}
     {{invoice_footer}}
   </div>
@@ -405,6 +430,7 @@ const telegraphBody = `
     <div class="totals-wrap"><div class="totals {{totals_class}}">{{totals}}</div></div>
     {{payment_schedule}}
     {{payment_info}}
+    {{custom_fields}}
     {{terms_notes}}
     <div class="segment-rule footer-rule" aria-hidden="true"><span></span></div>
     {{invoice_footer}}
