@@ -30,7 +30,9 @@ export async function getTimeEntriesForCompany(
       member: { select: { id: true, name: true, email: true } },
     },
     orderBy: [{ date: "desc" }, { createdAt: "desc" }],
-    take: options?.limit ?? 200,
+    ...(options?.ids?.length
+      ? {}
+      : { take: options?.limit ?? 200 }),
   });
 }
 
@@ -131,12 +133,26 @@ export async function linkTimeEntriesToInvoice(
       invoicedAt: null,
       billable: true,
       ...(invoice.clientId ? { clientId: invoice.clientId } : {}),
+      ...(invoice.projectId
+        ? {
+            OR: [{ projectId: invoice.projectId }, { projectId: null }],
+          }
+        : {}),
     },
-    select: { id: true },
+    select: { id: true, projectId: true },
   });
 
   if (entries.length !== allEntryIds.length) {
     throw new Error("One or more time entries are no longer available to bill");
+  }
+
+  if (invoice.projectId) {
+    const foreign = entries.find(
+      (entry) => entry.projectId && entry.projectId !== invoice.projectId,
+    );
+    if (foreign) {
+      throw new Error("Time entries from another project cannot be billed on this invoice");
+    }
   }
 
   const invoiceItems = await prisma.invoiceLineItem.findMany({
@@ -156,11 +172,17 @@ export async function linkTimeEntriesToInvoice(
         id: { in: link.timeEntryIds },
         companyId,
         invoicedAt: null,
+        ...(invoice.projectId
+          ? {
+              OR: [{ projectId: invoice.projectId }, { projectId: null }],
+            }
+          : {}),
       },
       data: {
         invoiceId,
         invoiceLineItemId: lineItem.id,
         invoicedAt: now,
+        // Only stamp project when entry has none — never reassign another project.
         ...(invoice.projectId ? { projectId: invoice.projectId } : {}),
       },
     });

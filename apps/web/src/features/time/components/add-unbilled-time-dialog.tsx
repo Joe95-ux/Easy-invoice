@@ -46,6 +46,7 @@ type AddUnbilledTimeDialogProps = {
   clientId: string;
   clientName: string;
   currency: string;
+  projectId?: string;
   onAdd: (items: LineItemInput[]) => boolean;
   initialSelectedIds?: string[];
 };
@@ -56,6 +57,7 @@ export function AddUnbilledTimeDialog({
   clientId,
   clientName,
   currency,
+  projectId,
   onAdd,
   initialSelectedIds,
 }: AddUnbilledTimeDialogProps) {
@@ -75,7 +77,11 @@ export function AddUnbilledTimeDialog({
     const controller = new AbortController();
     setLoading(true);
 
-    void fetchUnbilledTimeEntries({ clientId, signal: controller.signal })
+    void fetchUnbilledTimeEntries({
+      clientId,
+      projectId: projectId || undefined,
+      signal: controller.signal,
+    })
       .then((loaded) => {
         if (controller.signal.aborted) return;
 
@@ -101,7 +107,7 @@ export function AddUnbilledTimeDialog({
       });
 
     return () => controller.abort();
-  }, [open, clientId, initialSelectedIdsKey]);
+  }, [open, clientId, projectId, initialSelectedIdsKey]);
 
   const selectedEntries = useMemo(
     () => entries.filter((entry) => selectedIds.has(entry.id)),

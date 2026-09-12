@@ -10,8 +10,7 @@ import {
 import { createEstimateSchema } from "@/lib/schemas/estimate";
 import {
   normalizeCustomFieldDefinitions,
-  sanitizeCustomFieldValuesForSave,
-  validateRequiredCustomFields,
+  prepareCustomFieldsForSave,
 } from "@/lib/custom-fields";
 import { getDefaultTemplateId, getTemplateById } from "@/lib/templates";
 import {
@@ -29,22 +28,15 @@ export async function POST(request: Request) {
   const parsed = createEstimateSchema.safeParse(body);
   if (!parsed.success) return validationError(parsed.error);
 
-  const fieldDefinitions = normalizeCustomFieldDefinitions(
-    member.company.customFieldDefinitions,
-  );
-  const customFields = sanitizeCustomFieldValuesForSave(
-    fieldDefinitions,
+  const preparedFields = prepareCustomFieldsForSave(
+    normalizeCustomFieldDefinitions(member.company.customFieldDefinitions),
     "estimate",
     parsed.data.customFields,
   );
-  const customFieldsError = validateRequiredCustomFields(
-    fieldDefinitions,
-    "estimate",
-    customFields,
-  );
-  if (customFieldsError) {
-    return NextResponse.json({ error: customFieldsError }, { status: 400 });
+  if (!preparedFields.ok) {
+    return NextResponse.json({ error: preparedFields.error }, { status: 400 });
   }
+  const customFields = preparedFields.values;
 
   const client = await resolveClientForEstimate(member.companyId, parsed.data);
   if (!client) {
@@ -55,10 +47,16 @@ export async function POST(request: Request) {
   if (projectId) {
     const project = await prisma.project.findFirst({
       where: { id: projectId, companyId: member.companyId },
-      select: { id: true },
+      select: { id: true, clientId: true },
     });
     if (!project) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
+    }
+    if (project.clientId && project.clientId !== client.id) {
+      return NextResponse.json(
+        { error: "Project belongs to a different client" },
+        { status: 400 },
+      );
     }
   }
 

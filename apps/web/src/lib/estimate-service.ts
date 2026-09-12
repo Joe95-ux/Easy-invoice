@@ -13,6 +13,10 @@ import type { CreateEstimateInput } from "@/lib/schemas/estimate";
 import { allocateEstimateNumber } from "@/lib/document-numbers";
 import { getEstimateForMember } from "@/lib/estimates";
 import { assertWithinInvoiceQuota } from "@/lib/billing/entitlements";
+import {
+  normalizeCustomFieldDefinitions,
+  sanitizeCustomFieldValuesForSave,
+} from "@/lib/custom-fields";
 
 export async function getEstimatesForMember(companyId: string, limit = 50) {
   return prisma.estimate.findMany({
@@ -69,9 +73,16 @@ export async function convertEstimateToInvoice(estimateId: string, companyId: st
 
   const company = await prisma.company.findUniqueOrThrow({
     where: { id: companyId },
-    select: { plan: true },
+    select: { plan: true, customFieldDefinitions: true },
   });
   await assertWithinInvoiceQuota(companyId, company.plan);
+
+  const invoiceCustomFields = sanitizeCustomFieldValuesForSave(
+    normalizeCustomFieldDefinitions(company.customFieldDefinitions),
+    "invoice",
+    estimate.customFields,
+  );
+  const customFields = invoiceCustomFields.ok ? invoiceCustomFields.values : {};
 
   const lineItems = estimate.items.map((item, index) => ({
     description: item.description,
@@ -99,7 +110,7 @@ export async function convertEstimateToInvoice(estimateId: string, companyId: st
         discount: estimate.discount,
         total: estimate.total,
         notes: estimate.notes,
-        customFields: estimate.customFields ?? undefined,
+        customFields,
         issueDate: new Date(),
         dueDate: estimate.validUntil,
         publicToken: generatePublicToken(),

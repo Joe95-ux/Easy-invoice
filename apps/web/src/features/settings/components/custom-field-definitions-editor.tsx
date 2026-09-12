@@ -19,7 +19,9 @@ import {
 } from "@/components/ui/select";
 import {
   createEmptyCustomFieldDefinition,
+  createCustomFieldOption,
   CUSTOM_FIELD_TYPE_LABELS,
+  MAX_CUSTOM_FIELD_DEFINITIONS,
 } from "@/lib/custom-fields";
 import type {
   CustomFieldAppliesTo,
@@ -51,6 +53,7 @@ export function CustomFieldDefinitionsEditor({
   }
 
   function addField() {
+    if (definitions.length >= MAX_CUSTOM_FIELD_DEFINITIONS) return;
     onChange([...definitions, createEmptyCustomFieldDefinition("text")]);
   }
 
@@ -70,8 +73,8 @@ export function CustomFieldDefinitionsEditor({
       patch.options = field.options?.length
         ? field.options
         : [
-            { value: "option_a", label: "Option A" },
-            { value: "option_b", label: "Option B" },
+            createCustomFieldOption("Option A"),
+            createCustomFieldOption("Option B"),
           ];
     } else {
       patch.options = undefined;
@@ -93,21 +96,13 @@ export function CustomFieldDefinitionsEditor({
     const options = [...(field.options ?? [])];
     const current = options[optionIndex];
     if (!current) return;
-    const slug =
-      label
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "_")
-        .replace(/^_|_$/g, "") || `option_${optionIndex + 1}`;
-    options[optionIndex] = { ...current, label, value: slug };
+    options[optionIndex] = { ...current, label };
     updateField(fieldIndex, { options });
   }
 
   function addOption(fieldIndex: number) {
     const field = definitions[fieldIndex]!;
-    const options = [...(field.options ?? [])];
-    const n = options.length + 1;
-    options.push({ value: `option_${n}`, label: `Option ${n}` });
+    const options = [...(field.options ?? []), createCustomFieldOption(`Option ${(field.options?.length ?? 0) + 1}`)];
     updateField(fieldIndex, { options });
   }
 
@@ -123,9 +118,18 @@ export function CustomFieldDefinitionsEditor({
       <div className="flex items-center justify-between gap-2">
         <Label>Fields</Label>
         {!disabled ? (
-          <Button type="button" size="sm" variant="outline" onClick={addField}>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={addField}
+            disabled={definitions.length >= MAX_CUSTOM_FIELD_DEFINITIONS}
+          >
             <PlusIcon className="size-4" />
             Add field
+            {definitions.length > 0
+              ? ` (${definitions.length}/${MAX_CUSTOM_FIELD_DEFINITIONS})`
+              : null}
           </Button>
         ) : null}
       </div>

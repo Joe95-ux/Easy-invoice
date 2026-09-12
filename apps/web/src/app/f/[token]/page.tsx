@@ -21,6 +21,8 @@ export default async function PublicFormPage({ params }: PageProps) {
       companyName={form.project.company.name}
       projectName={form.project.name}
       clientName={form.project.client?.name}
+      initialSubmitterName={form.project.client?.name}
+      initialSubmitterEmail={form.project.client?.email}
     />
   );
 }

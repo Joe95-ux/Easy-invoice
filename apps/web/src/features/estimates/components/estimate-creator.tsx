@@ -57,7 +57,7 @@ import { DocumentCustomFieldsForm } from "@/features/custom-fields/components/do
 import {
   normalizeCustomFieldDefinitions,
   normalizeCustomFieldValues,
-  validateRequiredCustomFields,
+  prepareCustomFieldsForSave,
 } from "@/lib/custom-fields";
 import type { CustomFieldDefinition, CustomFieldValues } from "@/lib/schemas/custom-fields";
 import type { TemplateSummary } from "@/lib/templates";
@@ -435,13 +435,15 @@ export function EstimateCreator({
   }
 
   async function handleSave(downloadAfter = false) {
-    const customFieldsError = validateRequiredCustomFields(
+    const preparedFields = prepareCustomFieldsForSave(
       fieldDefinitions,
       "estimate",
       customFields,
     );
-    if (customFieldsError) {
-      toast.error(customFieldsError);
+    if (!preparedFields.ok) {
+      toast.error(preparedFields.error);
+      const notesIndex = steps.findIndex((item) => item.id === "notes");
+      if (notesIndex >= 0) setStep(notesIndex);
       return;
     }
 
@@ -797,6 +799,7 @@ export function EstimateCreator({
       clientId={selectedClientId}
       clientName={clientName || clients.find((c) => c.id === selectedClientId)?.name || "Client"}
       currency={currency}
+      projectId={projectId || undefined}
       onAdd={handleAddFromTime}
       initialSelectedIds={
         preselectedTimeEntryIds.length > 0 ? preselectedTimeEntryIds : undefined

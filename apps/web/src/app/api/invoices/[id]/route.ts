@@ -16,8 +16,7 @@ import {
 import { updateInvoiceSchema } from "@/lib/schemas/invoice";
 import {
   normalizeCustomFieldDefinitions,
-  sanitizeCustomFieldValuesForSave,
-  validateRequiredCustomFields,
+  prepareCustomFieldsForSave,
 } from "@/lib/custom-fields";
 import { getTemplateById } from "@/lib/templates";
 import {
@@ -124,10 +123,17 @@ export async function PATCH(request: Request, context: RouteContext) {
     if (data.projectId) {
       const project = await prisma.project.findFirst({
         where: { id: data.projectId, companyId: member.companyId },
-        select: { id: true },
+        select: { id: true, clientId: true },
       });
       if (!project) {
         return NextResponse.json({ error: "Project not found" }, { status: 404 });
+      }
+      const effectiveClientId = clientId ?? existing.clientId;
+      if (project.clientId && effectiveClientId && project.clientId !== effectiveClientId) {
+        return NextResponse.json(
+          { error: "Project belongs to a different client" },
+          { status: 400 },
+        );
       }
       projectId = project.id;
     } else {
@@ -217,22 +223,15 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   let customFieldsUpdate: Record<string, string> | undefined;
   if (data.customFields !== undefined) {
-    const fieldDefinitions = normalizeCustomFieldDefinitions(
-      member.company.customFieldDefinitions,
-    );
-    customFieldsUpdate = sanitizeCustomFieldValuesForSave(
-      fieldDefinitions,
+    const prepared = prepareCustomFieldsForSave(
+      normalizeCustomFieldDefinitions(member.company.customFieldDefinitions),
       "invoice",
       data.customFields,
     );
-    const customFieldsError = validateRequiredCustomFields(
-      fieldDefinitions,
-      "invoice",
-      customFieldsUpdate,
-    );
-    if (customFieldsError) {
-      return NextResponse.json({ error: customFieldsError }, { status: 400 });
+    if (!prepared.ok) {
+      return NextResponse.json({ error: prepared.error }, { status: 400 });
     }
+    customFieldsUpdate = prepared.values;
   }
 
   const invoice = await prisma.invoice.update({

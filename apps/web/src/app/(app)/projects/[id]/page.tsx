@@ -51,7 +51,7 @@ export default async function ProjectDetailPage({ params }: PageProps) {
   ]);
   if (!project) notFound();
 
-  const detail = serializeProjectDetail(project);
+  const detail = await serializeProjectDetail(project);
   const forms = formRows.map(serializeProjectForm);
   const { financials } = detail;
   const defaultHourlyRate = member.company.defaultHourlyRate

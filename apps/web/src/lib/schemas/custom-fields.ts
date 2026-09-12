@@ -37,11 +37,37 @@ export const customFieldDefinitionSchema = z
         path: ["options"],
       });
     }
+    if (field.type === "select" && field.options) {
+      const seen = new Set<string>();
+      for (const [index, option] of field.options.entries()) {
+        if (seen.has(option.value)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Option values must be unique",
+            path: ["options", index, "value"],
+          });
+        }
+        seen.add(option.value);
+      }
+    }
   });
 
 export const customFieldDefinitionsSchema = z
   .array(customFieldDefinitionSchema)
-  .max(40);
+  .max(40)
+  .superRefine((definitions, ctx) => {
+    const seen = new Set<string>();
+    for (const [index, field] of definitions.entries()) {
+      if (seen.has(field.id)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Field ids must be unique",
+          path: [index, "id"],
+        });
+      }
+      seen.add(field.id);
+    }
+  });
 
 export const updateCustomFieldDefinitionsSchema = z.object({
   definitions: customFieldDefinitionsSchema,

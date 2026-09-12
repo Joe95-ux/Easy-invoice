@@ -6,8 +6,14 @@ import { toast } from "sonner";
 import { PageHeader, pageHeaderActionClass } from "@/components/app-shell/page-header";
 import { Button } from "@/components/ui/button";
 import { CustomFieldDefinitionsEditor } from "@/features/settings/components/custom-field-definitions-editor";
-import { normalizeCustomFieldDefinitions } from "@/lib/custom-fields";
-import type { CustomFieldDefinition } from "@/lib/schemas/custom-fields";
+import {
+  firstCustomFieldDefinitionsError,
+  normalizeCustomFieldDefinitions,
+} from "@/lib/custom-fields";
+import {
+  updateCustomFieldDefinitionsSchema,
+  type CustomFieldDefinition,
+} from "@/lib/schemas/custom-fields";
 
 export function CustomFieldsPageContent() {
   const [definitions, setDefinitions] = useState<CustomFieldDefinition[]>([]);
@@ -34,15 +40,27 @@ export function CustomFieldsPageContent() {
   }, [load]);
 
   async function handleSave() {
+    const parsed = updateCustomFieldDefinitionsSchema.safeParse({ definitions });
+    if (!parsed.success) {
+      toast.error(firstCustomFieldDefinitionsError(parsed.error));
+      return;
+    }
+
     setSaving(true);
     try {
       const response = await fetch("/api/company/custom-fields", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ definitions }),
+        body: JSON.stringify({ definitions: parsed.data.definitions }),
       });
       const body = await response.json();
-      if (!response.ok) throw new Error(body.error ?? "Failed to save");
+      if (!response.ok) {
+        const detailMessage =
+          Array.isArray(body.details) && body.details[0]?.message
+            ? String(body.details[0].message)
+            : null;
+        throw new Error(detailMessage ?? body.error ?? "Failed to save");
+      }
       setDefinitions(normalizeCustomFieldDefinitions(body.definitions));
       setDirty(false);
       toast.success("Custom fields saved");

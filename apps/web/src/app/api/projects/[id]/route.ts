@@ -20,7 +20,7 @@ export async function GET(_request: Request, context: RouteContext) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  return NextResponse.json({ project: serializeProjectDetail(project) });
+  return NextResponse.json({ project: await serializeProjectDetail(project) });
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
@@ -39,7 +39,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     if (!project) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
-    return NextResponse.json({ project: serializeProjectDetail(project) });
+    return NextResponse.json({ project: await serializeProjectDetail(project) });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not update project";
     const status = message === "Client not found" || message === "Not found" ? 404 : 400;

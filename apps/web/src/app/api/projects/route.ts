@@ -34,7 +34,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Could not create project" }, { status: 500 });
     }
     return NextResponse.json(
-      { project: serializeProjectDetail(project) },
+      { project: await serializeProjectDetail(project) },
       { status: 201 },
     );
   } catch (error) {

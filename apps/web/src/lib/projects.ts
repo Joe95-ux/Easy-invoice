@@ -110,6 +110,41 @@ export async function getProjectForCompany(projectId: string, companyId: string)
   });
 }
 
+/** Full financial inputs — not capped by the detail UI `take` limits. */
+export async function loadProjectFinancialInputs(projectId: string, companyId: string) {
+  const [invoices, timeEntries, expenses] = await Promise.all([
+    prisma.invoice.findMany({
+      where: { projectId, companyId },
+      select: {
+        total: true,
+        status: true,
+        payments: { select: { amount: true } },
+      },
+    }),
+    prisma.timeEntry.findMany({
+      where: { projectId, companyId },
+      select: {
+        id: true,
+        durationMinutes: true,
+        hourlyRate: true,
+        billable: true,
+        invoicedAt: true,
+      },
+    }),
+    prisma.projectExpense.findMany({
+      where: { projectId, companyId },
+      select: {
+        id: true,
+        amount: true,
+        billable: true,
+        invoicedAt: true,
+      },
+    }),
+  ]);
+
+  return { invoices, timeEntries, expenses };
+}
+
 export function projectStatusLabel(status: ProjectStatus): string {
   switch (status) {
     case "DRAFT":
@@ -173,7 +208,7 @@ export function summarizeProjectFinancials(
   let invoiced = 0;
   let paid = 0;
   for (const invoice of project.invoices) {
-    if (invoice.status === "CANCELLED") continue;
+    if (invoice.status === "CANCELLED" || invoice.status === "DRAFT") continue;
     invoiced += toNumber(invoice.total);
     paid += sumPaymentAmounts(
       invoice.payments.map((payment) => ({ amount: toNumber(payment.amount) })),
@@ -402,7 +437,21 @@ export async function maybeCreateProjectFromAcceptedEstimate(
   });
   if (!estimate) return null;
   if (estimate.projectId) {
-    return getProjectForCompany(estimate.projectId, companyId);
+    const existing = await getProjectForCompany(estimate.projectId, companyId);
+    const convertedInvoice = await prisma.invoice.findFirst({
+      where: {
+        companyId,
+        sourceEstimateId: estimate.id,
+        OR: [{ projectId: null }, { projectId: { not: estimate.projectId } }],
+      },
+      select: { id: true },
+    });
+    if (convertedInvoice) {
+      await linkInvoiceToProject(companyId, estimate.projectId, convertedInvoice.id).catch(
+        () => undefined,
+      );
+    }
+    return existing;
   }
   if (!options?.force && !estimate.company.createProjectOnEstimateAccept) {
     return null;
@@ -427,6 +476,16 @@ export async function maybeCreateProjectFromAcceptedEstimate(
     },
   });
 
+  const convertedInvoice = await prisma.invoice.findFirst({
+    where: { companyId, sourceEstimateId: estimate.id },
+    select: { id: true },
+  });
+  if (convertedInvoice) {
+    await linkInvoiceToProject(companyId, project.id, convertedInvoice.id).catch(
+      () => undefined,
+    );
+  }
+
   return getProjectForCompany(project.id, companyId);
 }
 
@@ -450,12 +509,20 @@ export function serializeProjectListItem(
   };
 }
 
-export function serializeProjectDetail(project: ProjectDetail) {
-  const financials = summarizeProjectFinancials(project);
-  const unbilledTimeIds = project.timeEntries
+export async function serializeProjectDetail(project: ProjectDetail) {
+  const full = await loadProjectFinancialInputs(project.id, project.companyId);
+  const financials = summarizeProjectFinancials({
+    currency: project.currency,
+    budget: project.budget,
+    estimates: project.estimates,
+    invoices: full.invoices,
+    timeEntries: full.timeEntries,
+    expenses: full.expenses,
+  });
+  const unbilledTimeIds = full.timeEntries
     .filter((entry) => entry.billable && !entry.invoicedAt)
     .map((entry) => entry.id);
-  const unbilledExpenseIds = (project.expenses ?? [])
+  const unbilledExpenseIds = full.expenses
     .filter((expense) => expense.billable && !expense.invoicedAt)
     .map((expense) => expense.id);
 

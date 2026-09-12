@@ -3,9 +3,10 @@ import { PageBackLink } from "@/components/app-shell/page-header";
 import { requireMember } from "@/lib/auth";
 import { getClientsForMember } from "@/lib/clients";
 import { companyBrandingFields } from "@/lib/company-branding";
+import { normalizeCustomFieldDefinitions } from "@/lib/custom-fields";
+import { prisma } from "@/lib/db";
 import { getDefaultTemplateId, getTemplatesForCompany } from "@/lib/templates";
 import { InvoiceCreator } from "@/features/invoices/components/invoice-creator";
-import { normalizeCustomFieldDefinitions } from "@/lib/custom-fields";
 
 type PageProps = {
   searchParams: Promise<{
@@ -27,17 +28,29 @@ export default async function NewInvoicePage({ searchParams }: PageProps) {
   const preselectedExpenseIds = expenseIds
     ? expenseIds.split(",").filter(Boolean)
     : [];
-  const [clients, templates, defaultTemplateId] = await Promise.all([
+
+  const [clients, templates, defaultTemplateId, project] = await Promise.all([
     getClientsForMember(member.companyId),
     getTemplatesForCompany(member.companyId),
     getDefaultTemplateId(member.companyId),
+    projectId
+      ? prisma.project.findFirst({
+          where: { id: projectId, companyId: member.companyId },
+          select: { id: true, currency: true, clientId: true },
+        })
+      : Promise.resolve(null),
   ]);
+
+  const resolvedClientId = clientId || project?.clientId || undefined;
+  const currency = project?.currency || member.company.currency;
 
   return (
     <PageScroll>
-      <PageBackLink href="/invoices">Back to invoices</PageBackLink>
+      <PageBackLink href={projectId ? `/projects/${projectId}` : "/invoices"}>
+        {projectId ? "Back to project" : "Back to invoices"}
+      </PageBackLink>
       <InvoiceCreator
-        currency={member.company.currency}
+        currency={currency}
         company={{
           name: member.company.name,
           logoUrl: member.company.logoUrl,
@@ -55,8 +68,8 @@ export default async function NewInvoicePage({ searchParams }: PageProps) {
         )}
         clients={clients}
         templates={templates}
-        initialClientId={clientId}
-        initialProjectId={projectId}
+        initialClientId={resolvedClientId}
+        initialProjectId={project?.id ?? projectId}
         defaultTemplateId={defaultTemplateId}
         autoOpenTimeDialog={addTime === "1"}
         preselectedTimeEntryIds={preselectedTimeEntryIds}

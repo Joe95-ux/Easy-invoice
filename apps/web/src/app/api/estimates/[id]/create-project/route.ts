@@ -40,5 +40,5 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({ error: "Could not create project" }, { status: 500 });
   }
 
-  return NextResponse.json({ project: serializeProjectDetail(project) }, { status: 201 });
+  return NextResponse.json({ project: await serializeProjectDetail(project) }, { status: 201 });
 }

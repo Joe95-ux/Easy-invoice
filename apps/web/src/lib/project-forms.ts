@@ -390,7 +390,7 @@ export async function getProjectFormByPublicToken(token: string) {
           id: true,
           name: true,
           company: { select: { id: true, name: true } },
-          client: { select: { id: true, name: true } },
+          client: { select: { id: true, name: true, email: true } },
         },
       },
       submissions: {

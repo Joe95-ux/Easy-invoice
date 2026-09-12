@@ -38,6 +38,8 @@ type PublicProjectFormProps = {
   companyName: string;
   projectName: string;
   clientName?: string | null;
+  initialSubmitterName?: string | null;
+  initialSubmitterEmail?: string | null;
 };
 
 function isHalfWidth(field: FormFieldDef) {
@@ -58,6 +60,8 @@ export function PublicProjectForm({
   companyName,
   projectName,
   clientName,
+  initialSubmitterName,
+  initialSubmitterEmail,
 }: PublicProjectFormProps) {
   const sections = useMemo(() => groupFormFieldsIntoSections(fields), [fields]);
   const [answers, setAnswers] = useState<Record<string, string>>(() =>
@@ -67,8 +71,8 @@ export function PublicProjectForm({
         .map((field) => [field.id, ""]),
     ),
   );
-  const [submitterName, setSubmitterName] = useState("");
-  const [submitterEmail, setSubmitterEmail] = useState("");
+  const [submitterName, setSubmitterName] = useState(initialSubmitterName?.trim() ?? "");
+  const [submitterEmail, setSubmitterEmail] = useState(initialSubmitterEmail?.trim() ?? "");
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(alreadySubmitted);
 
@@ -151,7 +155,9 @@ export function PublicProjectForm({
           <div className="min-w-0">
             <h2 className="text-sm font-semibold tracking-tight">Your contact</h2>
             <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-              Optional — helps us follow up if anything is unclear.
+              {initialSubmitterName || initialSubmitterEmail
+                ? "Filled from your project details — edit if needed."
+                : "Optional — helps us follow up if anything is unclear."}
             </p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">

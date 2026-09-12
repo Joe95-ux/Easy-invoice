@@ -21,11 +21,13 @@ function formatApiError(body: unknown, fallback: string) {
 
 export async function fetchUnbilledTimeEntries(options: {
   clientId?: string;
+  projectId?: string;
   ids?: string[];
   signal?: AbortSignal;
 }) {
   const params = new URLSearchParams({ unbilledOnly: "true" });
   if (options.clientId) params.set("clientId", options.clientId);
+  if (options.projectId) params.set("projectId", options.projectId);
   if (options.ids?.length) params.set("ids", options.ids.join(","));
 
   const response = await fetch(`/api/time-entries?${params}`, { signal: options.signal });

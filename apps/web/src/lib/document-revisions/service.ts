@@ -313,7 +313,9 @@ async function applyInvoiceSnapshot(
       taxAmount: snapshot.taxAmount,
       total: snapshot.total,
       notes: snapshot.notes,
-      customFields: snapshot.customFields ?? {},
+      ...("customFields" in snapshot
+        ? { customFields: snapshot.customFields ?? {} }
+        : {}),
       templateId: snapshot.templateId,
       ...(snapshot.remindersPaused !== undefined && {
         remindersPaused: snapshot.remindersPaused,
@@ -377,7 +379,9 @@ async function applyEstimateSnapshot(
       taxAmount: snapshot.taxAmount,
       total: snapshot.total,
       notes: snapshot.notes,
-      customFields: snapshot.customFields ?? {},
+      ...("customFields" in snapshot
+        ? { customFields: snapshot.customFields ?? {} }
+        : {}),
       scope: snapshot.scope ?? null,
       templateId: snapshot.templateId,
     },
