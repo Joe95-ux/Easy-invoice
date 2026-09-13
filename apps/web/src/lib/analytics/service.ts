@@ -1,32 +1,73 @@
 import "server-only";
 
-import { endOfMonth, format, startOfMonth, subMonths } from "date-fns";
+import { differenceInCalendarDays, format, startOfDay } from "date-fns";
 import type { EstimateStatus, InvoiceStatus } from "@easy-invoice/db";
 import { prisma } from "@/lib/db";
 import { buildInvoicePaymentSummary } from "@/lib/invoice-payments";
-import type { AnalyticsData, PipelineSegment } from "@/features/analytics/types";
-
-const REVENUE_MONTHS = 6;
+import {
+  buildRevenueMonthBuckets,
+  resolveAnalyticsPeriod,
+} from "@/lib/analytics/period";
+import type {
+  AgingBucket,
+  AgingBucketKey,
+  AnalyticsData,
+  AnalyticsPeriod,
+  PipelineSegment,
+} from "@/features/analytics/types";
 
 function toNumber(value: { toString(): string } | number): number {
   return typeof value === "number" ? value : parseFloat(value.toString());
 }
 
-function buildRevenueMonthBuckets() {
-  const now = new Date();
-  return Array.from({ length: REVENUE_MONTHS }, (_, index) => {
-    const monthDate = startOfMonth(subMonths(now, REVENUE_MONTHS - 1 - index));
-    return {
-      month: format(monthDate, "yyyy-MM"),
-      label: format(monthDate, "MMM"),
-      amount: 0,
-    };
-  });
+const AGING_ORDER: AgingBucketKey[] = ["current", "1-30", "31-60", "61-90", "90+"];
+
+const AGING_META: Record<
+  AgingBucketKey,
+  { label: string; tone: AgingBucket["tone"] }
+> = {
+  current: { label: "Current", tone: "muted" },
+  "1-30": { label: "1–30 days", tone: "warning" },
+  "31-60": { label: "31–60 days", tone: "warning" },
+  "61-90": { label: "61–90 days", tone: "destructive" },
+  "90+": { label: "90+ days", tone: "destructive" },
+};
+
+function emptyAgingBuckets(): Record<AgingBucketKey, { amount: number; count: number }> {
+  return {
+    current: { amount: 0, count: 0 },
+    "1-30": { amount: 0, count: 0 },
+    "31-60": { amount: 0, count: 0 },
+    "61-90": { amount: 0, count: 0 },
+    "90+": { amount: 0, count: 0 },
+  };
 }
 
-export async function getAnalyticsData(companyId: string): Promise<AnalyticsData> {
-  const periodStart = startOfMonth(subMonths(new Date(), REVENUE_MONTHS - 1));
-  const periodEnd = endOfMonth(new Date());
+function agingKeyForDaysPastDue(daysPastDue: number): AgingBucketKey {
+  if (daysPastDue <= 0) return "current";
+  if (daysPastDue <= 30) return "1-30";
+  if (daysPastDue <= 60) return "31-60";
+  if (daysPastDue <= 90) return "61-90";
+  return "90+";
+}
+
+export async function getAnalyticsData(
+  companyId: string,
+  period: AnalyticsPeriod = "6m",
+): Promise<AnalyticsData> {
+  const resolved = resolveAnalyticsPeriod(period);
+  const { start: periodStart, end: periodEnd, monthCount } = resolved;
+  const today = startOfDay(new Date());
+
+  const paymentPaidAtFilter =
+    periodStart != null
+      ? { paidAt: { gte: periodStart, lte: periodEnd } }
+      : { paidAt: { lte: periodEnd } };
+
+  const invoiceIssueFilter =
+    periodStart != null
+      ? { issueDate: { gte: periodStart, lte: periodEnd } }
+      : { issueDate: { lte: periodEnd } };
 
   const [
     company,
@@ -35,7 +76,7 @@ export async function getAnalyticsData(companyId: string): Promise<AnalyticsData
     openInvoices,
     overdueInvoices,
     periodPayments,
-    allPayments,
+    periodInvoices,
     paidInvoices,
     convertedEstimates,
   ] = await Promise.all([
@@ -61,6 +102,8 @@ export async function getAnalyticsData(companyId: string): Promise<AnalyticsData
       },
       select: {
         total: true,
+        dueDate: true,
+        issueDate: true,
         payments: { select: { amount: true } },
       },
     }),
@@ -73,15 +116,12 @@ export async function getAnalyticsData(companyId: string): Promise<AnalyticsData
     }),
     prisma.invoicePayment.findMany({
       where: {
-        paidAt: { gte: periodStart, lte: periodEnd },
+        ...paymentPaidAtFilter,
         invoice: { companyId },
       },
-      select: { amount: true, paidAt: true },
-    }),
-    prisma.invoicePayment.findMany({
-      where: { invoice: { companyId } },
       select: {
         amount: true,
+        paidAt: true,
         invoice: {
           select: {
             id: true,
@@ -90,6 +130,14 @@ export async function getAnalyticsData(companyId: string): Promise<AnalyticsData
           },
         },
       },
+    }),
+    prisma.invoice.findMany({
+      where: {
+        companyId,
+        status: { notIn: ["DRAFT", "CANCELLED"] },
+        ...invoiceIssueFilter,
+      },
+      select: { total: true },
     }),
     prisma.invoice.findMany({
       where: {
@@ -105,7 +153,7 @@ export async function getAnalyticsData(companyId: string): Promise<AnalyticsData
     }),
   ]);
 
-  const revenueByMonth = buildRevenueMonthBuckets();
+  const revenueByMonth = buildRevenueMonthBuckets(monthCount);
   const monthIndex = new Map(revenueByMonth.map((row, index) => [row.month, index]));
 
   let revenueCollected = 0;
@@ -118,6 +166,8 @@ export async function getAnalyticsData(companyId: string): Promise<AnalyticsData
       revenueByMonth[index]!.amount += amount;
     }
   }
+
+  const invoicedTotal = periodInvoices.reduce((sum, invoice) => sum + toNumber(invoice.total), 0);
 
   const outstandingAr = openInvoices.reduce((sum, invoice) => {
     return (
@@ -138,6 +188,29 @@ export async function getAnalyticsData(companyId: string): Promise<AnalyticsData
       }).balanceDue
     );
   }, 0);
+
+  const agingTotals = emptyAgingBuckets();
+  for (const invoice of openInvoices) {
+    const balanceDue = buildInvoicePaymentSummary({
+      total: invoice.total,
+      payments: invoice.payments,
+    }).balanceDue;
+    if (balanceDue <= 0) continue;
+
+    const due = invoice.dueDate ?? invoice.issueDate;
+    const daysPastDue = Math.max(0, differenceInCalendarDays(today, startOfDay(due)));
+    const key = agingKeyForDaysPastDue(daysPastDue);
+    agingTotals[key].amount += balanceDue;
+    agingTotals[key].count += 1;
+  }
+
+  const aging: AgingBucket[] = AGING_ORDER.map((key) => ({
+    key,
+    label: AGING_META[key].label,
+    amount: agingTotals[key].amount,
+    count: agingTotals[key].count,
+    tone: AGING_META[key].tone,
+  }));
 
   const statusCountMap = Object.fromEntries(
     statusGroups.map((group) => [group.status, group._count._all]),
@@ -188,7 +261,7 @@ export async function getAnalyticsData(companyId: string): Promise<AnalyticsData
     { name: string; revenue: number; invoiceIds: Set<string> }
   >();
 
-  for (const payment of allPayments) {
+  for (const payment of periodPayments) {
     const clientId = payment.invoice.clientId ?? "__none__";
     const name = payment.invoice.client?.name ?? "No client";
     const existing = clientTotals.get(clientId) ?? {
@@ -225,9 +298,13 @@ export async function getAnalyticsData(companyId: string): Promise<AnalyticsData
 
   return {
     currency: company.currency,
-    periodLabel: `Last ${REVENUE_MONTHS} months`,
+    period: resolved.period,
+    periodLabel: resolved.label,
     summary: {
       revenueCollected,
+      invoicedTotal,
+      invoiceCount: periodInvoices.length,
+      paymentCount: periodPayments.length,
       outstandingAr,
       overdueAr,
       overdueCount: overdueInvoices.length,
@@ -236,6 +313,7 @@ export async function getAnalyticsData(companyId: string): Promise<AnalyticsData
       convertedEstimates,
     },
     revenueByMonth,
+    aging,
     invoicePipeline,
     totalInvoices,
     estimatePipeline,
@@ -243,3 +321,4 @@ export async function getAnalyticsData(companyId: string): Promise<AnalyticsData
     topClients,
   };
 }
+

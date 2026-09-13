@@ -1,5 +1,10 @@
+export type AnalyticsPeriod = "3m" | "6m" | "12m" | "ytd" | "all";
+
 export type AnalyticsSummary = {
   revenueCollected: number;
+  invoicedTotal: number;
+  invoiceCount: number;
+  paymentCount: number;
   outstandingAr: number;
   overdueAr: number;
   overdueCount: number;
@@ -21,11 +26,23 @@ export type ClientRevenueRow = {
   invoiceCount: number;
 };
 
+export type AgingBucketKey = "current" | "1-30" | "31-60" | "61-90" | "90+";
+
+export type AgingBucket = {
+  key: AgingBucketKey;
+  label: string;
+  amount: number;
+  count: number;
+  tone: "muted" | "warning" | "destructive";
+};
+
 export type AnalyticsData = {
   currency: string;
+  period: AnalyticsPeriod;
   periodLabel: string;
   summary: AnalyticsSummary;
   revenueByMonth: { month: string; label: string; amount: number }[];
+  aging: AgingBucket[];
   invoicePipeline: PipelineSegment[];
   totalInvoices: number;
   estimatePipeline: PipelineSegment[];

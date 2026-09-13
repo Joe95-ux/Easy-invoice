@@ -22,12 +22,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import type { AnalyticsData } from "@/features/analytics/types";
+import type { AgingBucket, AnalyticsData } from "@/features/analytics/types";
+import { AnalyticsPeriodTabs } from "@/features/analytics/components/analytics-period-tabs";
 import { TopClientsTable } from "@/features/analytics/components/top-clients-table";
 import { formatMoney } from "@/lib/invoices";
 
 export const ANALYTICS_INFO =
-  "Revenue collected, outstanding balances, invoice pipeline, estimate outcomes, and top clients — based on payments and invoice statuses for your company.";
+  "Period filters control collected revenue, invoiced totals, and top clients. Outstanding aging and pipeline counts are always current.";
 
 const revenueChartConfig = {
   amount: {
@@ -63,6 +64,8 @@ type AnalyticsPageContentProps = {
 
 export function AnalyticsPageContent({ data }: AnalyticsPageContentProps) {
   const { currency, summary } = data;
+  const chartHint = data.period === "all" ? "Last 12 months" : data.periodLabel;
+  const agingTotal = data.aging.reduce((sum, row) => sum + row.amount, 0);
 
   return (
     <>
@@ -97,11 +100,26 @@ export function AnalyticsPageContent({ data }: AnalyticsPageContentProps) {
       />
 
       <div className="space-y-6">
+        <AnalyticsPeriodTabs period={data.period} />
+
         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <SummaryCard
             label="Revenue collected"
             value={formatMoney(summary.revenueCollected, currency)}
-            hint={data.periodLabel}
+            hint={
+              summary.paymentCount > 0
+                ? `${summary.paymentCount} payment${summary.paymentCount === 1 ? "" : "s"} · ${data.periodLabel}`
+                : data.periodLabel
+            }
+          />
+          <SummaryCard
+            label="Invoiced"
+            value={formatMoney(summary.invoicedTotal, currency)}
+            hint={
+              summary.invoiceCount > 0
+                ? `${summary.invoiceCount} invoice${summary.invoiceCount === 1 ? "" : "s"} issued`
+                : "No invoices in period"
+            }
           />
           <SummaryCard
             label="Outstanding"
@@ -119,22 +137,27 @@ export function AnalyticsPageContent({ data }: AnalyticsPageContentProps) {
             }
             tone={summary.overdueCount > 0 ? "destructive" : "neutral"}
           />
-          <SummaryCard
-            label="Avg. days to pay"
-            value={summary.avgDaysToPay !== null ? `${summary.avgDaysToPay} days` : "—"}
-            hint={
-              summary.estimateWinRate !== null
-                ? `${summary.estimateWinRate}% estimate win rate`
-                : "No closed estimates yet"
-            }
-          />
         </section>
+
+        {(summary.avgDaysToPay !== null || summary.estimateWinRate !== null) && (
+          <p className="text-xs text-muted-foreground">
+            {summary.avgDaysToPay !== null && (
+              <span>Avg. {summary.avgDaysToPay} days to pay</span>
+            )}
+            {summary.avgDaysToPay !== null && summary.estimateWinRate !== null && (
+              <span aria-hidden="true"> · </span>
+            )}
+            {summary.estimateWinRate !== null && (
+              <span>{summary.estimateWinRate}% estimate win rate</span>
+            )}
+          </p>
+        )}
 
         <section className="rounded-lg border border-border p-4 sm:p-5">
           <div className="mb-4 flex items-center gap-2">
             <TrendingUpIcon className="size-4 text-muted-foreground" />
             <h2 className="text-sm font-medium">Revenue collected</h2>
-            <span className="text-xs text-muted-foreground">{data.periodLabel}</span>
+            <span className="text-xs text-muted-foreground">{chartHint}</span>
           </div>
           <ChartContainer config={revenueChartConfig} className="aspect-auto h-[220px] w-full">
             <BarChart data={data.revenueByMonth} margin={{ top: 8, right: 4, left: 4, bottom: 0 }}>
@@ -156,6 +179,31 @@ export function AnalyticsPageContent({ data }: AnalyticsPageContentProps) {
               <Bar dataKey="amount" fill="var(--color-amount)" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ChartContainer>
+        </section>
+
+        <section className="rounded-lg border border-border p-4 sm:p-5">
+          <div className="flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <h2 className="text-sm font-medium">Outstanding aging</h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Open balances by days past due
+              </p>
+            </div>
+            <p className="text-sm font-semibold tabular-nums">
+              {formatMoney(agingTotal, currency)}
+            </p>
+          </div>
+          {agingTotal === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              No outstanding balances
+            </p>
+          ) : (
+            <div className="mt-4 space-y-1">
+              {data.aging.map((row) => (
+                <AgingRow key={row.key} row={row} total={agingTotal} currency={currency} />
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="grid gap-6 lg:grid-cols-2">
@@ -215,7 +263,9 @@ export function AnalyticsPageContent({ data }: AnalyticsPageContentProps) {
 
         <section className="rounded-lg border border-border p-4 sm:p-5">
           <h2 className="text-sm font-medium">Top clients by revenue</h2>
-          <p className="mt-1 text-xs text-muted-foreground">All-time payments received</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Payments received · {data.periodLabel}
+          </p>
           <div className="mt-4">
             <TopClientsTable clients={data.topClients} currency={currency} />
           </div>
@@ -248,6 +298,44 @@ function SummaryCard({
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
       <p className="mt-2 font-heading text-2xl font-semibold tracking-tight tabular-nums">{value}</p>
       <p className={`mt-1 text-xs ${hintClass}`}>{hint}</p>
+    </div>
+  );
+}
+
+function AgingRow({
+  row,
+  total,
+  currency,
+}: {
+  row: AgingBucket;
+  total: number;
+  currency: string;
+}) {
+  const pct = total > 0 ? Math.round((row.amount / total) * 100) : 0;
+  const barTone = {
+    muted: "bg-muted-foreground/40",
+    warning: "bg-warning",
+    destructive: "bg-destructive",
+  }[row.tone];
+
+  return (
+    <div className="py-2">
+      <div className="flex items-center justify-between gap-3 text-sm">
+        <div className="min-w-0">
+          <span className="text-muted-foreground">{row.label}</span>
+          {row.count > 0 && (
+            <span className="ml-2 text-xs text-muted-foreground">
+              {row.count} invoice{row.count === 1 ? "" : "s"}
+            </span>
+          )}
+        </div>
+        <span className="shrink-0 font-semibold tabular-nums">
+          {formatMoney(row.amount, currency)}
+        </span>
+      </div>
+      <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+        <div className={`h-full rounded-full ${barTone}`} style={{ width: `${pct}%` }} />
+      </div>
     </div>
   );
 }

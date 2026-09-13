@@ -53,8 +53,7 @@ export function TopClientsTable({ clients, currency }: TopClientsTableProps) {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="text-sm font-medium">Clients by revenue</h3>
+      <div className="flex items-center justify-end gap-2">
         <span className="text-xs text-muted-foreground">
           {totalCount} client{totalCount === 1 ? "" : "s"}
         </span>

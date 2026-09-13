@@ -268,9 +268,9 @@ Next-best-action on unpaid invoices from signals we already store (`sentAt`, `vi
 
 ### 10. Simple reports
 
-**Status:** Planned
+**Status:** Done
 
-Revenue by month, outstanding aging, top clients.
+`/analytics` with period filters (3 / 6 / 12 months, YTD, all time), revenue by month, invoiced vs collected, outstanding aging buckets, pipeline, and top clients by period.
 
 ---
 
