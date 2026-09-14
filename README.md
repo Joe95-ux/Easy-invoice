@@ -120,4 +120,4 @@ All protected endpoints require header: `X-Service-Secret: <your-secret>`.
 
 - [ ] Stripe Checkout + plan limits
 - [x] Custom fields on invoices / estimates
-- [x] Simple reports (analytics period filters + aging)
+- [x] Simple reports (analytics date range picker + aging)

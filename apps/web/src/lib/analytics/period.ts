@@ -1,104 +1,168 @@
 import {
+  differenceInCalendarDays,
+  differenceInCalendarMonths,
   endOfDay,
   format,
-  getMonth,
+  isSameDay,
+  isValid,
+  parseISO,
+  startOfDay,
   startOfMonth,
-  startOfYear,
+  subDays,
   subMonths,
 } from "date-fns";
-import type { AnalyticsPeriod } from "@/features/analytics/types";
+import type { AnalyticsPreset } from "@/features/analytics/types";
 
-export const ANALYTICS_PERIODS: {
-  value: AnalyticsPeriod;
+export const DEFAULT_ANALYTICS_PRESET: AnalyticsPreset = "7d";
+
+export const ANALYTICS_DATE_PRESETS: {
+  value: Exclude<AnalyticsPreset, "custom">;
   label: string;
-  shortLabel: string;
+  days: number;
 }[] = [
-  { value: "3m", label: "Last 3 months", shortLabel: "3 mo" },
-  { value: "6m", label: "Last 6 months", shortLabel: "6 mo" },
-  { value: "12m", label: "Last 12 months", shortLabel: "12 mo" },
-  { value: "ytd", label: "Year to date", shortLabel: "YTD" },
-  { value: "all", label: "All time", shortLabel: "All" },
+  { value: "7d", label: "Last 7 Days", days: 7 },
+  { value: "30d", label: "Last 30 Days", days: 30 },
+  { value: "90d", label: "Last 90 Days", days: 90 },
+  { value: "1y", label: "Last Year", days: 365 },
 ];
 
-export const DEFAULT_ANALYTICS_PERIOD: AnalyticsPeriod = "6m";
-
-export function parseAnalyticsPeriod(value: string | null | undefined): AnalyticsPeriod {
-  if (value === "3m" || value === "6m" || value === "12m" || value === "ytd" || value === "all") {
-    return value;
-  }
-  return DEFAULT_ANALYTICS_PERIOD;
-}
-
-export type ResolvedAnalyticsPeriod = {
-  period: AnalyticsPeriod;
-  /** Inclusive lower bound for payment / invoice issue filters. Null = all time. */
-  start: Date | null;
-  end: Date;
-  /** Number of month buckets for the revenue chart. */
-  monthCount: number;
-  label: string;
+export type AnalyticsRangeParams = {
+  preset?: string | null;
+  from?: string | null;
+  to?: string | null;
 };
 
-export function resolveAnalyticsPeriod(
-  period: AnalyticsPeriod,
-  now = new Date(),
-): ResolvedAnalyticsPeriod {
-  const end = endOfDay(now);
+export type ResolvedAnalyticsRange = {
+  preset: AnalyticsPreset;
+  start: Date;
+  end: Date;
+  from: string;
+  to: string;
+  label: string;
+  monthCount: number;
+};
 
-  switch (period) {
-    case "3m":
-      return {
-        period,
-        start: startOfMonth(subMonths(now, 2)),
-        end,
-        monthCount: 3,
-        label: "Last 3 months",
-      };
-    case "6m":
-      return {
-        period,
-        start: startOfMonth(subMonths(now, 5)),
-        end,
-        monthCount: 6,
-        label: "Last 6 months",
-      };
-    case "12m":
-      return {
-        period,
-        start: startOfMonth(subMonths(now, 11)),
-        end,
-        monthCount: 12,
-        label: "Last 12 months",
-      };
-    case "ytd": {
-      const months = getMonth(now) + 1;
-      return {
-        period,
-        start: startOfYear(now),
-        end,
-        monthCount: months,
-        label: `Year to date (${format(now, "yyyy")})`,
-      };
-    }
-    case "all":
-      return {
-        period,
-        start: null,
-        end,
-        // Chart stays readable; totals still use all-time payments.
-        monthCount: 12,
-        label: "All time",
-      };
-  }
+function parseDateOnly(value: string | null | undefined): Date | null {
+  if (!value) return null;
+  const parsed = parseISO(value);
+  if (!isValid(parsed)) return null;
+  return startOfDay(parsed);
 }
 
-export function buildRevenueMonthBuckets(monthCount: number, now = new Date()) {
+function rangeForDays(days: number, now = new Date()) {
+  const end = endOfDay(now);
+  const start = startOfDay(subDays(now, days - 1));
+  return { start, end };
+}
+
+function formatRangeLabel(start: Date, end: Date): string {
+  const sameYear = start.getFullYear() === end.getFullYear();
+  if (isSameDay(start, end)) {
+    return format(start, "MMM d, yyyy");
+  }
+  if (sameYear) {
+    return `${format(start, "MMM d")} – ${format(end, "MMM d, yyyy")}`;
+  }
+  return `${format(start, "MMM d, yyyy")} – ${format(end, "MMM d, yyyy")}`;
+}
+
+export function monthCountForRange(start: Date, end: Date): number {
+  const count =
+    differenceInCalendarMonths(startOfMonth(end), startOfMonth(start)) + 1;
+  return Math.min(Math.max(count, 1), 24);
+}
+
+export function buildRevenueMonthBucketsForRange(start: Date, end: Date) {
+  const monthCount = monthCountForRange(start, end);
+  const endMonth = startOfMonth(end);
   return Array.from({ length: monthCount }, (_, index) => {
-    const monthDate = startOfMonth(subMonths(now, monthCount - 1 - index));
+    const monthDate = startOfMonth(subMonths(endMonth, monthCount - 1 - index));
     return {
       month: format(monthDate, "yyyy-MM"),
       label: format(monthDate, monthCount > 6 ? "MMM yy" : "MMM"),
       amount: 0,
     };
   });
+}
+
+function matchesPreset(
+  start: Date,
+  end: Date,
+  days: number,
+  now = new Date(),
+): boolean {
+  const expected = rangeForDays(days, now);
+  return (
+    isSameDay(start, expected.start) &&
+    differenceInCalendarDays(startOfDay(end), startOfDay(expected.end)) === 0
+  );
+}
+
+export function resolveAnalyticsRange(
+  params: AnalyticsRangeParams,
+  now = new Date(),
+): ResolvedAnalyticsRange {
+  const fromDate = parseDateOnly(params.from);
+  const toDate = parseDateOnly(params.to);
+
+  if (fromDate && toDate) {
+    const start = fromDate <= toDate ? fromDate : toDate;
+    const end = endOfDay(fromDate <= toDate ? toDate : fromDate);
+
+    for (const preset of ANALYTICS_DATE_PRESETS) {
+      if (matchesPreset(start, end, preset.days, now)) {
+        return {
+          preset: preset.value,
+          start,
+          end,
+          from: format(start, "yyyy-MM-dd"),
+          to: format(end, "yyyy-MM-dd"),
+          label: preset.label,
+          monthCount: monthCountForRange(start, end),
+        };
+      }
+    }
+
+    return {
+      preset: "custom",
+      start,
+      end,
+      from: format(start, "yyyy-MM-dd"),
+      to: format(end, "yyyy-MM-dd"),
+      label: formatRangeLabel(start, end),
+      monthCount: monthCountForRange(start, end),
+    };
+  }
+
+  const presetValue = params.preset;
+  const preset =
+    ANALYTICS_DATE_PRESETS.find((row) => row.value === presetValue) ??
+    ANALYTICS_DATE_PRESETS.find((row) => row.value === DEFAULT_ANALYTICS_PRESET)!;
+
+  const { start, end } = rangeForDays(preset.days, now);
+  return {
+    preset: preset.value,
+    start,
+    end,
+    from: format(start, "yyyy-MM-dd"),
+    to: format(end, "yyyy-MM-dd"),
+    label: preset.label,
+    monthCount: monthCountForRange(start, end),
+  };
+}
+
+export function analyticsRangeHref(input: {
+  preset?: Exclude<AnalyticsPreset, "custom">;
+  from?: string;
+  to?: string;
+}): string {
+  const params = new URLSearchParams();
+  if (input.from && input.to) {
+    params.set("from", input.from);
+    params.set("to", input.to);
+  } else if (input.preset && input.preset !== DEFAULT_ANALYTICS_PRESET) {
+    params.set("preset", input.preset);
+  }
+  const query = params.toString();
+  return query ? `/analytics?${query}` : "/analytics";
 }

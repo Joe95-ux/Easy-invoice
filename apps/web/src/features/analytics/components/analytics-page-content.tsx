@@ -1,16 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { Bar, BarChart, CartesianGrid, XAxis } from "recharts";
-import {
-  InfoIcon,
-  ScrollTextIcon,
-  SettingsIcon,
-  TrendingUpIcon,
-} from "lucide-react";
-import { PageHeader, pageHeaderActionClass } from "@/components/app-shell/page-header";
+import { InfoIcon, TrendingUpIcon } from "lucide-react";
+import { PageHeader } from "@/components/app-shell/page-header";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   ChartContainer,
   ChartTooltip,
@@ -23,12 +16,12 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import type { AgingBucket, AnalyticsData } from "@/features/analytics/types";
-import { AnalyticsPeriodTabs } from "@/features/analytics/components/analytics-period-tabs";
+import { AnalyticsDateRangePicker } from "@/features/analytics/components/analytics-date-range-picker";
 import { TopClientsTable } from "@/features/analytics/components/top-clients-table";
 import { formatMoney } from "@/lib/invoices";
 
 export const ANALYTICS_INFO =
-  "Period filters control collected revenue, invoiced totals, and top clients. Outstanding aging and pipeline counts are always current.";
+  "Date range controls collected revenue, invoiced totals, and top clients. Outstanding aging and pipeline counts are always current.";
 
 const revenueChartConfig = {
   amount: {
@@ -64,7 +57,6 @@ type AnalyticsPageContentProps = {
 
 export function AnalyticsPageContent({ data }: AnalyticsPageContentProps) {
   const { currency, summary } = data;
-  const chartHint = data.period === "all" ? "Last 12 months" : data.periodLabel;
   const agingTotal = data.aging.reduce((sum, row) => sum + row.amount, 0);
 
   return (
@@ -78,30 +70,16 @@ export function AnalyticsPageContent({ data }: AnalyticsPageContentProps) {
         }
         description={<span className="sm:hidden">{ANALYTICS_INFO}</span>}
         actions={
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-            <Button
-              variant="outline"
-              className={pageHeaderActionClass}
-              render={<Link href="/settings/activity" />}
-            >
-              <ScrollTextIcon className="size-4" />
-              Activity log
-            </Button>
-            <Button
-              variant="outline"
-              className={pageHeaderActionClass}
-              render={<Link href="/settings/general" />}
-            >
-              <SettingsIcon className="size-4" />
-              Settings
-            </Button>
-          </div>
+          <AnalyticsDateRangePicker
+            preset={data.preset}
+            from={data.from}
+            to={data.to}
+            label={data.periodLabel}
+          />
         }
       />
 
       <div className="space-y-6">
-        <AnalyticsPeriodTabs period={data.period} />
-
         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <SummaryCard
             label="Revenue collected"
@@ -157,7 +135,7 @@ export function AnalyticsPageContent({ data }: AnalyticsPageContentProps) {
           <div className="mb-4 flex items-center gap-2">
             <TrendingUpIcon className="size-4 text-muted-foreground" />
             <h2 className="text-sm font-medium">Revenue collected</h2>
-            <span className="text-xs text-muted-foreground">{chartHint}</span>
+            <span className="text-xs text-muted-foreground">{data.periodLabel}</span>
           </div>
           <ChartContainer config={revenueChartConfig} className="aspect-auto h-[220px] w-full">
             <BarChart data={data.revenueByMonth} margin={{ top: 8, right: 4, left: 4, bottom: 0 }}>

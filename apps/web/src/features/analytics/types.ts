@@ -1,4 +1,4 @@
-export type AnalyticsPeriod = "3m" | "6m" | "12m" | "ytd" | "all";
+export type AnalyticsPreset = "7d" | "30d" | "90d" | "1y" | "custom";
 
 export type AnalyticsSummary = {
   revenueCollected: number;
@@ -38,7 +38,11 @@ export type AgingBucket = {
 
 export type AnalyticsData = {
   currency: string;
-  period: AnalyticsPeriod;
+  preset: AnalyticsPreset;
+  /** ISO date yyyy-MM-dd */
+  from: string;
+  /** ISO date yyyy-MM-dd */
+  to: string;
   periodLabel: string;
   summary: AnalyticsSummary;
   revenueByMonth: { month: string; label: string; amount: number }[];

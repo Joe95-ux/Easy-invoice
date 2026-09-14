@@ -270,7 +270,7 @@ Next-best-action on unpaid invoices from signals we already store (`sentAt`, `vi
 
 **Status:** Done
 
-`/analytics` with period filters (3 / 6 / 12 months, YTD, all time), revenue by month, invoiced vs collected, outstanding aging buckets, pipeline, and top clients by period.
+`/analytics` with a Resend-style date range picker (7 / 30 / 90 days, last year, custom), revenue by month, invoiced vs collected, outstanding aging buckets, pipeline, and top clients by range.
 
 ---
 

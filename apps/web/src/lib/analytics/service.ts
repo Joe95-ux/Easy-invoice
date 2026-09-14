@@ -5,14 +5,13 @@ import type { EstimateStatus, InvoiceStatus } from "@easy-invoice/db";
 import { prisma } from "@/lib/db";
 import { buildInvoicePaymentSummary } from "@/lib/invoice-payments";
 import {
-  buildRevenueMonthBuckets,
-  resolveAnalyticsPeriod,
+  buildRevenueMonthBucketsForRange,
+  type ResolvedAnalyticsRange,
 } from "@/lib/analytics/period";
 import type {
   AgingBucket,
   AgingBucketKey,
   AnalyticsData,
-  AnalyticsPeriod,
   PipelineSegment,
 } from "@/features/analytics/types";
 
@@ -53,21 +52,13 @@ function agingKeyForDaysPastDue(daysPastDue: number): AgingBucketKey {
 
 export async function getAnalyticsData(
   companyId: string,
-  period: AnalyticsPeriod = "6m",
+  resolved: ResolvedAnalyticsRange,
 ): Promise<AnalyticsData> {
-  const resolved = resolveAnalyticsPeriod(period);
-  const { start: periodStart, end: periodEnd, monthCount } = resolved;
+  const { start: periodStart, end: periodEnd } = resolved;
   const today = startOfDay(new Date());
 
-  const paymentPaidAtFilter =
-    periodStart != null
-      ? { paidAt: { gte: periodStart, lte: periodEnd } }
-      : { paidAt: { lte: periodEnd } };
-
-  const invoiceIssueFilter =
-    periodStart != null
-      ? { issueDate: { gte: periodStart, lte: periodEnd } }
-      : { issueDate: { lte: periodEnd } };
+  const paymentPaidAtFilter = { paidAt: { gte: periodStart, lte: periodEnd } };
+  const invoiceIssueFilter = { issueDate: { gte: periodStart, lte: periodEnd } };
 
   const [
     company,
@@ -153,7 +144,7 @@ export async function getAnalyticsData(
     }),
   ]);
 
-  const revenueByMonth = buildRevenueMonthBuckets(monthCount);
+  const revenueByMonth = buildRevenueMonthBucketsForRange(periodStart, periodEnd);
   const monthIndex = new Map(revenueByMonth.map((row, index) => [row.month, index]));
 
   let revenueCollected = 0;
@@ -298,7 +289,9 @@ export async function getAnalyticsData(
 
   return {
     currency: company.currency,
-    period: resolved.period,
+    preset: resolved.preset,
+    from: resolved.from,
+    to: resolved.to,
     periodLabel: resolved.label,
     summary: {
       revenueCollected,
