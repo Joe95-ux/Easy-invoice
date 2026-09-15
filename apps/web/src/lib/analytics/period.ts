@@ -80,9 +80,29 @@ export function buildRevenueMonthBucketsForRange(start: Date, end: Date) {
     return {
       month: format(monthDate, "yyyy-MM"),
       label: format(monthDate, monthCount > 6 ? "MMM yy" : "MMM"),
-      amount: 0,
+      collected: 0,
+      invoiced: 0,
     };
   });
+}
+
+/** Equal-length window ending the day before `start`. */
+export function previousAnalyticsRange(start: Date, end: Date) {
+  const dayCount = differenceInCalendarDays(startOfDay(end), startOfDay(start)) + 1;
+  const prevEnd = endOfDay(subDays(startOfDay(start), 1));
+  const prevStart = startOfDay(subDays(prevEnd, dayCount - 1));
+  return {
+    start: prevStart,
+    end: prevEnd,
+    label: formatRangeLabel(prevStart, prevEnd),
+  };
+}
+
+export function buildPeriodDelta(current: number, previous: number) {
+  const change = current - previous;
+  const changePct =
+    previous === 0 ? (current === 0 ? 0 : null) : Math.round((change / previous) * 1000) / 10;
+  return { current, previous, change, changePct };
 }
 
 function matchesPreset(

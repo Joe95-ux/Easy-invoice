@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { DateRange } from "react-day-picker";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -51,12 +51,17 @@ export function AnalyticsDateRangePicker({
   }
 
   function navigateToCustom(range: { from: Date; to: Date }) {
-    const nextFrom = format(range.from, "yyyy-MM-dd");
-    const nextTo = format(range.to, "yyyy-MM-dd");
+    const start = range.from <= range.to ? range.from : range.to;
+    const end = range.from <= range.to ? range.to : range.from;
     setActivePreset("custom");
     setPickingEnd(false);
     setOpen(false);
-    router.push(analyticsRangeHref({ from: nextFrom, to: nextTo }));
+    router.push(
+      analyticsRangeHref({
+        from: format(start, "yyyy-MM-dd"),
+        to: format(end, "yyyy-MM-dd"),
+      }),
+    );
   }
 
   function handlePresetClick(value: AnalyticsPreset) {
@@ -77,7 +82,6 @@ export function AnalyticsDateRangePicker({
       return;
     }
 
-    // First click starts a new range; wait for the end date before navigating.
     if (!pickingEnd || !range.to) {
       setDraftRange({ from: range.from, to: undefined });
       setPickingEnd(true);
@@ -127,7 +131,7 @@ export function AnalyticsDateRangePicker({
       >
         <div className="flex flex-col sm:flex-row">
           <div className="border-b border-border p-2 sm:w-44 sm:shrink-0 sm:border-r sm:border-b-0">
-            <div className="flex gap-1 overflow-x-auto sm:flex-col sm:overflow-visible">
+            <div className="no-scrollbar flex gap-1 overflow-x-auto sm:flex-col sm:overflow-visible">
               {ANALYTICS_DATE_PRESETS.map((option) => (
                 <PresetButton
                   key={option.value}
@@ -144,8 +148,8 @@ export function AnalyticsDateRangePicker({
             </div>
           </div>
 
-          <div className="p-3">
-            <div className="rounded-lg bg-muted/40 p-2">
+          <div className="w-full p-3 sm:w-auto">
+            <div className="w-full rounded-lg bg-muted/40 p-2">
               <Calendar
                 mode="range"
                 numberOfMonths={1}
@@ -153,7 +157,10 @@ export function AnalyticsDateRangePicker({
                 onSelect={handleRangeSelect}
                 defaultMonth={draftRange?.to ?? draftRange?.from ?? today}
                 disabled={{ after: today }}
-                className="bg-transparent p-0"
+                className="w-full bg-transparent p-0 sm:w-fit"
+                classNames={{
+                  root: "w-full sm:w-fit",
+                }}
               />
             </div>
           </div>
@@ -165,8 +172,8 @@ export function AnalyticsDateRangePicker({
 
 function parseDraftRange(from: string, to: string): DateRange {
   return {
-    from: new Date(`${from}T00:00:00`),
-    to: new Date(`${to}T00:00:00`),
+    from: parseISO(from),
+    to: parseISO(to),
   };
 }
 

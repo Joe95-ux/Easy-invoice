@@ -5,21 +5,27 @@ import type { EstimateStatus, InvoiceStatus } from "@easy-invoice/db";
 import { prisma } from "@/lib/db";
 import { buildInvoicePaymentSummary } from "@/lib/invoice-payments";
 import {
+  buildPeriodDelta,
   buildRevenueMonthBucketsForRange,
+  previousAnalyticsRange,
   type ResolvedAnalyticsRange,
 } from "@/lib/analytics/period";
 import type {
   AgingBucket,
   AgingBucketKey,
+  AgingInvoiceRow,
   AnalyticsData,
   PipelineSegment,
 } from "@/features/analytics/types";
 
-function toNumber(value: { toString(): string } | number): number {
+function toNumber(value: { toString(): string } | number | null | undefined): number {
+  if (value == null) return 0;
   return typeof value === "number" ? value : parseFloat(value.toString());
 }
 
 const AGING_ORDER: AgingBucketKey[] = ["current", "1-30", "31-60", "61-90", "90+"];
+/** Cap drill-down rows per bucket so every non-empty bucket can expand. */
+const MAX_AGING_PER_BUCKET = 12;
 
 const AGING_META: Record<
   AgingBucketKey,
@@ -32,13 +38,16 @@ const AGING_META: Record<
   "90+": { label: "90+ days", tone: "destructive" },
 };
 
-function emptyAgingBuckets(): Record<AgingBucketKey, { amount: number; count: number }> {
+function emptyAgingBuckets(): Record<
+  AgingBucketKey,
+  { amount: number; count: number; invoices: AgingInvoiceRow[] }
+> {
   return {
-    current: { amount: 0, count: 0 },
-    "1-30": { amount: 0, count: 0 },
-    "31-60": { amount: 0, count: 0 },
-    "61-90": { amount: 0, count: 0 },
-    "90+": { amount: 0, count: 0 },
+    current: { amount: 0, count: 0, invoices: [] },
+    "1-30": { amount: 0, count: 0, invoices: [] },
+    "31-60": { amount: 0, count: 0, invoices: [] },
+    "61-90": { amount: 0, count: 0, invoices: [] },
+    "90+": { amount: 0, count: 0, invoices: [] },
   };
 }
 
@@ -50,25 +59,48 @@ function agingKeyForDaysPastDue(daysPastDue: number): AgingBucketKey {
   return "90+";
 }
 
+async function sumPaymentsInRange(companyId: string, start: Date, end: Date) {
+  const result = await prisma.invoicePayment.aggregate({
+    where: {
+      paidAt: { gte: start, lte: end },
+      invoice: { companyId },
+    },
+    _sum: { amount: true },
+  });
+  return toNumber(result._sum.amount);
+}
+
+async function sumInvoicedInRange(companyId: string, start: Date, end: Date) {
+  const result = await prisma.invoice.aggregate({
+    where: {
+      companyId,
+      status: { notIn: ["DRAFT", "CANCELLED"] },
+      issueDate: { gte: start, lte: end },
+    },
+    _sum: { total: true },
+  });
+  return toNumber(result._sum.total);
+}
+
 export async function getAnalyticsData(
   companyId: string,
   resolved: ResolvedAnalyticsRange,
 ): Promise<AnalyticsData> {
   const { start: periodStart, end: periodEnd } = resolved;
+  const previous = previousAnalyticsRange(periodStart, periodEnd);
   const today = startOfDay(new Date());
-
-  const paymentPaidAtFilter = { paidAt: { gte: periodStart, lte: periodEnd } };
-  const invoiceIssueFilter = { issueDate: { gte: periodStart, lte: periodEnd } };
 
   const [
     company,
     statusGroups,
     estimateGroups,
     openInvoices,
-    overdueInvoices,
     periodPayments,
     periodInvoices,
-    paidInvoices,
+    periodExpenses,
+    previousCollected,
+    previousInvoiced,
+    paidInPeriod,
     convertedEstimates,
   ] = await Promise.all([
     prisma.company.findUniqueOrThrow({
@@ -79,7 +111,6 @@ export async function getAnalyticsData(
       by: ["status"],
       where: { companyId, status: { not: "CANCELLED" } },
       _count: { _all: true },
-      _sum: { total: true },
     }),
     prisma.estimate.groupBy({
       by: ["status"],
@@ -92,22 +123,19 @@ export async function getAnalyticsData(
         status: { in: ["SENT", "VIEWED", "OVERDUE", "PARTIALLY_PAID"] },
       },
       select: {
+        id: true,
+        number: true,
+        status: true,
         total: true,
         dueDate: true,
         issueDate: true,
-        payments: { select: { amount: true } },
-      },
-    }),
-    prisma.invoice.findMany({
-      where: { companyId, status: "OVERDUE" },
-      select: {
-        total: true,
+        client: { select: { name: true } },
         payments: { select: { amount: true } },
       },
     }),
     prisma.invoicePayment.findMany({
       where: {
-        ...paymentPaidAtFilter,
+        paidAt: { gte: periodStart, lte: periodEnd },
         invoice: { companyId },
       },
       select: {
@@ -117,7 +145,7 @@ export async function getAnalyticsData(
           select: {
             id: true,
             clientId: true,
-            client: { select: { id: true, name: true } },
+            client: { select: { name: true } },
           },
         },
       },
@@ -126,21 +154,34 @@ export async function getAnalyticsData(
       where: {
         companyId,
         status: { notIn: ["DRAFT", "CANCELLED"] },
-        ...invoiceIssueFilter,
+        issueDate: { gte: periodStart, lte: periodEnd },
       },
-      select: { total: true },
+      select: { total: true, issueDate: true },
     }),
+    prisma.projectExpense.findMany({
+      where: {
+        companyId,
+        date: { gte: periodStart, lte: periodEnd },
+      },
+      select: { amount: true, currency: true },
+    }),
+    sumPaymentsInRange(companyId, previous.start, previous.end),
+    sumInvoicedInRange(companyId, previous.start, previous.end),
     prisma.invoice.findMany({
       where: {
         companyId,
         status: "PAID",
-        paidAt: { not: null },
+        paidAt: { gte: periodStart, lte: periodEnd },
         sentAt: { not: null },
       },
       select: { sentAt: true, paidAt: true },
     }),
     prisma.invoice.count({
-      where: { companyId, sourceEstimateId: { not: null } },
+      where: {
+        companyId,
+        sourceEstimateId: { not: null },
+        issueDate: { gte: periodStart, lte: periodEnd },
+      },
     }),
   ]);
 
@@ -154,33 +195,31 @@ export async function getAnalyticsData(
     const key = format(payment.paidAt, "yyyy-MM");
     const index = monthIndex.get(key);
     if (index !== undefined) {
-      revenueByMonth[index]!.amount += amount;
+      revenueByMonth[index]!.collected += amount;
     }
   }
 
-  const invoicedTotal = periodInvoices.reduce((sum, invoice) => sum + toNumber(invoice.total), 0);
+  let invoicedTotal = 0;
+  for (const invoice of periodInvoices) {
+    const amount = toNumber(invoice.total);
+    invoicedTotal += amount;
+    const key = format(invoice.issueDate, "yyyy-MM");
+    const index = monthIndex.get(key);
+    if (index !== undefined) {
+      revenueByMonth[index]!.invoiced += amount;
+    }
+  }
 
-  const outstandingAr = openInvoices.reduce((sum, invoice) => {
-    return (
-      sum +
-      buildInvoicePaymentSummary({
-        total: invoice.total,
-        payments: invoice.payments,
-      }).balanceDue
-    );
-  }, 0);
-
-  const overdueAr = overdueInvoices.reduce((sum, invoice) => {
-    return (
-      sum +
-      buildInvoicePaymentSummary({
-        total: invoice.total,
-        payments: invoice.payments,
-      }).balanceDue
-    );
-  }, 0);
+  const matchingExpenses = periodExpenses.filter((row) => row.currency === company.currency);
+  const expensesTotal = matchingExpenses.reduce((sum, row) => sum + toNumber(row.amount), 0);
+  const collectionRate =
+    invoicedTotal > 0 ? Math.round((revenueCollected / invoicedTotal) * 1000) / 10 : null;
 
   const agingTotals = emptyAgingBuckets();
+  let outstandingAr = 0;
+  let overdueAr = 0;
+  let overdueCount = 0;
+
   for (const invoice of openInvoices) {
     const balanceDue = buildInvoicePaymentSummary({
       total: invoice.total,
@@ -188,11 +227,37 @@ export async function getAnalyticsData(
     }).balanceDue;
     if (balanceDue <= 0) continue;
 
+    outstandingAr += balanceDue;
+
     const due = invoice.dueDate ?? invoice.issueDate;
     const daysPastDue = Math.max(0, differenceInCalendarDays(today, startOfDay(due)));
     const key = agingKeyForDaysPastDue(daysPastDue);
     agingTotals[key].amount += balanceDue;
     agingTotals[key].count += 1;
+    agingTotals[key].invoices.push({
+      id: invoice.id,
+      number: invoice.number,
+      clientName: invoice.client?.name ?? "No client",
+      balanceDue,
+      daysPastDue,
+      dueDate: invoice.dueDate ? format(invoice.dueDate, "yyyy-MM-dd") : null,
+      status: invoice.status,
+      bucket: key,
+    });
+
+    if (daysPastDue > 0) {
+      overdueAr += balanceDue;
+      overdueCount += 1;
+    }
+  }
+
+  const agingInvoices: AgingInvoiceRow[] = [];
+  for (const key of AGING_ORDER) {
+    const bucket = agingTotals[key];
+    bucket.invoices.sort(
+      (a, b) => b.daysPastDue - a.daysPastDue || b.balanceDue - a.balanceDue,
+    );
+    agingInvoices.push(...bucket.invoices.slice(0, MAX_AGING_PER_BUCKET));
   }
 
   const aging: AgingBucket[] = AGING_ORDER.map((key) => ({
@@ -241,11 +306,10 @@ export async function getAnalyticsData(
     { label: "Declined", value: lostEstimateCount, tone: "warning" },
   ];
 
-  const accepted = estimateCountMap.ACCEPTED ?? 0;
-  const declined = estimateCountMap.DECLINED ?? 0;
-  const expired = estimateCountMap.EXPIRED ?? 0;
-  const closedEstimates = accepted + declined + expired;
-  const estimateWinRate = closedEstimates > 0 ? Math.round((accepted / closedEstimates) * 100) : null;
+  const closedEstimates =
+    acceptedCount + (estimateCountMap.DECLINED ?? 0) + (estimateCountMap.EXPIRED ?? 0);
+  const estimateWinRate =
+    closedEstimates > 0 ? Math.round((acceptedCount / closedEstimates) * 100) : null;
 
   const clientTotals = new Map<
     string,
@@ -274,13 +338,15 @@ export async function getAnalyticsData(
     }))
     .sort((a, b) => b.revenue - a.revenue);
 
-  const daysToPay = paidInvoices
+  const daysToPay = paidInPeriod
     .map((invoice) => {
-      const sent = invoice.sentAt!.getTime();
-      const paid = invoice.paidAt!.getTime();
-      return Math.max(0, Math.round((paid - sent) / (1000 * 60 * 60 * 24)));
+      if (!invoice.sentAt || !invoice.paidAt) return null;
+      return Math.max(
+        0,
+        Math.round((invoice.paidAt.getTime() - invoice.sentAt.getTime()) / (1000 * 60 * 60 * 24)),
+      );
     })
-    .filter((days) => Number.isFinite(days));
+    .filter((days): days is number => days != null && Number.isFinite(days));
 
   const avgDaysToPay =
     daysToPay.length > 0
@@ -293,20 +359,28 @@ export async function getAnalyticsData(
     from: resolved.from,
     to: resolved.to,
     periodLabel: resolved.label,
+    previousPeriodLabel: previous.label,
     summary: {
       revenueCollected,
       invoicedTotal,
       invoiceCount: periodInvoices.length,
       paymentCount: periodPayments.length,
+      collectionRate,
+      expensesTotal,
+      expenseCount: matchingExpenses.length,
+      netCollected: revenueCollected - expensesTotal,
       outstandingAr,
       overdueAr,
-      overdueCount: overdueInvoices.length,
+      overdueCount,
       avgDaysToPay,
       estimateWinRate,
       convertedEstimates,
+      revenueDelta: buildPeriodDelta(revenueCollected, previousCollected),
+      invoicedDelta: buildPeriodDelta(invoicedTotal, previousInvoiced),
     },
     revenueByMonth,
     aging,
+    agingInvoices,
     invoicePipeline,
     totalInvoices,
     estimatePipeline,
@@ -314,4 +388,3 @@ export async function getAnalyticsData(
     topClients,
   };
 }
-

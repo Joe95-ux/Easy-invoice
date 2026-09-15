@@ -13,13 +13,6 @@ export const stripe = new Proxy({} as Stripe, {
   },
 });
 
-export const PLANS = {
-  FREE: { name: "Free", invoicesPerMonth: 20 },
-  PRO: { name: "Pro", invoicesPerMonth: Infinity },
-  BUSINESS: { name: "Business", invoicesPerMonth: Infinity },
-  SCALE: { name: "Scale", invoicesPerMonth: Infinity },
-} as const;
-
 export function isStripeConfigured(): boolean {
   return Boolean(process.env.STRIPE_SECRET_KEY?.trim());
 }

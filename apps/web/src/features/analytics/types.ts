@@ -1,16 +1,31 @@
 export type AnalyticsPreset = "7d" | "30d" | "90d" | "1y" | "custom";
 
+export type PeriodDelta = {
+  current: number;
+  previous: number;
+  /** Absolute change (current − previous). */
+  change: number;
+  /** Percent change vs previous; null when previous is 0. */
+  changePct: number | null;
+};
+
 export type AnalyticsSummary = {
   revenueCollected: number;
   invoicedTotal: number;
   invoiceCount: number;
   paymentCount: number;
+  collectionRate: number | null;
+  expensesTotal: number;
+  expenseCount: number;
+  netCollected: number;
   outstandingAr: number;
   overdueAr: number;
   overdueCount: number;
   avgDaysToPay: number | null;
   estimateWinRate: number | null;
   convertedEstimates: number;
+  revenueDelta: PeriodDelta;
+  invoicedDelta: PeriodDelta;
 };
 
 export type PipelineSegment = {
@@ -36,6 +51,24 @@ export type AgingBucket = {
   tone: "muted" | "warning" | "destructive";
 };
 
+export type AgingInvoiceRow = {
+  id: string;
+  number: string;
+  clientName: string;
+  balanceDue: number;
+  daysPastDue: number;
+  dueDate: string | null;
+  status: string;
+  bucket: AgingBucketKey;
+};
+
+export type RevenueMonthRow = {
+  month: string;
+  label: string;
+  collected: number;
+  invoiced: number;
+};
+
 export type AnalyticsData = {
   currency: string;
   preset: AnalyticsPreset;
@@ -44,9 +77,11 @@ export type AnalyticsData = {
   /** ISO date yyyy-MM-dd */
   to: string;
   periodLabel: string;
+  previousPeriodLabel: string;
   summary: AnalyticsSummary;
-  revenueByMonth: { month: string; label: string; amount: number }[];
+  revenueByMonth: RevenueMonthRow[];
   aging: AgingBucket[];
+  agingInvoices: AgingInvoiceRow[];
   invoicePipeline: PipelineSegment[];
   totalInvoices: number;
   estimatePipeline: PipelineSegment[];

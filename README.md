@@ -92,7 +92,7 @@ Open [http://localhost:3000](http://localhost:3000).
 2. **Onboarding** → create company profile (`POST /api/companies`)
 3. **New invoice** → form or AI description → save draft → view detail
 4. **Invoice detail** → download PDF, send by email, mark paid, delete
-5. **Stripe** → webhook at `/api/webhooks/stripe` updates plan on subscription events (coming last)
+5. **Stripe** → SaaS Checkout / Customer Portal at Settings → Billing; webhook `/api/webhooks/stripe` syncs `Company.plan` on subscription events (Connect invoice pay is separate)
 
 ## API routes (Next.js)
 
@@ -118,6 +118,6 @@ All protected endpoints require header: `X-Service-Secret: <your-secret>`.
 
 ## Next steps
 
-- [ ] Stripe Checkout + plan limits
+- [x] Stripe Checkout + plan limits
 - [x] Custom fields on invoices / estimates
-- [x] Simple reports (analytics date range picker + aging)
+- [x] Simple reports v2 (compare, aging drill-down, CSV, net)

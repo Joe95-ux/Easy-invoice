@@ -73,9 +73,10 @@ Platform Stripe Checkout + Customer Portal for upgrading the company plan (separ
 | Piece | Location |
 |-------|----------|
 | Helpers | `lib/stripe-billing.ts` |
-| API | `GET/POST /api/stripe/billing` (checkout + portal) |
+| API | `GET/POST /api/stripe/billing` (checkout + portal), `POST /api/stripe/billing/confirm` |
 | Webhook | `/api/webhooks/stripe` sets `Company.plan` from Price IDs / lookup keys |
-| UI | Settings → Plan & billing; sidebar Upgrade / Manage billing |
+| Limits | `lib/billing/entitlements.ts` — Free: 20 invoices/mo, 2 companies, 2 members, 5 QR codes; Pro features gated via `assertProFeature` |
+| UI | Settings → Billing; sidebar Upgrade / Manage billing |
 | Env | `STRIPE_PRICE_PRO_MONTHLY`, `STRIPE_PRICE_PRO_YEARLY`, `STRIPE_PRO_TRIAL_DAYS` |
 
 ---
@@ -268,9 +269,9 @@ Next-best-action on unpaid invoices from signals we already store (`sentAt`, `vi
 
 ### 10. Simple reports
 
-**Status:** Done
+**Status:** Done (v2)
 
-`/analytics` with a Resend-style date range picker (7 / 30 / 90 days, last year, custom), revenue by month, invoiced vs collected, outstanding aging buckets, pipeline, and top clients by range.
+`/analytics` with Resend-style date range picker, period-over-period deltas, collection rate, collected vs invoiced chart, project expenses → net, outstanding aging with invoice drill-down, pipelines, top clients, and CSV export.
 
 ---
 
