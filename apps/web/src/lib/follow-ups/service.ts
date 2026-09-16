@@ -183,6 +183,47 @@ export async function getFollowUpActionCounts(companyId: string) {
   return { overdue, dueToday, actionable: overdue + dueToday };
 }
 
+/** Open follow-ups due today or earlier — for dashboard attention previews. */
+export async function getActionableFollowUpPreviews(companyId: string, take = 5) {
+  const todayKey = format(new Date(), "yyyy-MM-dd");
+  const today = toDateOnly(todayKey)!;
+
+  const rows = await prisma.followUp.findMany({
+    where: {
+      companyId,
+      status: "OPEN",
+      dueDate: { lte: today },
+    },
+    include: followUpInclude,
+    orderBy: [{ dueDate: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
+    take,
+  });
+
+  return rows.map((row) => {
+    const due = dateKey(row.dueDate);
+    const isOverdue = Boolean(due && due < todayKey);
+    const href = row.invoiceId
+      ? `/invoices/${row.invoiceId}`
+      : row.estimateId
+        ? `/estimates/${row.estimateId}`
+        : "/follow-ups";
+    const context =
+      row.client?.name ??
+      (row.invoice ? `Invoice ${row.invoice.number}` : null) ??
+      (row.estimate ? `Estimate ${row.estimate.number}` : null) ??
+      null;
+
+    return {
+      id: row.id,
+      title: row.title,
+      dueDate: due,
+      isOverdue,
+      href,
+      context,
+    };
+  });
+}
+
 export async function createFollowUp(
   companyId: string,
   actorMemberId: string,

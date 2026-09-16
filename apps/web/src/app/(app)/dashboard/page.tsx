@@ -3,8 +3,6 @@ import {
   ArrowRightIcon,
   ArrowUpRightIcon,
   CheckCircle2Icon,
-  CheckSquareIcon,
-  ClockIcon,
   FileTextIcon,
   PlusIcon,
   UsersRoundIcon,
@@ -15,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageScroll } from "@/components/app-shell/app-shell";
 import { EmptyState, PageHeader, pageHeaderActionClass } from "@/components/app-shell/page-header";
+import { DashboardAttention } from "@/features/dashboard/components/dashboard-attention";
 import { requireMember } from "@/lib/auth";
 import { getDashboardStats } from "@/lib/dashboard";
 import {
@@ -93,70 +92,11 @@ export default async function DashboardPage() {
         />
       </section>
 
-      {stats.followUps.actionable > 0 && (
-        <Link
-          href="/follow-ups"
-          className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-4 transition-colors hover:bg-amber-500/10 sm:px-5"
-        >
-          <div className="flex min-w-0 items-start gap-3">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-800 dark:text-amber-300">
-              <CheckSquareIcon className="size-5" />
-            </div>
-            <div className="min-w-0">
-              <p className="font-medium">
-                {stats.followUps.actionable} follow-up
-                {stats.followUps.actionable === 1 ? "" : "s"} need attention
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {[
-                  stats.followUps.overdue > 0
-                    ? `${stats.followUps.overdue} overdue`
-                    : null,
-                  stats.followUps.dueToday > 0
-                    ? `${stats.followUps.dueToday} due today`
-                    : null,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </p>
-            </div>
-          </div>
-          <span className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-amber-800 dark:text-amber-300">
-            Open checklist
-            <ArrowUpRightIcon className="size-4" />
-          </span>
-        </Link>
-      )}
-
-      {stats.unbilledTime.entryCount > 0 && (
-        <Link
-          href="/time"
-          className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-primary/25 bg-primary/5 px-4 py-4 transition-colors hover:bg-primary/10 sm:px-5"
-        >
-          <div className="flex min-w-0 items-start gap-3">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <ClockIcon className="size-5" />
-            </div>
-            <div className="min-w-0">
-              <p className="font-medium">
-                {stats.unbilledTime.totalHours.toFixed(2)} unbilled hours ready to invoice
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {formatMoney(stats.unbilledTime.totalValue, company.currency)} across{" "}
-                {stats.unbilledTime.entryCount} entr
-                {stats.unbilledTime.entryCount === 1 ? "y" : "ies"}
-                {stats.unbilledTime.clientCount > 0
-                  ? ` · ${stats.unbilledTime.clientCount} client${stats.unbilledTime.clientCount === 1 ? "" : "s"}`
-                  : ""}
-              </p>
-            </div>
-          </div>
-          <span className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-primary">
-            Review time
-            <ArrowUpRightIcon className="size-4" />
-          </span>
-        </Link>
-      )}
+      <DashboardAttention
+        followUps={stats.followUps}
+        unbilledTime={stats.unbilledTime}
+        currency={company.currency}
+      />
 
       <section className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
@@ -186,12 +126,14 @@ export default async function DashboardPage() {
             ) : (
               <div className="-mx-2 divide-y divide-border/70">
                 {stats.recentInvoices.map((invoice) => (
-                  <Link
+                  <div
                     key={invoice.id}
-                    href={`/invoices/${invoice.id}`}
-                    className="group flex items-center justify-between gap-4 rounded-lg px-3 py-3 transition-colors hover:bg-muted/50"
+                    className="flex min-w-0 items-center gap-2 px-3 py-3 transition-colors hover:bg-muted/50"
                   >
-                    <div className="flex min-w-0 items-center gap-3">
+                    <Link
+                      href={`/invoices/${invoice.id}`}
+                      className="flex min-w-0 flex-1 items-center gap-3"
+                    >
                       <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
                         <FileTextIcon className="size-4" />
                       </div>
@@ -201,16 +143,18 @@ export default async function DashboardPage() {
                           {invoice.client?.name ?? "No client"} · {formatDate(invoice.createdAt)}
                         </p>
                       </div>
+                    </Link>
+                    <div className="no-scrollbar max-w-[48%] shrink-0 overflow-x-auto sm:max-w-none">
+                      <div className="flex w-max items-center gap-3 pl-1">
+                        <Badge variant={invoiceStatusVariant(invoice.status)}>
+                          {invoiceStatusLabel(invoice.status)}
+                        </Badge>
+                        <span className="min-w-20 text-right text-sm font-semibold tabular-nums">
+                          {formatMoney(invoice.total, invoice.currency)}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex shrink-0 items-center gap-3">
-                      <Badge variant={invoiceStatusVariant(invoice.status)}>
-                        {invoiceStatusLabel(invoice.status)}
-                      </Badge>
-                      <span className="w-24 text-right text-sm font-semibold tabular-nums">
-                        {formatMoney(invoice.total, invoice.currency)}
-                      </span>
-                    </div>
-                  </Link>
+                  </div>
                 ))}
               </div>
             )}
@@ -234,18 +178,18 @@ export default async function DashboardPage() {
             {stats.overdueCount > 0 ? (
               <Link
                 href="/invoices"
-                className="mt-3 flex items-center justify-between gap-2 rounded-lg border border-destructive/25 bg-destructive/8 px-3 py-2.5 text-sm transition-colors hover:bg-destructive/12"
+                className="mt-3 flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-2.5 text-sm transition-colors hover:bg-muted/50"
               >
                 <span>
-                  <span className="font-semibold text-destructive">{stats.overdueCount} overdue</span>
+                  <span className="font-medium">{stats.overdueCount} overdue</span>
                   <span className="text-muted-foreground"> — follow up</span>
                 </span>
-                <ArrowUpRightIcon className="size-4 text-destructive" />
+                <ArrowUpRightIcon className="size-4 text-muted-foreground" />
               </Link>
             ) : (
               <Link
                 href="/settings/general"
-                className="mt-3 flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2.5 text-sm transition-colors hover:bg-muted"
+                className="mt-3 flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-2.5 text-sm transition-colors hover:bg-muted/50"
               >
                 <span className="text-muted-foreground">Add your logo to brand every PDF</span>
                 <ArrowUpRightIcon className="size-4 text-muted-foreground" />

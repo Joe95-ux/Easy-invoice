@@ -132,6 +132,84 @@ function dueTone(dueDate: string | null, status: SerializedFollowUp["status"]) {
   return "text-muted-foreground";
 }
 
+type CalendarUrgency = "overdue" | "today" | "upcoming";
+
+function calendarUrgency(dueDate: string | null): CalendarUrgency {
+  const todayKey = format(new Date(), "yyyy-MM-dd");
+  if (!dueDate || dueDate > todayKey) return "upcoming";
+  if (dueDate === todayKey) return "today";
+  return "overdue";
+}
+
+function calendarBandClass(urgency: CalendarUrgency) {
+  switch (urgency) {
+    case "overdue":
+      return "bg-destructive";
+    case "today":
+      return "bg-amber-500";
+    default:
+      return "bg-primary";
+  }
+}
+
+function calendarChipSurface(urgency: CalendarUrgency) {
+  switch (urgency) {
+    case "overdue":
+      return "bg-destructive/10 text-destructive hover:bg-destructive/15";
+    case "today":
+      return "bg-amber-500/10 text-amber-900 hover:bg-amber-500/15 dark:text-amber-200";
+    default:
+      return "bg-primary/10 text-primary hover:bg-primary/15";
+  }
+}
+
+function calendarMeta(item: SerializedFollowUp): string | null {
+  const parts = [
+    linkLabel(item),
+    item.client && (item.invoiceId || item.estimateId) ? item.client.name : null,
+    sourceLabel(item.source),
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
+function CalendarEventChip({
+  item,
+  compact,
+  onSelect,
+}: {
+  item: SerializedFollowUp;
+  compact?: boolean;
+  onSelect: (item: SerializedFollowUp) => void;
+}) {
+  const urgency = calendarUrgency(item.dueDate);
+  const meta = calendarMeta(item);
+
+  return (
+    <button
+      type="button"
+      onClick={(event) => {
+        event.stopPropagation();
+        onSelect(item);
+      }}
+      className={cn(
+        "flex w-full min-w-0 overflow-hidden rounded-sm text-left transition-colors",
+        calendarChipSurface(urgency),
+      )}
+      title={[item.title, meta].filter(Boolean).join(" — ")}
+    >
+      <span className={cn("w-0.5 shrink-0 self-stretch sm:w-1", calendarBandClass(urgency))} aria-hidden />
+      <span className={cn("min-w-0 flex-1 px-1 py-0.5", compact ? "space-y-0" : "space-y-0.5")}>
+        <span className="block truncate text-[10px] font-medium leading-tight sm:text-[11px]">
+          {item.title}
+        </span>
+        {!compact && meta ? (
+          <span className="hidden truncate text-[10px] leading-tight opacity-80 sm:block">{meta}</span>
+        ) : null}
+      </span>
+    </button>
+  );
+}
+
 function matchesFilters(
   item: SerializedFollowUp,
   filters: {
@@ -801,9 +879,9 @@ export function FollowUpsPageContent({
         </TabsContent>
 
         <TabsContent value="calendar" className="space-y-4">
-          <Card>
-            <CardContent className="p-4">
-              <div className="mb-4 flex items-center justify-between gap-2">
+          <Card className="overflow-hidden">
+            <CardContent className="p-0">
+              <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-3 sm:px-4">
                 <Button
                   type="button"
                   variant="outline"
@@ -813,7 +891,9 @@ export function FollowUpsPageContent({
                 >
                   <ChevronLeftIcon className="size-4" />
                 </Button>
-                <h2 className="text-sm font-medium">{format(month, "MMMM yyyy")}</h2>
+                <div className="min-w-0 text-center">
+                  <h2 className="text-sm font-medium sm:text-base">{format(month, "MMMM yyyy")}</h2>
+                </div>
                 <Button
                   type="button"
                   variant="outline"
@@ -825,61 +905,115 @@ export function FollowUpsPageContent({
                 </Button>
               </div>
 
-              <div className="mb-2 grid grid-cols-7 gap-1 text-center text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-                  <div key={day}>{day}</div>
-                ))}
+              <div className="overflow-x-auto">
+                <div className="min-w-[36rem] sm:min-w-0">
+                  <div className="grid grid-cols-7 border-b border-border bg-muted/30 text-center text-[10px] font-medium uppercase tracking-wide text-muted-foreground sm:text-[11px]">
+                    {(isMobile
+                      ? ["S", "M", "T", "W", "T", "F", "S"]
+                      : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+                    ).map((day, index) => (
+                      <div key={`${day}-${index}`} className="px-1 py-2">
+                        {day}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-7" role="grid" aria-label="Follow-ups calendar">
+                    {calendarDays.map((day) => {
+                      const key = format(day, "yyyy-MM-dd");
+                      const dayItems = itemsByDay.get(key) ?? [];
+                      const inMonth = isSameMonth(day, month);
+                      const selected = isSameDay(day, selectedDay);
+                      const maxVisible = isMobile ? 2 : 3;
+                      const visibleItems = dayItems.slice(0, maxVisible);
+                      const hiddenCount = dayItems.length - visibleItems.length;
+
+                      return (
+                        <div
+                          key={key}
+                          role="gridcell"
+                          tabIndex={0}
+                          aria-selected={selected}
+                          aria-label={format(day, "EEEE, MMMM d")}
+                          onClick={() => setSelectedDay(day)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              setSelectedDay(day);
+                            }
+                          }}
+                          className={cn(
+                            "flex min-h-[5.5rem] cursor-pointer flex-col gap-0.5 border-b border-r border-border p-1 text-left transition-colors sm:min-h-[7.5rem] sm:gap-1 sm:p-1.5",
+                            "hover:bg-muted/40 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                            !inMonth && "bg-muted/20 text-muted-foreground",
+                            selected && "bg-primary/5 ring-1 ring-inset ring-primary/40",
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "mb-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-xs tabular-nums sm:size-7 sm:text-[13px]",
+                              isToday(day) && "bg-primary font-medium text-primary-foreground",
+                              !inMonth && !isToday(day) && "text-muted-foreground",
+                            )}
+                          >
+                            {format(day, "d")}
+                          </span>
+
+                          <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-hidden">
+                            {visibleItems.map((item) => (
+                              <CalendarEventChip
+                                key={item.id}
+                                item={item}
+                                compact={isMobile}
+                                onSelect={(selectedItem) => {
+                                  setSelectedDay(day);
+                                  openEdit(selectedItem);
+                                }}
+                              />
+                            ))}
+                            {hiddenCount > 0 ? (
+                              <span className="truncate px-0.5 text-[10px] font-medium text-muted-foreground sm:text-[11px]">
+                                +{hiddenCount} more
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
 
-              <div className="grid grid-cols-7 gap-1">
-                {calendarDays.map((day) => {
-                  const key = format(day, "yyyy-MM-dd");
-                  const count = itemsByDay.get(key)?.length ?? 0;
-                  const inMonth = isSameMonth(day, month);
-                  const selected = isSameDay(day, selectedDay);
-
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => setSelectedDay(day)}
-                      className={cn(
-                        "flex min-h-16 flex-col items-start rounded-lg border p-1.5 text-left transition-colors",
-                        inMonth
-                          ? "border-border/60 bg-background"
-                          : "border-transparent bg-muted/20 text-muted-foreground",
-                        selected && "border-primary ring-1 ring-primary/30",
-                        isToday(day) && !selected && "border-primary/40",
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          "flex size-6 items-center justify-center rounded-full text-xs",
-                          isToday(day) && "bg-primary text-primary-foreground",
-                        )}
-                      >
-                        {format(day, "d")}
-                      </span>
-                      {count > 0 ? (
-                        <span className="mt-auto text-[10px] font-medium text-primary">
-                          {count} open
-                        </span>
-                      ) : null}
-                    </button>
-                  );
-                })}
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border px-3 py-2 text-[11px] text-muted-foreground sm:px-4">
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="size-2 rounded-sm bg-destructive" aria-hidden />
+                  Overdue
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="size-2 rounded-sm bg-amber-500" aria-hidden />
+                  Due today
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="size-2 rounded-sm bg-primary" aria-hidden />
+                  Upcoming
+                </span>
               </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardContent className="space-y-1 p-3 sm:p-4">
-              <div className="mb-2 px-2">
+              <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2 px-2">
                 <h2 className="text-sm font-medium">{format(selectedDay, "EEEE, MMM d")}</h2>
+                {selectedDayItems.length > 0 ? (
+                  <span className="text-xs text-muted-foreground">
+                    {selectedDayItems.length} open
+                  </span>
+                ) : null}
               </div>
               {selectedDayItems.length === 0 ? (
                 <p className="px-2 py-6 text-sm text-muted-foreground">
-                  No open follow-ups on this day.
+                  No open follow-ups on this day. Pick another day or add one.
                 </p>
               ) : (
                 selectedDayItems.map((item) => (
