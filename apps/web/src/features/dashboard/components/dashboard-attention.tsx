@@ -232,14 +232,13 @@ function PreviewRow({
         <p className="truncate text-sm text-foreground">{title}</p>
         {meta ? <p className="mt-0.5 truncate text-xs text-muted-foreground">{meta}</p> : null}
       </div>
-      <Button
-        variant="outline"
-        size="sm"
-        className="h-7 shrink-0 px-2.5 text-xs"
-        render={<Link href={href} />}
+      <Link
+        href={href}
+        className="inline-flex shrink-0 items-center gap-0.5 text-xs font-medium text-primary hover:underline"
       >
         {actionLabel}
-      </Button>
+        <ChevronRightIcon className="size-3 opacity-70" aria-hidden />
+      </Link>
     </li>
   );
 }
