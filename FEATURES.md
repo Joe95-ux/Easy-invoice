@@ -116,11 +116,11 @@ Manual time logs, unbilled hours → invoice line items, Toggl/Clockify import, 
 |-------|--------|--------|
 | **A — Import** | Toggl Track + Clockify one-time import | Done |
 | **B — Live timer** | Start/stop timer in app, background-friendly logging, optional reminders to stop | Done |
-| **C — Full product** | Projects, budgets, approvals, payroll, expenses, mobile timer widgets | Planned (out of scope for Invoice Desk core) |
+| **C — Full time product** | Approvals, payroll, mobile timer widgets, deep project accounting | Planned (out of scope) |
 
 **B (live timer)** — build when users ask for “track as I work” without leaving Invoice Desk. Keep lightweight: one active timer per user, client + description, persist on stop.
 
-**C (full product)** — do not build; competes with Toggl/Harvest. Prefer deeper **A** integrations (Harvest, etc.) if import demand appears.
+**C (full time product)** — do not build; competes with Toggl/Harvest. Prefer deeper **A** integrations (Harvest, etc.) if import demand appears. Lightweight **Projects / jobs** (below) are in core; they are not a Harvest replacement.
 
 ---
 
@@ -138,6 +138,22 @@ Company-scoped checklist + calendar for invoice/estimate follow-through (not a g
 | UI | Checklist + month calendar; filters; edit dialog; assignee; “Add follow-up” on invoice/estimate actions |
 | Auto-close | Invoice paid / estimate accepted → `resolveFollowUpsForInvoice` / `resolveFollowUpsForEstimate`. Auto “due soon” items are **promoted** to overdue (stay open) when the due date passes — not marked Done while unpaid. |
 | Dashboard | Due today + overdue counts via `getFollowUpActionCounts` |
+
+---
+
+### 5c. Projects (jobs)
+
+**Status:** Done
+
+Lightweight job containers linking a client to estimates, invoices, time, expenses, and intake forms. Estimate accept can create/attach a project; unbilled time and billable expenses invoice from the project. Details (name, client, status, dates, budget, notes) are editable after create.
+
+| Piece | Location |
+|-------|----------|
+| Schema | `Project`, `ProjectExpense`, project forms / submissions |
+| Lib | `lib/projects.ts`, `lib/project-expenses.ts`, `lib/project-forms.ts`, `lib/schemas/project*.ts` |
+| API | `GET/POST /api/projects`, `GET/PATCH/DELETE /api/projects/[id]`, expenses + forms subroutes |
+| UI | `/projects`, `/projects/new`, `/projects/[id]` (Edit dialog, status select, financial summary, time/expenses/forms) |
+| Pipeline | Estimate → project; project → new estimate/invoice; unbilled time/expenses → invoice |
 
 ---
 

@@ -19,6 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ProjectExpensesSection } from "@/features/projects/components/project-expenses-section";
+import { EditProjectDialog } from "@/features/projects/components/edit-project-dialog";
 import { ProjectFinancialSummary } from "@/features/projects/components/project-financial-summary";
 import { ProjectFormsSection } from "@/features/projects/components/project-forms-section";
 import { ProjectLogTimeButton } from "@/features/projects/components/project-log-time-button";
@@ -83,6 +84,20 @@ export default async function ProjectDetailPage({ params }: PageProps) {
         }
         actions={
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+            <EditProjectDialog
+              project={{
+                id: detail.id,
+                name: detail.name,
+                status: detail.status,
+                clientId: detail.client?.id ?? null,
+                startDate: detail.startDate,
+                dueDate: detail.dueDate,
+                currency: detail.currency,
+                budget: detail.budget,
+                notes: detail.notes,
+              }}
+              clients={clients}
+            />
             <ProjectStatusSelect projectId={detail.id} status={detail.status} />
             {detail.client?.id ? (
               <>
@@ -321,16 +336,29 @@ export default async function ProjectDetailPage({ params }: PageProps) {
         />
       </div>
 
-      {detail.notes ? (
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle className="text-base">Notes</CardTitle>
-          </CardHeader>
-          <CardContent>
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle className="text-base">Details</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            {[
+              detail.startDate ? `Started ${formatDate(detail.startDate)}` : null,
+              detail.dueDate ? `Due ${formatDate(detail.dueDate)}` : null,
+              detail.budget != null
+                ? `Budget ${formatMoney(detail.budget, detail.currency)}`
+                : null,
+            ]
+              .filter(Boolean)
+              .join(" · ") || "No schedule or budget set"}
+          </p>
+        </CardHeader>
+        <CardContent>
+          {detail.notes ? (
             <p className="whitespace-pre-wrap text-sm text-muted-foreground">{detail.notes}</p>
-          </CardContent>
-        </Card>
-      ) : null}
+          ) : (
+            <p className="text-sm text-muted-foreground">No internal notes yet.</p>
+          )}
+        </CardContent>
+      </Card>
     </PageScroll>
   );
 }
