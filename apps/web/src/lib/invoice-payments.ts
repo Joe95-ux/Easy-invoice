@@ -1,6 +1,5 @@
 import type { InvoiceStatus, PaymentMethod } from "@easy-invoice/db";
 import { prisma } from "@/lib/db";
-import { assertProFeature } from "@/lib/billing/entitlements";
 import { recordInvoiceContentRevision } from "@/lib/document-revisions/service";
 import { loadInvoiceSnapshot } from "@/lib/document-revisions/service";
 import { createNotification } from "@/lib/notifications/service";
@@ -138,12 +137,6 @@ export async function recordInvoicePayment(input: {
       if (!invoice) throw new Error("Invoice not found");
       return { invoice, alreadyRecorded: true };
     }
-  } else {
-    const company = await prisma.company.findUniqueOrThrow({
-      where: { id: input.companyId },
-      select: { plan: true },
-    });
-    assertProFeature(company.plan, "manual_payment_tracking");
   }
 
   const invoice = await prisma.invoice.findFirst({

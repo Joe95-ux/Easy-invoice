@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ClipboardListIcon,
   CopyIcon,
   EyeIcon,
+  LayoutTemplateIcon,
   LinkIcon,
   Loader2Icon,
   MoreHorizontalIcon,
@@ -343,8 +345,18 @@ export function ProjectFormsSection({
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => setEditingForm(form)}>
                               <PencilIcon className="size-4" />
-                              Edit
+                              Edit (simple)
                             </DropdownMenuItem>
+                            {form.status === "DRAFT" || form.status === "SENT" ? (
+                              <DropdownMenuItem
+                                render={
+                                  <Link href={`/projects/${projectId}/forms/${form.id}/edit`} />
+                                }
+                              >
+                                <LayoutTemplateIcon className="size-4" />
+                                Advanced builder
+                              </DropdownMenuItem>
+                            ) : null}
                             {form.submissionCount > 0 ? (
                               <DropdownMenuItem onClick={() => setViewingForm(form)}>
                                 <EyeIcon className="size-4" />

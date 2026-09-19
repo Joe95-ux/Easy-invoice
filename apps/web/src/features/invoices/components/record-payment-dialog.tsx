@@ -5,8 +5,6 @@ import { useEffect, useState } from "react";
 import { Loader2Icon } from "lucide-react";
 import { toast } from "sonner";
 import { throwIfApiError, toastApiError } from "@/lib/billing/plan-api-error";
-import { useCompanyPlan } from "@/components/billing/company-plan-context";
-import { ProFeatureGate } from "@/components/billing/pro-feature-gate";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -59,7 +57,6 @@ export function RecordPaymentDialog({
   celebrateInvoicePaid = false,
 }: RecordPaymentDialogProps) {
   const router = useRouter();
-  const { isPro } = useCompanyPlan();
   const [loading, setLoading] = useState(false);
   const [amount, setAmount] = useState("");
   const [paidAt, setPaidAt] = useState(new Date().toISOString().slice(0, 10));
@@ -128,22 +125,6 @@ export function RecordPaymentDialog({
             Record a payment for {invoiceNumber}. Balance due: {formatMoney(balanceDue, currency)}.
           </DialogDescription>
         </DialogHeader>
-        {!isPro ? (
-          <>
-            <DialogBody>
-              <ProFeatureGate
-                title="Manual payment tracking is on Pro"
-                description="Upgrade to log checks, cash, and bank transfers against invoices. Card payments via Stripe stay available on Free."
-              />
-            </DialogBody>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => onOpenChange(false)}>
-                Close
-              </Button>
-            </DialogFooter>
-          </>
-        ) : (
-          <>
         <DialogBody className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="payment-amount">Amount</Label>
@@ -217,8 +198,6 @@ export function RecordPaymentDialog({
             Record payment
           </Button>
         </DialogFooter>
-          </>
-        )}
       </DialogContent>
     </Dialog>
   );

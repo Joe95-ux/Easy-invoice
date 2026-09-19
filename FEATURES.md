@@ -75,7 +75,7 @@ Platform Stripe Checkout + Customer Portal for upgrading the company plan (separ
 | Helpers | `lib/stripe-billing.ts` |
 | API | `GET/POST /api/stripe/billing` (checkout + portal), `POST /api/stripe/billing/confirm` |
 | Webhook | `/api/webhooks/stripe` sets `Company.plan` from Price IDs / lookup keys |
-| Limits | `lib/billing/entitlements.ts` — Free: 20 invoices/mo, 2 companies, 2 members, 5 QR codes; Pro features gated via `assertProFeature` |
+| Limits | `lib/billing/entitlements.ts` — Free: 20 invoices/mo, 2 companies, 2 members, 5 QR codes; manual payment ledger on Free. Pro-only: branding, email invoices, recurring, payment plans, collections |
 | UI | Settings → Billing; sidebar Upgrade / Manage billing |
 | Env | `STRIPE_PRICE_PRO_MONTHLY`, `STRIPE_PRICE_PRO_YEARLY`, `STRIPE_PRO_TRIAL_DAYS` |
 
@@ -145,7 +145,7 @@ Company-scoped checklist + calendar for invoice/estimate follow-through (not a g
 
 **Status:** Done
 
-Lightweight job containers linking a client to estimates, invoices, time, expenses, and intake forms. Estimate accept can create/attach a project; unbilled time and billable expenses invoice from the project. Details (name, client, status, dates, budget, notes) are editable after create.
+Lightweight job containers linking a client to estimates, invoices, time, expenses, and intake forms. Estimate accept can create/attach a project; unbilled time and billable expenses invoice from the project. Details (name, client, status, dates, budget, notes) are editable after create. Forms have a simple dialog editor plus an **advanced builder** (drag-and-drop canvas, field library, inspector, templates).
 
 | Piece | Location |
 |-------|----------|
@@ -153,6 +153,7 @@ Lightweight job containers linking a client to estimates, invoices, time, expens
 | Lib | `lib/projects.ts`, `lib/project-expenses.ts`, `lib/project-forms.ts`, `lib/schemas/project*.ts` |
 | API | `GET/POST /api/projects`, `GET/PATCH/DELETE /api/projects/[id]`, expenses + forms subroutes |
 | UI | `/projects`, `/projects/new`, `/projects/[id]` (Edit dialog, status select, financial summary, time/expenses/forms) |
+| Forms | Simple: `FormFieldsEditor` dialog; Advanced: `/projects/[id]/forms/[formId]/edit` |
 | Pipeline | Estimate → project; project → new estimate/invoice; unbilled time/expenses → invoice |
 
 ---

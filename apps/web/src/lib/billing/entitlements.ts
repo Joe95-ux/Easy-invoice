@@ -14,7 +14,6 @@ export const FREE_LIMITS = {
 export type PlanFeature =
   | "custom_branding"
   | "email_invoices"
-  | "manual_payment_tracking"
   | "recurring_invoices"
   | "payment_plans"
   | "collections";
@@ -22,7 +21,6 @@ export type PlanFeature =
 const PRO_FEATURE_LABEL: Record<PlanFeature, string> = {
   custom_branding: "Custom branding is available on Pro",
   email_invoices: "Emailing invoices is available on Pro",
-  manual_payment_tracking: "Manual payment tracking is available on Pro",
   recurring_invoices: "Recurring invoices are available on Pro",
   payment_plans: "Payment plans are available on Pro",
   collections: "Collections tools are available on Pro",

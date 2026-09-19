@@ -19,8 +19,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { newFormFieldId } from "@/lib/project-form-ids";
 import type { FormFieldDef, FormFieldType } from "@/lib/schemas/project-form";
+import { buildFormField } from "@/features/projects/lib/form-field-factory";
 import { cn } from "@/lib/utils";
 
 const FIELD_TYPES: Array<{ value: FormFieldType; label: string }> = [
@@ -40,32 +40,6 @@ type FormFieldsEditorProps = {
   onChange: (fields: FormFieldDef[]) => void;
   disabled?: boolean;
 };
-
-function defaultOptions() {
-  return [
-    { value: "option_a", label: "Option A" },
-    { value: "option_b", label: "Option B" },
-  ];
-}
-
-function buildField(type: FormFieldType): FormFieldDef {
-  const base: FormFieldDef = {
-    id: newFormFieldId(),
-    type,
-    label: type === "section" ? "New section" : "New question",
-    required: false,
-  };
-  if (type === "select" || type === "radio") {
-    base.options = defaultOptions();
-  }
-  if (type === "images") {
-    base.maxFiles = 8;
-  }
-  if (type === "section") {
-    base.description = "Short description for this section";
-  }
-  return base;
-}
 
 export function FormFieldsEditor({
   fields,
@@ -90,7 +64,7 @@ export function FormFieldsEditor({
   }
 
   function addField(type: FormFieldType = "text") {
-    const next = buildField(type);
+    const next = buildFormField(type);
     if (insertAfterIndex == null || insertAfterIndex < 0 || insertAfterIndex >= fields.length) {
       onChange([...fields, next]);
       setInsertAfterIndex(fields.length);
@@ -111,7 +85,12 @@ export function FormFieldsEditor({
       patch.maxFiles = undefined;
       if (!field.description) patch.description = "Short description for this section";
     } else if (type === "select" || type === "radio") {
-      patch.options = field.options?.length ? field.options : defaultOptions();
+      patch.options = field.options?.length
+        ? field.options
+        : [
+            { value: "option_a", label: "Option A" },
+            { value: "option_b", label: "Option B" },
+          ];
       patch.maxFiles = undefined;
     } else if (type === "images") {
       patch.options = undefined;

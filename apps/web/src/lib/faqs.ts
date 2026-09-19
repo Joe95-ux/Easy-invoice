@@ -17,6 +17,6 @@ export const FAQ_ITEMS = [
   },
   {
     q: "Is it free to start?",
-    a: "Yes. The Free plan includes 20 invoices per month, estimates with e-sign, Stripe card payments, reminders, AI drafting, and 5 QR codes — no credit card required. Upgrade to Pro for unlimited volume, branding, email invoices, recurring invoices, and collections tools.",
+    a: "Yes. The Free plan includes 20 invoices per month, estimates with e-sign, Stripe card payments, recording cash/check/bank payments, reminders, AI drafting, and 5 QR codes — no credit card required. Upgrade to Pro for unlimited volume, branding, email invoices, recurring invoices, and collections tools.",
   },
 ] as const;

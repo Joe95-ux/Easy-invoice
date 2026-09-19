@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { LayoutTemplateIcon } from "lucide-react";
 import { toast } from "sonner";
 import { FormFieldsEditor } from "@/features/projects/components/form-fields-editor";
 import { Button } from "@/components/ui/button";
@@ -217,14 +219,27 @@ export function ProjectFormEditorDialog({
         </DialogBody>
 
         <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
-          <Button
-            type="button"
-            variant="outline"
-            disabled={loading || savingTemplate || fields.filter(isAnswerableFormField).length === 0}
-            onClick={() => void handleSaveAsTemplate()}
-          >
-            {savingTemplate ? "Saving…" : "Save as template"}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {formId && canEditFields ? (
+              <Button
+                type="button"
+                variant="outline"
+                render={<Link href={`/projects/${projectId}/forms/${formId}/edit`} />}
+                onClick={() => onOpenChange(false)}
+              >
+                <LayoutTemplateIcon className="size-4" />
+                Advanced builder
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              disabled={loading || savingTemplate || fields.filter(isAnswerableFormField).length === 0}
+              onClick={() => void handleSaveAsTemplate()}
+            >
+              {savingTemplate ? "Saving…" : "Save as template"}
+            </Button>
+          </div>
           <div className="flex gap-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
