@@ -1,8 +1,8 @@
 import { format, parseISO } from "date-fns";
 import {
+  formatFormAnswerPlain,
   groupFormFieldsIntoSections,
   isAnswerableFormField,
-  parseImageAnswer,
   type FormFieldDef,
 } from "@/lib/schemas/project-form";
 
@@ -58,18 +58,6 @@ export function formatSubmissionAsScope(input: FormatSubmissionAsScopeInput): st
 }
 
 function formatAnswerLine(field: FormFieldDef, raw: string | undefined): string | null {
-  if (field.type === "images") {
-    const urls = parseImageAnswer(raw);
-    if (urls.length === 0) return null;
-    return `${urls.length} image${urls.length === 1 ? "" : "s"} attached`;
-  }
-
-  if (field.type === "select" || field.type === "radio") {
-    const option = field.options?.find((item) => item.value === raw);
-    const label = option?.label ?? raw?.trim();
-    return label || null;
-  }
-
   if (field.type === "date") {
     const value = raw?.trim();
     if (!value) return null;
@@ -80,8 +68,7 @@ function formatAnswerLine(field: FormFieldDef, raw: string | undefined): string 
     }
   }
 
-  const value = raw?.trim();
-  return value || null;
+  return formatFormAnswerPlain(field, raw);
 }
 
 /** Build a new-estimate URL prefilled from a project form submission. */

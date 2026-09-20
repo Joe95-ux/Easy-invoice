@@ -25,13 +25,18 @@ import { cn } from "@/lib/utils";
 
 const FIELD_TYPES: Array<{ value: FormFieldType; label: string }> = [
   { value: "section", label: "Section" },
+  { value: "page", label: "Page" },
   { value: "text", label: "Short text" },
   { value: "email", label: "Email" },
+  { value: "phone", label: "Phone" },
+  { value: "number", label: "Number" },
   { value: "url", label: "URL" },
   { value: "date", label: "Date" },
   { value: "textarea", label: "Long text" },
   { value: "select", label: "Dropdown" },
   { value: "radio", label: "Choice cards" },
+  { value: "checkbox", label: "Checkboxes" },
+  { value: "yesno", label: "Yes / No" },
   { value: "images", label: "Images" },
 ];
 
@@ -79,12 +84,17 @@ export function FormFieldsEditor({
   function changeType(index: number, type: FormFieldType) {
     const field = fields[index]!;
     const patch: Partial<FormFieldDef> = { type };
-    if (type === "section") {
+    if (type === "section" || type === "page") {
       patch.required = false;
       patch.options = undefined;
       patch.maxFiles = undefined;
-      if (!field.description) patch.description = "Short description for this section";
-    } else if (type === "select" || type === "radio") {
+      if (!field.description) {
+        patch.description =
+          type === "page"
+            ? "Shown as a step for the client"
+            : "Short description for this section";
+      }
+    } else if (type === "select" || type === "radio" || type === "checkbox") {
       patch.options = field.options?.length
         ? field.options
         : [
@@ -132,7 +142,6 @@ export function FormFieldsEditor({
     options[optionIndex] = {
       ...current,
       ...patch,
-      value: patch.label !== undefined ? slugValue(patch.label, optionIndex) : current.value,
     };
     updateField(fieldIndex, { options });
   }
@@ -190,7 +199,7 @@ export function FormFieldsEditor({
       ) : (
         <div className="space-y-3">
           {fields.map((field, index) => {
-            const isSection = field.type === "section";
+            const isSection = field.type === "section" || field.type === "page";
             const selected = insertAfterIndex === index;
             return (
               <div
@@ -219,7 +228,13 @@ export function FormFieldsEditor({
                       disabled={disabled}
                       onClick={(event) => event.stopPropagation()}
                       onChange={(event) => updateField(index, { label: event.target.value })}
-                      placeholder={isSection ? "Section title" : "Question label"}
+                      placeholder={
+                        field.type === "page"
+                          ? "Page title"
+                          : field.type === "section"
+                            ? "Section title"
+                            : "Question label"
+                      }
                     />
                     <Select
                       value={field.type}
@@ -313,7 +328,13 @@ export function FormFieldsEditor({
                   value={field.description ?? ""}
                   disabled={disabled}
                   rows={2}
-                  placeholder={isSection ? "Section description" : "Optional helper text"}
+                  placeholder={
+                    field.type === "page"
+                      ? "Page description"
+                      : field.type === "section"
+                        ? "Section description"
+                        : "Optional helper text"
+                  }
                   onClick={(event) => event.stopPropagation()}
                   onChange={(event) =>
                     updateField(index, { description: event.target.value || null })
@@ -358,7 +379,9 @@ export function FormFieldsEditor({
                   </div>
                 ) : null}
 
-                {(field.type === "select" || field.type === "radio") && (
+                {(field.type === "select" ||
+                  field.type === "radio" ||
+                  field.type === "checkbox") && (
                   <div
                     className="space-y-2 rounded-md border bg-muted/20 p-2"
                     onClick={(event) => event.stopPropagation()}
@@ -427,11 +450,3 @@ export function FormFieldsEditor({
   );
 }
 
-function slugValue(label: string, index: number) {
-  const slug = label
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_|_$/g, "");
-  return slug || `option_${index + 1}`;
-}

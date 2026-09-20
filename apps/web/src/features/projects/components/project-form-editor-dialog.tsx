@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import type { FormFieldDef } from "@/lib/schemas/project-form";
 import { isAnswerableFormField } from "@/lib/schemas/project-form";
 
@@ -25,6 +26,8 @@ type FormEditorSeed = {
   name: string;
   status: string;
   fields: FormFieldDef[];
+  description?: string | null;
+  thankYouMessage?: string | null;
 };
 
 type ProjectFormEditorDialogProps = {
@@ -59,6 +62,8 @@ export function ProjectFormEditorDialog({
   const [saving, setSaving] = useState(false);
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [thankYouMessage, setThankYouMessage] = useState("");
   const [fields, setFields] = useState<FormFieldDef[]>([]);
   const [status, setStatus] = useState("DRAFT");
   const seedRef = useRef(seed);
@@ -72,6 +77,8 @@ export function ProjectFormEditorDialog({
 
     if (currentSeed && currentSeed.id === formId) {
       setName(currentSeed.name);
+      setDescription(currentSeed.description?.trim() ?? "");
+      setThankYouMessage(currentSeed.thankYouMessage?.trim() ?? "");
       setFields(currentSeed.fields ?? []);
       setStatus(currentSeed.status);
       setLoading(false);
@@ -89,6 +96,8 @@ export function ProjectFormEditorDialog({
         if (!response.ok) throw new Error(body.error ?? "Failed to load form");
         if (cancelled) return;
         setName(body.form.name);
+        setDescription(body.form.description?.trim() ?? "");
+        setThankYouMessage(body.form.thankYouMessage?.trim() ?? "");
         setFields(body.form.fields ?? []);
         setStatus(body.form.status);
       } catch (error) {
@@ -126,7 +135,9 @@ export function ProjectFormEditorDialog({
       canEditFields &&
       fields.some(
         (field) =>
-          (field.type === "select" || field.type === "radio") &&
+          (field.type === "select" ||
+            field.type === "radio" ||
+            field.type === "checkbox") &&
           (!field.options || field.options.length === 0),
       )
     ) {
@@ -141,6 +152,8 @@ export function ProjectFormEditorDialog({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: name.trim(),
+          description: description.trim() || null,
+          thankYouMessage: thankYouMessage.trim() || null,
           ...(canEditFields ? { fields } : {}),
         }),
       });
@@ -168,7 +181,7 @@ export function ProjectFormEditorDialog({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: name.trim(),
-          description: null,
+          description: description.trim() || null,
           fields,
         }),
       });
@@ -189,8 +202,8 @@ export function ProjectFormEditorDialog({
           <DialogTitle>Edit form</DialogTitle>
           <DialogDescription>
             {canEditFields
-              ? "Change the name and questions before you share the link."
-              : "This form is already shared or completed — you can still rename it."}
+              ? "Change the name, copy, and questions before you share the link."
+              : "This form is already shared or completed — you can still update name and messages."}
           </DialogDescription>
         </DialogHeader>
 
@@ -209,11 +222,48 @@ export function ProjectFormEditorDialog({
                 />
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="form-description">Description</Label>
+                <Textarea
+                  id="form-description"
+                  value={description}
+                  onChange={(event) => setDescription(event.target.value)}
+                  placeholder="Shown at the top of the public form"
+                  rows={2}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="form-thank-you">Thank-you message</Label>
+                <Textarea
+                  id="form-thank-you"
+                  value={thankYouMessage}
+                  onChange={(event) => setThankYouMessage(event.target.value)}
+                  placeholder="Thanks — we’ll be in touch soon."
+                  rows={2}
+                />
+              </div>
+
               <FormFieldsEditor
                 fields={fields}
                 onChange={setFields}
                 disabled={!canEditFields}
               />
+
+              {canEditFields && formId ? (
+                <p className="text-xs text-muted-foreground">
+                  Need validation, conditionals, or pages? Use the{" "}
+                  <Link
+                    href={`/projects/${projectId}/forms/${formId}/edit`}
+                    prefetch={false}
+                    className="font-medium text-foreground underline-offset-2 hover:underline"
+                    onClick={() => onOpenChange(false)}
+                  >
+                    advanced builder
+                  </Link>
+                  .
+                </p>
+              ) : null}
             </>
           )}
         </DialogBody>
@@ -224,7 +274,12 @@ export function ProjectFormEditorDialog({
               <Button
                 type="button"
                 variant="outline"
-                render={<Link href={`/projects/${projectId}/forms/${formId}/edit`} />}
+                render={
+                  <Link
+                    href={`/projects/${projectId}/forms/${formId}/edit`}
+                    prefetch={false}
+                  />
+                }
                 onClick={() => onOpenChange(false)}
               >
                 <LayoutTemplateIcon className="size-4" />

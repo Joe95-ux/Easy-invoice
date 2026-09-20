@@ -966,6 +966,10 @@ model ProjectForm {
   projectId    String
   templateId   String?
   name         String
+  /// Intro copy shown under the title on the public fill page.
+  description  String?
+  /// Message shown after a successful submission.
+  thankYouMessage String?
   status       ProjectFormStatus @default(DRAFT)
   /// Snapshot of fields at send time (or live draft fields).
   fields       Json              @default("[]")

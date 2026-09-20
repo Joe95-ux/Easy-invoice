@@ -11,6 +11,7 @@ export default async function PublicFormPage({ params }: PageProps) {
 
   const fields = parseFormFields(form.fields);
   const alreadySubmitted = form.status === "COMPLETED" || form.submissions.length > 0;
+  const company = form.project.company;
 
   return (
     <PublicProjectForm
@@ -18,7 +19,12 @@ export default async function PublicFormPage({ params }: PageProps) {
       fields={fields}
       alreadySubmitted={alreadySubmitted}
       formName={form.name}
-      companyName={form.project.company.name}
+      formDescription={form.description}
+      thankYouMessage={form.thankYouMessage}
+      brandColor={company.brandColor}
+      logoUrl={company.logoUrl}
+      logoBg={company.logoBg}
+      companyName={company.name}
       projectName={form.project.name}
       clientName={form.project.client?.name}
       initialSubmitterName={form.project.client?.name}

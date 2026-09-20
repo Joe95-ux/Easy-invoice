@@ -36,10 +36,16 @@ export default async function AdvancedFormBuilderPage({ params }: PageProps) {
       projectName={project.name}
       formId={detail.id}
       initialName={detail.name}
+      initialDescription={detail.description}
+      initialThankYouMessage={detail.thankYouMessage}
       initialStatus={detail.status}
       initialFields={detail.fields}
       initialPublicToken={detail.publicToken}
       templateName={form.template?.name ?? null}
+      companyName={member.company.name}
+      brandColor={member.company.brandColor}
+      logoUrl={member.company.logoUrl}
+      logoBg={member.company.logoBg}
     />
   );
 }

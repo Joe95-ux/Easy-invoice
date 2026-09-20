@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { generatePublicToken } from "@/lib/document-tokens";
+import { validateFormAnswers } from "@/lib/form-runtime";
 import type {
   CreateFormTemplateInput,
   CreateProjectFormInput,
@@ -11,7 +12,6 @@ import type {
 import {
   formFieldSchema,
   isAnswerableFormField,
-  parseImageAnswer,
 } from "@/lib/schemas/project-form";
 
 const DEFAULT_FIELDS: FormFieldDef[] = [
@@ -22,14 +22,42 @@ const DEFAULT_FIELDS: FormFieldDef[] = [
     required: false,
     description: "Core details that identify the job and define the requested outcome.",
   },
-  { id: "business_name", type: "text", label: "Business / project name", required: true },
-  { id: "contact_email", type: "email", label: "Contact email", required: true },
+  {
+    id: "business_name",
+    type: "text",
+    label: "Business / project name",
+    required: true,
+    width: "half",
+  },
+  { id: "contact_email", type: "email", label: "Contact email", required: true, width: "half" },
+  {
+    id: "contact_phone",
+    type: "phone",
+    label: "Phone",
+    required: false,
+    width: "half",
+  },
   {
     id: "goals",
     type: "textarea",
     label: "What do you need completed?",
     required: true,
+    width: "full",
     description: "Describe the expected result and any important constraints.",
+  },
+  {
+    id: "urgent",
+    type: "yesno",
+    label: "Is this time-sensitive?",
+    required: false,
+    width: "half",
+  },
+  {
+    id: "budget",
+    type: "number",
+    label: "Approximate budget (optional)",
+    required: false,
+    width: "half",
   },
   {
     id: "sec_files",
@@ -44,6 +72,7 @@ const DEFAULT_FIELDS: FormFieldDef[] = [
     label: "Reference images",
     required: false,
     maxFiles: 8,
+    width: "full",
     description: "Upload multiple images at once (JPEG, PNG, WebP, or GIF).",
   },
   {
@@ -53,7 +82,13 @@ const DEFAULT_FIELDS: FormFieldDef[] = [
     required: false,
     description: "Anything else that could affect scope, schedule, or pricing.",
   },
-  { id: "notes", type: "textarea", label: "Anything else we should know?", required: false },
+  {
+    id: "notes",
+    type: "textarea",
+    label: "Anything else we should know?",
+    required: false,
+    width: "full",
+  },
 ];
 
 const STARTER_TEMPLATES: Array<{
@@ -72,13 +107,20 @@ const STARTER_TEMPLATES: Array<{
         required: false,
         description: "Identify the business and what the website should achieve.",
       },
-      { id: "business_name", type: "text", label: "Business name", required: true },
-      { id: "contact_email", type: "email", label: "Primary contact email", required: true },
+      { id: "business_name", type: "text", label: "Business name", required: true, width: "half" },
+      {
+        id: "contact_email",
+        type: "email",
+        label: "Primary contact email",
+        required: true,
+        width: "half",
+      },
       {
         id: "project_type",
         type: "radio",
         label: "Project type",
         required: true,
+        width: "full",
         options: [
           { value: "website", label: "Website", description: "New site, redesign, or landing page" },
           { value: "store", label: "Online store", description: "Products, payments, and shipping" },
@@ -90,6 +132,7 @@ const STARTER_TEMPLATES: Array<{
         type: "textarea",
         label: "Pages / sections needed",
         required: true,
+        width: "full",
       },
       {
         id: "sec_brand",
@@ -100,14 +143,10 @@ const STARTER_TEMPLATES: Array<{
       },
       {
         id: "logo_status",
-        type: "select",
-        label: "Do you have a logo?",
+        type: "yesno",
+        label: "Do you already have a logo?",
         required: false,
-        options: [
-          { value: "yes", label: "Yes" },
-          { value: "no", label: "No" },
-          { value: "update", label: "Needs updating" },
-        ],
+        width: "half",
       },
       {
         id: "brand_files",
@@ -115,7 +154,16 @@ const STARTER_TEMPLATES: Array<{
         label: "Brand / reference images",
         required: false,
         maxFiles: 10,
+        width: "full",
         description: "Logo, moodboards, screenshots, or other visual references.",
+        visibleWhen: { fieldId: "logo_status", op: "eq", value: "yes" },
+      },
+      {
+        id: "page_tech",
+        type: "page",
+        label: "Technical details",
+        required: false,
+        description: "Access and systems that affect delivery.",
       },
       {
         id: "sec_tech",
@@ -124,14 +172,29 @@ const STARTER_TEMPLATES: Array<{
         required: false,
         description: "Access and systems that affect delivery.",
       },
-      { id: "website_url", type: "url", label: "Current website (if any)", required: false },
+      { id: "website_url", type: "url", label: "Current website (if any)", required: false, width: "half" },
+      { id: "launch", type: "text", label: "Preferred launch timing", required: false, width: "half" },
+      {
+        id: "features",
+        type: "checkbox",
+        label: "Features needed",
+        required: false,
+        width: "full",
+        options: [
+          { value: "blog", label: "Blog / news" },
+          { value: "forms", label: "Contact / lead forms" },
+          { value: "booking", label: "Booking / scheduling" },
+          { value: "cms", label: "Easy content edits (CMS)" },
+          { value: "seo", label: "SEO setup" },
+        ],
+      },
       {
         id: "hosting",
         type: "textarea",
         label: "Domain & hosting details",
         required: false,
+        width: "full",
       },
-      { id: "launch", type: "text", label: "Preferred launch timing", required: false },
     ],
   },
   {
@@ -145,8 +208,8 @@ const STARTER_TEMPLATES: Array<{
         required: false,
         description: "Clarify the outcome before exploring style.",
       },
-      { id: "project_goal", type: "textarea", label: "Project goal", required: true },
-      { id: "audience", type: "textarea", label: "Target audience", required: true },
+      { id: "project_goal", type: "textarea", label: "Project goal", required: true, width: "full" },
+      { id: "audience", type: "textarea", label: "Target audience", required: true, width: "full" },
       {
         id: "sec_style",
         type: "section",
@@ -159,6 +222,7 @@ const STARTER_TEMPLATES: Array<{
         type: "textarea",
         label: "Style references / links",
         required: false,
+        width: "full",
       },
       {
         id: "moodboard",
@@ -166,15 +230,696 @@ const STARTER_TEMPLATES: Array<{
         label: "Moodboard images",
         required: false,
         maxFiles: 12,
+        width: "full",
       },
-      { id: "deliverables", type: "textarea", label: "Deliverables needed", required: true },
-      { id: "deadline", type: "text", label: "Deadline", required: false },
+      {
+        id: "deliverables",
+        type: "checkbox",
+        label: "Deliverables needed",
+        required: true,
+        width: "full",
+        options: [
+          { value: "logo", label: "Logo" },
+          { value: "brand", label: "Brand guidelines" },
+          { value: "social", label: "Social templates" },
+          { value: "print", label: "Print collateral" },
+          { value: "other", label: "Other (describe below)" },
+        ],
+      },
+      { id: "deadline", type: "date", label: "Deadline", required: false, width: "half" },
+      {
+        id: "notes",
+        type: "textarea",
+        label: "Anything else?",
+        required: false,
+        width: "full",
+      },
     ],
   },
   {
     name: "General Requirements",
     description: "A simple intake form for any job.",
     fields: DEFAULT_FIELDS,
+  },
+  {
+    name: "Corporate Vendor Onboarding",
+    description: "Company details, contacts, and compliance info for new vendors.",
+    fields: [
+      {
+        id: "sec_company",
+        type: "section",
+        label: "Company details",
+        required: false,
+        description: "Legal and billing identity for your organization.",
+      },
+      {
+        id: "legal_name",
+        type: "text",
+        label: "Legal company name",
+        required: true,
+        width: "half",
+      },
+      {
+        id: "trading_name",
+        type: "text",
+        label: "Trading / DBA name",
+        required: false,
+        width: "half",
+      },
+      {
+        id: "registration_no",
+        type: "text",
+        label: "Company / tax registration number",
+        required: true,
+        width: "half",
+      },
+      { id: "vat_no", type: "text", label: "VAT / tax ID", required: false, width: "half" },
+      {
+        id: "company_website",
+        type: "url",
+        label: "Company website",
+        required: false,
+        width: "half",
+      },
+      {
+        id: "hq_address",
+        type: "textarea",
+        label: "Registered business address",
+        required: true,
+        width: "full",
+      },
+      {
+        id: "sec_contacts",
+        type: "section",
+        label: "Key contacts",
+        required: false,
+        description: "Who we should reach for accounts and operations.",
+      },
+      {
+        id: "primary_contact",
+        type: "text",
+        label: "Primary contact name",
+        required: true,
+        width: "half",
+      },
+      {
+        id: "primary_email",
+        type: "email",
+        label: "Primary contact email",
+        required: true,
+        width: "half",
+      },
+      {
+        id: "accounts_contact",
+        type: "text",
+        label: "Accounts payable contact",
+        required: false,
+        width: "half",
+      },
+      {
+        id: "accounts_email",
+        type: "email",
+        label: "Accounts payable email",
+        required: false,
+        width: "half",
+      },
+      {
+        id: "sec_compliance",
+        type: "section",
+        label: "Compliance & banking",
+        required: false,
+        description: "Documents and payment details needed to activate the vendor.",
+      },
+      {
+        id: "insurance",
+        type: "select",
+        label: "Do you hold valid liability insurance?",
+        required: true,
+        width: "half",
+        options: [
+          { value: "yes", label: "Yes" },
+          { value: "no", label: "No" },
+          { value: "pending", label: "In progress" },
+        ],
+      },
+      {
+        id: "payment_terms",
+        type: "select",
+        label: "Preferred payment terms",
+        required: false,
+        width: "half",
+        options: [
+          { value: "net15", label: "Net 15" },
+          { value: "net30", label: "Net 30" },
+          { value: "net45", label: "Net 45" },
+          { value: "other", label: "Other" },
+        ],
+      },
+      {
+        id: "docs",
+        type: "images",
+        label: "Certificates / W-9 / insurance docs",
+        required: false,
+        maxFiles: 10,
+        width: "full",
+        description: "Upload clear photos or scans of required documents.",
+      },
+      {
+        id: "notes",
+        type: "textarea",
+        label: "Anything else we should know?",
+        required: false,
+        width: "full",
+      },
+    ],
+  },
+  {
+    name: "Corporate Service Request",
+    description: "Internal or client service requests with budget, urgency, and scope.",
+    fields: [
+      {
+        id: "sec_request",
+        type: "section",
+        label: "Request overview",
+        required: false,
+        description: "Summarize what you need and why.",
+      },
+      {
+        id: "request_title",
+        type: "text",
+        label: "Request title",
+        required: true,
+        width: "full",
+      },
+      {
+        id: "department",
+        type: "text",
+        label: "Department / business unit",
+        required: true,
+        width: "half",
+      },
+      {
+        id: "requester_email",
+        type: "email",
+        label: "Requester email",
+        required: true,
+        width: "half",
+      },
+      {
+        id: "priority",
+        type: "radio",
+        label: "Priority",
+        required: true,
+        width: "full",
+        options: [
+          { value: "low", label: "Low", description: "Can wait for the next planning cycle" },
+          { value: "normal", label: "Normal", description: "Needed within the usual lead time" },
+          { value: "urgent", label: "Urgent", description: "Blocking work or a hard deadline" },
+        ],
+      },
+      {
+        id: "needed_by",
+        type: "date",
+        label: "Needed by",
+        required: false,
+        width: "half",
+      },
+      {
+        id: "budget",
+        type: "text",
+        label: "Budget range (optional)",
+        required: false,
+        width: "half",
+      },
+      {
+        id: "sec_scope",
+        type: "section",
+        label: "Scope & success",
+        required: false,
+        description: "What good looks like when this request is done.",
+      },
+      {
+        id: "scope",
+        type: "textarea",
+        label: "Describe the work needed",
+        required: true,
+        width: "full",
+      },
+      {
+        id: "success",
+        type: "textarea",
+        label: "Success criteria",
+        required: false,
+        width: "full",
+      },
+      {
+        id: "attachments",
+        type: "images",
+        label: "Supporting files / screenshots",
+        required: false,
+        maxFiles: 8,
+        width: "full",
+      },
+    ],
+  },
+  {
+    name: "Handyman Job Request",
+    description: "Service type, property access, and photos for small repair jobs.",
+    fields: [
+      {
+        id: "sec_job",
+        type: "section",
+        label: "Job details",
+        required: false,
+        description: "What needs fixing and where.",
+      },
+      {
+        id: "service_type",
+        type: "select",
+        label: "Type of work",
+        required: true,
+        width: "half",
+        options: [
+          { value: "plumbing", label: "Plumbing" },
+          { value: "electrical", label: "Electrical" },
+          { value: "carpentry", label: "Carpentry / doors" },
+          { value: "painting", label: "Painting" },
+          { value: "appliance", label: "Appliance" },
+          { value: "general", label: "General repairs" },
+          { value: "other", label: "Other" },
+        ],
+      },
+      {
+        id: "urgency",
+        type: "select",
+        label: "How urgent is this?",
+        required: true,
+        width: "half",
+        options: [
+          { value: "asap", label: "ASAP / emergency" },
+          { value: "this_week", label: "This week" },
+          { value: "flexible", label: "Flexible" },
+        ],
+      },
+      {
+        id: "job_summary",
+        type: "textarea",
+        label: "Describe the problem",
+        required: true,
+        width: "full",
+        description: "Include what you have already tried, if anything.",
+      },
+      {
+        id: "sec_property",
+        type: "section",
+        label: "Property & access",
+        required: false,
+        description: "Help us arrive prepared and get in safely.",
+      },
+      {
+        id: "property_address",
+        type: "textarea",
+        label: "Job address",
+        required: true,
+        width: "full",
+      },
+      {
+        id: "property_type",
+        type: "select",
+        label: "Property type",
+        required: false,
+        width: "half",
+        options: [
+          { value: "house", label: "House" },
+          { value: "apartment", label: "Apartment / condo" },
+          { value: "office", label: "Office / commercial" },
+          { value: "other", label: "Other" },
+        ],
+      },
+      {
+        id: "preferred_date",
+        type: "date",
+        label: "Preferred visit date",
+        required: false,
+        width: "half",
+      },
+      {
+        id: "access_notes",
+        type: "textarea",
+        label: "Access notes (gate codes, parking, pets)",
+        required: false,
+        width: "full",
+      },
+      {
+        id: "contact_phone",
+        type: "phone",
+        label: "Best phone number",
+        required: true,
+        width: "half",
+      },
+      {
+        id: "contact_email",
+        type: "email",
+        label: "Email",
+        required: false,
+        width: "half",
+      },
+      {
+        id: "emergency",
+        type: "yesno",
+        label: "Is this an emergency / same-day need?",
+        required: true,
+        width: "half",
+      },
+      {
+        id: "sec_photos",
+        type: "section",
+        label: "Photos",
+        required: false,
+        description: "Clear photos of the issue speed up quoting.",
+      },
+      {
+        id: "photos",
+        type: "images",
+        label: "Photos of the issue",
+        required: false,
+        maxFiles: 10,
+        width: "full",
+      },
+    ],
+  },
+  {
+    name: "Contractor Site Assessment",
+    description: "Site details, drawings, timeline, and budget for contractor bids.",
+    fields: [
+      {
+        id: "sec_project",
+        type: "section",
+        label: "Project overview",
+        required: false,
+        description: "High-level scope before a site visit or quote.",
+      },
+      {
+        id: "project_name",
+        type: "text",
+        label: "Project / site name",
+        required: true,
+        width: "half",
+      },
+      {
+        id: "work_type",
+        type: "select",
+        label: "Type of work",
+        required: true,
+        width: "half",
+        options: [
+          { value: "renovation", label: "Renovation / remodel" },
+          { value: "new_build", label: "New build" },
+          { value: "fitout", label: "Commercial fit-out" },
+          { value: "repair", label: "Repair / remediation" },
+          { value: "other", label: "Other" },
+        ],
+      },
+      {
+        id: "scope",
+        type: "textarea",
+        label: "Scope of work",
+        required: true,
+        width: "full",
+      },
+      {
+        id: "sec_site",
+        type: "section",
+        label: "Site information",
+        required: false,
+        description: "Location, access, and constraints that affect pricing.",
+      },
+      {
+        id: "site_address",
+        type: "textarea",
+        label: "Site address",
+        required: true,
+        width: "full",
+      },
+      {
+        id: "site_access",
+        type: "textarea",
+        label: "Access / parking / working hours",
+        required: false,
+        width: "full",
+      },
+      {
+        id: "occupied",
+        type: "select",
+        label: "Is the site occupied during works?",
+        required: false,
+        width: "half",
+        options: [
+          { value: "yes", label: "Yes" },
+          { value: "no", label: "No" },
+          { value: "partial", label: "Partially" },
+        ],
+      },
+      {
+        id: "start_target",
+        type: "date",
+        label: "Target start date",
+        required: false,
+        width: "half",
+      },
+      {
+        id: "sec_docs",
+        type: "section",
+        label: "Plans & budget",
+        required: false,
+        description: "Share drawings and commercial expectations if available.",
+      },
+      {
+        id: "drawings",
+        type: "images",
+        label: "Plans / drawings / photos",
+        required: false,
+        maxFiles: 12,
+        width: "full",
+      },
+      {
+        id: "budget",
+        type: "text",
+        label: "Budget range",
+        required: false,
+        width: "half",
+      },
+      {
+        id: "decision_date",
+        type: "date",
+        label: "Decision / award date",
+        required: false,
+        width: "half",
+      },
+      {
+        id: "contact_name",
+        type: "text",
+        label: "Site contact name",
+        required: true,
+        width: "half",
+      },
+      {
+        id: "contact_email",
+        type: "email",
+        label: "Site contact email",
+        required: true,
+        width: "half",
+      },
+    ],
+  },
+  {
+    name: "Small Business Quote Request",
+    description: "Fast quote intake for shops, studios, and local service businesses.",
+    fields: [
+      {
+        id: "sec_about",
+        type: "section",
+        label: "About your business",
+        required: false,
+        description: "So we can tailor the quote to how you operate.",
+      },
+      {
+        id: "business_name",
+        type: "text",
+        label: "Business name",
+        required: true,
+        width: "half",
+      },
+      {
+        id: "contact_name",
+        type: "text",
+        label: "Your name",
+        required: true,
+        width: "half",
+      },
+      {
+        id: "email",
+        type: "email",
+        label: "Email",
+        required: true,
+        width: "half",
+      },
+      {
+        id: "phone",
+        type: "phone",
+        label: "Phone",
+        required: false,
+        width: "half",
+      },
+      {
+        id: "website",
+        type: "url",
+        label: "Website or social link",
+        required: false,
+        width: "full",
+      },
+      {
+        id: "sec_need",
+        type: "section",
+        label: "What you need",
+        required: false,
+        description: "Describe the product or service you want priced.",
+      },
+      {
+        id: "service_needed",
+        type: "textarea",
+        label: "What do you need quoted?",
+        required: true,
+        width: "full",
+      },
+      {
+        id: "quantity",
+        type: "number",
+        label: "Quantity / units",
+        required: false,
+        width: "half",
+        validation: { min: 1 },
+      },
+      {
+        id: "needed_by",
+        type: "date",
+        label: "Needed by",
+        required: false,
+        width: "half",
+      },
+      {
+        id: "references",
+        type: "images",
+        label: "Reference photos / examples",
+        required: false,
+        maxFiles: 8,
+        width: "full",
+      },
+      {
+        id: "notes",
+        type: "textarea",
+        label: "Extra notes",
+        required: false,
+        width: "full",
+      },
+    ],
+  },
+  {
+    name: "Service Call / Maintenance",
+    description: "Equipment details, symptoms, and preferred visit window for maintenance.",
+    fields: [
+      {
+        id: "sec_equipment",
+        type: "section",
+        label: "Equipment / asset",
+        required: false,
+        description: "Identify what needs service.",
+      },
+      {
+        id: "asset_name",
+        type: "text",
+        label: "Equipment / system name",
+        required: true,
+        width: "half",
+      },
+      {
+        id: "asset_location",
+        type: "text",
+        label: "Location on site",
+        required: true,
+        width: "half",
+      },
+      {
+        id: "make_model",
+        type: "text",
+        label: "Make / model",
+        required: false,
+        width: "half",
+      },
+      {
+        id: "serial",
+        type: "text",
+        label: "Serial / asset tag",
+        required: false,
+        width: "half",
+      },
+      {
+        id: "sec_issue",
+        type: "section",
+        label: "Issue & schedule",
+        required: false,
+        description: "Symptoms and when we can attend.",
+      },
+      {
+        id: "symptoms",
+        type: "textarea",
+        label: "What is happening?",
+        required: true,
+        width: "full",
+      },
+      {
+        id: "started",
+        type: "date",
+        label: "When did it start?",
+        required: false,
+        width: "half",
+      },
+      {
+        id: "preferred_window",
+        type: "select",
+        label: "Preferred visit window",
+        required: false,
+        width: "half",
+        options: [
+          { value: "morning", label: "Morning" },
+          { value: "afternoon", label: "Afternoon" },
+          { value: "evening", label: "Evening" },
+          { value: "any", label: "Any time" },
+        ],
+      },
+      {
+        id: "photos",
+        type: "images",
+        label: "Photos of the issue / nameplate",
+        required: false,
+        maxFiles: 8,
+        width: "full",
+      },
+      {
+        id: "contact_name",
+        type: "text",
+        label: "On-site contact",
+        required: true,
+        width: "half",
+      },
+      {
+        id: "contact_phone",
+        type: "phone",
+        label: "Contact phone",
+        required: true,
+        width: "half",
+      },
+    ],
   },
 ];
 
@@ -242,16 +987,20 @@ export async function createProjectForm(
     ? input.fields
     : defaultIntakeFields();
   const templateId: string | null = input.templateId ?? null;
+  let description = input.description?.trim() || null;
 
   if (templateId) {
     const template = await prisma.formTemplate.findFirst({
       where: { id: templateId, companyId },
-      select: { id: true, name: true, fields: true },
+      select: { id: true, name: true, fields: true, description: true },
     });
     if (!template) throw new Error("Template not found");
     const templateFields = parseFormFields(template.fields);
     if (templateFields.length > 0) {
       fields = templateFields;
+    }
+    if (!description && template.description) {
+      description = template.description;
     }
   }
 
@@ -260,6 +1009,8 @@ export async function createProjectForm(
       projectId,
       templateId,
       name: input.name.trim(),
+      description,
+      thankYouMessage: input.thankYouMessage?.trim() || null,
       fields,
       status: "DRAFT",
     },
@@ -307,6 +1058,12 @@ export async function updateProjectForm(
     where: { id: formId },
     data: {
       ...(input.name !== undefined && { name: input.name.trim() }),
+      ...(input.description !== undefined && {
+        description: input.description?.trim() || null,
+      }),
+      ...(input.thankYouMessage !== undefined && {
+        thankYouMessage: input.thankYouMessage?.trim() || null,
+      }),
       ...(input.fields !== undefined && { fields: input.fields }),
       ...(input.status === "CANCELLED" && {
         status: "CANCELLED" as const,
@@ -389,7 +1146,15 @@ export async function getProjectFormByPublicToken(token: string) {
         select: {
           id: true,
           name: true,
-          company: { select: { id: true, name: true } },
+          company: {
+            select: {
+              id: true,
+              name: true,
+              logoUrl: true,
+              logoBg: true,
+              brandColor: true,
+            },
+          },
           client: { select: { id: true, name: true, email: true } },
         },
       },
@@ -431,18 +1196,9 @@ export async function submitProjectFormByToken(token: string, input: SubmitProje
   }
 
   const fields = parseFormFields(form.fields);
-  for (const field of fields) {
-    if (!isAnswerableFormField(field) || !field.required) continue;
-    const value = input.answers[field.id];
-    if (field.type === "images") {
-      if (parseImageAnswer(value).length === 0) {
-        throw new Error(`${field.label} is required`);
-      }
-      continue;
-    }
-    if (typeof value !== "string" || !value.trim()) {
-      throw new Error(`${field.label} is required`);
-    }
+  const validationError = validateFormAnswers(fields, input.answers);
+  if (validationError) {
+    throw new Error(validationError);
   }
 
   const submission = await prisma.formSubmission.create({
@@ -483,11 +1239,16 @@ export async function submitProjectFormByToken(token: string, input: SubmitProje
 }
 
 export async function ensureStarterFormTemplates(companyId: string) {
-  const count = await prisma.formTemplate.count({ where: { companyId } });
-  if (count > 0) return;
+  const existing = await prisma.formTemplate.findMany({
+    where: { companyId },
+    select: { name: true },
+  });
+  const existingNames = new Set(existing.map((template) => template.name));
+  const missing = STARTER_TEMPLATES.filter((template) => !existingNames.has(template.name));
+  if (missing.length === 0) return;
 
   await prisma.formTemplate.createMany({
-    data: STARTER_TEMPLATES.map((template) => ({
+    data: missing.map((template) => ({
       companyId,
       name: template.name,
       description: template.description,
@@ -567,6 +1328,8 @@ export function serializeProjectForm(
   return {
     id: form.id,
     name: form.name,
+    description: form.description ?? null,
+    thankYouMessage: form.thankYouMessage ?? null,
     status: form.status,
     publicToken: form.publicToken,
     submissionCount: form._count.submissions,

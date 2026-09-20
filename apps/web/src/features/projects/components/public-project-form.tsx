@@ -6,13 +6,20 @@ import { toast } from "sonner";
 import { FormField } from "@/components/forms/form-field";
 import { DatePicker } from "@/components/forms/date-picker";
 import { PublicFormImageUpload } from "@/features/projects/components/public-form-image-upload";
+import { isHalfWidthField } from "@/features/projects/lib/form-field-factory";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Field,
   FieldContent,
   FieldDescription,
   FieldLabel,
 } from "@/components/ui/field";
+import {
+  Progress,
+  ProgressLabel,
+  ProgressValue,
+} from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
@@ -23,8 +30,20 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  groupFormFieldsIntoSections,
+  logoPreviewClassName,
+  normalizeLogoBg,
+  type LogoBg,
+} from "@/lib/company-branding";
+import {
+  isFieldVisible,
+  validateFieldAnswer,
+  validateFormAnswers,
+} from "@/lib/form-runtime";
+import {
+  groupFormFieldsIntoPages,
+  parseCheckboxAnswer,
   parseImageAnswer,
+  serializeCheckboxAnswer,
   serializeImageAnswer,
   type FormFieldDef,
 } from "@/lib/schemas/project-form";
@@ -35,39 +54,44 @@ type PublicProjectFormProps = {
   fields: FormFieldDef[];
   alreadySubmitted: boolean;
   formName: string;
+  formDescription?: string | null;
+  thankYouMessage?: string | null;
+  brandColor?: string | null;
+  logoUrl?: string | null;
+  logoBg?: LogoBg | string | null;
   companyName: string;
   projectName: string;
   clientName?: string | null;
   initialSubmitterName?: string | null;
   initialSubmitterEmail?: string | null;
+  /** Interactive dry-run: no network submit/upload. */
+  preview?: boolean;
 };
-
-function isHalfWidth(field: FormFieldDef) {
-  return (
-    field.type === "text" ||
-    field.type === "email" ||
-    field.type === "url" ||
-    field.type === "date" ||
-    field.type === "select"
-  );
-}
 
 export function PublicProjectForm({
   token,
   fields,
   alreadySubmitted,
   formName,
+  formDescription = null,
+  thankYouMessage = null,
+  brandColor = null,
+  logoUrl = null,
+  logoBg = null,
   companyName,
   projectName,
   clientName,
   initialSubmitterName,
   initialSubmitterEmail,
+  preview = false,
 }: PublicProjectFormProps) {
-  const sections = useMemo(() => groupFormFieldsIntoSections(fields), [fields]);
+  const pages = useMemo(() => groupFormFieldsIntoPages(fields), [fields]);
+  const multiPage = pages.length > 1;
+  const [pageIndex, setPageIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>(() =>
     Object.fromEntries(
       fields
-        .filter((field) => field.type !== "section")
+        .filter((field) => field.type !== "section" && field.type !== "page")
         .map((field) => [field.id, ""]),
     ),
   );
@@ -76,25 +100,64 @@ export function PublicProjectForm({
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(alreadySubmitted);
 
+  const currentPage = pages[pageIndex] ?? pages[0];
+  const isFirstPage = pageIndex === 0;
+  const isLastPage = pageIndex >= pages.length - 1;
+  const progressValue = multiPage ? ((pageIndex + 1) / pages.length) * 100 : 100;
+  const resolvedLogoBg = normalizeLogoBg(logoBg);
+  const accentStyle =
+    brandColor && /^#[0-9A-Fa-f]{6}$/.test(brandColor)
+      ? ({
+          ["--public-form-accent" as string]: brandColor,
+        } as React.CSSProperties)
+      : undefined;
+
   function setAnswer(fieldId: string, value: string) {
     setAnswers((prev) => ({ ...prev, [fieldId]: value }));
   }
 
+  function validateCurrentPage(): string | null {
+    if (!currentPage) return null;
+    for (const section of currentPage.sections) {
+      for (const field of section.fields) {
+        if (!isFieldVisible(field, answers, fields)) continue;
+        const error = validateFieldAnswer(field, answers[field.id]);
+        if (error) return error;
+      }
+    }
+    return null;
+  }
+
+  function handleNext() {
+    const error = validateCurrentPage();
+    if (error) {
+      toast.error(error);
+      return;
+    }
+    setPageIndex((index) => Math.min(pages.length - 1, index + 1));
+  }
+
+  function handleBack() {
+    setPageIndex((index) => Math.max(0, index - 1));
+  }
+
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    for (const field of fields) {
-      if (field.type === "section" || !field.required) continue;
-      if (field.type === "images") {
-        if (parseImageAnswer(answers[field.id]).length === 0) {
-          toast.error(`${field.label} is required`);
-          return;
-        }
-        continue;
-      }
-      if (!answers[field.id]?.trim()) {
-        toast.error(`${field.label} is required`);
-        return;
-      }
+    if (multiPage && !isLastPage) {
+      handleNext();
+      return;
+    }
+
+    const error = validateFormAnswers(fields, answers);
+    if (error) {
+      toast.error(error);
+      return;
+    }
+
+    if (preview) {
+      setDone(true);
+      toast.success("Preview only — nothing was submitted");
+      return;
     }
 
     setSubmitting(true);
@@ -124,107 +187,195 @@ export function PublicProjectForm({
       <div className="flex flex-col items-center gap-3 rounded-xl border bg-card px-6 py-12 text-center shadow-sm">
         <CheckCircle2Icon className="size-8 text-success" />
         <div className="space-y-1">
-          <p className="text-base font-medium text-foreground">Response submitted</p>
-          <p className="text-sm text-muted-foreground">Thanks — you can close this page.</p>
+          <p className="text-base font-medium text-foreground">
+            {preview ? "Preview thank-you screen" : "Response submitted"}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {thankYouMessage?.trim()
+              ? thankYouMessage.trim()
+              : "Thanks — you can close this page."}
+          </p>
         </div>
+        {preview ? (
+          <Button type="button" variant="outline" size="sm" onClick={() => setDone(false)}>
+            Back to form
+          </Button>
+        ) : null}
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8" style={accentStyle}>
       <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0 space-y-2">
-          <p className="text-sm text-muted-foreground">{companyName}</p>
+        <div className="min-w-0 space-y-3">
+          <div className="flex items-center gap-3">
+            {logoUrl ? (
+              <div
+                className={cn(
+                  "flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-lg ring-1",
+                  logoPreviewClassName(resolvedLogoBg),
+                )}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={logoUrl} alt="" className="max-h-9 max-w-9 object-contain" />
+              </div>
+            ) : null}
+            <p className="text-sm text-muted-foreground">{companyName}</p>
+          </div>
           <h1 className="text-3xl font-semibold tracking-tight text-foreground">{formName}</h1>
           <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
-            For project {projectName}
-            {clientName ? ` · ${clientName}` : ""}. Share the details needed before work
-            begins — scope, files, and anything that affects delivery.
+            {formDescription?.trim()
+              ? formDescription.trim()
+              : `For project ${projectName}${clientName ? ` · ${clientName}` : ""}. Share the details needed before work begins — scope, files, and anything that affects delivery.`}
           </p>
         </div>
         <div className="shrink-0 text-left text-xs leading-relaxed text-muted-foreground sm:text-right">
-          Open for responses
-          <br />
-          Secure submission
+          {preview ? (
+            <>
+              Preview mode
+              <br />
+              Nothing is submitted
+            </>
+          ) : (
+            <>
+              Open for responses
+              <br />
+              Secure submission
+            </>
+          )}
         </div>
       </header>
 
+      {multiPage ? (
+        <Progress
+          value={progressValue}
+          className="items-center [&_[data-slot=progress-indicator]]:bg-[var(--public-form-accent,var(--primary))]"
+        >
+          <ProgressLabel>
+            Page {pageIndex + 1} of {pages.length}
+            {currentPage?.title && currentPage.id !== "__page_1__"
+              ? ` · ${currentPage.title}`
+              : ""}
+          </ProgressLabel>
+          <ProgressValue />
+        </Progress>
+      ) : null}
+
       <form onSubmit={handleSubmit} className="border-t border-border">
-        <section className="grid gap-6 border-b border-border py-8 md:grid-cols-[13.75rem_minmax(0,1fr)] md:gap-11">
-          <div className="min-w-0">
-            <h2 className="text-sm font-semibold tracking-tight">Your contact</h2>
-            <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-              {initialSubmitterName || initialSubmitterEmail
-                ? "Filled from your project details — edit if needed."
-                : "Optional — helps us follow up if anything is unclear."}
-            </p>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <FormField
-              id="submitter-name"
-              label="Your name"
-              value={submitterName}
-              onChange={setSubmitterName}
-              placeholder="Optional"
-              autoComplete="name"
-            />
-            <FormField
-              id="submitter-email"
-              label="Your email"
-              type="email"
-              value={submitterEmail}
-              onChange={setSubmitterEmail}
-              placeholder="Optional"
-              autoComplete="email"
-            />
-          </div>
-        </section>
-
-        {sections.map((section) => (
-          <section
-            key={section.id}
-            className="grid gap-6 border-b border-border py-8 md:grid-cols-[13.75rem_minmax(0,1fr)] md:gap-11"
-          >
+        {isFirstPage ? (
+          <section className="grid gap-6 border-b border-border py-8 md:grid-cols-[13.75rem_minmax(0,1fr)] md:gap-11">
             <div className="min-w-0">
-              <h2 className="text-sm font-semibold tracking-tight">{section.title}</h2>
-              {section.description ? (
-                <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-                  {section.description}
-                </p>
-              ) : null}
+              <h2 className="text-sm font-semibold tracking-tight">Your contact</h2>
+              <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+                {initialSubmitterName || initialSubmitterEmail
+                  ? "Filled from your project details — edit if needed."
+                  : "Optional — helps us follow up if anything is unclear."}
+              </p>
             </div>
-
             <div className="grid gap-4 sm:grid-cols-2">
-              {section.fields.map((field) => {
-                const half = isHalfWidth(field);
-                return (
-                  <div
-                    key={field.id}
-                    className={cn(!half && "sm:col-span-2")}
-                  >
-                    {renderField(field)}
-                  </div>
-                );
-              })}
+              <FormField
+                id="submitter-name"
+                label="Your name"
+                value={submitterName}
+                onChange={setSubmitterName}
+                placeholder="Optional"
+                autoComplete="name"
+              />
+              <FormField
+                id="submitter-email"
+                label="Your email"
+                type="email"
+                value={submitterEmail}
+                onChange={setSubmitterEmail}
+                placeholder="Optional"
+                autoComplete="email"
+              />
             </div>
           </section>
-        ))}
+        ) : null}
+
+        {(currentPage?.sections ?? []).map((section) => {
+          const visibleFields = section.fields.filter((field) =>
+            isFieldVisible(field, answers, fields),
+          );
+          if (visibleFields.length === 0) return null;
+          return (
+            <section
+              key={section.id}
+              className="grid gap-6 border-b border-border py-8 md:grid-cols-[13.75rem_minmax(0,1fr)] md:gap-11"
+            >
+              <div className="min-w-0">
+                <h2 className="text-sm font-semibold tracking-tight">{section.title}</h2>
+                {section.description ? (
+                  <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+                    {section.description}
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                {visibleFields.map((field) => {
+                  const half = isHalfWidthField(field);
+                  return (
+                    <div key={field.id} className={cn(!half && "sm:col-span-2")}>
+                      {renderField(field)}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          );
+        })}
 
         <div className="flex flex-col gap-4 py-6 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-muted-foreground">
-            Submit once you’re ready — the project team is notified right away.
+            {multiPage && !isLastPage
+              ? "Continue when this page looks right."
+              : "Submit once you’re ready — the project team is notified right away."}
           </p>
-          <Button type="submit" size="lg" className="h-9 min-w-40 sm:w-auto" disabled={submitting}>
-            {submitting ? (
-              <>
-                <Loader2Icon className="animate-spin" />
-                Sending…
-              </>
+          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+            {multiPage && !isFirstPage ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                className="h-9 min-w-28"
+                disabled={submitting}
+                onClick={handleBack}
+              >
+                Back
+              </Button>
+            ) : null}
+            {multiPage && !isLastPage ? (
+              <Button
+                type="button"
+                size="lg"
+                className="h-9 min-w-40"
+                style={brandColorStyle(brandColor)}
+                onClick={handleNext}
+              >
+                Next
+              </Button>
             ) : (
-              "Submit"
+              <Button
+                type="submit"
+                size="lg"
+                className="h-9 min-w-40 sm:w-auto"
+                style={brandColorStyle(brandColor)}
+                disabled={submitting}
+              >
+                {submitting ? (
+                  <>
+                    <Loader2Icon className="animate-spin" />
+                    Sending…
+                  </>
+                ) : (
+                  "Submit"
+                )}
+              </Button>
             )}
-          </Button>
+          </div>
         </div>
       </form>
     </div>
@@ -303,7 +454,10 @@ export function PublicProjectForm({
               onValueChange={(value) => setAnswer(field.id, value ?? "")}
               items={items}
             >
-              <SelectTrigger id={field.id} className="text-foreground data-placeholder:text-muted-foreground">
+              <SelectTrigger
+                id={field.id}
+                className="text-foreground data-placeholder:text-muted-foreground"
+              >
                 <SelectValue placeholder="Select…">
                   {answers[field.id] ? selectedLabel : null}
                 </SelectValue>
@@ -349,6 +503,11 @@ export function PublicProjectForm({
                         ? "border-primary ring-1 ring-primary"
                         : "border-border hover:border-foreground/25",
                     )}
+                    style={
+                      selected && brandColor && /^#[0-9A-Fa-f]{6}$/.test(brandColor)
+                        ? { borderColor: brandColor, boxShadow: `0 0 0 1px ${brandColor}` }
+                        : undefined
+                    }
                   >
                     <span className="flex items-start gap-2">
                       <RadioGroupItem value={option.value} className="mt-0.5" />
@@ -372,6 +531,107 @@ export function PublicProjectForm({
       );
     }
 
+    if (field.type === "checkbox") {
+      const selected = parseCheckboxAnswer(answers[field.id]);
+      const options = field.options ?? [];
+      return (
+        <Field>
+          <FieldLabel>
+            {field.label}
+            {requiredMark}
+          </FieldLabel>
+          {field.description ? (
+            <FieldDescription>{field.description}</FieldDescription>
+          ) : null}
+          <FieldContent>
+            <div className="grid gap-2">
+              {options.map((option) => {
+                const checked = selected.includes(option.value);
+                return (
+                  <label
+                    key={option.value}
+                    className={cn(
+                      "flex cursor-pointer items-start gap-2.5 rounded-lg border bg-card p-3 transition-colors",
+                      checked
+                        ? "border-primary/60 bg-muted/30"
+                        : "border-border hover:border-foreground/25",
+                    )}
+                  >
+                    <Checkbox
+                      checked={checked}
+                      className="mt-0.5"
+                      onCheckedChange={(next) => {
+                        const on = next === true;
+                        const nextValues = on
+                          ? [...selected, option.value]
+                          : selected.filter((value) => value !== option.value);
+                        setAnswer(field.id, serializeCheckboxAnswer(nextValues));
+                      }}
+                    />
+                    <span className="min-w-0 text-sm font-medium text-foreground">
+                      {option.label}
+                      {option.description ? (
+                        <span className="mt-0.5 block text-xs leading-snug font-normal text-muted-foreground">
+                          {option.description}
+                        </span>
+                      ) : null}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </FieldContent>
+        </Field>
+      );
+    }
+
+    if (field.type === "yesno") {
+      const value = (answers[field.id] ?? "").toLowerCase();
+      return (
+        <Field>
+          <FieldLabel>
+            {field.label}
+            {requiredMark}
+          </FieldLabel>
+          {field.description ? (
+            <FieldDescription>{field.description}</FieldDescription>
+          ) : null}
+          <FieldContent>
+            <div className="grid grid-cols-2 gap-2 sm:max-w-xs">
+              {(
+                [
+                  { value: "yes", label: "Yes" },
+                  { value: "no", label: "No" },
+                ] as const
+              ).map((option) => {
+                const selected = value === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setAnswer(field.id, option.value)}
+                    className={cn(
+                      "h-10 rounded-lg border text-sm font-medium transition-colors",
+                      selected
+                        ? "border-primary bg-muted text-foreground"
+                        : "border-border text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+                    )}
+                    style={
+                      selected && brandColor && /^#[0-9A-Fa-f]{6}$/.test(brandColor)
+                        ? { borderColor: brandColor }
+                        : undefined
+                    }
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+          </FieldContent>
+        </Field>
+      );
+    }
+
     if (field.type === "images") {
       return (
         <Field>
@@ -387,6 +647,7 @@ export function PublicProjectForm({
               token={token}
               urls={parseImageAnswer(answers[field.id])}
               maxFiles={field.maxFiles ?? 8}
+              disabled={preview}
               onChange={(urls) => setAnswer(field.id, serializeImageAnswer(urls))}
             />
           </FieldContent>
@@ -394,17 +655,43 @@ export function PublicProjectForm({
       );
     }
 
+    const inputType =
+      field.type === "email"
+        ? "email"
+        : field.type === "url"
+          ? "url"
+          : field.type === "phone"
+            ? "tel"
+            : field.type === "number"
+              ? "number"
+              : "text";
+
     return (
       <FormField
         id={field.id}
         label={field.label}
         description={field.description ?? undefined}
-        type={field.type === "email" ? "email" : field.type === "url" ? "url" : "text"}
+        type={inputType}
         value={answers[field.id] ?? ""}
         onChange={(value) => setAnswer(field.id, value)}
         required={field.required}
-        placeholder={field.type === "url" ? "https://" : undefined}
+        placeholder={
+          field.type === "url"
+            ? "https://"
+            : field.type === "phone"
+              ? "+1 555 000 0000"
+              : undefined
+        }
       />
     );
   }
+}
+
+function brandColorStyle(brandColor: string | null | undefined): React.CSSProperties | undefined {
+  if (!brandColor || !/^#[0-9A-Fa-f]{6}$/.test(brandColor)) return undefined;
+  return {
+    backgroundColor: brandColor,
+    borderColor: brandColor,
+    color: "#fff",
+  };
 }

@@ -27,7 +27,11 @@ export function PublicFormImageUpload({
   const [uploading, setUploading] = useState(false);
 
   async function handleFiles(fileList: FileList | null) {
-    if (!fileList || fileList.length === 0 || disabled) return;
+    if (disabled) {
+      toast.message("Image upload is disabled in preview");
+      return;
+    }
+    if (!fileList || fileList.length === 0) return;
     const remaining = maxFiles - urls.length;
     if (remaining <= 0) {
       toast.error(`You can upload at most ${maxFiles} images`);

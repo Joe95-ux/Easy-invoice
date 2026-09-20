@@ -145,15 +145,16 @@ Company-scoped checklist + calendar for invoice/estimate follow-through (not a g
 
 **Status:** Done
 
-Lightweight job containers linking a client to estimates, invoices, time, expenses, and intake forms. Estimate accept can create/attach a project; unbilled time and billable expenses invoice from the project. Details (name, client, status, dates, budget, notes) are editable after create. Forms have a simple dialog editor plus an **advanced builder** (drag-and-drop canvas, field library, inspector, templates).
+Lightweight job containers linking a client to estimates, invoices, time, expenses, and intake forms. Estimate accept can create/attach a project; unbilled time and billable expenses invoice from the project. Details (name, client, status, dates, budget, notes) are editable after create. Forms have a simple dialog editor plus an **advanced builder** (drag-and-drop canvas, field library, inspector, templates, undo/redo, autosave, validation, conditionals, multi-page fill, branding).
 
 | Piece | Location |
 |-------|----------|
-| Schema | `Project`, `ProjectExpense`, project forms / submissions |
-| Lib | `lib/projects.ts`, `lib/project-expenses.ts`, `lib/project-forms.ts`, `lib/schemas/project*.ts` |
+| Schema | `Project`, `ProjectExpense`, project forms / submissions (`thankYouMessage`) |
+| Lib | `lib/projects.ts`, `lib/project-expenses.ts`, `lib/project-forms.ts`, `lib/form-runtime.ts`, `lib/schemas/project*.ts` |
 | API | `GET/POST /api/projects`, `GET/PATCH/DELETE /api/projects/[id]`, expenses + forms subroutes |
 | UI | `/projects`, `/projects/new`, `/projects/[id]` (Edit dialog, status select, financial summary, time/expenses/forms) |
 | Forms | Simple: `FormFieldsEditor` dialog; Advanced: `/projects/[id]/forms/[formId]/edit` |
+| Public fill | `/f/[token]` — multi-page, visibility rules, company logo/`brandColor`, thank-you message |
 | Pipeline | Estimate → project; project → new estimate/invoice; unbilled time/expenses → invoice |
 
 ---

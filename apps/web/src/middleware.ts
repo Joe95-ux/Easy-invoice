@@ -10,8 +10,9 @@ const isPublicRoute = createRouteMatcher([
   "/sign-up(.*)",
   "/view(.*)",
   "/portal(.*)",
-  "/f(.*)",
-  "/q(.*)",
+  // Must be `/f/...` only — `/f(.*)` also matched `/follow-ups`, `/forms`, `/foo`, etc.
+  "/f/(.*)",
+  "/q/(.*)",
   "/accept-invite(.*)",
   "/api/webhooks(.*)",
   "/api/public(.*)",
@@ -21,8 +22,12 @@ const isPublicRoute = createRouteMatcher([
 ]);
 
 export default clerkMiddleware(async (auth, request) => {
-  if (!isPublicRoute(request)) {
-    await auth.protect();
+  if (isPublicRoute(request)) return;
+
+  // Prefer an explicit sign-in redirect over auth.protect()'s 401 on RSC/prefetch requests.
+  const { userId, redirectToSignIn } = await auth();
+  if (!userId) {
+    return redirectToSignIn({ returnBackUrl: request.url });
   }
 });
 

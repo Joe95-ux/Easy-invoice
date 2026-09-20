@@ -342,7 +342,7 @@ export function ProjectFormsSection({
                           >
                             <MoreHorizontalIcon className="size-4" />
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
+                          <DropdownMenuContent align="end" className="min-w-48">
                             <DropdownMenuItem onClick={() => setEditingForm(form)}>
                               <PencilIcon className="size-4" />
                               Edit (simple)
@@ -350,7 +350,10 @@ export function ProjectFormsSection({
                             {form.status === "DRAFT" || form.status === "SENT" ? (
                               <DropdownMenuItem
                                 render={
-                                  <Link href={`/projects/${projectId}/forms/${form.id}/edit`} />
+                                  <Link
+                                    href={`/projects/${projectId}/forms/${form.id}/edit`}
+                                    prefetch={false}
+                                  />
                                 }
                               >
                                 <LayoutTemplateIcon className="size-4" />

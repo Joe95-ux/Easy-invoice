@@ -20,6 +20,7 @@ import { estimateFromSubmissionUrl } from "@/lib/form-submission-to-estimate";
 import { formatDate } from "@/lib/invoices";
 import {
   isAnswerableFormField,
+  parseCheckboxAnswer,
   parseImageAnswer,
   type FormFieldDef,
 } from "@/lib/schemas/project-form";
@@ -251,6 +252,24 @@ function renderAnswer(field: FormFieldDef, raw: string | undefined) {
         ) : null}
       </span>
     );
+  }
+
+  if (field.type === "checkbox") {
+    const values = parseCheckboxAnswer(raw);
+    if (values.length === 0) {
+      return <span className="text-muted-foreground">No answer</span>;
+    }
+    const labels = values.map(
+      (value) => field.options?.find((option) => option.value === value)?.label ?? value,
+    );
+    return <span>{labels.join(", ")}</span>;
+  }
+
+  if (field.type === "yesno") {
+    const answer = raw?.trim().toLowerCase();
+    if (answer === "yes") return <span>Yes</span>;
+    if (answer === "no") return <span>No</span>;
+    return <span className="text-muted-foreground">No answer</span>;
   }
 
   if (field.type === "date") {
