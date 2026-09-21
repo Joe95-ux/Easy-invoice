@@ -26,6 +26,7 @@ import {
   Link2Icon,
   ListIcon,
   Loader2Icon,
+  MoreHorizontalIcon,
   PanelLeftIcon,
   PanelRightIcon,
   PanelTopIcon,
@@ -51,6 +52,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Sheet,
   SheetContent,
@@ -1149,16 +1157,33 @@ export function AdvancedFormBuilder({
     </div>
   );
 
-  const inspector = (
-    <BuilderInspector
-      field={selected}
-      allFields={fields}
-      disabled={!canEdit}
-      onChange={updateSelected}
-      onDuplicate={duplicateSelected}
-      onDelete={deleteSelected}
-    />
+  const inspectorCollapseButton = (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      className="size-8 shrink-0"
+      onClick={() => setRightDocked(false)}
+      aria-label="Hide inspector"
+      title="Hide inspector"
+    >
+      <PanelRightIcon className="size-4" />
+    </Button>
   );
+
+  function renderInspector(headerEnd?: ReactNode) {
+    return (
+      <BuilderInspector
+        field={selected}
+        allFields={fields}
+        disabled={!canEdit}
+        onChange={updateSelected}
+        onDuplicate={duplicateSelected}
+        onDelete={deleteSelected}
+        headerEnd={headerEnd}
+      />
+    );
+  }
 
   const saveHint =
     saveState === "saved" && !dirty
@@ -1169,9 +1194,15 @@ export function AdvancedFormBuilder({
           ? "Saving…"
           : null;
 
+  const shareDisabled =
+    sharing ||
+    status === "COMPLETED" ||
+    status === "CANCELLED" ||
+    (canEdit && answerableCount === 0);
+
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
-      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border/80 px-3 py-2 sm:px-4">
+      <header className="flex shrink-0 items-center justify-between gap-2 border-b border-border/80 px-3 py-2 sm:gap-3 sm:px-4">
         <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
           <Button
             type="button"
@@ -1233,11 +1264,11 @@ export function AdvancedFormBuilder({
           </Badge>
         </div>
 
-        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+        <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
           {saveHint ? (
             <span
               className={cn(
-                "hidden text-[11px] md:inline",
+                "mr-0.5 hidden text-[11px] sm:inline",
                 dirty ? "text-amber-700 dark:text-amber-400" : "text-muted-foreground",
               )}
             >
@@ -1248,28 +1279,7 @@ export function AdvancedFormBuilder({
             type="button"
             variant="ghost"
             size="icon"
-            className="size-8 xl:hidden"
-            onClick={() => setInspectorSheetOpen(true)}
-            aria-label="Field settings"
-          >
-            <PanelRightIcon className="size-4" />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="hidden size-8 xl:inline-flex"
-            onClick={() => setRightDocked((open) => !open)}
-            aria-label={rightDocked ? "Hide inspector" : "Show inspector"}
-            aria-pressed={rightDocked}
-          >
-            <PanelRightIcon className="size-4" />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="size-8"
+            className="size-8 shrink-0"
             disabled={!canUndo}
             onClick={() => {
               const snapshot = undo();
@@ -1284,7 +1294,7 @@ export function AdvancedFormBuilder({
             type="button"
             variant="ghost"
             size="icon"
-            className="size-8"
+            className="size-8 shrink-0"
             disabled={!canRedo}
             onClick={() => {
               const snapshot = redo();
@@ -1297,52 +1307,96 @@ export function AdvancedFormBuilder({
           </Button>
           <Button
             type="button"
-            variant="ghost"
-            size="sm"
-            className="hidden h-8 sm:inline-flex"
-            onClick={() => setResponsesOpen(true)}
-          >
-            <ClipboardListIcon className="size-3.5" />
-            Responses
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="hidden h-8 sm:inline-flex"
-            onClick={() => setPreviewOpen(true)}
-          >
-            <EyeIcon className="size-3.5" />
-            Preview
-          </Button>
-          <Button
-            type="button"
             variant="outline"
             size="sm"
-            className="h-8"
+            className="h-8 shrink-0 px-2.5 sm:px-3"
             disabled={saving}
             onClick={() => void persist()}
           >
-            {saving ? <Loader2Icon className="size-3.5 animate-spin" /> : <SaveIcon className="size-3.5" />}
+            {saving ? (
+              <Loader2Icon className="size-3.5 animate-spin" />
+            ) : (
+              <SaveIcon className="size-3.5" />
+            )}
             <span className="hidden sm:inline">Save</span>
           </Button>
-          <Button
-            type="button"
-            size="sm"
-            className="h-8"
-            disabled={
-              sharing ||
-              status === "COMPLETED" ||
-              status === "CANCELLED" ||
-              (canEdit && answerableCount === 0)
-            }
-            onClick={() => void handleShare()}
-          >
-            {sharing ? <Loader2Icon className="size-3.5 animate-spin" /> : <SendIcon className="size-3.5" />}
-            <span className="hidden sm:inline">
+
+          {/* Wide screens: secondary actions inline */}
+          <div className="hidden items-center gap-1.5 2xl:flex">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-8"
+              onClick={() => setResponsesOpen(true)}
+            >
+              <ClipboardListIcon className="size-3.5" />
+              Responses
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-8"
+              onClick={() => setPreviewOpen(true)}
+            >
+              <EyeIcon className="size-3.5" />
+              Preview
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              className="h-8"
+              disabled={shareDisabled}
+              onClick={() => void handleShare()}
+            >
+              {sharing ? (
+                <Loader2Icon className="size-3.5 animate-spin" />
+              ) : (
+                <SendIcon className="size-3.5" />
+              )}
               {status === "SENT" ? "Copy link" : "Share"}
-            </span>
-          </Button>
+            </Button>
+          </div>
+
+          {/* Laptop and below: overflow menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground 2xl:hidden"
+              aria-label="More actions"
+            >
+              <MoreHorizontalIcon className="size-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-48">
+              <DropdownMenuItem onClick={() => setPreviewOpen(true)}>
+                <EyeIcon className="size-4" />
+                Preview
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setResponsesOpen(true)}>
+                <ClipboardListIcon className="size-4" />
+                Responses
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={shareDisabled}
+                onClick={() => void handleShare()}
+              >
+                {sharing ? (
+                  <Loader2Icon className="size-4 animate-spin" />
+                ) : (
+                  <SendIcon className="size-4" />
+                )}
+                {status === "SENT" ? "Copy link" : "Share"}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator className="xl:hidden" />
+              <DropdownMenuItem
+                className="xl:hidden"
+                onClick={() => setInspectorSheetOpen(true)}
+              >
+                <PanelRightIcon className="size-4" />
+                Field settings
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
 
@@ -1806,6 +1860,23 @@ export function AdvancedFormBuilder({
           </div>
         </main>
 
+        {/* When inspector is collapsed on xl+, keep a slim expand control on the right edge */}
+        {!rightDocked ? (
+          <div className="hidden h-full shrink-0 flex-col border-l border-border/80 bg-muted/15 xl:flex">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="m-1.5 size-8"
+              onClick={() => setRightDocked(true)}
+              aria-label="Show inspector"
+              title="Show inspector"
+            >
+              <PanelRightIcon className="size-4" />
+            </Button>
+          </div>
+        ) : null}
+
         <aside
           className={cn(
             "hidden min-h-0 shrink-0 overflow-hidden border-border/80 bg-muted/15 transition-[width,opacity,border-color] duration-200 ease-out xl:block",
@@ -1815,7 +1886,9 @@ export function AdvancedFormBuilder({
           )}
           aria-hidden={!rightDocked}
         >
-          <div className="flex h-full w-[300px] flex-col">{inspector}</div>
+          <div className="flex h-full w-[300px] flex-col">
+            {renderInspector(inspectorCollapseButton)}
+          </div>
         </aside>
       </div>
 
@@ -1833,7 +1906,7 @@ export function AdvancedFormBuilder({
           <SheetHeader className="sr-only">
             <SheetTitle>Field settings</SheetTitle>
           </SheetHeader>
-          {inspector}
+          {renderInspector()}
         </SheetContent>
       </Sheet>
 

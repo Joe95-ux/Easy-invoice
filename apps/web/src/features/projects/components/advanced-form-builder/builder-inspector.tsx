@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -51,6 +52,8 @@ type BuilderInspectorProps = {
   onChange: (patch: Partial<FormFieldDef>) => void;
   onDuplicate: () => void;
   onDelete: () => void;
+  /** Shown on the extreme right of the Field / Section / Page heading. */
+  headerEnd?: ReactNode;
 };
 
 export function BuilderInspector({
@@ -60,14 +63,23 @@ export function BuilderInspector({
   onChange,
   onDuplicate,
   onDelete,
+  headerEnd,
 }: BuilderInspectorProps) {
   if (!field) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-1 px-6 text-center">
-        <p className="text-sm font-medium text-foreground">Nothing selected</p>
-        <p className="max-w-56 text-sm leading-relaxed text-muted-foreground">
-          Click a section or question on the canvas to edit its settings here.
-        </p>
+      <div className="flex h-full min-h-0 flex-col">
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border/80 px-4 py-3.5">
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/80">
+            Field
+          </p>
+          {headerEnd}
+        </div>
+        <div className="flex flex-1 flex-col items-center justify-center gap-1 px-6 text-center">
+          <p className="text-sm font-medium text-foreground">Nothing selected</p>
+          <p className="max-w-56 text-sm leading-relaxed text-muted-foreground">
+            Click a section or question on the canvas to edit its settings here.
+          </p>
+        </div>
       </div>
     );
   }
@@ -140,12 +152,15 @@ export function BuilderInspector({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="shrink-0 border-b border-border/80 px-4 py-3.5">
-        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/80">
-          {isStructural ? structuralKind : "Field"}
-        </p>
-        <h3 className="mt-1 truncate text-sm font-semibold tracking-tight">{field.label}</h3>
-        <p className="mt-0.5 text-sm text-muted-foreground">{fieldTypeLabel(field.type)}</p>
+      <div className="flex shrink-0 items-start justify-between gap-2 border-b border-border/80 px-4 py-3.5">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground/80">
+            {isStructural ? structuralKind : "Field"}
+          </p>
+          <h3 className="mt-1 truncate text-sm font-semibold tracking-tight">{field.label}</h3>
+          <p className="mt-0.5 text-sm text-muted-foreground">{fieldTypeLabel(field.type)}</p>
+        </div>
+        {headerEnd ? <div className="shrink-0 pt-0.5">{headerEnd}</div> : null}
       </div>
 
       <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-4">
