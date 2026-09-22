@@ -5,11 +5,22 @@ import {
   validateFormImageFile,
 } from "@/lib/cloudinary";
 import { prisma } from "@/lib/db";
+import {
+  clientIpFromRequest,
+  consumeRateLimit,
+  rateLimitResponse,
+} from "@/lib/rate-limit";
 
 type RouteContext = { params: Promise<{ token: string }> };
 
 export async function POST(request: Request, context: RouteContext) {
   const { token } = await context.params;
+  const ip = clientIpFromRequest(request);
+  const limit = consumeRateLimit(`form-upload:${token}:${ip}`, {
+    windowMs: 60 * 60 * 1000,
+    max: 30,
+  });
+  if (!limit.ok) return rateLimitResponse(limit.retryAfterSec);
 
   if (!isCloudinaryConfigured()) {
     return NextResponse.json(
@@ -80,7 +91,7 @@ export async function POST(request: Request, context: RouteContext) {
     }
     return NextResponse.json({ images: uploaded });
   } catch (error) {
-    console.error("Form image upload failed:", error);
+    console.error("Form image upload failed:", error instanceof Error ? error.message : "unknown");
     return NextResponse.json({ error: "Failed to upload images" }, { status: 500 });
   }
 }

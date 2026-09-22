@@ -1,3 +1,4 @@
+import { NextResponse } from "next/server";
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
 const isPublicRoute = createRouteMatcher([
@@ -21,12 +22,17 @@ const isPublicRoute = createRouteMatcher([
   "/api/cron(.*)",
 ]);
 
+const isApiRoute = createRouteMatcher(["/api(.*)"]);
+
 export default clerkMiddleware(async (auth, request) => {
   if (isPublicRoute(request)) return;
 
-  // Prefer an explicit sign-in redirect over auth.protect()'s 401 on RSC/prefetch requests.
   const { userId, redirectToSignIn } = await auth();
   if (!userId) {
+    if (isApiRoute(request)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    // Prefer an explicit sign-in redirect over auth.protect()'s 401 on RSC/prefetch.
     return redirectToSignIn({ returnBackUrl: request.url });
   }
 });

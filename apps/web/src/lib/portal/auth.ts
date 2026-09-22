@@ -50,7 +50,7 @@ async function createMagicLinkUrl(input: {
 
 /**
  * Find client records for an email and email one-time portal links.
- * Always returns ok so attackers cannot probe for emails.
+ * Always returns ok (when email works) so attackers cannot probe for emails.
  */
 export async function requestPortalMagicLinks(
   emailInput: string,
@@ -79,6 +79,11 @@ export async function requestPortalMagicLinks(
     return { ok: true };
   }
 
+  const emailReady = isEmailConfigured();
+  if (!emailReady && process.env.NODE_ENV === "production") {
+    throw new Error("Email delivery is not configured");
+  }
+
   // One magic link per company — merge same-company email duplicates first,
   // then pick a single client row per company.
   const uniqueByCompany = new Map<string, (typeof clients)[number]>();
@@ -103,16 +108,13 @@ export async function requestPortalMagicLinks(
     links.push(link);
   }
 
-  if (isEmailConfigured()) {
+  if (emailReady) {
     await sendClientPortalMagicLinkEmail({ to: email, links });
     return { ok: true };
   }
 
-  if (process.env.NODE_ENV !== "production") {
-    return { ok: true, debugLinks: links };
-  }
-
-  return { ok: true };
+  // Dev only: return links for local testing without Resend.
+  return { ok: true, debugLinks: links };
 }
 
 /** Consume a one-time magic link atomically; returns null if invalid/used/expired. */
@@ -205,7 +207,7 @@ export async function inviteClientToPortal(input: {
       });
       return { ok: true, email };
     } catch (error) {
-      console.error("[portal invite]", error);
+      console.error("[portal invite]", error instanceof Error ? error.message : "send failed");
       return {
         ok: false,
         error: "Could not send the portal invite email. Try again shortly.",

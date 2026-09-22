@@ -23,7 +23,22 @@ function formatPersonalMessage(message?: string): string {
 }
 
 export function isEmailConfigured(): boolean {
-  return Boolean(process.env.RESEND_API_KEY);
+  if (!process.env.RESEND_API_KEY?.trim()) return false;
+  // Production must use a verified from-address (not Resend's onboarding sender).
+  if (process.env.NODE_ENV === "production" && !process.env.RESEND_FROM_EMAIL?.trim()) {
+    return false;
+  }
+  return true;
+}
+
+/** From-address for outbound mail. Dev may fall back to Resend onboarding. */
+export function getEmailFromAddress(): string {
+  const from = process.env.RESEND_FROM_EMAIL?.trim();
+  if (from) return from;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("RESEND_FROM_EMAIL is required in production");
+  }
+  return "Easy Invoice <onboarding@resend.dev>";
 }
 
 type SendInvoiceEmailInput = {
@@ -45,7 +60,7 @@ function formatPortalLink(portalUrl?: string): string {
 }
 
 export async function sendInvoiceEmail(input: SendInvoiceEmailInput) {
-  const from = process.env.RESEND_FROM_EMAIL ?? "Easy Invoice <onboarding@resend.dev>";
+  const from = getEmailFromAddress();
   const resend = getResend();
 
   const viewLink = input.viewUrl
@@ -98,7 +113,7 @@ type SendEstimateEmailInput = {
 };
 
 export async function sendEstimateEmail(input: SendEstimateEmailInput) {
-  const from = process.env.RESEND_FROM_EMAIL ?? "Easy Invoice <onboarding@resend.dev>";
+  const from = getEmailFromAddress();
   const resend = getResend();
 
   const viewLink = input.viewUrl
@@ -148,7 +163,7 @@ type SendEstimateAcceptedEmailInput = {
 };
 
 export async function sendEstimateAcceptedEmail(input: SendEstimateAcceptedEmailInput) {
-  const from = process.env.RESEND_FROM_EMAIL ?? "Easy Invoice <onboarding@resend.dev>";
+  const from = getEmailFromAddress();
   const resend = getResend();
 
   const viewLink = input.viewUrl
@@ -193,7 +208,7 @@ type SendTeamInviteEmailInput = {
 };
 
 export async function sendTeamInviteEmail(input: SendTeamInviteEmailInput) {
-  const from = process.env.RESEND_FROM_EMAIL ?? "Easy Invoice <onboarding@resend.dev>";
+  const from = getEmailFromAddress();
   const resend = getResend();
 
   const { data, error } = await resend.emails.send({
@@ -222,7 +237,7 @@ type SendFeedbackEmailInput = {
 };
 
 export async function sendFeedbackEmail(input: SendFeedbackEmailInput) {
-  const from = process.env.RESEND_FROM_EMAIL ?? "Invoice Desk <onboarding@resend.dev>";
+  const from = getEmailFromAddress();
   const supportEmail =
     process.env.SUPPORT_EMAIL ?? process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? "support@invoicedesk.app";
   const resend = getResend();
@@ -262,7 +277,7 @@ type SendContactEmailInput = {
 };
 
 export async function sendContactEmail(input: SendContactEmailInput) {
-  const from = process.env.RESEND_FROM_EMAIL ?? "Invoice Desk <onboarding@resend.dev>";
+  const from = getEmailFromAddress();
   const supportEmail =
     process.env.SUPPORT_EMAIL ?? process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? "support@invoicedesk.app";
   const resend = getResend();
@@ -311,7 +326,7 @@ type SendPaymentConfirmationEmailInput = {
 };
 
 export async function sendPaymentConfirmationEmail(input: SendPaymentConfirmationEmailInput) {
-  const from = process.env.RESEND_FROM_EMAIL ?? "Easy Invoice <onboarding@resend.dev>";
+  const from = getEmailFromAddress();
   const resend = getResend();
 
   const { data, error } = await resend.emails.send({
@@ -355,7 +370,7 @@ type SendAuditAlertEmailInput = {
 };
 
 export async function sendAuditAlertEmail(input: SendAuditAlertEmailInput) {
-  const from = process.env.RESEND_FROM_EMAIL ?? "Easy Invoice <onboarding@resend.dev>";
+  const from = getEmailFromAddress();
   const resend = getResend();
 
   const escapedSummary = input.summary
@@ -404,7 +419,7 @@ type SendTeamNotificationEmailInput = {
 export async function sendTeamNotificationEmail(input: SendTeamNotificationEmailInput) {
   if (input.to.length === 0) return null;
 
-  const from = process.env.RESEND_FROM_EMAIL ?? "Easy Invoice <onboarding@resend.dev>";
+  const from = getEmailFromAddress();
   const resend = getResend();
 
   const link = input.linkUrl
@@ -441,7 +456,7 @@ type SendClientPortalMagicLinkEmailInput = {
 export async function sendClientPortalMagicLinkEmail(
   input: SendClientPortalMagicLinkEmailInput,
 ) {
-  const from = process.env.RESEND_FROM_EMAIL ?? "Easy Invoice <onboarding@resend.dev>";
+  const from = getEmailFromAddress();
   const resend = getResend();
 
   const buttons = input.links

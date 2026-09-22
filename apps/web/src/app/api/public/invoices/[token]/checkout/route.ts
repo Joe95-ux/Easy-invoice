@@ -7,6 +7,11 @@ import { prisma } from "@/lib/db";
 import { buildInvoicePaymentSummary } from "@/lib/invoice-payments";
 import { INVOICE_CHECKOUT_META_TYPE, isStripeConfigured, stripe } from "@/lib/stripe";
 import { getPortalSession } from "@/lib/portal/session";
+import {
+  clientIpFromRequest,
+  consumeRateLimit,
+  rateLimitResponse,
+} from "@/lib/rate-limit";
 
 type RouteContext = { params: Promise<{ token: string }> };
 
@@ -26,6 +31,13 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   const { token } = await context.params;
+  const ip = clientIpFromRequest(request);
+  const limit = consumeRateLimit(`invoice-checkout:${token}:${ip}`, {
+    windowMs: 15 * 60 * 1000,
+    max: 15,
+  });
+  if (!limit.ok) return rateLimitResponse(limit.retryAfterSec);
+
   const body = await parseJsonBody<unknown>(request);
   if (body instanceof NextResponse) return body;
 

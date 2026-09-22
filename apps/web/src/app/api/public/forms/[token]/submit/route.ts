@@ -3,12 +3,24 @@ import { parseJsonBody, validationError } from "@/lib/api/validation";
 import { prisma } from "@/lib/db";
 import { createNotification } from "@/lib/notifications/service";
 import { submitProjectFormByToken } from "@/lib/project-forms";
+import {
+  clientIpFromRequest,
+  consumeRateLimit,
+  rateLimitResponse,
+} from "@/lib/rate-limit";
 import { submitProjectFormSchema } from "@/lib/schemas/project-form";
 
 type RouteContext = { params: Promise<{ token: string }> };
 
 export async function POST(request: Request, context: RouteContext) {
   const { token } = await context.params;
+  const ip = clientIpFromRequest(request);
+  const limit = consumeRateLimit(`form-submit:${token}:${ip}`, {
+    windowMs: 60 * 60 * 1000,
+    max: 20,
+  });
+  if (!limit.ok) return rateLimitResponse(limit.retryAfterSec);
+
   const body = await parseJsonBody<unknown>(request);
   if (body instanceof NextResponse) return body;
 

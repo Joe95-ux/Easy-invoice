@@ -306,3 +306,4 @@ App-native invites, roles (Owner / Admin / Member), company switcher.
 - After pulling schema changes, run `npm run db:generate` then push migrations:
   `cd packages/db && npx dotenv -e ../../.env -- prisma db push --accept-data-loss`
 - Set `NEXT_PUBLIC_APP_URL` (or `APP_URL`) in production so share links use the correct domain.
+- Production boot (`instrumentation.ts`) requires `CRON_SECRET`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `QR_UNLOCK_SECRET`, and a non-placeholder `AI_DOCS_SERVICE_SECRET`.

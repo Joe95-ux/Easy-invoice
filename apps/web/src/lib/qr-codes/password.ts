@@ -7,10 +7,16 @@ const SCRYPT_OPTIONS = { N: 16384, r: 8, p: 1, maxmem: 64 * 1024 * 1024 };
 export const QR_ACCESS_PASSWORD_MIN_LENGTH = 8;
 
 function unlockSecret(): string {
+  const dedicated = process.env.QR_UNLOCK_SECRET?.trim();
+  if (dedicated) return dedicated;
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("QR_UNLOCK_SECRET is required in production");
+  }
+
   return (
-    process.env.QR_UNLOCK_SECRET ||
-    process.env.CLERK_SECRET_KEY ||
-    process.env.AI_DOCS_SERVICE_SECRET ||
+    process.env.CLERK_SECRET_KEY?.trim() ||
+    process.env.AI_DOCS_SERVICE_SECRET?.trim() ||
     "dev-insecure-qr-unlock"
   );
 }

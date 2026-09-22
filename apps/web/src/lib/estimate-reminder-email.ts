@@ -1,3 +1,4 @@
+import { getEmailFromAddress } from "@/lib/email";
 import { Resend } from "resend";
 import type { ReminderKind } from "@/lib/db";
 
@@ -48,7 +49,7 @@ function reminderCopy(
 }
 
 export async function sendEstimateReminderEmail(input: SendEstimateReminderEmailInput) {
-  const from = process.env.RESEND_FROM_EMAIL ?? "Easy Invoice <onboarding@resend.dev>";
+  const from = getEmailFromAddress();
   const resend = getResend();
   const { subject, lead } = reminderCopy(
     input.kind,

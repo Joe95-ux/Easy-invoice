@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { parseJsonBody, validationError } from "@/lib/api/validation";
 import { respondToPublicEstimate } from "@/lib/public-documents";
+import {
+  clientIpFromRequest,
+  consumeRateLimit,
+  rateLimitResponse,
+} from "@/lib/rate-limit";
 import { z } from "zod";
 
 const DATA_URL_MAX = 400_000;
@@ -44,6 +49,13 @@ function clientIp(request: Request): string | null {
 
 export async function POST(request: Request, context: RouteContext) {
   const { token } = await context.params;
+  const ip = clientIpFromRequest(request);
+  const limit = consumeRateLimit(`estimate-respond:${token}:${ip}`, {
+    windowMs: 15 * 60 * 1000,
+    max: 20,
+  });
+  if (!limit.ok) return rateLimitResponse(limit.retryAfterSec);
+
   const body = await parseJsonBody<unknown>(request);
   if (body instanceof NextResponse) return body;
 
