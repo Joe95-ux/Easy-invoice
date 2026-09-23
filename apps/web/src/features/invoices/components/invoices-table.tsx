@@ -57,6 +57,8 @@ export type InvoiceRow = {
   clientId: string | null;
   clientName: string | null;
   clientEmail: string | null;
+  /** Flattened custom field values for table search. */
+  customFieldsSearch?: string;
 };
 
 const STATUS_FILTER_OPTIONS = [
@@ -85,7 +87,7 @@ export function InvoicesTable({ invoices, companyName }: InvoicesTableProps) {
   const table = useListTable<InvoiceRow>({
     tableId: "invoices",
     data: invoices,
-    searchKeys: ["number", "clientName"],
+    searchKeys: ["number", "clientName", "customFieldsSearch"],
     filterOptions: STATUS_FILTER_OPTIONS,
     defaultFilter: "all",
     filterFn: (row, filter) => filter === "all" || row.status === filter,

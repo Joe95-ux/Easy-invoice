@@ -15,7 +15,7 @@ import { getEstimateForMember } from "@/lib/estimates";
 import { assertWithinInvoiceQuota } from "@/lib/billing/entitlements";
 import {
   normalizeCustomFieldDefinitions,
-  sanitizeCustomFieldValuesForSave,
+  prepareCustomFieldsForSave,
 } from "@/lib/custom-fields";
 
 export async function getEstimatesForMember(companyId: string, limit = 50) {
@@ -77,12 +77,15 @@ export async function convertEstimateToInvoice(estimateId: string, companyId: st
   });
   await assertWithinInvoiceQuota(companyId, company.plan);
 
-  const invoiceCustomFields = sanitizeCustomFieldValuesForSave(
+  const invoiceCustomFields = prepareCustomFieldsForSave(
     normalizeCustomFieldDefinitions(company.customFieldDefinitions),
     "invoice",
     estimate.customFields,
   );
-  const customFields = invoiceCustomFields.ok ? invoiceCustomFields.values : {};
+  if (!invoiceCustomFields.ok) {
+    return { error: "custom_fields" as const, message: invoiceCustomFields.error };
+  }
+  const customFields = invoiceCustomFields.values;
 
   const lineItems = estimate.items.map((item, index) => ({
     description: item.description,

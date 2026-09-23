@@ -457,6 +457,7 @@ model RecurringInvoice {
   currency           String                 @default("USD")
   taxRate            Decimal                @default(0) @db.Decimal(5, 4)
   discount           Decimal                @default(0) @db.Decimal(12, 2)
+  customFields       Json?
   notes              String?
   templateId         String?
   /// Optional invoice this schedule was created from (no FK; source may be deleted).

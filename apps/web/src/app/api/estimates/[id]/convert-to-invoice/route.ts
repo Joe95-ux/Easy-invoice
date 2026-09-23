@@ -24,6 +24,13 @@ export async function POST(_request: Request, context: RouteContext) {
       );
     }
 
+    if ("error" in result && result.error === "custom_fields") {
+      return NextResponse.json(
+        { error: result.message ?? "Custom fields need attention before converting" },
+        { status: 400 },
+      );
+    }
+
     return NextResponse.json({
       invoice: result.invoice,
       created: result.created,

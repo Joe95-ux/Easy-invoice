@@ -9,6 +9,7 @@ import {
   ChevronLeftIcon,
   CircleHelpIcon,
   CreditCardIcon,
+  ListTodoIcon,
   MailIcon,
   MessageSquareTextIcon,
   SettingsIcon,
@@ -53,6 +54,12 @@ const linkOptions = [
     description: "Logo, branding, templates, and default preferences.",
     href: "/settings/general",
     icon: SettingsIcon,
+  },
+  {
+    title: "Custom fields",
+    description: "Add PO numbers, job sites, and other extras to invoices.",
+    href: "/settings/custom-fields",
+    icon: ListTodoIcon,
   },
 ] as const;
 

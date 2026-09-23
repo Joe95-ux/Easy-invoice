@@ -32,6 +32,7 @@ const recurringInvoiceFieldsSchema = z.object({
   taxRate: z.number().min(0).max(1).default(0),
   discount: z.number().min(0).default(0),
   notes: z.string().max(5000).optional().nullable(),
+  customFields: z.record(z.string(), z.string().max(5000)).optional().nullable(),
   templateId: z.string().optional().nullable(),
   sourceInvoiceId: z.string().optional().nullable(),
   lineItems: z.array(lineItemSchema).min(1, "At least one line item is required"),

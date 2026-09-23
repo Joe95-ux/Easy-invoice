@@ -1,6 +1,7 @@
 import { requireMember } from "@/lib/auth";
 import { getInvoicesForMember } from "@/lib/invoice-service";
 import { buildInvoicePaymentSummary } from "@/lib/invoice-payments";
+import { normalizeCustomFieldValues } from "@/lib/custom-fields";
 import { InvoicesTable } from "@/features/invoices/components/invoices-table";
 import Link from "next/link";
 import { FileTextIcon, PlusIcon } from "lucide-react";
@@ -8,6 +9,13 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { PageScroll } from "@/components/app-shell/app-shell";
 import { EmptyState, PageHeader, pageHeaderActionClass } from "@/components/app-shell/page-header";
+
+function customFieldsSearchText(raw: unknown): string {
+  return Object.values(normalizeCustomFieldValues(raw))
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .join(" ");
+}
 
 export default async function InvoicesPage() {
   const member = await requireMember();
@@ -26,6 +34,7 @@ export default async function InvoicesPage() {
       clientId: invoice.clientId,
       clientName: invoice.client?.name ?? null,
       clientEmail: invoice.client?.email ?? null,
+      customFieldsSearch: customFieldsSearchText(invoice.customFields),
     };
   });
 

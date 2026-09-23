@@ -435,6 +435,18 @@ function buildSections(data: InvoiceHtmlData) {
     ? `<div class="custom-fields"><div class="custom-fields-label">Details</div>${customFieldRows}</div>`
     : "";
 
+  const customFieldMergeTags: Record<string, string> = {};
+  for (const row of data.customFields ?? []) {
+    if (row.id) customFieldMergeTags[`custom_field_${row.id}`] = escapeHtml(row.value);
+    const slug = row.label
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .slice(0, 40);
+    if (slug) customFieldMergeTags[`custom_field_${slug}`] = escapeHtml(row.value);
+  }
+
   const watermark =
     placement === "watermark" && company.logoUrl
       ? `<div class="watermark"><img src="${escapeHtml(company.logoUrl)}" alt="" /></div>`
@@ -461,6 +473,7 @@ function buildSections(data: InvoiceHtmlData) {
     payment_schedule,
     payment_info,
     custom_fields,
+    ...customFieldMergeTags,
     terms_notes: termsNotes,
     watermark,
     invoice_footer: `${acceptance}${invoiceFooter}`,

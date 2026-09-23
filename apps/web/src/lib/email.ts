@@ -52,7 +52,21 @@ type SendInvoiceEmailInput = {
   portalUrl?: string;
   message?: string;
   subject?: string;
+  customFieldRows?: Array<{ label: string; value: string }>;
 };
+
+function formatCustomFieldsHtml(
+  rows?: Array<{ label: string; value: string }>,
+): string {
+  if (!rows?.length) return "";
+  const items = rows
+    .map(
+      (row) =>
+        `<li><strong>${escapeHtml(row.label)}:</strong> ${escapeHtml(row.value)}</li>`,
+    )
+    .join("");
+  return `<div style="margin:16px 0"><p style="margin:0 0 8px;font-weight:600">Details</p><ul style="margin:0;padding-left:18px">${items}</ul></div>`;
+}
 
 function formatPortalLink(portalUrl?: string): string {
   if (!portalUrl) return "";
@@ -81,6 +95,7 @@ export async function sendInvoiceEmail(input: SendInvoiceEmailInput) {
       ${personalMessage}
       <p>Please find attached invoice <strong>${input.invoiceNumber}</strong> from <strong>${input.companyName}</strong>.</p>
       <p>Total due: <strong>${input.total}</strong></p>
+      ${formatCustomFieldsHtml(input.customFieldRows)}
       ${viewLink}
       ${portalLink}
       <p>Thank you for your business.</p>
@@ -110,6 +125,7 @@ type SendEstimateEmailInput = {
   portalUrl?: string;
   message?: string;
   subject?: string;
+  customFieldRows?: Array<{ label: string; value: string }>;
 };
 
 export async function sendEstimateEmail(input: SendEstimateEmailInput) {
@@ -134,6 +150,7 @@ export async function sendEstimateEmail(input: SendEstimateEmailInput) {
       ${personalMessage}
       <p>Please find attached estimate <strong>${input.estimateNumber}</strong> from <strong>${input.companyName}</strong>.</p>
       <p>Total estimate: <strong>${input.total}</strong></p>
+      ${formatCustomFieldsHtml(input.customFieldRows)}
       ${viewLink}
       ${portalLink}
       <p>We look forward to working with you.</p>

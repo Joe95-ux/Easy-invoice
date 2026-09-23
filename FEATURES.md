@@ -239,7 +239,7 @@ Later: scan analytics over time, more types (app store), frames/labels.
 
 **Status:** Done
 
-Company-defined field definitions (text, textarea, number, date, select, checkbox) for invoices and/or estimates. Values store on existing `Invoice.customFields` / `Estimate.customFields` JSON. Settings editor, create/edit forms, detail pages, PDF/`{{custom_fields}}`, convert estimate→invoice copy, and revision snapshots.
+Company-defined field definitions (text, textarea, number, date, select, checkbox, email, url) for invoices and/or estimates. Settings UI supports drag-and-drop/keyboard reorder, description, default value, enabled/visible, required, show on invoice/estimate/PDF, inline add, and a create/edit drawer with live invoice/estimate preview. Values store on existing `Invoice.customFields` / `Estimate.customFields` JSON. Create/edit forms, detail pages, PDF/`{{custom_fields}}` and per-field `{{custom_field_<slug>}}`, convert estimate→invoice copy, recurring copy, disabled fields preserve values on old docs, and revision snapshots.
 
 | Piece | Location |
 |-------|----------|

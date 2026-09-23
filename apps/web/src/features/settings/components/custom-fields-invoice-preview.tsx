@@ -10,17 +10,28 @@ type CustomFieldsInvoicePreviewProps = {
   className?: string;
 };
 
-/** Lightweight invoice mock showing where custom fields land on the PDF. */
+const SAMPLE_LINES = [
+  { label: "Design services", amount: "$2,400.00" },
+  { label: "Project management", amount: "$600.00" },
+  { label: "Tax", amount: "$0.00" },
+] as const;
+
+type PreviewKind = "invoice" | "estimate";
+
+/** Lightweight document mock showing where custom fields land on the PDF. */
 export function CustomFieldsInvoicePreview({
   definitions,
   className,
 }: CustomFieldsInvoicePreviewProps) {
+  const [tab, setTab] = useState<"preview" | "behavior">("preview");
+  const [previewKind, setPreviewKind] = useState<PreviewKind>("invoice");
+
   const rows = useMemo(() => {
     return definitions
       .filter(
         (field) =>
           field.enabled !== false &&
-          field.appliesTo.includes("invoice") &&
+          field.appliesTo.includes(previewKind) &&
           field.showOnPdf !== false &&
           field.label.trim(),
       )
@@ -29,9 +40,14 @@ export function CustomFieldsInvoicePreview({
         const display = formatCustomFieldDisplayValue(field, sample) ?? sample;
         return { id: field.id, label: field.label, value: display };
       });
-  }, [definitions]);
+  }, [definitions, previewKind]);
 
-  const [tab, setTab] = useState<"preview" | "behavior">("preview");
+  const title = previewKind === "invoice" ? "Invoice" : "Estimate";
+  const docNumber = previewKind === "invoice" ? "INV-1042" : "EST-1042";
+  const emptyHint =
+    previewKind === "invoice"
+      ? "Custom fields that show on invoices and PDFs appear here."
+      : "Custom fields that show on estimates and PDFs appear here.";
 
   return (
     <div
@@ -68,7 +84,34 @@ export function CustomFieldsInvoicePreview({
 
       <div className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4">
         {tab === "preview" ? (
-          <div className="rounded-lg border border-border/90 bg-card p-4 shadow-sm sm:p-5">
+          <div>
+            <div
+              className="mb-3 grid h-8 max-w-48 grid-cols-2 gap-0.5 rounded-lg border border-border/80 bg-background/60 p-0.5"
+              role="group"
+              aria-label="Preview document type"
+            >
+              {(
+                [
+                  { id: "invoice" as const, label: "Invoice" },
+                  { id: "estimate" as const, label: "Estimate" },
+                ] as const
+              ).map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setPreviewKind(item.id)}
+                  className={cn(
+                    "rounded-md text-[11px] font-medium transition-colors",
+                    previewKind === item.id
+                      ? "bg-muted text-foreground"
+                      : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+                  )}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+
             <div className="flex items-start justify-between gap-3">
               <div className="flex min-w-0 items-start gap-2.5">
                 <div
@@ -87,8 +130,8 @@ export function CustomFieldsInvoicePreview({
                 </div>
               </div>
               <div className="shrink-0 text-right">
-                <p className="text-base font-semibold tracking-tight sm:text-lg">Invoice</p>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">INV-1042</p>
+                <p className="text-base font-semibold tracking-tight sm:text-lg">{title}</p>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">{docNumber}</p>
               </div>
             </div>
 
@@ -103,17 +146,18 @@ export function CustomFieldsInvoicePreview({
                   Issue <span className="text-foreground">Mar 12, 2026</span>
                 </p>
                 <p className="text-muted-foreground">
-                  Due <span className="text-foreground">Mar 26, 2026</span>
+                  {previewKind === "invoice" ? "Due" : "Valid until"}{" "}
+                  <span className="text-foreground">Mar 26, 2026</span>
                 </p>
               </div>
             </div>
 
             {rows.length > 0 ? (
-              <div className="mt-5 border-t border-border/70 pt-4">
+              <div className="mt-5">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                   Custom fields
                 </p>
-                <dl className="mt-2.5 space-y-2">
+                <dl className="mt-2 space-y-2 rounded-lg bg-muted/50 px-3 py-2.5">
                   {rows.map((row) => (
                     <div
                       key={row.id}
@@ -128,23 +172,24 @@ export function CustomFieldsInvoicePreview({
                 </dl>
               </div>
             ) : (
-              <div className="mt-5 rounded-md border border-dashed border-border/80 px-3 py-7 text-center text-[12px] text-muted-foreground">
-                Custom fields that show on invoices and PDFs appear here.
+              <div className="mt-5 rounded-lg bg-muted/40 px-3 py-7 text-center text-[12px] text-muted-foreground">
+                {emptyHint}
               </div>
             )}
 
-            <div className="mt-5 border-t border-border/70 pt-4">
-              <div className="flex justify-between text-[12px]">
-                <span className="text-muted-foreground">Design services</span>
-                <span className="font-medium tabular-nums">$2,400.00</span>
-              </div>
-              <div className="mt-2 flex justify-between text-[12px]">
-                <span className="text-muted-foreground">Tax</span>
-                <span className="font-medium tabular-nums">$0.00</span>
-              </div>
-              <div className="mt-3 flex justify-between border-t border-border/60 pt-3 text-sm font-semibold">
+            <div className="mt-5">
+              {SAMPLE_LINES.map((line) => (
+                <div
+                  key={line.label}
+                  className="flex justify-between border-b border-border/60 py-2 text-[12px] last:border-b-0"
+                >
+                  <span className="text-muted-foreground">{line.label}</span>
+                  <span className="font-medium tabular-nums text-foreground">{line.amount}</span>
+                </div>
+              ))}
+              <div className="flex justify-between border-t border-border/70 pt-2.5 text-sm font-semibold">
                 <span>Total</span>
-                <span className="tabular-nums">$2,400.00</span>
+                <span className="tabular-nums">$3,000.00</span>
               </div>
             </div>
           </div>
@@ -182,6 +227,10 @@ function sampleValueForType(field: CustomFieldDefinition): string {
       return field.options?.[0]?.value ?? "Option";
     case "textarea":
       return "Additional notes for this job.";
+    case "email":
+      return "billing@northwind.io";
+    case "url":
+      return "https://northwind.io/po/45678";
     default:
       return field.label.toLowerCase().includes("po") ? "PO-45678" : "Sample value";
   }

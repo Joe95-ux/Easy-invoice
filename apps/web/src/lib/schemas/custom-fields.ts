@@ -7,6 +7,8 @@ export const customFieldTypeSchema = z.enum([
   "date",
   "select",
   "checkbox",
+  "email",
+  "url",
 ]);
 
 export const customFieldAppliesToSchema = z.enum(["invoice", "estimate"]);

@@ -15,6 +15,7 @@ type DatePickerProps = {
   placeholder?: string;
   disabled?: boolean;
   className?: string;
+  "aria-required"?: boolean;
   /** Portal target — required inside Vaul drawers so the calendar stays in the focus trap. */
   container?: HTMLElement | null;
 };
@@ -35,6 +36,7 @@ export function DatePicker({
   placeholder = "Pick a date",
   disabled,
   className,
+  "aria-required": ariaRequired,
   container,
 }: DatePickerProps) {
   const [open, setOpen] = useState(false);
@@ -49,6 +51,7 @@ export function DatePicker({
             type="button"
             variant="outline"
             disabled={disabled}
+            aria-required={ariaRequired}
             className={cn(
               "h-9 w-full justify-start gap-2 px-3 font-normal",
               !value && "text-muted-foreground",

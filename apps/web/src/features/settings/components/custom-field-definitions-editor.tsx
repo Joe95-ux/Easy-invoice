@@ -1,12 +1,14 @@
 "use client";
 
-import { useRef, useState, type DragEvent, type ReactNode } from "react";
+import { useRef, useState, type DragEvent, type KeyboardEvent, type ReactNode } from "react";
 import {
   CalendarIcon,
   CheckSquareIcon,
   GripVerticalIcon,
   HashIcon,
+  LinkIcon,
   ListIcon,
+  MailIcon,
   MoreHorizontalIcon,
   PencilIcon,
   PlusIcon,
@@ -42,6 +44,8 @@ const FIELD_ICONS: Record<CustomFieldType, ReactNode> = {
   date: <CalendarIcon className="size-3.5" />,
   select: <ListIcon className="size-3.5" />,
   checkbox: <CheckSquareIcon className="size-3.5" />,
+  email: <MailIcon className="size-3.5" />,
+  url: <LinkIcon className="size-3.5" />,
 };
 
 type CustomFieldDefinitionsEditorProps = {
@@ -136,6 +140,22 @@ export function CustomFieldDefinitionsEditor({
     setDropIndex(null);
   }
 
+  function moveField(fromIndex: number, direction: -1 | 1) {
+    const toIndex = fromIndex + direction;
+    if (toIndex < 0 || toIndex >= definitions.length) return;
+    const next = [...definitions];
+    const [item] = next.splice(fromIndex, 1);
+    next.splice(toIndex, 0, item!);
+    onChange(next);
+  }
+
+  function onHandleKeyDown(event: KeyboardEvent, index: number) {
+    if (disabled) return;
+    if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+    event.preventDefault();
+    moveField(index, event.key === "ArrowUp" ? -1 : 1);
+  }
+
   function defaultDisplay(field: CustomFieldDefinition): string {
     const raw = field.defaultValue?.trim();
     if (!raw) return "—";
@@ -191,8 +211,10 @@ export function CustomFieldDefinitionsEditor({
                       draggable={!disabled}
                       onDragStart={(event) => onHandleDragStart(event, field.id)}
                       onDragEnd={clearDrag}
+                      onKeyDown={(event) => onHandleKeyDown(event, index)}
                       className="mt-0.5 inline-flex size-6 shrink-0 cursor-grab items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-40"
-                      aria-label={`Drag to reorder ${field.label || "field"}`}
+                      title="Drag or use ↑↓ to reorder"
+                      aria-label={`Drag or use ↑↓ to reorder ${field.label || "field"}`}
                       disabled={disabled}
                     >
                       <GripVerticalIcon className="size-4" />
@@ -311,58 +333,89 @@ export function CustomFieldDefinitionsEditor({
         )}
       </div>
 
-      {inlineOpen ? (
-        <div className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5">
-          <div className="mb-4 flex items-start justify-between gap-3">
-            <div>
-              <h3 className="text-sm font-semibold tracking-tight">Add a custom field</h3>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Captures extra details on invoices and estimates.
-              </p>
+      <div
+        className={cn(
+          "grid transition-[grid-template-rows,opacity] duration-300 ease-out",
+          inlineOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
+        )}
+        aria-hidden={!inlineOpen}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div
+            className={cn(
+              "rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5",
+              !inlineOpen && "pointer-events-none",
+            )}
+          >
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-semibold tracking-tight">Add a custom field</h3>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Captures extra details on invoices and estimates.
+                </p>
+              </div>
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="size-8 shrink-0"
+                onClick={() => setInlineOpen(false)}
+                aria-label="Close"
+                tabIndex={inlineOpen ? 0 : -1}
+              >
+                <XIcon className="size-4" />
+              </Button>
             </div>
-            <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              className="size-8 shrink-0"
-              onClick={() => setInlineOpen(false)}
-              aria-label="Close"
-            >
-              <XIcon className="size-4" />
-            </Button>
-          </div>
-          <CustomFieldFormFields
-            draft={draft}
-            onChange={setDraft}
-            disabled={disabled}
-            compact
-            idPrefix="inline-new"
-          />
-          <div className="mt-4 flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={disabled}
-              onClick={() => setInlineOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button type="button" disabled={disabled} onClick={submitInline}>
-              Create field
-            </Button>
+            <CustomFieldFormFields
+              draft={draft}
+              onChange={setDraft}
+              disabled={disabled || !inlineOpen}
+              compact
+              idPrefix="inline-new"
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={disabled || !inlineOpen}
+                onClick={() => setInlineOpen(false)}
+                tabIndex={inlineOpen ? 0 : -1}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                disabled={disabled || !inlineOpen}
+                onClick={submitInline}
+                tabIndex={inlineOpen ? 0 : -1}
+              >
+                Create field
+              </Button>
+            </div>
           </div>
         </div>
-      ) : (
-        <button
-          type="button"
-          disabled={disabled || definitions.length >= MAX_CUSTOM_FIELD_DEFINITIONS}
-          onClick={openInline}
-          className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border/90 bg-muted/10 px-4 py-3.5 text-sm font-medium text-muted-foreground transition-colors hover:border-foreground/25 hover:bg-muted/30 hover:text-foreground disabled:opacity-50"
-        >
-          <PlusIcon className="size-4" />
-          Add a custom field
-        </button>
-      )}
+      </div>
+
+      <div
+        className={cn(
+          "grid transition-[grid-template-rows,opacity] duration-300 ease-out",
+          inlineOpen ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr] opacity-100",
+        )}
+        aria-hidden={inlineOpen}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <button
+            type="button"
+            disabled={disabled || definitions.length >= MAX_CUSTOM_FIELD_DEFINITIONS || inlineOpen}
+            onClick={openInline}
+            tabIndex={inlineOpen ? -1 : 0}
+            className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-border/90 bg-muted/10 px-4 py-3.5 text-sm font-medium text-muted-foreground transition-all duration-200 hover:border-foreground/25 hover:bg-muted/30 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <PlusIcon className="size-4" />
+            Add a custom field
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

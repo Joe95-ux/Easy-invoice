@@ -7,11 +7,16 @@ import { PageHeader, pageHeaderActionClass } from "@/components/app-shell/page-h
 import { Button } from "@/components/ui/button";
 import { CustomFieldDefinitionsEditor } from "@/features/settings/components/custom-field-definitions-editor";
 import { CustomFieldDrawer } from "@/features/settings/components/custom-field-drawer";
+import {
+  CustomFieldsDocsDrawer,
+  CustomFieldsDocsTrigger,
+} from "@/features/settings/components/custom-fields-docs";
 import { CustomFieldsInvoicePreview } from "@/features/settings/components/custom-fields-invoice-preview";
 import {
   firstCustomFieldDefinitionsError,
   MAX_CUSTOM_FIELD_DEFINITIONS,
   normalizeCustomFieldDefinitions,
+  customFieldMergeTagKey,
 } from "@/lib/custom-fields";
 import {
   updateCustomFieldDefinitionsSchema,
@@ -26,6 +31,7 @@ export function CustomFieldsPageContent() {
   const [dirty, setDirty] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saved" | "error">("idle");
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [docsOpen, setDocsOpen] = useState(false);
   const [editing, setEditing] = useState<CustomFieldDefinition | null>(null);
   const [mainTab, setMainTab] = useState<"fields" | "usage">("fields");
   const definitionsRef = useRef(definitions);
@@ -187,6 +193,7 @@ export function CustomFieldsPageContent() {
                 {saveHint}
               </span>
             ) : null}
+            <CustomFieldsDocsTrigger onClick={() => setDocsOpen(true)} />
             <Button
               className={pageHeaderActionClass}
               disabled={loading || atLimit}
@@ -215,7 +222,11 @@ export function CustomFieldsPageContent() {
       ) : (
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(17rem,22rem)] lg:items-start xl:grid-cols-[minmax(0,1fr)_24rem]">
           <div className="min-w-0 space-y-4">
-            <div className="flex gap-1 border-b border-border/80">
+            <div
+              className="grid h-9 max-w-48 grid-cols-2 gap-0.5 rounded-lg border border-border p-0.5"
+              role="group"
+              aria-label="Custom fields view"
+            >
               {(
                 [
                   { id: "fields" as const, label: "Fields" },
@@ -227,16 +238,13 @@ export function CustomFieldsPageContent() {
                   type="button"
                   onClick={() => setMainTab(tab.id)}
                   className={cn(
-                    "relative px-3 pb-2.5 text-sm font-medium transition-colors",
+                    "rounded-md text-sm font-medium transition-colors",
                     mainTab === tab.id
-                      ? "text-foreground"
-                      : "text-muted-foreground hover:text-foreground",
+                      ? "bg-muted text-foreground"
+                      : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
                   )}
                 >
                   {tab.label}
-                  {mainTab === tab.id ? (
-                    <span className="absolute inset-x-3 -bottom-px h-0.5 rounded-full bg-primary" />
-                  ) : null}
                 </button>
               ))}
             </div>
@@ -273,6 +281,8 @@ export function CustomFieldsPageContent() {
         field={editing}
         onSubmit={handleDrawerSubmit}
       />
+
+      <CustomFieldsDocsDrawer open={docsOpen} onOpenChange={setDocsOpen} />
     </>
   );
 }
@@ -305,34 +315,43 @@ function UsagePanel({ definitions }: { definitions: CustomFieldDefinition[] }) {
         </p>
       ) : (
         <ul className="divide-y divide-border/70 overflow-hidden rounded-xl border border-border/80 bg-card">
-          {definitions.map((field) => (
-            <li key={field.id} className="flex items-start justify-between gap-3 px-4 py-3">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-foreground">
-                  {field.label || "Untitled field"}
-                </p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {[
-                    field.appliesTo.includes("invoice") ? "Invoices" : null,
-                    field.appliesTo.includes("estimate") ? "Estimates" : null,
-                    field.showOnPdf !== false ? "PDF" : null,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ") || "Hidden from documents"}
-                </p>
-              </div>
-              <span
-                className={cn(
-                  "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium",
-                  field.enabled === false
-                    ? "bg-muted text-muted-foreground"
-                    : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
-                )}
-              >
-                {field.enabled === false ? "Off" : "On"}
-              </span>
-            </li>
-          ))}
+          {definitions.map((field) => {
+            const mergeTag = `{{${customFieldMergeTagKey(field)}}}`;
+            return (
+              <li key={field.id} className="flex items-start justify-between gap-3 px-4 py-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-foreground">
+                    {field.label || "Untitled field"}
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {[
+                      field.appliesTo.includes("invoice") ? "Invoices" : null,
+                      field.appliesTo.includes("estimate") ? "Estimates" : null,
+                      field.showOnPdf !== false ? "PDF" : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ") || "Hidden from documents"}
+                  </p>
+                  <p className="mt-1.5 font-mono text-[11px] text-muted-foreground">
+                    Merge tag:{" "}
+                    <span className="rounded bg-muted/60 px-1 py-0.5 text-foreground/80">
+                      {mergeTag}
+                    </span>
+                  </p>
+                </div>
+                <span
+                  className={cn(
+                    "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium",
+                    field.enabled === false
+                      ? "bg-muted text-muted-foreground"
+                      : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+                  )}
+                >
+                  {field.enabled === false ? "Off" : "On"}
+                </span>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

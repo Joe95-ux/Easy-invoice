@@ -174,6 +174,7 @@ type RecurringWithRelations = {
   taxRate: { toString(): string } | number;
   discount: { toString(): string } | number;
   notes: string | null;
+  customFields: unknown;
   templateId: string | null;
   sourceInvoiceId: string | null;
   lastIssuedAt: Date | null;
@@ -229,6 +230,10 @@ export function serializeRecurringInvoice(
     taxRate,
     discount,
     notes: row.notes,
+    customFields:
+      row.customFields && typeof row.customFields === "object" && !Array.isArray(row.customFields)
+        ? (row.customFields as Record<string, string>)
+        : {},
     templateId: row.templateId,
     sourceInvoiceId: row.sourceInvoiceId,
     lastIssuedAt: row.lastIssuedAt?.toISOString() ?? null,
@@ -337,6 +342,7 @@ export async function createRecurringInvoice(
       taxRate: input.taxRate,
       discount: input.discount,
       notes: input.notes?.trim() || null,
+      customFields: input.customFields ?? {},
       templateId,
       sourceInvoiceId: input.sourceInvoiceId ?? null,
       items: { create: mapLineItemCreates(input.lineItems) },
@@ -399,6 +405,12 @@ export async function createRecurringFromInvoice(
     taxRate: Number(invoice.taxRate),
     discount: Number(invoice.discount),
     notes: invoice.notes,
+    customFields:
+      invoice.customFields &&
+      typeof invoice.customFields === "object" &&
+      !Array.isArray(invoice.customFields)
+        ? (invoice.customFields as Record<string, string>)
+        : {},
     templateId: invoice.templateId,
     sourceInvoiceId: invoice.id,
     lineItems: invoice.items.map((item, index) => ({
@@ -510,6 +522,7 @@ export async function updateRecurringInvoice(
         ...(input.taxRate !== undefined ? { taxRate: input.taxRate } : {}),
         ...(input.discount !== undefined ? { discount: input.discount } : {}),
         ...(input.notes !== undefined ? { notes: input.notes?.trim() || null } : {}),
+        ...(input.customFields !== undefined ? { customFields: input.customFields ?? {} } : {}),
         ...(templateId !== undefined ? { templateId } : {}),
       },
       include: listInclude,
@@ -850,6 +863,12 @@ export async function issueRecurringInvoiceOccurrence(
           discount: Number(schedule.discount),
           total: totals.total,
           notes: schedule.notes,
+          customFields:
+            schedule.customFields &&
+            typeof schedule.customFields === "object" &&
+            !Array.isArray(schedule.customFields)
+              ? schedule.customFields
+              : {},
           issueDate,
           dueDate,
           items: { create: lineItems },

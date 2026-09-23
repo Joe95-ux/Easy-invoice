@@ -30,6 +30,7 @@ export type SerializedRecurringInvoice = {
   taxRate: number;
   discount: number;
   notes: string | null;
+  customFields?: Record<string, string>;
   templateId: string | null;
   sourceInvoiceId: string | null;
   lastIssuedAt: string | null;

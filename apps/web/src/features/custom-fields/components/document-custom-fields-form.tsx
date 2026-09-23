@@ -26,6 +26,13 @@ type DocumentCustomFieldsFormProps = {
   onChange: (values: CustomFieldValues) => void;
 };
 
+function inputTypeForField(type: CustomFieldDefinition["type"]): string {
+  if (type === "number") return "number";
+  if (type === "email") return "email";
+  if (type === "url") return "url";
+  return "text";
+}
+
 export function DocumentCustomFieldsForm({
   kind,
   definitions,
@@ -65,6 +72,7 @@ export function DocumentCustomFieldsForm({
                   id={field.id}
                   value={value}
                   rows={3}
+                  aria-required={field.required}
                   onChange={(event) => setValue(field.id, event.target.value)}
                 />
                 {help}
@@ -83,6 +91,7 @@ export function DocumentCustomFieldsForm({
                   value={value || undefined}
                   onChange={(next) => setValue(field.id, next)}
                   placeholder="Pick a date"
+                  aria-required={field.required}
                 />
                 {help}
               </FieldContent>
@@ -106,7 +115,11 @@ export function DocumentCustomFieldsForm({
                   onValueChange={(next) => setValue(field.id, next ?? "")}
                   items={items}
                 >
-                  <SelectTrigger id={field.id} className="text-foreground">
+                  <SelectTrigger
+                    id={field.id}
+                    className="text-foreground"
+                    aria-required={field.required}
+                  >
                     <SelectValue>{value ? selectedLabel : null}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
@@ -130,6 +143,7 @@ export function DocumentCustomFieldsForm({
                 <Checkbox
                   id={field.id}
                   checked={value === "true"}
+                  aria-required={field.required}
                   onCheckedChange={(checked) => {
                     if (checked === true) {
                       setValue(field.id, "true");
@@ -155,8 +169,9 @@ export function DocumentCustomFieldsForm({
             <FieldContent className="gap-1.5">
               <Input
                 id={field.id}
-                type={field.type === "number" ? "number" : "text"}
+                type={inputTypeForField(field.type)}
                 value={value}
+                aria-required={field.required}
                 onChange={(event) => setValue(field.id, event.target.value)}
               />
               {help}

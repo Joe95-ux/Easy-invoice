@@ -37,6 +37,7 @@ export function CustomFieldDrawer({
 }: CustomFieldDrawerProps) {
   const isEdit = Boolean(field);
   const [draft, setDraft] = useState<CustomFieldFormDraft>(() => draftFromDefinition(field));
+  const [popupContainer, setPopupContainer] = useState<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (open) setDraft(draftFromDefinition(field));
@@ -60,6 +61,9 @@ export function CustomFieldDrawer({
       shouldScaleBackground={false}
     >
       <DrawerContent className="flex h-full max-h-dvh flex-col data-[vaul-drawer-direction=right]:w-full data-[vaul-drawer-direction=right]:sm:max-w-md">
+        {/* Portal target so selects stay inside the drawer (Vaul focus trap). */}
+        <div ref={setPopupContainer} />
+
         <DrawerHeader className="border-b border-border text-left">
           <DrawerTitle>{isEdit ? "Edit field" : "Add field"}</DrawerTitle>
           <DrawerDescription>
@@ -75,6 +79,8 @@ export function CustomFieldDrawer({
             onChange={setDraft}
             disabled={disabled}
             idPrefix={isEdit ? `edit-${field?.id ?? "field"}` : "drawer-new"}
+            popupContainer={popupContainer}
+            initialType={isEdit ? field?.type : undefined}
           />
         </div>
 

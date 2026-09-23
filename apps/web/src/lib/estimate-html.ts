@@ -57,6 +57,7 @@ export function estimateToHtmlData(
       scope: estimate.scope,
     },
     customFields: customFieldRows.map((row) => ({
+      id: row.id,
       label: row.label,
       value: row.value,
       multiline: row.multiline,

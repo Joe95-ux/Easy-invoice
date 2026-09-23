@@ -51,6 +51,8 @@ export type EstimateRow = {
   currency: string;
   validUntil: string | null;
   clientName: string | null;
+  /** Flattened custom field values for table search. */
+  customFieldsSearch?: string;
 };
 
 const STATUS_FILTER_OPTIONS = [
@@ -78,7 +80,7 @@ export function EstimatesTable({ estimates, companyName }: EstimatesTableProps) 
   const table = useListTable<EstimateRow>({
     tableId: "estimates",
     data: estimates,
-    searchKeys: ["number", "clientName"],
+    searchKeys: ["number", "clientName", "customFieldsSearch"],
     filterOptions: STATUS_FILTER_OPTIONS,
     defaultFilter: "all",
     filterFn: (row, filter) => filter === "all" || row.status === filter,

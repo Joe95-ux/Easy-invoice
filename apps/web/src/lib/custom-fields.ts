@@ -194,10 +194,54 @@ export function sanitizeCustomFieldValuesForSave(
       continue;
     }
 
+    if (field.type === "email") {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+        return { ok: false, error: `${field.label} must be a valid email` };
+      }
+      out[field.id] = value.slice(0, 5000);
+      continue;
+    }
+
+    if (field.type === "url") {
+      try {
+        const parsed = new URL(value.includes("://") ? value : `https://${value}`);
+        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+          return { ok: false, error: `${field.label} must be a valid URL` };
+        }
+        out[field.id] = value.slice(0, 5000);
+      } catch {
+        return { ok: false, error: `${field.label} must be a valid URL` };
+      }
+      continue;
+    }
+
     out[field.id] = value.slice(0, 5000);
   }
 
   return { ok: true, values: out };
+}
+
+/**
+ * Keep values for disabled / non-applicable / deleted definitions that already
+ * live on the document so edits don't wipe historical data.
+ */
+export function mergePreservedCustomFieldValues(
+  definitions: CustomFieldDefinition[],
+  kind: CustomFieldAppliesTo,
+  sanitizedEditable: CustomFieldValues,
+  existingOnDocument: unknown,
+): CustomFieldValues {
+  const editableIds = new Set(
+    definitionsForDocument(definitions, kind).map((field) => field.id),
+  );
+  const existing = normalizeCustomFieldValues(existingOnDocument);
+  const out: CustomFieldValues = { ...sanitizedEditable };
+  for (const [id, value] of Object.entries(existing)) {
+    if (editableIds.has(id)) continue;
+    const trimmed = value.trim();
+    if (trimmed) out[id] = trimmed.slice(0, 5000);
+  }
+  return out;
 }
 
 export function validateRequiredCustomFields(
@@ -222,12 +266,22 @@ export function prepareCustomFieldsForSave(
   definitions: CustomFieldDefinition[],
   kind: CustomFieldAppliesTo,
   raw: unknown,
+  options?: { previousValues?: unknown },
 ): SanitizeCustomFieldsResult {
   const sanitized = sanitizeCustomFieldValuesForSave(definitions, kind, raw);
   if (!sanitized.ok) return sanitized;
   const requiredError = validateRequiredCustomFields(definitions, kind, sanitized.values);
   if (requiredError) return { ok: false, error: requiredError };
-  return sanitized;
+  if (options?.previousValues === undefined) return sanitized;
+  return {
+    ok: true,
+    values: mergePreservedCustomFieldValues(
+      definitions,
+      kind,
+      sanitized.values,
+      options.previousValues,
+    ),
+  };
 }
 
 export function formatCustomFieldDisplayValue(
@@ -273,6 +327,7 @@ export function buildCustomFieldDisplayRows(
   const normalized = normalizeCustomFieldValues(values);
   const rows: CustomFieldDisplayRow[] = [];
   const seen = new Set<string>();
+  const byId = new Map(definitions.map((field) => [field.id, field]));
 
   for (const field of definitionsForDocument(definitions, kind)) {
     seen.add(field.id);
@@ -287,9 +342,26 @@ export function buildCustomFieldDisplayRows(
     });
   }
 
-  // Keep values for removed definitions visible (historical documents).
+  // Disabled / no-longer-applies: keep real labels when values exist.
+  for (const field of definitions) {
+    if (seen.has(field.id)) continue;
+    const raw = normalized[field.id];
+    if (!raw?.trim()) continue;
+    seen.add(field.id);
+    if (options?.forPdf && field.showOnPdf === false) continue;
+    const display = formatCustomFieldDisplayValue(field, raw);
+    if (!display) continue;
+    rows.push({
+      id: field.id,
+      label: field.label,
+      value: display,
+      multiline: field.type === "textarea",
+    });
+  }
+
+  // Truly removed definitions (no longer in company settings).
   for (const [id, raw] of Object.entries(normalized)) {
-    if (seen.has(id)) continue;
+    if (seen.has(id) || byId.has(id)) continue;
     const value = raw.trim();
     if (!value) continue;
     if (value === "true") {
@@ -305,6 +377,32 @@ export function buildCustomFieldDisplayRows(
   }
 
   return rows;
+}
+
+/** Slug used for per-field merge tags: {{custom_field_<slug>}}. */
+export function customFieldMergeTagKey(field: Pick<CustomFieldDefinition, "id" | "label">): string {
+  const slug = field.label
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 40);
+  return `custom_field_${slug || field.id}`;
+}
+
+/** Flat map of merge-tag key → display value for template replace. */
+export function buildCustomFieldMergeTagMap(
+  rows: CustomFieldDisplayRow[],
+  definitions: CustomFieldDefinition[],
+): Record<string, string> {
+  const byId = new Map(definitions.map((field) => [field.id, field]));
+  const out: Record<string, string> = {};
+  for (const row of rows) {
+    out[`custom_field_${row.id}`] = row.value;
+    const def = byId.get(row.id);
+    if (def) out[customFieldMergeTagKey(def)] = row.value;
+  }
+  return out;
 }
 
 export function createEmptyCustomFieldDefinition(
@@ -342,6 +440,8 @@ export const CUSTOM_FIELD_TYPE_LABELS: Record<CustomFieldType, string> = {
   date: "Date",
   select: "Dropdown",
   checkbox: "Checkbox",
+  email: "Email",
+  url: "URL",
 };
 
 /** First user-facing Zod issue message from a failed definitions parse. */

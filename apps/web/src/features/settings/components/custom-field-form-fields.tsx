@@ -155,6 +155,10 @@ type CustomFieldFormFieldsProps = {
   disabled?: boolean;
   compact?: boolean;
   idPrefix?: string;
+  /** Portal target for selects inside drawers/sheets (avoids Vaul focus trap). */
+  popupContainer?: HTMLElement | null;
+  /** When set (edit mode), warn if the type differs from this value. */
+  initialType?: CustomFieldType;
 };
 
 export function CustomFieldFormFields({
@@ -163,6 +167,8 @@ export function CustomFieldFormFields({
   disabled = false,
   compact = false,
   idPrefix = "cf",
+  popupContainer,
+  initialType,
 }: CustomFieldFormFieldsProps) {
   function patch(partial: Partial<CustomFieldFormDraft>) {
     onChange({ ...draft, ...partial });
@@ -193,8 +199,8 @@ export function CustomFieldFormFields({
   }
 
   return (
-    <div className={cn("space-y-4", compact && "space-y-3")}>
-      <div className="grid gap-3 sm:grid-cols-2">
+    <div className={cn(compact ? "space-y-4" : "space-y-6")}>
+      <div className={cn(compact ? "grid gap-4 sm:grid-cols-2" : "flex flex-col gap-4")}>
         <div className="space-y-1.5">
           <Label htmlFor={`${idPrefix}-name`}>Field name</Label>
           <Input
@@ -228,7 +234,7 @@ export function CustomFieldFormFields({
             <SelectTrigger id={`${idPrefix}-type`}>
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent container={popupContainer}>
               {FIELD_TYPES.map((type) => (
                 <SelectItem key={type.value} value={type.value}>
                   {type.label}
@@ -236,6 +242,11 @@ export function CustomFieldFormFields({
               ))}
             </SelectContent>
           </Select>
+          {initialType != null && draft.type !== initialType ? (
+            <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-xs text-amber-800 dark:text-amber-300">
+              Changing type may not match values already saved on documents.
+            </p>
+          ) : null}
         </div>
         <div className="space-y-1.5">
           <Label htmlFor={`${idPrefix}-default`}>Default value (optional)</Label>
@@ -268,7 +279,7 @@ export function CustomFieldFormFields({
               <SelectTrigger id={`${idPrefix}-default`}>
                 <SelectValue placeholder="No default" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent container={popupContainer}>
                 <SelectItem value={NO_DEFAULT}>No default</SelectItem>
                 {draft.options.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
@@ -282,8 +293,26 @@ export function CustomFieldFormFields({
               id={`${idPrefix}-default`}
               value={draft.defaultValue}
               disabled={disabled}
-              type={draft.type === "number" ? "number" : draft.type === "date" ? "date" : "text"}
-              placeholder={draft.type === "date" ? undefined : "e.g. N/A"}
+              type={
+                draft.type === "number"
+                  ? "number"
+                  : draft.type === "date"
+                    ? "date"
+                    : draft.type === "email"
+                      ? "email"
+                      : draft.type === "url"
+                        ? "url"
+                        : "text"
+              }
+              placeholder={
+                draft.type === "date"
+                  ? undefined
+                  : draft.type === "email"
+                    ? "e.g. billing@client.com"
+                    : draft.type === "url"
+                      ? "e.g. https://example.com"
+                      : "e.g. N/A"
+              }
               onChange={(event) => patch({ defaultValue: event.target.value })}
             />
           )}
@@ -344,7 +373,7 @@ export function CustomFieldFormFields({
         </div>
       ) : null}
 
-      <div className="space-y-3 rounded-lg border border-border/70 bg-muted/15 px-3 py-3">
+      <div className={cn("rounded-lg border border-border/70 bg-muted/15 px-3 py-3", compact ? "space-y-3" : "space-y-4")}>
         <ToggleRow
           id={`${idPrefix}-required`}
           label="Required"

@@ -161,6 +161,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       normalizeCustomFieldDefinitions(member.company.customFieldDefinitions),
       "estimate",
       data.customFields,
+      { previousValues: existing.customFields },
     );
     if (!prepared.ok) {
       return NextResponse.json({ error: prepared.error }, { status: 400 });

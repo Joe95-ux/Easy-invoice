@@ -3,6 +3,10 @@ import { requireApiMember, parseJsonBody, validationError } from "@/lib/api/vali
 import { getAppOrigin } from "@/lib/app-url";
 import { publicDocumentUrl } from "@/lib/document-tokens";
 import { sendInvoiceEmail } from "@/lib/email";
+import {
+  buildCustomFieldDisplayRows,
+  normalizeCustomFieldDefinitions,
+} from "@/lib/custom-fields";
 import { generateInvoicePdfBuffer } from "@/lib/invoice-service";
 import { formatMoney } from "@/lib/invoices";
 import { portalLoginUrl } from "@/lib/portal/urls";
@@ -58,6 +62,11 @@ export async function POST(request: Request, context: RouteContext) {
     }
 
     const origin = await getAppOrigin();
+    const customFieldRows = buildCustomFieldDisplayRows(
+      normalizeCustomFieldDefinitions(invoice.company.customFieldDefinitions),
+      "invoice",
+      invoice.customFields,
+    ).map((row) => ({ label: row.label, value: row.value }));
     await sendInvoiceEmail({
       to: recipientEmail,
       companyName: invoice.company.name,
@@ -72,6 +81,7 @@ export async function POST(request: Request, context: RouteContext) {
       portalUrl: portalLoginUrl(origin, recipientEmail),
       message: parsed.data.message,
       subject: parsed.data.subject,
+      customFieldRows,
     });
 
     const updated = await prisma.invoice.update({

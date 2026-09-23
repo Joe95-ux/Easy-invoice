@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { requireApiMember, parseJsonBody, validationError } from "@/lib/api/validation";
 import { getAppOrigin } from "@/lib/app-url";
 import { publicDocumentUrl } from "@/lib/document-tokens";
+import {
+  buildCustomFieldDisplayRows,
+  normalizeCustomFieldDefinitions,
+} from "@/lib/custom-fields";
 import { sendEstimateEmail } from "@/lib/email";
 import { generateEstimatePdfBuffer } from "@/lib/estimate-service";
 import { formatMoney } from "@/lib/estimates";
@@ -46,6 +50,11 @@ export async function POST(request: Request, context: RouteContext) {
     }
 
     const origin = await getAppOrigin();
+    const customFieldRows = buildCustomFieldDisplayRows(
+      normalizeCustomFieldDefinitions(estimate.company.customFieldDefinitions),
+      "estimate",
+      estimate.customFields,
+    ).map((row) => ({ label: row.label, value: row.value }));
     await sendEstimateEmail({
       to: recipientEmail,
       companyName: estimate.company.name,
@@ -60,6 +69,7 @@ export async function POST(request: Request, context: RouteContext) {
       portalUrl: portalLoginUrl(origin, recipientEmail),
       message: parsed.data.message,
       subject: parsed.data.subject,
+      customFieldRows,
     });
 
     const updated = await prisma.estimate.update({
