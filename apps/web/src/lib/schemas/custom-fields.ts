@@ -20,8 +20,12 @@ export const customFieldDefinitionSchema = z
   .object({
     id: z.string().min(1),
     label: z.string().trim().min(1).max(120),
+    description: z.string().trim().max(300).optional().nullable(),
     type: customFieldTypeSchema,
     required: z.boolean().default(false),
+    /** When false, field is hidden from new documents (existing values still display). */
+    enabled: z.boolean().default(true),
+    defaultValue: z.string().trim().max(5000).optional().nullable(),
     options: z.array(customFieldOptionSchema).max(50).optional(),
     appliesTo: z
       .array(customFieldAppliesToSchema)

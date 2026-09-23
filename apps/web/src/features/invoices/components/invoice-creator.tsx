@@ -65,6 +65,7 @@ import {
   normalizeCustomFieldDefinitions,
   normalizeCustomFieldValues,
   prepareCustomFieldsForSave,
+  seedCustomFieldDefaults,
 } from "@/lib/custom-fields";
 import type { CustomFieldDefinition, CustomFieldValues } from "@/lib/schemas/custom-fields";
 import {
@@ -161,9 +162,16 @@ export function InvoiceCreator({
   const [clientPhone, setClientPhone] = useState(initialValues?.clientPhone ?? "");
   const [clientAddress, setClientAddress] = useState(initialValues?.clientAddress ?? "");
   const [notes, setNotes] = useState(initialValues?.notes ?? "");
-  const [customFields, setCustomFields] = useState<CustomFieldValues>(() =>
-    normalizeCustomFieldValues(initialValues?.customFields),
-  );
+  const [customFields, setCustomFields] = useState<CustomFieldValues>(() => {
+    const existing = normalizeCustomFieldValues(initialValues?.customFields);
+    // Prefer stored values when the document already has customFields (edit/convert).
+    if (initialValues?.customFields != null) return existing;
+    return seedCustomFieldDefaults(
+      normalizeCustomFieldDefinitions(customFieldDefinitions),
+      "invoice",
+      existing,
+    );
+  });
   const fieldDefinitions = useMemo(
     () => normalizeCustomFieldDefinitions(customFieldDefinitions),
     [customFieldDefinitions],

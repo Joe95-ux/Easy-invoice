@@ -58,6 +58,7 @@ import {
   normalizeCustomFieldDefinitions,
   normalizeCustomFieldValues,
   prepareCustomFieldsForSave,
+  seedCustomFieldDefaults,
 } from "@/lib/custom-fields";
 import type { CustomFieldDefinition, CustomFieldValues } from "@/lib/schemas/custom-fields";
 import type { TemplateSummary } from "@/lib/templates";
@@ -147,9 +148,15 @@ export function EstimateCreator({
   const [clientAddress, setClientAddress] = useState(initialValues?.clientAddress ?? "");
   const [scope, setScope] = useState(initialValues?.scope ?? "");
   const [notes, setNotes] = useState(initialValues?.notes ?? "");
-  const [customFields, setCustomFields] = useState<CustomFieldValues>(() =>
-    normalizeCustomFieldValues(initialValues?.customFields),
-  );
+  const [customFields, setCustomFields] = useState<CustomFieldValues>(() => {
+    const existing = normalizeCustomFieldValues(initialValues?.customFields);
+    if (initialValues?.customFields != null) return existing;
+    return seedCustomFieldDefaults(
+      normalizeCustomFieldDefinitions(customFieldDefinitions),
+      "estimate",
+      existing,
+    );
+  });
   const fieldDefinitions = useMemo(
     () => normalizeCustomFieldDefinitions(customFieldDefinitions),
     [customFieldDefinitions],

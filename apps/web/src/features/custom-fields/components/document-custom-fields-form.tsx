@@ -51,17 +51,23 @@ export function DocumentCustomFieldsForm({
           </>
         );
 
+        const description = field.description?.trim() || null;
+        const help = description ? (
+          <p className="text-xs text-muted-foreground">{description}</p>
+        ) : null;
+
         if (field.type === "textarea") {
           return (
             <Field key={field.id}>
               <FieldLabel htmlFor={field.id}>{label}</FieldLabel>
-              <FieldContent>
+              <FieldContent className="gap-1.5">
                 <Textarea
                   id={field.id}
                   value={value}
                   rows={3}
                   onChange={(event) => setValue(field.id, event.target.value)}
                 />
+                {help}
               </FieldContent>
             </Field>
           );
@@ -71,13 +77,14 @@ export function DocumentCustomFieldsForm({
           return (
             <Field key={field.id}>
               <FieldLabel htmlFor={field.id}>{label}</FieldLabel>
-              <FieldContent>
+              <FieldContent className="gap-1.5">
                 <DatePicker
                   id={field.id}
                   value={value || undefined}
                   onChange={(next) => setValue(field.id, next)}
                   placeholder="Pick a date"
                 />
+                {help}
               </FieldContent>
             </Field>
           );
@@ -93,7 +100,7 @@ export function DocumentCustomFieldsForm({
           return (
             <Field key={field.id}>
               <FieldLabel htmlFor={field.id}>{label}</FieldLabel>
-              <FieldContent>
+              <FieldContent className="gap-1.5">
                 <Select
                   value={value || null}
                   onValueChange={(next) => setValue(field.id, next ?? "")}
@@ -110,6 +117,7 @@ export function DocumentCustomFieldsForm({
                     ))}
                   </SelectContent>
                 </Select>
+                {help}
               </FieldContent>
             </Field>
           );
@@ -117,23 +125,26 @@ export function DocumentCustomFieldsForm({
 
         if (field.type === "checkbox") {
           return (
-            <div key={field.id} className="flex items-center gap-2">
-              <Checkbox
-                id={field.id}
-                checked={value === "true"}
-                onCheckedChange={(checked) => {
-                  if (checked === true) {
-                    setValue(field.id, "true");
-                    return;
-                  }
-                  const next = { ...values };
-                  delete next[field.id];
-                  onChange(next);
-                }}
-              />
-              <label htmlFor={field.id} className="text-sm font-medium leading-none">
-                {label}
-              </label>
+            <div key={field.id} className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id={field.id}
+                  checked={value === "true"}
+                  onCheckedChange={(checked) => {
+                    if (checked === true) {
+                      setValue(field.id, "true");
+                      return;
+                    }
+                    const next = { ...values };
+                    delete next[field.id];
+                    onChange(next);
+                  }}
+                />
+                <label htmlFor={field.id} className="text-sm font-medium leading-none">
+                  {label}
+                </label>
+              </div>
+              {help}
             </div>
           );
         }
@@ -141,13 +152,14 @@ export function DocumentCustomFieldsForm({
         return (
           <Field key={field.id}>
             <FieldLabel htmlFor={field.id}>{label}</FieldLabel>
-            <FieldContent>
+            <FieldContent className="gap-1.5">
               <Input
                 id={field.id}
                 type={field.type === "number" ? "number" : "text"}
                 value={value}
                 onChange={(event) => setValue(field.id, event.target.value)}
               />
+              {help}
             </FieldContent>
           </Field>
         );

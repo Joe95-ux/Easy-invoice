@@ -40,6 +40,7 @@ function normalizeOneDefinition(item: unknown, index: number): unknown {
       label: `Field ${index + 1}`,
       type: "text",
       required: false,
+      enabled: true,
       appliesTo: ["invoice", "estimate"],
       showOnPdf: true,
     };
@@ -50,12 +51,38 @@ function normalizeOneDefinition(item: unknown, index: number): unknown {
   const appliesTo = appliesRaw.filter(
     (value): value is CustomFieldAppliesTo => value === "invoice" || value === "estimate",
   );
+  const description =
+    typeof row.description === "string" && row.description.trim()
+      ? row.description.trim().slice(0, 300)
+      : null;
+  const defaultValue =
+    typeof row.defaultValue === "string" && row.defaultValue.trim()
+      ? row.defaultValue.trim().slice(0, 5000)
+      : null;
   return {
     id: typeof row.id === "string" && row.id.trim() ? row.id : newFormFieldId(),
     label: typeof row.label === "string" ? row.label : `Field ${index + 1}`,
+    description,
     type,
     required: row.required === true,
-    options: Array.isArray(row.options) ? row.options : undefined,
+    enabled: row.enabled !== false,
+    defaultValue:
+      type === "checkbox"
+        ? defaultValue === "true"
+          ? "true"
+          : null
+        : type === "select" && defaultValue
+          ? Array.isArray(row.options) &&
+            row.options.some(
+              (option) =>
+                option &&
+                typeof option === "object" &&
+                (option as { value?: unknown }).value === defaultValue,
+            )
+            ? defaultValue
+            : null
+          : defaultValue,
+    options: type === "select" && Array.isArray(row.options) ? row.options : undefined,
     appliesTo: appliesTo.length > 0 ? appliesTo : ["invoice", "estimate"],
     showOnPdf: row.showOnPdf !== false,
   };
@@ -85,7 +112,32 @@ export function definitionsForDocument(
   definitions: CustomFieldDefinition[],
   kind: CustomFieldAppliesTo,
 ) {
-  return definitions.filter((field) => field.appliesTo.includes(kind));
+  return definitions.filter(
+    (field) => field.enabled !== false && field.appliesTo.includes(kind),
+  );
+}
+
+/** Prefill document form values from definition defaults (create flows). */
+export function seedCustomFieldDefaults(
+  definitions: CustomFieldDefinition[],
+  kind: CustomFieldAppliesTo,
+  existing?: CustomFieldValues | null,
+): CustomFieldValues {
+  const values = normalizeCustomFieldValues(existing);
+  for (const field of definitionsForDocument(definitions, kind)) {
+    if (Object.prototype.hasOwnProperty.call(values, field.id)) continue;
+    const def = field.defaultValue?.trim();
+    if (!def) continue;
+    if (field.type === "checkbox" && def !== "true") continue;
+    if (
+      field.type === "select" &&
+      !field.options?.some((option) => option.value === def)
+    ) {
+      continue;
+    }
+    values[field.id] = def;
+  }
+  return values;
 }
 
 export type SanitizeCustomFieldsResult =
@@ -260,9 +312,12 @@ export function createEmptyCustomFieldDefinition(
 ): CustomFieldDefinition {
   return {
     id: newFormFieldId(),
-    label: "New field",
+    label: "",
+    description: null,
     type,
     required: false,
+    enabled: true,
+    defaultValue: null,
     appliesTo: ["invoice", "estimate"],
     showOnPdf: true,
     ...(type === "select"
