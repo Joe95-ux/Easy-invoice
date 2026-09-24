@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronDownIcon } from "lucide-react";
 import type { CustomFieldDefinition } from "@/lib/schemas/custom-fields";
 import { formatCustomFieldDisplayValue } from "@/lib/custom-fields";
 import { cn } from "@/lib/utils";
@@ -18,6 +19,11 @@ const SAMPLE_LINES = [
 
 type PreviewKind = "invoice" | "estimate";
 
+const PREVIEW_OPTIONS = [
+  { id: "invoice" as const, label: "Invoice preview" },
+  { id: "estimate" as const, label: "Estimate preview" },
+] as const;
+
 /** Lightweight document mock showing where custom fields land on the PDF. */
 export function CustomFieldsInvoicePreview({
   definitions,
@@ -25,6 +31,8 @@ export function CustomFieldsInvoicePreview({
 }: CustomFieldsInvoicePreviewProps) {
   const [tab, setTab] = useState<"preview" | "behavior">("preview");
   const [previewKind, setPreviewKind] = useState<PreviewKind>("invoice");
+  const [previewMenuOpen, setPreviewMenuOpen] = useState(false);
+  const previewTabRef = useRef<HTMLDivElement>(null);
 
   const rows = useMemo(() => {
     return definitions
@@ -42,8 +50,29 @@ export function CustomFieldsInvoicePreview({
       });
   }, [definitions, previewKind]);
 
+  useEffect(() => {
+    if (!previewMenuOpen) return;
+    function onPointerDown(event: PointerEvent) {
+      if (!previewTabRef.current?.contains(event.target as Node)) {
+        setPreviewMenuOpen(false);
+      }
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setPreviewMenuOpen(false);
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [previewMenuOpen]);
+
+  const activePreviewLabel =
+    PREVIEW_OPTIONS.find((option) => option.id === previewKind)?.label ?? "Invoice preview";
   const title = previewKind === "invoice" ? "Invoice" : "Estimate";
   const docNumber = previewKind === "invoice" ? "INV-1042" : "EST-1042";
+  const clientLabel = previewKind === "invoice" ? "Bill to" : "Prepared for";
   const emptyHint =
     previewKind === "invoice"
       ? "Custom fields that show on invoices and PDFs appear here."
@@ -56,62 +85,89 @@ export function CustomFieldsInvoicePreview({
         className,
       )}
     >
-      <div className="flex shrink-0 gap-1 border-b border-border/80 px-3 pt-3">
-        {(
-          [
-            { id: "preview" as const, label: "Invoice preview" },
-            { id: "behavior" as const, label: "Field behavior" },
-          ] as const
-        ).map((item) => (
+      <div className="flex shrink-0 items-end gap-1 border-b border-border/80 px-3 pt-3">
+        <div ref={previewTabRef} className="relative">
           <button
-            key={item.id}
             type="button"
-            onClick={() => setTab(item.id)}
+            onClick={() => {
+              setTab("preview");
+              setPreviewMenuOpen((open) => !open);
+            }}
+            aria-expanded={previewMenuOpen}
+            aria-haspopup="listbox"
             className={cn(
-              "relative px-2.5 pb-2.5 text-xs font-medium transition-colors",
-              tab === item.id
+              "relative inline-flex items-center gap-1 px-2.5 pb-2.5 text-xs font-medium transition-colors",
+              tab === "preview"
                 ? "text-foreground"
                 : "text-muted-foreground hover:text-foreground",
             )}
           >
-            {item.label}
-            {tab === item.id ? (
+            {activePreviewLabel}
+            <ChevronDownIcon
+              className={cn(
+                "size-3.5 transition-transform duration-200",
+                previewMenuOpen && "rotate-180",
+              )}
+            />
+            {tab === "preview" ? (
               <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-primary" />
             ) : null}
           </button>
-        ))}
+
+          {previewMenuOpen ? (
+            <div
+              role="listbox"
+              aria-label="Preview document type"
+              className="absolute left-0 top-[calc(100%+0.35rem)] z-20 min-w-44 overflow-hidden rounded-lg border border-border bg-popover py-1 text-popover-foreground shadow-md"
+            >
+              {PREVIEW_OPTIONS.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  role="option"
+                  aria-selected={previewKind === option.id}
+                  onClick={() => {
+                    setPreviewKind(option.id);
+                    setTab("preview");
+                    setPreviewMenuOpen(false);
+                  }}
+                  className={cn(
+                    "flex w-full cursor-pointer px-3 py-2 text-left text-xs font-medium transition-colors",
+                    previewKind === option.id
+                      ? "bg-muted text-foreground"
+                      : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+                  )}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            setTab("behavior");
+            setPreviewMenuOpen(false);
+          }}
+          className={cn(
+            "relative px-2.5 pb-2.5 text-xs font-medium transition-colors",
+            tab === "behavior"
+              ? "text-foreground"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          Field behavior
+          {tab === "behavior" ? (
+            <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-primary" />
+          ) : null}
+        </button>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4">
         {tab === "preview" ? (
           <div>
-            <div
-              className="mb-3 grid h-8 max-w-48 grid-cols-2 gap-0.5 rounded-lg border border-border/80 bg-background/60 p-0.5"
-              role="group"
-              aria-label="Preview document type"
-            >
-              {(
-                [
-                  { id: "invoice" as const, label: "Invoice" },
-                  { id: "estimate" as const, label: "Estimate" },
-                ] as const
-              ).map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setPreviewKind(item.id)}
-                  className={cn(
-                    "rounded-md text-[11px] font-medium transition-colors",
-                    previewKind === item.id
-                      ? "bg-muted text-foreground"
-                      : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
-                  )}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-
             <div className="flex items-start justify-between gap-3">
               <div className="flex min-w-0 items-start gap-2.5">
                 <div
@@ -137,7 +193,7 @@ export function CustomFieldsInvoicePreview({
 
             <div className="mt-5 grid gap-3 border-t border-border/70 pt-4 text-[11px] sm:grid-cols-2">
               <div>
-                <p className="font-medium text-muted-foreground">Bill to</p>
+                <p className="font-medium text-muted-foreground">{clientLabel}</p>
                 <p className="mt-0.5 font-medium text-foreground">Northwind Labs</p>
                 <p className="text-muted-foreground">billing@northwind.io</p>
               </div>
