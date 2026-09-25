@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   parseJsonBody,
   requireApiMember,
+  requireApiWriter,
   validationError,
 } from "@/lib/api/validation";
 import {
@@ -31,7 +32,7 @@ export async function GET(_request: Request, context: RouteContext) {
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiWriter();
   if (response) return response;
 
   const { id } = await context.params;
@@ -88,7 +89,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiWriter();
   if (response) return response;
 
   const { id } = await context.params;

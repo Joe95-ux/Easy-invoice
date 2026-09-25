@@ -5,11 +5,14 @@ import { prisma } from "@/lib/db";
 import { renderEstimateHtmlForEstimate } from "@/lib/estimate-html";
 import {
   buildInvoiceTotals,
+  documentTotalsPersistFields,
   generateNextInvoiceNumber,
   isUniqueConstraintError,
   resolveClientForInvoice,
+  type BuildInvoiceTotalsInput,
 } from "@/lib/invoice-service";
 import type { CreateEstimateInput } from "@/lib/schemas/estimate";
+import { normalizeAppliedTaxes } from "@/lib/tax-rates";
 import { allocateEstimateNumber } from "@/lib/document-numbers";
 import { getEstimateForMember } from "@/lib/estimates";
 import { assertWithinInvoiceQuota } from "@/lib/billing/entitlements";
@@ -31,8 +34,30 @@ export async function generateNextEstimateNumber(companyId: string): Promise<str
   return allocateEstimateNumber(companyId);
 }
 
-export function buildEstimateTotals(input: CreateEstimateInput) {
-  return buildInvoiceTotals(input);
+export function buildEstimateTotals(input: {
+  lineItems: CreateEstimateInput["lineItems"];
+  taxRate: number;
+  discount: number;
+  taxes?: CreateEstimateInput["taxes"];
+  taxesProvided?: boolean;
+  taxInclusive?: boolean;
+  taxCompound?: boolean;
+  exchangeRate?: number | null;
+  currency?: string;
+  homeCurrency?: string;
+}) {
+  return buildInvoiceTotals({
+    lineItems: input.lineItems,
+    taxRate: input.taxRate,
+    taxes: input.taxes,
+    taxesProvided: input.taxesProvided,
+    taxInclusive: input.taxInclusive,
+    taxCompound: input.taxCompound,
+    exchangeRate: input.exchangeRate,
+    discount: input.discount,
+    currency: input.currency,
+    homeCurrency: input.homeCurrency,
+  } satisfies BuildInvoiceTotalsInput);
 }
 
 const TERMINAL_STATUSES: EstimateStatus[] = ["ACCEPTED", "DECLINED", "EXPIRED", "CANCELLED"];
@@ -73,7 +98,7 @@ export async function convertEstimateToInvoice(estimateId: string, companyId: st
 
   const company = await prisma.company.findUniqueOrThrow({
     where: { id: companyId },
-    select: { plan: true, customFieldDefinitions: true },
+    select: { plan: true, customFieldDefinitions: true, currency: true },
   });
   await assertWithinInvoiceQuota(companyId, company.plan);
 
@@ -87,15 +112,27 @@ export async function convertEstimateToInvoice(estimateId: string, companyId: st
   }
   const customFields = invoiceCustomFields.values;
 
-  const lineItems = estimate.items.map((item, index) => ({
-    description: item.description,
-    quantity: Number(item.quantity),
-    unitPrice: Number(item.unitPrice),
-    amount: Number(item.amount),
-    sortOrder: item.sortOrder ?? index,
-    sectionTitle: item.sectionTitle ?? null,
-    sectionSortOrder: item.sectionSortOrder ?? 0,
-  }));
+  const taxes = normalizeAppliedTaxes(estimate.taxes);
+  const { lineItems, built } = buildInvoiceTotals({
+    lineItems: estimate.items.map((item, index) => ({
+      description: item.description,
+      quantity: Number(item.quantity),
+      unitPrice: Number(item.unitPrice),
+      sortOrder: item.sortOrder ?? index,
+      sectionTitle: item.sectionTitle ?? null,
+      sectionSortOrder: item.sectionSortOrder ?? 0,
+      taxable: item.taxable !== false,
+    })),
+    taxRate: Number(estimate.taxRate),
+    taxes,
+    taxInclusive: estimate.taxInclusive,
+    taxCompound: estimate.taxCompound,
+    exchangeRate: estimate.exchangeRate != null ? Number(estimate.exchangeRate) : null,
+    discount: Number(estimate.discount),
+    currency: estimate.currency,
+    homeCurrency: company.currency,
+  });
+  const totalsFields = documentTotalsPersistFields(built);
 
   const invoice = await prisma.$transaction(async (tx) => {
     const created = await tx.invoice.create({
@@ -107,17 +144,25 @@ export async function convertEstimateToInvoice(estimateId: string, companyId: st
         sourceEstimateId: estimate.id,
         number: await generateNextInvoiceNumber(companyId),
         currency: estimate.currency,
-        subtotal: estimate.subtotal,
-        taxRate: estimate.taxRate,
-        taxAmount: estimate.taxAmount,
         discount: estimate.discount,
-        total: estimate.total,
+        ...totalsFields,
         notes: estimate.notes,
         customFields,
         issueDate: new Date(),
         dueDate: estimate.validUntil,
         publicToken: generatePublicToken(),
-        items: { create: lineItems },
+        items: {
+          create: lineItems.map((item) => ({
+            description: item.description,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            amount: item.amount,
+            taxable: item.taxable,
+            sortOrder: item.sortOrder,
+            sectionTitle: item.sectionTitle,
+            sectionSortOrder: item.sectionSortOrder,
+          })),
+        },
       },
       include: {
         client: true,

@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { requireApiMember, parseJsonBody, validationError } from "@/lib/api/validation";
+import { requireApiWriter, parseJsonBody, validationError } from "@/lib/api/validation";
 import { parseInvoiceFromText } from "@/lib/ai-docs";
 import { parseInvoiceRequestSchema } from "@/lib/schemas/invoice";
 
 export async function POST(request: Request) {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiWriter();
   if (response) return response;
 
   const body = await parseJsonBody<unknown>(request);

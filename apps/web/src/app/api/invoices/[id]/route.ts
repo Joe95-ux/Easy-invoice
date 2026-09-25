@@ -1,13 +1,21 @@
 import { NextResponse } from "next/server";
-import { requireApiMember, parseJsonBody, validationError } from "@/lib/api/validation";
+import {
+  requireApiMember,
+  requireApiWriter,
+  requireApiDocumentDeleter,
+  parseJsonBody,
+  validationError,
+} from "@/lib/api/validation";
 import { recordAuditEvent } from "@/lib/audit/service";
 import { AuditAction, AuditCategory, prisma } from "@/lib/db";
 import {
   buildInvoiceTotals,
   canTransitionInvoiceStatus,
+  documentTotalsPersistFields,
   resolveClientForInvoice,
 } from "@/lib/invoice-service";
 import { getInvoiceForMember } from "@/lib/invoices";
+import { normalizeAppliedTaxes } from "@/lib/tax-rates";
 import { releaseTimeEntriesForInvoice, linkTimeEntriesToInvoice } from "@/lib/time-tracking/service";
 import {
   linkProjectExpensesToInvoice,
@@ -45,7 +53,7 @@ export async function GET(_request: Request, context: RouteContext) {
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiWriter();
   if (response) return response;
 
   const { id } = await context.params;
@@ -142,7 +150,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   const hasLineItems = data.lineItems && data.lineItems.length > 0;
-  let totalsUpdate: Record<string, number> = {};
+  let totalsUpdate: ReturnType<typeof documentTotalsPersistFields> | null = null;
 
   if (
     hasLineItems &&
@@ -151,18 +159,44 @@ export async function PATCH(request: Request, context: RouteContext) {
     data.taxRate !== undefined &&
     data.discount !== undefined
   ) {
-    const { lineItems, totals } = buildInvoiceTotals({
-      clientName: data.clientName ?? existing.client?.name ?? "Client",
-      currency: data.currency,
-      taxRate: data.taxRate,
-      discount: data.discount,
+    const exchangeRate =
+      data.exchangeRate !== undefined
+        ? data.exchangeRate
+        : existing.exchangeRate != null
+          ? Number(existing.exchangeRate)
+          : null;
+    if (
+      data.currency !== member.company.currency &&
+      !(exchangeRate != null && exchangeRate > 0)
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Exchange rate is required when the document currency differs from your company currency",
+        },
+        { status: 400 },
+      );
+    }
+
+    const { lineItems, built } = buildInvoiceTotals({
       lineItems: data.lineItems,
+      taxRate: data.taxRate,
+      taxes: data.taxes ?? normalizeAppliedTaxes(existing.taxes),
+      taxesProvided: data.taxes !== undefined,
+      taxInclusive:
+        data.taxInclusive !== undefined
+          ? data.taxInclusive
+          : existing.taxInclusive,
+      taxCompound:
+        data.taxCompound !== undefined
+          ? data.taxCompound
+          : existing.taxCompound,
+      exchangeRate,
+      discount: data.discount,
+      currency: data.currency,
+      homeCurrency: member.company.currency,
     });
-    totalsUpdate = {
-      subtotal: totals.subtotal,
-      taxAmount: totals.taxAmount,
-      total: totals.total,
-    };
+    totalsUpdate = documentTotalsPersistFields(built);
 
     await releaseTimeEntriesForInvoice(id);
     await releaseProjectExpensesForInvoice(id);
@@ -174,6 +208,7 @@ export async function PATCH(request: Request, context: RouteContext) {
         quantity: item.quantity,
         unitPrice: item.unitPrice,
         amount: item.amount,
+        taxable: item.taxable,
         sortOrder: item.sortOrder,
         sectionTitle: item.sectionTitle ?? null,
         sectionSortOrder: item.sectionSortOrder ?? 0,
@@ -201,7 +236,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   const nextTotal =
-    totalsUpdate.total !== undefined ? totalsUpdate.total : Number(existing.total);
+    totalsUpdate?.total !== undefined ? totalsUpdate.total : Number(existing.total);
   if (data.installments !== undefined) {
     if (existing.status !== "DRAFT") {
       return NextResponse.json(
@@ -246,14 +281,24 @@ export async function PATCH(request: Request, context: RouteContext) {
       }),
       ...(data.templateId !== undefined && { templateId: data.templateId }),
       ...(data.currency !== undefined && { currency: data.currency }),
-      ...(data.taxRate !== undefined && { taxRate: data.taxRate }),
-      ...(data.discount !== undefined && { discount: data.discount }),
+      ...(data.taxRate !== undefined && !totalsUpdate && { taxRate: data.taxRate }),
+      ...(data.taxes !== undefined && !totalsUpdate && { taxes: data.taxes }),
+      ...(data.taxInclusive !== undefined && !totalsUpdate && {
+        taxInclusive: data.taxInclusive,
+      }),
+      ...(data.taxCompound !== undefined && !totalsUpdate && {
+        taxCompound: data.taxCompound,
+      }),
+      ...(data.exchangeRate !== undefined && !totalsUpdate && {
+        exchangeRate: data.exchangeRate,
+      }),
+      ...(data.discount !== undefined && !totalsUpdate && { discount: data.discount }),
       ...(data.issueDate !== undefined && {
         issueDate: data.issueDate ? new Date(data.issueDate) : existing.issueDate,
       }),
       ...(clientId !== undefined && { clientId }),
       ...(data.projectId !== undefined && { projectId }),
-      ...totalsUpdate,
+      ...(totalsUpdate ?? {}),
       ...(data.status === "PAID" && { paidAt: new Date() }),
       ...(data.status === "SENT" && !existing.sentAt && { sentAt: new Date() }),
       ...(data.remindersPaused !== undefined && { remindersPaused: data.remindersPaused }),
@@ -294,7 +339,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiDocumentDeleter();
   if (response) return response;
 
   const { id } = await context.params;

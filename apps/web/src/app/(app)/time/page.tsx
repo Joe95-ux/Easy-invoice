@@ -4,6 +4,7 @@ import { requireMember } from "@/lib/auth";
 import { getClientsForMember } from "@/lib/clients";
 import { prisma } from "@/lib/db";
 import { getProjectsForCompany } from "@/lib/projects";
+import { canWriteDocuments } from "@/lib/team";
 import {
   getTimeEntriesForCompany,
   getRecentTimeDescriptions,
@@ -39,6 +40,7 @@ export default async function TimePage() {
           company?.defaultHourlyRate ? Number(company.defaultHourlyRate) : null
         }
         recentDescriptions={recentDescriptions}
+        canWrite={canWriteDocuments(member.role)}
       />
     </PageScroll>
   );

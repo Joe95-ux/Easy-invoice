@@ -3,6 +3,10 @@ import "server-only";
 import type { EstimateStatus, InvoiceStatus } from "@easy-invoice/db";
 import { prisma } from "@/lib/db";
 import {
+  invoiceAmountInHomeCurrency,
+  paymentAmountInHomeCurrency,
+} from "@/lib/home-currency";
+import {
   buildInvoicePaymentSummary,
   PAYMENT_METHOD_LABELS,
 } from "@/lib/invoice-payments-utils";
@@ -151,9 +155,24 @@ export async function getClientFinancialProfile(
   const receipts: ClientReceiptRow[] = [];
 
   const invoices: ClientInvoiceRow[] = client.invoices.map((invoice) => {
-    const total = toNumber(invoice.total);
+    const totalDoc = toNumber(invoice.total);
     const paymentSummary = buildInvoicePaymentSummary(invoice);
-    const balanceDue = paymentSummary.balanceDue;
+    const balanceDueDoc = paymentSummary.balanceDue;
+    const total =
+      invoiceAmountInHomeCurrency({
+        total: invoice.total,
+        currency: invoice.currency,
+        homeCurrency: currency,
+        homeCurrencyTotal: invoice.homeCurrencyTotal,
+        exchangeRate: invoice.exchangeRate,
+      }) ?? (invoice.currency === currency ? totalDoc : 0);
+    const balanceDue =
+      paymentAmountInHomeCurrency({
+        amount: balanceDueDoc,
+        invoiceCurrency: invoice.currency,
+        homeCurrency: currency,
+        exchangeRate: invoice.exchangeRate,
+      }) ?? (invoice.currency === currency ? balanceDueDoc : 0);
 
     if (invoice.status !== "CANCELLED") {
       totalBilled += total;
@@ -164,7 +183,14 @@ export async function getClientFinancialProfile(
     }
 
     for (const payment of invoice.payments) {
-      const amount = toNumber(payment.amount);
+      const amountDoc = toNumber(payment.amount);
+      const amount =
+        paymentAmountInHomeCurrency({
+          amount: payment.amount,
+          invoiceCurrency: invoice.currency,
+          homeCurrency: currency,
+          exchangeRate: invoice.exchangeRate,
+        }) ?? (invoice.currency === currency ? amountDoc : 0);
       totalCollected += amount;
       activity.push({
         id: `payment-${payment.id}`,
@@ -218,7 +244,7 @@ export async function getClientFinancialProfile(
         occurredAt: invoice.sentAt.toISOString(),
         title: "Invoice sent",
         description: invoice.number,
-        amount: total,
+        amount: totalDoc,
         currency: invoice.currency,
         href: `/invoices/${invoice.id}`,
       });
@@ -245,8 +271,8 @@ export async function getClientFinancialProfile(
       id: invoice.id,
       number: invoice.number,
       status: invoice.status,
-      total,
-      balanceDue,
+      total: totalDoc,
+      balanceDue: balanceDueDoc,
       currency: invoice.currency,
       dueDate: invoice.dueDate?.toISOString() ?? null,
       createdAt: invoice.createdAt.toISOString(),

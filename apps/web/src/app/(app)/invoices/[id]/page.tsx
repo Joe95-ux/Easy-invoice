@@ -17,6 +17,7 @@ import { InvoicePaymentQrSection } from "@/features/invoices/components/invoice-
 import { DocumentHistorySection } from "@/components/document-history-section";
 import { DocumentTemplateManager } from "@/features/invoices/components/document-template-manager";
 import { requireMember } from "@/lib/auth";
+import { canDeleteDocuments, canDeletePayments, canWriteDocuments } from "@/lib/team";
 import { prisma } from "@/lib/db";
 import {
   companyBrandingFields,
@@ -37,6 +38,7 @@ import { getTemplatesForCompany } from "@/lib/templates";
 import { buildInvoicePaymentSummary } from "@/lib/invoice-payments";
 import { getPaymentConfirmationsByInvoice } from "@/lib/payment-confirmation";
 import { normalizeCustomFieldDefinitions, buildCustomFieldDisplayRows } from "@/lib/custom-fields";
+import { buildTaxDisplayRows } from "@/lib/tax-rates";
 import {
   getCompanyPaymentLinkMethods,
   getInvoicePaymentQr,
@@ -143,6 +145,8 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
             dueDate={invoice.dueDate ? invoice.dueDate.toISOString().slice(0, 10) : null}
             sentAt={invoice.sentAt?.toISOString() ?? null}
             celebrateInvoicePaid={member.celebrateInvoicePaid}
+            canWrite={canWriteDocuments(member.role)}
+            canDelete={canDeleteDocuments(member.role)}
           />
         }
       />
@@ -162,12 +166,13 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
         viewedAt={invoice.viewedAt?.toISOString() ?? null}
         installmentCount={paymentSummary.installments.length}
         unpaidInstallmentCount={paymentSummary.installments.filter((row) => !row.isPaid).length}
-        canPayOnline={
-          Boolean(invoice.company.stripeConnectedAccountId) &&
-          invoice.company.stripeConnectChargesEnabled &&
-          invoice.company.stripeConnectDetailsSubmitted
-        }
-      />
+            canPayOnline={
+              Boolean(invoice.company.stripeConnectedAccountId) &&
+              invoice.company.stripeConnectChargesEnabled &&
+              invoice.company.stripeConnectDetailsSubmitted
+            }
+            canWrite={canWriteDocuments(member.role)}
+          />
 
       <Card id="invoice-template" className="mb-6 scroll-mt-20">
         <CardContent>
@@ -176,6 +181,7 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
             templates={templates}
             value={invoice.templateId ?? templates.find((t) => t.isDefault)?.id ?? templates[0]?.id ?? ""}
             invoiceId={invoice.id}
+            canWrite={canWriteDocuments(member.role)}
             company={{
               name: invoice.company.name,
               logoUrl: invoice.company.logoUrl,
@@ -313,14 +319,17 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
                 <span>-{formatMoney(invoice.discount, invoice.currency)}</span>
               </div>
             )}
-            {Number(invoice.taxAmount) > 0 && (
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">
-                  Tax ({(Number(invoice.taxRate) * 100).toFixed(1)}%)
-                </span>
-                <span>{formatMoney(invoice.taxAmount, invoice.currency)}</span>
+            {buildTaxDisplayRows({
+              taxes: invoice.taxes,
+              taxRate: Number(invoice.taxRate),
+              taxAmount: Number(invoice.taxAmount),
+              taxInclusive: invoice.taxInclusive,
+            }).map((row) => (
+              <div key={row.label} className="flex justify-between">
+                <span className="text-muted-foreground">{row.label}</span>
+                <span>{formatMoney(row.amount, invoice.currency)}</span>
               </div>
-            )}
+            ))}
             <div className="flex justify-between border-t pt-2 text-base font-semibold">
               <span>Total</span>
               <span>{formatMoney(invoice.total, invoice.currency)}</span>
@@ -387,6 +396,8 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
           confirmationEmails: paymentConfirmations.get(payment.id) ?? [],
         }))}
         celebrateInvoicePaid={member.celebrateInvoicePaid}
+        canWrite={canWriteDocuments(member.role)}
+        canDeletePayments={canDeletePayments(member.role)}
       />
 
       <InvoicePaymentQrSection

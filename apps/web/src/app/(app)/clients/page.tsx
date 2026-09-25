@@ -8,9 +8,12 @@ import { ClientsTable } from "@/features/clients/components/clients-table";
 import { requireMember } from "@/lib/auth";
 import { getClientsForMember } from "@/lib/clients";
 import { countClientEmailDuplicateGroups } from "@/lib/clients/count-duplicates";
+import { canDeleteDocuments, canWriteDocuments } from "@/lib/team";
 
 export default async function ClientsPage() {
   const member = await requireMember();
+  const canWrite = canWriteDocuments(member.role);
+  const canDelete = canDeleteDocuments(member.role);
 
   const [clients, duplicateEmailGroups] = await Promise.all([
     getClientsForMember(member.companyId),
@@ -23,10 +26,12 @@ export default async function ClientsPage() {
         title="Clients"
         description="Manage the people and businesses you invoice."
         actions={
-          <Button className={pageHeaderActionClass} render={<Link href="/clients/new" />}>
-            <PlusIcon className="size-4" />
-            Add client
-          </Button>
+          canWrite ? (
+            <Button className={pageHeaderActionClass} render={<Link href="/clients/new" />}>
+              <PlusIcon className="size-4" />
+              Add client
+            </Button>
+          ) : undefined
         }
       />
 
@@ -36,10 +41,12 @@ export default async function ClientsPage() {
           title="No clients yet"
           description="Add a client once and reuse their details on every invoice."
           action={
-            <Button render={<Link href="/clients/new" />}>
-              <PlusIcon className="size-4" />
-              Add your first client
-            </Button>
+            canWrite ? (
+              <Button render={<Link href="/clients/new" />}>
+                <PlusIcon className="size-4" />
+                Add your first client
+              </Button>
+            ) : undefined
           }
         />
       ) : (
@@ -47,6 +54,8 @@ export default async function ClientsPage() {
           <ClientsTable
             clients={clients}
             duplicateEmailGroups={duplicateEmailGroups}
+            canWrite={canWrite}
+            canDelete={canDelete}
           />
         </Card>
       )}

@@ -16,7 +16,14 @@ export type DocumentSnapshotLineItem = {
   sortOrder: number;
   sectionTitle?: string | null;
   sectionSortOrder?: number;
+  taxable?: boolean;
   timeEntryIds?: string[];
+};
+
+export type DocumentSnapshotTax = {
+  id?: string | null;
+  name: string;
+  rate: number;
 };
 
 export type DocumentSnapshotInstallment = {
@@ -35,6 +42,10 @@ export type DocumentSnapshot = {
   validUntil?: string | null;
   currency: string;
   taxRate: number;
+  taxes?: DocumentSnapshotTax[];
+  taxInclusive?: boolean;
+  exchangeRate?: number | null;
+  homeCurrencyTotal?: number | null;
   discount: number;
   subtotal: number;
   taxAmount: number;

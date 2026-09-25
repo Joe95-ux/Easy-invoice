@@ -102,6 +102,8 @@ type InvoicePaymentsSectionProps = {
   installments: InstallmentRow[];
   payments: PaymentRow[];
   celebrateInvoicePaid?: boolean;
+  canWrite?: boolean;
+  canDeletePayments?: boolean;
 };
 
 export function InvoicePaymentsSection({
@@ -116,6 +118,8 @@ export function InvoicePaymentsSection({
   installments,
   payments,
   celebrateInvoicePaid = false,
+  canWrite = true,
+  canDeletePayments = true,
 }: InvoicePaymentsSectionProps) {
   const router = useRouter();
   const [recordOpen, setRecordOpen] = useState(false);
@@ -145,10 +149,18 @@ export function InvoicePaymentsSection({
   );
 
   const canRecord =
-    status !== "DRAFT" && status !== "CANCELLED" && status !== "PAID" && balanceDue > 0.001;
+    canWrite &&
+    status !== "DRAFT" &&
+    status !== "CANCELLED" &&
+    status !== "PAID" &&
+    balanceDue > 0.001;
   const canSendUpdate =
-    status !== "DRAFT" && status !== "CANCELLED" && amountPaid > 0.001;
+    canWrite &&
+    status !== "DRAFT" &&
+    status !== "CANCELLED" &&
+    amountPaid > 0.001;
   const canClearPlan =
+    canWrite &&
     installments.length > 0 &&
     amountPaid <= 0.001 &&
     status !== "CANCELLED" &&
@@ -472,15 +484,19 @@ export function InvoicePaymentsSection({
                                 Download receipt
                               </DropdownMenuItem>
                             )}
-                            {payment.receiptNumber && <DropdownMenuSeparator />}
-                            <DropdownMenuItem
-                              variant="destructive"
-                              disabled={deleting}
-                              onClick={() => setDeletePayment(payment)}
-                            >
-                              <Trash2Icon className="size-4" />
-                              Delete payment
-                            </DropdownMenuItem>
+                            {canDeletePayments ? (
+                              <>
+                                {payment.receiptNumber && <DropdownMenuSeparator />}
+                                <DropdownMenuItem
+                                  variant="destructive"
+                                  disabled={deleting}
+                                  onClick={() => setDeletePayment(payment)}
+                                >
+                                  <Trash2Icon className="size-4" />
+                                  Delete payment
+                                </DropdownMenuItem>
+                              </>
+                            ) : null}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>

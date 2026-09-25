@@ -2,17 +2,18 @@ import { notFound } from "next/navigation";
 import { PageScroll } from "@/components/app-shell/app-shell";
 import { PageBackLink, PageHeader } from "@/components/app-shell/page-header";
 import { EstimateCreator } from "@/features/estimates/components/estimate-creator";
-import { requireMember } from "@/lib/auth";
+import { requireWriter } from "@/lib/auth";
 import { getClientsForMember } from "@/lib/clients";
 import { getEstimateForMember } from "@/lib/estimates";
 import { companyBrandingFields } from "@/lib/company-branding";
 import { normalizeCustomFieldDefinitions, normalizeCustomFieldValues } from "@/lib/custom-fields";
+import { normalizeAppliedTaxes, normalizeCompanyTaxRates } from "@/lib/tax-rates";
 import { getDefaultTemplateId, getTemplatesForCompany } from "@/lib/templates";
 
 type PageProps = { params: Promise<{ id: string }> };
 
 export default async function EditEstimatePage({ params }: PageProps) {
-  const member = await requireMember();
+  const member = await requireWriter();
 
   const { id } = await params;
   const [estimate, clients, templates, defaultTemplateId] = await Promise.all([
@@ -34,6 +35,10 @@ export default async function EditEstimatePage({ params }: PageProps) {
 
       <EstimateCreator
         currency={member.company.currency}
+        homeCurrency={member.company.currency}
+        companyTaxRates={normalizeCompanyTaxRates(member.company.taxRates)}
+        taxInclusiveDefault={member.company.taxInclusiveDefault}
+        taxCompoundDefault={member.company.taxCompoundDefault}
         company={{
           name: member.company.name,
           logoUrl: member.company.logoUrl,
@@ -69,11 +74,16 @@ export default async function EditEstimatePage({ params }: PageProps) {
           issueDate: estimate.issueDate.toISOString(),
           validUntil: estimate.validUntil?.toISOString() ?? null,
           taxRate: Number(estimate.taxRate),
+          taxes: normalizeAppliedTaxes(estimate.taxes),
+          taxInclusive: estimate.taxInclusive,
+          taxCompound: estimate.taxCompound,
+          exchangeRate: estimate.exchangeRate != null ? Number(estimate.exchangeRate) : null,
           discount: Number(estimate.discount),
           lineItems: estimate.items.map((item) => ({
             description: item.description,
             quantity: Number(item.quantity),
             unitPrice: Number(item.unitPrice),
+            taxable: item.taxable !== false,
             sectionTitle: item.sectionTitle,
             sectionSortOrder: item.sectionSortOrder,
           })),

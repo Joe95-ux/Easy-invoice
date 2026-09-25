@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { transcribeAudio } from "@/lib/ai-docs";
-import { requireApiMember } from "@/lib/api/validation";
+import { requireApiWriter } from "@/lib/api/validation";
 
 const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
 
 export async function POST(request: Request) {
-  const { response } = await requireApiMember();
+  const { response } = await requireApiWriter();
   if (response) return response;
 
   const formData = await request.formData();

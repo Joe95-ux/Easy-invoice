@@ -2,6 +2,7 @@ import { PageScroll } from "@/components/app-shell/app-shell";
 import { ProductsPageContent } from "@/features/products/components/products-page-content";
 import { requireMember } from "@/lib/auth";
 import { getProductsForCompany, serializeProduct } from "@/lib/products";
+import { canWriteDocuments } from "@/lib/team";
 
 export default async function ProductsPage() {
   const member = await requireMember();
@@ -12,6 +13,7 @@ export default async function ProductsPage() {
       <ProductsPageContent
         initialProducts={products.map(serializeProduct)}
         currency={member.company.currency}
+        canWrite={canWriteDocuments(member.role)}
       />
     </PageScroll>
   );

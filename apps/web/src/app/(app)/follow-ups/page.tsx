@@ -8,13 +8,17 @@ import {
   serializeFollowUp,
   syncFollowUpSuggestions,
 } from "@/lib/follow-ups/service";
+import { canWriteDocuments } from "@/lib/team";
 
 export default async function FollowUpsPage() {
   const member = await requireMember();
+  const canWrite = canWriteDocuments(member.role);
 
   try {
     // Keep the checklist current with overdue invoices / expiring estimates.
-    await syncFollowUpSuggestions(member.companyId, member.id);
+    if (canWrite) {
+      await syncFollowUpSuggestions(member.companyId, member.id);
+    }
   } catch {
     // Page still loads; user can retry via Sync suggestions.
   }
@@ -46,6 +50,7 @@ export default async function FollowUpsPage() {
       <FollowUpsPageContent
         initialFollowUps={followUps.map(serializeFollowUp)}
         currentMemberId={member.id}
+        canWrite={canWrite}
         clients={clients.map((client) => ({ id: client.id, label: client.name }))}
         invoices={invoices.map((invoice) => ({
           id: invoice.id,

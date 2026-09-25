@@ -3,13 +3,13 @@ import { PageScroll } from "@/components/app-shell/app-shell";
 import { PageBackLink, PageHeader } from "@/components/app-shell/page-header";
 import { QrCodeCreator } from "@/features/qr-codes/components/qr-code-creator";
 import { getAppOrigin } from "@/lib/app-url";
-import { requireMember } from "@/lib/auth";
+import { requireWriter } from "@/lib/auth";
 import { getQrCodeForCompany } from "@/lib/qr-codes/service";
 
 type PageProps = { params: Promise<{ id: string }> };
 
 export default async function EditQrCodePage({ params }: PageProps) {
-  const member = await requireMember();
+  const member = await requireWriter();
   const { id } = await params;
   const [qrCode, origin] = await Promise.all([
     getQrCodeForCompany(id, member.companyId),

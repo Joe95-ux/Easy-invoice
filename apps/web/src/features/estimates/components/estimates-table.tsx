@@ -68,9 +68,16 @@ const STATUS_FILTER_OPTIONS = [
 type EstimatesTableProps = {
   estimates: EstimateRow[];
   companyName: string;
+  canWrite?: boolean;
+  canDelete?: boolean;
 };
 
-export function EstimatesTable({ estimates, companyName }: EstimatesTableProps) {
+export function EstimatesTable({
+  estimates,
+  companyName,
+  canWrite = true,
+  canDelete = true,
+}: EstimatesTableProps) {
   const router = useRouter();
   const { openPdfDownload, pdfDownloadDialog } = usePdfDownload();
   const [loadingId, setLoadingId] = useState<string | null>(null);
@@ -242,30 +249,40 @@ export function EstimatesTable({ estimates, companyName }: EstimatesTableProps) 
                         <EyeIcon className="size-4" />
                         View
                       </DropdownMenuItem>
-                      <DropdownMenuItem render={<Link href={`/estimates/${estimate.id}/edit`} />}>
-                        <PencilIcon className="size-4" />
-                        Edit
-                      </DropdownMenuItem>
+                      {canWrite ? (
+                        <DropdownMenuItem render={<Link href={`/estimates/${estimate.id}/edit`} />}>
+                          <PencilIcon className="size-4" />
+                          Edit
+                        </DropdownMenuItem>
+                      ) : null}
                       <DropdownMenuItem onClick={() => handleDownload(estimate)}>
                         <DownloadIcon className="size-4" />
                         Download PDF
                       </DropdownMenuItem>
-                      <DropdownMenuItem render={<Link href={`/estimates/${estimate.id}`} />}>
-                        <SendIcon className="size-4" />
-                        Send estimate
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleDuplicate(estimate)}>
-                        <CopyIcon className="size-4" />
-                        Duplicate
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        variant="destructive"
-                        onClick={() => setPendingDelete(estimate)}
-                      >
-                        <Trash2Icon className="size-4" />
-                        Delete
-                      </DropdownMenuItem>
+                      {canWrite ? (
+                        <DropdownMenuItem render={<Link href={`/estimates/${estimate.id}`} />}>
+                          <SendIcon className="size-4" />
+                          Send estimate
+                        </DropdownMenuItem>
+                      ) : null}
+                      {canWrite ? (
+                        <DropdownMenuItem onClick={() => handleDuplicate(estimate)}>
+                          <CopyIcon className="size-4" />
+                          Duplicate
+                        </DropdownMenuItem>
+                      ) : null}
+                      {canDelete ? (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onClick={() => setPendingDelete(estimate)}
+                          >
+                            <Trash2Icon className="size-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </>
+                      ) : null}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>

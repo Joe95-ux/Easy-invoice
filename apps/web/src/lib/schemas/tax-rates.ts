@@ -16,6 +16,7 @@ export const companyTaxRatesSchema = z.array(companyTaxRateSchema).max(40);
 export const updateCompanyTaxRatesSchema = z.object({
   taxRates: companyTaxRatesSchema,
   taxInclusiveDefault: z.boolean().optional(),
+  taxCompoundDefault: z.boolean().optional(),
 });
 
 /** A tax applied on a document (snapshot of name + rate at save time). */

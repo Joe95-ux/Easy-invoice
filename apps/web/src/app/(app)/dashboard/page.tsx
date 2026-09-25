@@ -22,6 +22,7 @@ import {
   invoiceStatusLabel,
   invoiceStatusVariant,
 } from "@/lib/invoices";
+import { canWriteDocuments } from "@/lib/team";
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -32,6 +33,7 @@ function getGreeting(): string {
 
 export default async function DashboardPage() {
   const member = await requireMember();
+  const canWrite = canWriteDocuments(member.role);
   const stats = await getDashboardStats(member.companyId);
   const { company } = member;
 
@@ -42,20 +44,22 @@ export default async function DashboardPage() {
         title={company.name}
         description="A clear view of your billing — create, send, and get paid faster."
         actions={
-          <>
-            <Button className={pageHeaderActionClass} render={<Link href="/invoices/new" />}>
-              <PlusIcon className="size-4" />
-              New invoice
-            </Button>
-            <Button
-              variant="outline"
-              className={pageHeaderActionClass}
-              render={<Link href="/clients/new" />}
-            >
-              <UsersRoundIcon className="size-4" />
-              Add client
-            </Button>
-          </>
+          canWrite ? (
+            <>
+              <Button className={pageHeaderActionClass} render={<Link href="/invoices/new" />}>
+                <PlusIcon className="size-4" />
+                New invoice
+              </Button>
+              <Button
+                variant="outline"
+                className={pageHeaderActionClass}
+                render={<Link href="/clients/new" />}
+              >
+                <UsersRoundIcon className="size-4" />
+                Add client
+              </Button>
+            </>
+          ) : undefined
         }
       />
 
@@ -117,10 +121,12 @@ export default async function DashboardPage() {
                 title="No invoices yet"
                 description="Create your first invoice in under a minute — by form or with AI."
                 action={
-                  <Button render={<Link href="/invoices/new" />}>
-                    <PlusIcon className="size-4" />
-                    Create first invoice
-                  </Button>
+                  canWrite ? (
+                    <Button render={<Link href="/invoices/new" />}>
+                      <PlusIcon className="size-4" />
+                      Create first invoice
+                    </Button>
+                  ) : undefined
                 }
               />
             ) : (

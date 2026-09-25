@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { AdvancedFormBuilder } from "@/features/projects/components/advanced-form-builder/advanced-form-builder";
-import { requireMember } from "@/lib/auth";
+import { requireWriter } from "@/lib/auth";
 import {
   getProjectFormForCompany,
   serializeProjectFormDetail,
@@ -12,7 +12,7 @@ type PageProps = {
 };
 
 export default async function AdvancedFormBuilderPage({ params }: PageProps) {
-  const member = await requireMember();
+  const member = await requireWriter();
   const { id: projectId, formId } = await params;
 
   const [project, form] = await Promise.all([

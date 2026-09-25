@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireApiMember, parseJsonBody, validationError } from "@/lib/api/validation";
+import { requireApiWriter, parseJsonBody, validationError } from "@/lib/api/validation";
 import {
   createRecurringFromInvoice,
   serializeRecurringInvoice,
@@ -15,7 +15,7 @@ type RouteContext = { params: Promise<{ id: string }> };
 
 /** Create a recurring schedule from an existing invoice’s client, totals, and line items. */
 export async function POST(request: Request, context: RouteContext) {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiWriter();
   if (response) return response;
 
   const { id } = await context.params;

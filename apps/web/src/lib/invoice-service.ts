@@ -1,11 +1,15 @@
 import type { InvoiceStatus } from "@easy-invoice/db";
 import { Prisma } from "@easy-invoice/db";
 import { renderInvoicePdf } from "@/lib/ai-docs";
-import { calculateInvoiceTotals, lineItemAmount } from "@/lib/calculator";
+import {
+  buildDocumentTotals,
+  type BuiltDocumentTotals,
+  type TotalsLineItem,
+} from "@/lib/document-totals";
 import { allocateInvoiceNumber } from "@/lib/document-numbers";
 import { renderInvoiceHtmlForInvoice } from "@/lib/invoice-html";
 import { prisma } from "@/lib/db";
-import type { CreateInvoiceInput } from "@/lib/schemas/invoice";
+import type { AppliedTax } from "@/lib/schemas/tax-rates";
 import { getInvoiceForMember } from "@/lib/invoices";
 
 export async function getInvoicesForMember(companyId: string, limit = 50) {
@@ -77,28 +81,58 @@ export async function resolveClientForInvoice(companyId: string, input: ClientIn
   });
 }
 
-export function buildInvoiceTotals(input: {
-  lineItems: CreateInvoiceInput["lineItems"];
+export type BuildInvoiceTotalsInput = {
+  lineItems: TotalsLineItem[];
   taxRate: number;
   discount: number;
-}) {
-  const lineItems = input.lineItems.map((item) => ({
-    quantity: item.quantity,
-    unitPrice: item.unitPrice,
-    amount: lineItemAmount(item.quantity, item.unitPrice),
-    description: item.description,
-    sortOrder: item.sortOrder,
-    sectionTitle: item.sectionTitle?.trim() || null,
-    sectionSortOrder: item.sectionSortOrder ?? 0,
-  }));
+  taxes?: AppliedTax[] | null;
+  /** When true, an empty taxes array clears tax (no fallback to taxRate). */
+  taxesProvided?: boolean;
+  taxInclusive?: boolean;
+  taxCompound?: boolean;
+  currency?: string;
+  homeCurrency?: string;
+  exchangeRate?: number | null;
+};
 
-  const totals = calculateInvoiceTotals({
-    lineItems: lineItems.map(({ quantity, unitPrice }) => ({ quantity, unitPrice })),
+/**
+ * Build line amounts + document totals. Delegates to buildDocumentTotals so
+ * multi-tax, inclusive, and FX math stay in one place.
+ */
+export function buildInvoiceTotals(input: BuildInvoiceTotalsInput) {
+  const built = buildDocumentTotals({
+    lineItems: input.lineItems,
     taxRate: input.taxRate,
+    taxes: input.taxes,
+    taxesProvided: input.taxesProvided,
     discount: input.discount,
+    taxInclusive: input.taxInclusive,
+    taxCompound: input.taxCompound,
+    currency: input.currency ?? "USD",
+    homeCurrency: input.homeCurrency ?? input.currency ?? "USD",
+    exchangeRate: input.exchangeRate,
   });
 
-  return { lineItems, totals };
+  return {
+    lineItems: built.lineItems,
+    totals: built.totals,
+    built,
+  };
+}
+
+/** Prisma create/update fields derived from built document totals. */
+export function documentTotalsPersistFields(built: BuiltDocumentTotals) {
+  return {
+    subtotal: built.totals.subtotal,
+    taxRate: built.taxRate,
+    taxAmount: built.totals.taxAmount,
+    total: built.totals.total,
+    taxes: built.taxes,
+    taxInclusive: built.taxInclusive,
+    taxCompound: built.taxCompound,
+    exchangeRate: built.exchangeRate,
+    homeCurrencyTotal: built.homeCurrencyTotal,
+  };
 }
 
 const TERMINAL_STATUSES: InvoiceStatus[] = ["PAID", "CANCELLED"];

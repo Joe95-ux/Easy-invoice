@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { requireApiMember, parseJsonBody, validationError } from "@/lib/api/validation";
+import {
+  requireApiMember,
+  requireApiWriter,
+  parseJsonBody,
+  validationError,
+} from "@/lib/api/validation";
 import {
   deleteRecurringInvoice,
   getRecurringInvoice,
@@ -31,7 +36,7 @@ export async function GET(_request: Request, context: RouteContext) {
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiWriter();
   if (response) return response;
 
   try {
@@ -96,7 +101,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiWriter();
   if (response) return response;
 
   try {

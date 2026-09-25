@@ -26,6 +26,7 @@ type InvoiceGetPaidSectionProps = {
   installmentCount: number;
   unpaidInstallmentCount: number;
   canPayOnline: boolean;
+  canWrite?: boolean;
 };
 
 export function InvoiceGetPaidSection({
@@ -44,6 +45,7 @@ export function InvoiceGetPaidSection({
   installmentCount,
   unpaidInstallmentCount,
   canPayOnline,
+  canWrite = true,
 }: InvoiceGetPaidSectionProps) {
   const router = useRouter();
   const [sendOpen, setSendOpen] = useState(false);
@@ -78,7 +80,7 @@ export function InvoiceGetPaidSection({
     setSendOpen(true);
   }
 
-  if (advice.action === "none") {
+  if (!canWrite || advice.action === "none") {
     return null;
   }
 

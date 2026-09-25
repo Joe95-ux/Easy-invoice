@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import {
   parseJsonBody,
-  requireApiMember,
+  requireApiWriter,
   validationError,
 } from "@/lib/api/validation";
 import { updateQrCodeStatus } from "@/lib/qr-codes/service";
@@ -14,7 +14,7 @@ const statusSchema = z.object({
 });
 
 export async function PATCH(request: Request, context: RouteContext) {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiWriter();
   if (response) return response;
 
   const { id } = await context.params;

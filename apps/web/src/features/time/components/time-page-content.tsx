@@ -95,14 +95,17 @@ function isInvoiceable(entry: SerializedTimeEntry) {
   return !entry.invoicedAt && entry.billable && Boolean(entry.clientId);
 }
 
-function entryHasActions(entry: SerializedTimeEntry) {
+function entryHasActions(entry: SerializedTimeEntry, canWrite = true) {
   const isBilled = Boolean(entry.invoicedAt);
-  return isInvoiceable(entry) || !isBilled || Boolean(entry.invoiceId);
+  if (isBilled && entry.invoiceId) return true;
+  if (!canWrite) return false;
+  return isInvoiceable(entry) || !isBilled;
 }
 
 function TimeEntryActions({
   entry,
   isInvoicing,
+  canWrite,
   onInvoice,
   onEstimate,
   onEdit,
@@ -110,15 +113,16 @@ function TimeEntryActions({
 }: {
   entry: SerializedTimeEntry;
   isInvoicing: boolean;
+  canWrite: boolean;
   onInvoice: () => void;
   onEstimate: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
   const isBilled = Boolean(entry.invoicedAt);
-  const canInvoice = isInvoiceable(entry);
+  const canInvoice = canWrite && isInvoiceable(entry);
 
-  if (!entryHasActions(entry)) return null;
+  if (!entryHasActions(entry, canWrite)) return null;
 
   return (
     <DropdownMenu>
@@ -148,7 +152,7 @@ function TimeEntryActions({
             View invoice
           </DropdownMenuItem>
         )}
-        {!isBilled && (
+        {canWrite && !isBilled && (
           <>
             {canInvoice && <DropdownMenuSeparator />}
             <DropdownMenuItem onClick={onEdit}>
@@ -173,6 +177,7 @@ type TimePageContentProps = {
   currency: string;
   defaultHourlyRate: number | null;
   recentDescriptions?: string[];
+  canWrite?: boolean;
 };
 
 export function TimePageContent({
@@ -182,6 +187,7 @@ export function TimePageContent({
   currency,
   defaultHourlyRate,
   recentDescriptions = [],
+  canWrite = true,
 }: TimePageContentProps) {
   const router = useRouter();
   const isMobile = useIsMobile();
@@ -243,10 +249,10 @@ export function TimePageContent({
     [entries],
   );
 
-  const showSelectionColumn = invoiceableEntries.length > 0;
+  const showSelectionColumn = canWrite && invoiceableEntries.length > 0;
   const showActionsColumn = useMemo(
-    () => entries.some(entryHasActions),
-    [entries],
+    () => entries.some((entry) => entryHasActions(entry, canWrite)),
+    [entries, canWrite],
   );
   const columnCount = 8 + (showSelectionColumn ? 1 : 0) + (showActionsColumn ? 1 : 0);
 
@@ -382,38 +388,40 @@ export function TimePageContent({
         title="Time"
         description="Log billable hours and turn them into invoice line items."
         actions={
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-            <Button
-              variant="outline"
-              className={pageHeaderActionClass}
-              onClick={() => setImportOpen(true)}
-            >
-              <DownloadIcon className="size-4" />
-              Import
-            </Button>
-            <Button
-              variant="outline"
-              className={pageHeaderActionClass}
-              onClick={timer ? toggleActiveTimer : openStartTimer}
-            >
-              {timer ? (
-                <ClockIcon className="size-4" />
-              ) : (
-                <PlayIcon className="size-4" />
-              )}
-              {timer ? "View timer" : "Start timer"}
-            </Button>
-            <Button
-              className={pageHeaderActionClass}
-              onClick={() => {
-                setEditingEntry(null);
-                setLogOpen(true);
-              }}
-            >
-              <PlusIcon className="size-4" />
-              Log time
-            </Button>
-          </div>
+          canWrite ? (
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+              <Button
+                variant="outline"
+                className={pageHeaderActionClass}
+                onClick={() => setImportOpen(true)}
+              >
+                <DownloadIcon className="size-4" />
+                Import
+              </Button>
+              <Button
+                variant="outline"
+                className={pageHeaderActionClass}
+                onClick={timer ? toggleActiveTimer : openStartTimer}
+              >
+                {timer ? (
+                  <ClockIcon className="size-4" />
+                ) : (
+                  <PlayIcon className="size-4" />
+                )}
+                {timer ? "View timer" : "Start timer"}
+              </Button>
+              <Button
+                className={pageHeaderActionClass}
+                onClick={() => {
+                  setEditingEntry(null);
+                  setLogOpen(true);
+                }}
+              >
+                <PlusIcon className="size-4" />
+                Log time
+              </Button>
+            </div>
+          ) : undefined
         }
       />
 
@@ -517,7 +525,7 @@ export function TimePageContent({
         </div>
       )}
 
-      {selectedEntries.length > 0 && (
+      {canWrite && selectedEntries.length > 0 && (
         <div className="mb-4">
           {!isMobile && selectedClientIds.size > 1 && (
             <div className="mb-2 inline-flex w-fit max-w-md items-start gap-2 rounded-lg border border-warning/50 bg-muted/60 px-3 py-2 text-sm text-foreground shadow-sm">
@@ -593,7 +601,7 @@ export function TimePageContent({
               : "Track hours here, then add them to invoices in one click."
           }
           action={
-            filter === "all" ? (
+            filter === "all" && canWrite ? (
               <Button
                 onClick={() => {
                   setEditingEntry(null);
@@ -756,6 +764,7 @@ export function TimePageContent({
                         <TimeEntryActions
                           entry={entry}
                           isInvoicing={isInvoicing}
+                          canWrite={canWrite}
                           onInvoice={() => handleInvoiceFromTime(entry.clientId!, [entry.id])}
                           onEstimate={() => handleEstimateFromTime(entry.clientId!, [entry.id])}
                           onEdit={() => {
@@ -787,22 +796,26 @@ export function TimePageContent({
         </Card>
       )}
 
-      <LogTimeDrawer
-        open={logOpen}
-        onOpenChange={setLogOpen}
-        clients={clients}
-        projects={projects}
-        defaultHourlyRate={defaultHourlyRate}
-        entry={editingEntry}
-        recentDescriptions={recentDescriptions}
-      />
+      {canWrite ? (
+        <LogTimeDrawer
+          open={logOpen}
+          onOpenChange={setLogOpen}
+          clients={clients}
+          projects={projects}
+          defaultHourlyRate={defaultHourlyRate}
+          entry={editingEntry}
+          recentDescriptions={recentDescriptions}
+        />
+      ) : null}
 
-      <ImportTimeDialog
-        open={importOpen}
-        onOpenChange={setImportOpen}
-        clients={clients}
-        defaultHourlyRate={defaultHourlyRate}
-      />
+      {canWrite ? (
+        <ImportTimeDialog
+          open={importOpen}
+          onOpenChange={setImportOpen}
+          clients={clients}
+          defaultHourlyRate={defaultHourlyRate}
+        />
+      ) : null}
 
       <AlertDialog open={Boolean(deleteEntry)} onOpenChange={(open) => !open && setDeleteEntry(null)}>
         <AlertDialogContent>

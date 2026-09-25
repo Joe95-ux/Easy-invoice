@@ -9,6 +9,40 @@ import {
 } from "@/lib/custom-fields";
 import { getEstimateForMember } from "@/lib/estimates";
 import { ensureSystemTemplates, getDefaultTemplateId, getTemplateById } from "@/lib/templates";
+import { calculateInvoiceTotals } from "@/lib/calculator";
+import { normalizeAppliedTaxes } from "@/lib/tax-rates";
+
+function taxesWithAmounts(
+  rawTaxes: unknown,
+  taxRate: number,
+  taxInclusive: boolean,
+  taxCompound: boolean,
+  discount: number,
+  items: Array<{ quantity: unknown; unitPrice: unknown; taxable?: boolean }>,
+) {
+  const taxes = normalizeAppliedTaxes(rawTaxes);
+  if (taxes.length === 0 && taxRate <= 0) return [];
+  const { taxBreakdown } = calculateInvoiceTotals({
+    lineItems: items.map((item) => ({
+      quantity: Number(item.quantity),
+      unitPrice: Number(item.unitPrice),
+      taxable: item.taxable !== false,
+    })),
+    taxes: taxes.map((tax) => ({ name: tax.name, rate: tax.rate })),
+    taxRate,
+    discount,
+    taxInclusive,
+    taxCompound,
+  });
+  if (taxBreakdown.length > 0) {
+    return taxBreakdown.map((line) => ({
+      name: line.name,
+      rate: line.rate,
+      amount: line.amount,
+    }));
+  }
+  return taxes;
+}
 
 export function estimateToHtmlData(
   estimate: NonNullable<Awaited<ReturnType<typeof getEstimateForMember>>>,
@@ -51,6 +85,15 @@ export function estimateToHtmlData(
       subtotal: Number(estimate.subtotal),
       taxRate: Number(estimate.taxRate),
       taxAmount: Number(estimate.taxAmount),
+      taxInclusive: estimate.taxInclusive,
+      taxes: taxesWithAmounts(
+        estimate.taxes,
+        Number(estimate.taxRate),
+        estimate.taxInclusive,
+        estimate.taxCompound === true,
+        Number(estimate.discount),
+        estimate.items,
+      ),
       discount: Number(estimate.discount),
       total: Number(estimate.total),
       notes: estimate.notes,

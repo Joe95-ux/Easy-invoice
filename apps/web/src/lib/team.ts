@@ -10,13 +10,36 @@ export function canManageCompanySettings(role: UserRole): boolean {
   return role === UserRole.OWNER || role === UserRole.ADMIN;
 }
 
+/** Create/edit/send documents and record payments. */
+export function canWriteDocuments(role: UserRole): boolean {
+  return (
+    role === UserRole.OWNER ||
+    role === UserRole.ADMIN ||
+    role === UserRole.MEMBER
+  );
+}
+
+/** Delete invoices, estimates, or clients. */
+export function canDeleteDocuments(role: UserRole): boolean {
+  return role === UserRole.OWNER || role === UserRole.ADMIN;
+}
+
+/** Reverse or delete recorded payments. */
+export function canDeletePayments(role: UserRole): boolean {
+  return role === UserRole.OWNER || role === UserRole.ADMIN;
+}
+
 /** Roles an actor may assign when inviting or updating a member. */
 export function canAssignRole(actorRole: UserRole, newRole: UserRole): boolean {
   if (actorRole === UserRole.OWNER) {
-    return newRole === UserRole.ADMIN || newRole === UserRole.MEMBER;
+    return (
+      newRole === UserRole.ADMIN ||
+      newRole === UserRole.MEMBER ||
+      newRole === UserRole.VIEWER
+    );
   }
   if (actorRole === UserRole.ADMIN) {
-    return newRole === UserRole.MEMBER;
+    return newRole === UserRole.MEMBER || newRole === UserRole.VIEWER;
   }
   return false;
 }
@@ -25,7 +48,7 @@ export function canAssignRole(actorRole: UserRole, newRole: UserRole): boolean {
 export function canModifyMember(actorRole: UserRole, targetRole: UserRole): boolean {
   if (!canManageTeam(actorRole)) return false;
   if (actorRole === UserRole.OWNER) return true;
-  return targetRole === UserRole.MEMBER;
+  return targetRole === UserRole.MEMBER || targetRole === UserRole.VIEWER;
 }
 
 export function normalizeInviteEmail(email: string): string {
@@ -40,8 +63,11 @@ export function inviteExpiresAt(from = new Date()): Date {
 
 export const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
   OWNER:
-    "Full control of the company, billing, and team. Can assign admin or member roles and revoke any access except their own.",
-  ADMIN: "Full access to company data, settings, and templates. Can invite and remove members.",
+    "Full control of the company, billing, and team. Can assign admin, member, or viewer roles and revoke any access except their own.",
+  ADMIN:
+    "Full access to company data, settings, and templates. Can invite and remove members and viewers.",
   MEMBER:
-    "Create and manage invoices, estimates, and clients. Cannot change company settings or manage team.",
+    "Create and manage invoices, estimates, and clients. Can send documents and record payments. Cannot delete documents or change company settings.",
+  VIEWER:
+    "Read-only access to invoices, estimates, and clients. Cannot create, edit, send, or delete.",
 };

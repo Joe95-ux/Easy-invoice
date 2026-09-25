@@ -1,6 +1,7 @@
 import { requireMember } from "@/lib/auth";
 import { getEstimatesForMember } from "@/lib/estimate-service";
 import { normalizeCustomFieldValues } from "@/lib/custom-fields";
+import { canDeleteDocuments, canWriteDocuments } from "@/lib/team";
 import { EstimatesTable } from "@/features/estimates/components/estimates-table";
 import Link from "next/link";
 import { ClipboardListIcon, PlusIcon } from "lucide-react";
@@ -18,6 +19,8 @@ function customFieldsSearchText(raw: unknown): string {
 
 export default async function EstimatesPage() {
   const member = await requireMember();
+  const canWrite = canWriteDocuments(member.role);
+  const canDelete = canDeleteDocuments(member.role);
   const estimates = await getEstimatesForMember(member.companyId);
 
   const rows = estimates.map((estimate) => ({
@@ -37,10 +40,12 @@ export default async function EstimatesPage() {
         title="Estimates"
         description="Send quotes and turn them into invoices once accepted."
         actions={
-          <Button className={pageHeaderActionClass} render={<Link href="/estimates/new" />}>
-            <PlusIcon className="size-4" />
-            New estimate
-          </Button>
+          canWrite ? (
+            <Button className={pageHeaderActionClass} render={<Link href="/estimates/new" />}>
+              <PlusIcon className="size-4" />
+              New estimate
+            </Button>
+          ) : undefined
         }
       />
 
@@ -50,15 +55,22 @@ export default async function EstimatesPage() {
           title="No estimates yet"
           description="Draft a professional quote — by form or with AI."
           action={
-            <Button render={<Link href="/estimates/new" />}>
-              <PlusIcon className="size-4" />
-              Create your first estimate
-            </Button>
+            canWrite ? (
+              <Button render={<Link href="/estimates/new" />}>
+                <PlusIcon className="size-4" />
+                Create your first estimate
+              </Button>
+            ) : undefined
           }
         />
       ) : (
         <Card className="overflow-hidden py-0">
-          <EstimatesTable estimates={rows} companyName={member.company.name} />
+          <EstimatesTable
+            estimates={rows}
+            companyName={member.company.name}
+            canWrite={canWrite}
+            canDelete={canDelete}
+          />
         </Card>
       )}
     </PageScroll>

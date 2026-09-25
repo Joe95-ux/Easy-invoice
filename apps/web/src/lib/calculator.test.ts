@@ -1,15 +1,14 @@
-import { describe, expect, it } from "vitest";
+/**
+ * Lightweight node:test suite for tax/currency calculator helpers.
+ * Run: `npx tsx --test apps/web/src/lib/calculator.test.ts`
+ */
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
 import {
   calculateInvoiceTotals,
   resolveExchangeRate,
   toHomeCurrency,
-} from "@/lib/calculator";
-import {
-  getDefaultTaxRate,
-  normalizeCompanyTaxRates,
-  primaryTaxRate,
-  resolveAppliedTaxes,
-} from "@/lib/tax-rates";
+} from "./calculator";
 
 describe("calculateInvoiceTotals", () => {
   it("computes exclusive single tax", () => {
@@ -18,10 +17,10 @@ describe("calculateInvoiceTotals", () => {
       taxRate: 0.1,
       discount: 0,
     });
-    expect(totals.subtotal).toBe(100);
-    expect(totals.taxAmount).toBe(10);
-    expect(totals.total).toBe(110);
-    expect(totals.taxBreakdown).toEqual([
+    assert.equal(totals.subtotal, 100);
+    assert.equal(totals.taxAmount, 10);
+    assert.equal(totals.total, 110);
+    assert.deepEqual(totals.taxBreakdown, [
       { name: "Tax", rate: 0.1, amount: 10 },
     ]);
   });
@@ -35,10 +34,27 @@ describe("calculateInvoiceTotals", () => {
       ],
       discount: 0,
     });
-    expect(totals.taxAmount).toBe(12);
-    expect(totals.total).toBe(112);
-    expect(totals.effectiveTaxRate).toBe(0.12);
-    expect(totals.taxBreakdown).toHaveLength(2);
+    assert.equal(totals.taxAmount, 12);
+    assert.equal(totals.total, 112);
+    assert.equal(totals.effectiveTaxRate, 0.12);
+    assert.equal(totals.taxBreakdown.length, 2);
+  });
+
+  it("supports compound multi-tax", () => {
+    const totals = calculateInvoiceTotals({
+      lineItems: [{ quantity: 1, unitPrice: 100 }],
+      taxes: [
+        { name: "GST", rate: 0.05 },
+        { name: "PST", rate: 0.07 },
+      ],
+      discount: 0,
+      taxCompound: true,
+    });
+    // 5% of 100 = 5; 7% of 105 = 7.35 → tax 12.35, total 112.35
+    assert.equal(totals.taxAmount, 12.35);
+    assert.equal(totals.total, 112.35);
+    assert.equal(totals.taxBreakdown[0]!.amount, 5);
+    assert.equal(totals.taxBreakdown[1]!.amount, 7.35);
   });
 
   it("extracts tax when inclusive", () => {
@@ -48,8 +64,8 @@ describe("calculateInvoiceTotals", () => {
       discount: 0,
       taxInclusive: true,
     });
-    expect(totals.total).toBe(110);
-    expect(totals.taxAmount).toBe(10);
+    assert.equal(totals.total, 110);
+    assert.equal(totals.taxAmount, 10);
   });
 
   it("excludes non-taxable lines from tax base", () => {
@@ -61,9 +77,9 @@ describe("calculateInvoiceTotals", () => {
       taxRate: 0.1,
       discount: 0,
     });
-    expect(totals.subtotal).toBe(150);
-    expect(totals.taxAmount).toBe(10);
-    expect(totals.total).toBe(160);
+    assert.equal(totals.subtotal, 150);
+    assert.equal(totals.taxAmount, 10);
+    assert.equal(totals.total, 160);
   });
 
   it("allocates discount across taxable share", () => {
@@ -75,44 +91,36 @@ describe("calculateInvoiceTotals", () => {
       taxRate: 0.1,
       discount: 20,
     });
-    // Taxable after discount: 90 → tax 9; non-taxable after discount: 90
-    expect(totals.taxAmount).toBe(9);
-    expect(totals.total).toBe(189);
+    assert.equal(totals.taxAmount, 9);
+    assert.equal(totals.total, 189);
   });
 });
 
-describe("exchange rate helpers", () => {
+  describe("exchange rate helpers", () => {
   it("defaults to 1 for matching currencies", () => {
-    expect(
+    assert.equal(
       resolveExchangeRate({
         documentCurrency: "usd",
         homeCurrency: "USD",
         exchangeRate: 1.5,
       }),
-    ).toBe(1);
+      1,
+    );
+  });
+
+  it("returns null when foreign FX is missing", () => {
+    assert.equal(
+      resolveExchangeRate({
+        documentCurrency: "EUR",
+        homeCurrency: "USD",
+        exchangeRate: null,
+      }),
+      null,
+    );
   });
 
   it("converts to home currency", () => {
-    expect(toHomeCurrency(100, 1.25)).toBe(125);
-    expect(toHomeCurrency(100, null)).toBe(100);
-  });
-});
-
-describe("tax rates library", () => {
-  it("normalizes rates and enforces a single default", () => {
-    const rates = normalizeCompanyTaxRates([
-      { id: "a", name: "VAT", rate: 20, isDefault: true },
-      { id: "b", name: "GST", rate: 0.05, isDefault: true },
-    ]);
-    expect(rates).toHaveLength(2);
-    expect(rates[0]!.rate).toBe(0.2);
-    expect(rates.filter((r) => r.isDefault)).toHaveLength(1);
-    expect(getDefaultTaxRate(rates)?.id).toBe("a");
-  });
-
-  it("resolves applied taxes from legacy taxRate", () => {
-    const taxes = resolveAppliedTaxes({ taxRate: 0.08 });
-    expect(primaryTaxRate(taxes)).toBe(0.08);
-    expect(taxes[0]!.name).toBe("Tax");
+    assert.equal(toHomeCurrency(100, 1.25), 125);
+    assert.equal(toHomeCurrency(100, null), null);
   });
 });

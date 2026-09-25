@@ -10,6 +10,7 @@ import { estimatePublicPath, invoicePublicPath } from "@/lib/document-tokens";
 import { buildInvoicePaymentSummary } from "@/lib/invoice-payments-utils";
 import { buildInvoiceTotals } from "@/lib/invoice-service";
 import { frequencyLabel } from "@/lib/recurring-invoices-shared";
+import { normalizeAppliedTaxes } from "@/lib/tax-rates";
 import type {
   PortalEstimateListItem,
   PortalInvoiceListItem,
@@ -97,6 +98,7 @@ export async function getPortalDashboard(input: {
             quantity: true,
             unitPrice: true,
             description: true,
+            taxable: true,
             sortOrder: true,
             sectionTitle: true,
             sectionSortOrder: true,
@@ -179,9 +181,14 @@ export async function getPortalDashboard(input: {
         sortOrder: item.sortOrder ?? index,
         sectionTitle: item.sectionTitle,
         sectionSortOrder: item.sectionSortOrder,
+        taxable: item.taxable !== false,
       })),
       taxRate: toNumber(schedule.taxRate),
+      taxes: normalizeAppliedTaxes(schedule.taxes),
+      taxInclusive: schedule.taxInclusive,
+      taxCompound: schedule.taxCompound,
       discount: toNumber(schedule.discount),
+      currency: schedule.currency,
     });
     upcoming.push({
       id: `recurring:${schedule.id}`,

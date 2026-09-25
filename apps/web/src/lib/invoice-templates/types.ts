@@ -35,6 +35,8 @@ export type InvoiceHtmlData = {
     subtotal: number;
     taxRate: number;
     taxAmount: number;
+    taxInclusive?: boolean;
+    taxes?: Array<{ name: string; rate: number; amount?: number }>;
     discount: number;
     total: number;
     notes?: string | null;

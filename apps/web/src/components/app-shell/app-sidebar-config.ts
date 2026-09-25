@@ -19,7 +19,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { UserRole } from "@/lib/db";
-import { canManageCompanySettings } from "@/lib/team";
+import { canManageCompanySettings, canWriteDocuments } from "@/lib/team";
 
 export type AppSubNavItem = {
   href: string;
@@ -73,6 +73,7 @@ export const APP_TEAM_ITEMS: AppNavItem[] = [
     children: [
       { href: "/settings/general", label: "General" },
       { href: "/settings/custom-fields", label: "Custom fields" },
+      { href: "/settings/tax", label: "Tax rates" },
       { href: "/settings/form-templates", label: "Form templates" },
       { href: "/settings/billing", label: "Billing" },
     ],
@@ -80,6 +81,14 @@ export const APP_TEAM_ITEMS: AppNavItem[] = [
 ];
 
 export const APP_QUICK_ACTION_PATHS = new Set(APP_QUICK_ACTIONS.map((item) => item.href));
+
+export function canShowQuickActions(role: UserRole): boolean {
+  return canWriteDocuments(role);
+}
+
+export function getAppQuickActionsForRole(role: UserRole): AppNavItem[] {
+  return canShowQuickActions(role) ? APP_QUICK_ACTIONS : [];
+}
 
 export function isAppQuickActionActive(pathname: string, href: string) {
   return pathname === href;
@@ -98,6 +107,7 @@ export function isAppWorkspaceItemActive(pathname: string, href: string) {
 const SETTINGS_SECTION_PATHS = [
   "/settings/general",
   "/settings/custom-fields",
+  "/settings/tax",
   "/settings/form-templates",
   "/settings/billing",
 ] as const;
@@ -121,11 +131,21 @@ export function isAppTeamItemActive(pathname: string, href: string) {
 }
 
 export function getAppWorkspaceItemsForRole(role: UserRole): AppNavItem[] {
+  const canWrite = canWriteDocuments(role);
   return APP_WORKSPACE_ITEMS.filter((item) => {
     if (item.href === "/templates") {
       return canManageCompanySettings(role);
     }
     return true;
+  }).map((item) => {
+    if (!item.children || canWrite) return item;
+    const children = item.children.filter(
+      (child) => !child.href.endsWith("/new") && !child.label.toLowerCase().startsWith("create"),
+    );
+    if (children.length === 0) {
+      return { href: item.href, label: item.label, icon: item.icon };
+    }
+    return { ...item, children };
   });
 }
 

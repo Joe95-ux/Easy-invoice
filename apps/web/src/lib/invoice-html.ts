@@ -15,8 +15,42 @@ import {
   getInvoicePaymentQr,
 } from "@/lib/invoice-payment-qr";
 import { ensureSystemTemplates, getDefaultTemplateId, getTemplateById } from "@/lib/templates";
+import { calculateInvoiceTotals } from "@/lib/calculator";
+import { normalizeAppliedTaxes } from "@/lib/tax-rates";
 
 export type { InvoiceHtmlData };
+
+function taxesWithAmounts(
+  rawTaxes: unknown,
+  taxRate: number,
+  taxInclusive: boolean,
+  taxCompound: boolean,
+  discount: number,
+  items: Array<{ quantity: unknown; unitPrice: unknown; taxable?: boolean }>,
+) {
+  const taxes = normalizeAppliedTaxes(rawTaxes);
+  if (taxes.length === 0 && taxRate <= 0) return [];
+  const { taxBreakdown } = calculateInvoiceTotals({
+    lineItems: items.map((item) => ({
+      quantity: Number(item.quantity),
+      unitPrice: Number(item.unitPrice),
+      taxable: item.taxable !== false,
+    })),
+    taxes: taxes.map((tax) => ({ name: tax.name, rate: tax.rate })),
+    taxRate,
+    discount,
+    taxInclusive,
+    taxCompound,
+  });
+  if (taxBreakdown.length > 0) {
+    return taxBreakdown.map((line) => ({
+      name: line.name,
+      rate: line.rate,
+      amount: line.amount,
+    }));
+  }
+  return taxes;
+}
 
 type InvoiceWithRelations = NonNullable<Awaited<ReturnType<typeof getInvoiceForMember>>>;
 
@@ -67,6 +101,15 @@ export function invoiceToHtmlData(
       subtotal: Number(invoice.subtotal),
       taxRate: Number(invoice.taxRate),
       taxAmount: Number(invoice.taxAmount),
+      taxInclusive: invoice.taxInclusive,
+      taxes: taxesWithAmounts(
+        invoice.taxes,
+        Number(invoice.taxRate),
+        invoice.taxInclusive,
+        invoice.taxCompound === true,
+        Number(invoice.discount),
+        invoice.items,
+      ),
       discount: Number(invoice.discount),
       total: Number(invoice.total),
       notes: invoice.notes,

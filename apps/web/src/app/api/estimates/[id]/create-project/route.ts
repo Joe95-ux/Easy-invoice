@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireApiMember, parseJsonBody, validationError } from "@/lib/api/validation";
+import { requireApiWriter, parseJsonBody, validationError } from "@/lib/api/validation";
 import {
   maybeCreateProjectFromAcceptedEstimate,
   serializeProjectDetail,
@@ -15,7 +15,7 @@ const createFromEstimateSchema = z.object({
 
 /** Create (or return existing) project linked to this estimate. */
 export async function POST(request: Request, context: RouteContext) {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiWriter();
   if (response) return response;
 
   const { id: estimateId } = await context.params;

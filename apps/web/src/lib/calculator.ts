@@ -14,10 +14,16 @@ export type InvoiceTotalsInput = {
   lineItems: LineItemInput[];
   /** Legacy single rate (0–1). Ignored when `taxes` is non-empty. */
   taxRate?: number;
-  /** Additive tax lines applied to the taxable base after discount. */
+  /** Tax lines applied to the taxable base after discount. */
   taxes?: TaxLineInput[];
   discount: number;
   taxInclusive?: boolean;
+  /**
+   * When true with multiple exclusive taxes, each rate applies to
+   * (base + prior tax amounts). Ignored for a single tax or inclusive mode
+   * (inclusive uses the product of (1+r) factors when compound).
+   */
+  taxCompound?: boolean;
 };
 
 export type TaxBreakdownLine = {
@@ -100,7 +106,7 @@ function allocateDiscount(
 }
 
 export function calculateInvoiceTotals(input: InvoiceTotalsInput): InvoiceTotals {
-  const { lineItems, discount, taxInclusive = false } = input;
+  const { lineItems, discount, taxInclusive = false, taxCompound = false } = input;
   const taxLines = resolveTaxLines(input);
   const effectiveTaxRate =
     Math.round(taxLines.reduce((sum, tax) => sum + tax.rate, 0) * 10000) / 10000;
@@ -138,35 +144,66 @@ export function calculateInvoiceTotals(input: InvoiceTotalsInput): InvoiceTotals
   }
 
   if (taxInclusive) {
-    // Prices already include tax. Extract tax from the taxable portion.
-    const combinedRate = effectiveTaxRate;
     const grossTaxable = taxableAfterDiscount;
-    const netTaxable =
-      combinedRate > 0
-        ? roundMoney(grossTaxable / (1 + combinedRate))
-        : grossTaxable;
+    let netTaxable: number;
+    if (taxCompound && taxLines.length > 1) {
+      const divisor = taxLines.reduce((product, tax) => product * (1 + tax.rate), 1);
+      netTaxable = divisor > 0 ? roundMoney(grossTaxable / divisor) : grossTaxable;
+    } else {
+      const combinedRate = effectiveTaxRate;
+      netTaxable =
+        combinedRate > 0
+          ? roundMoney(grossTaxable / (1 + combinedRate))
+          : grossTaxable;
+    }
     taxAmount = roundMoney(grossTaxable - netTaxable);
     taxableAmount = grossTaxable;
     total = roundMoney(grossTaxable + nonTaxableAfterDiscount);
 
-    // Apportion extracted tax across lines by rate share.
-    taxBreakdown = taxLines.map((tax) => {
-      const share = combinedRate > 0 ? tax.rate / combinedRate : 0;
-      return {
-        name: tax.name,
-        rate: tax.rate,
-        amount: roundMoney(taxAmount * share),
-      };
-    });
-    // Fix rounding drift on last line.
-    if (taxBreakdown.length > 0) {
-      const assigned = taxBreakdown
-        .slice(0, -1)
-        .reduce((sum, line) => sum + line.amount, 0);
-      taxBreakdown[taxBreakdown.length - 1]!.amount = roundMoney(
-        taxAmount - assigned,
-      );
+    if (taxCompound && taxLines.length > 1) {
+      // Walk forward from net to apportion each compound layer.
+      let running = netTaxable;
+      const layers: TaxBreakdownLine[] = [];
+      for (let index = 0; index < taxLines.length; index++) {
+        const tax = taxLines[index]!;
+        const amount = roundMoney(running * tax.rate);
+        running = roundMoney(running + amount);
+        layers.push({ name: tax.name, rate: tax.rate, amount });
+      }
+      if (layers.length > 0) {
+        const prior = layers.slice(0, -1).reduce((sum, line) => sum + line.amount, 0);
+        layers[layers.length - 1]!.amount = roundMoney(taxAmount - prior);
+      }
+      taxBreakdown = layers;
+    } else {
+      taxBreakdown = taxLines.map((tax) => {
+        const share = effectiveTaxRate > 0 ? tax.rate / effectiveTaxRate : 0;
+        return {
+          name: tax.name,
+          rate: tax.rate,
+          amount: roundMoney(taxAmount * share),
+        };
+      });
+      if (taxBreakdown.length > 0) {
+        const assigned = taxBreakdown
+          .slice(0, -1)
+          .reduce((sum, line) => sum + line.amount, 0);
+        taxBreakdown[taxBreakdown.length - 1]!.amount = roundMoney(
+          taxAmount - assigned,
+        );
+      }
     }
+  } else if (taxCompound && taxLines.length > 1) {
+    let running = taxableAfterDiscount;
+    taxBreakdown = taxLines.map((tax) => {
+      const amount = roundMoney(running * tax.rate);
+      running = roundMoney(running + amount);
+      return { name: tax.name, rate: tax.rate, amount };
+    });
+    taxAmount = roundMoney(
+      taxBreakdown.reduce((sum, line) => sum + line.amount, 0),
+    );
+    total = roundMoney(running + nonTaxableAfterDiscount);
   } else {
     taxBreakdown = taxLines.map((tax) => ({
       name: tax.name,
@@ -200,23 +237,26 @@ export function lineItemAmount(quantity: number, unitPrice: number): number {
 export function toHomeCurrency(
   amount: number,
   exchangeRate: number | null | undefined,
-): number {
-  const rate =
-    exchangeRate == null || !Number.isFinite(exchangeRate) || exchangeRate <= 0
-      ? 1
-      : exchangeRate;
-  return roundMoney(amount * rate);
+): number | null {
+  if (exchangeRate == null || !Number.isFinite(exchangeRate) || exchangeRate <= 0) {
+    return null;
+  }
+  return roundMoney(amount * exchangeRate);
 }
 
+/**
+ * Home currency units per 1 document-currency unit.
+ * Same currency → 1. Different currencies with no/invalid rate → null (unknown).
+ */
 export function resolveExchangeRate(input: {
   documentCurrency: string;
   homeCurrency: string;
   exchangeRate?: number | null;
-}): number {
+}): number | null {
   const doc = input.documentCurrency.trim().toUpperCase();
   const home = input.homeCurrency.trim().toUpperCase();
   if (!doc || !home || doc === home) return 1;
   const rate = input.exchangeRate;
-  if (rate == null || !Number.isFinite(rate) || rate <= 0) return 1;
+  if (rate == null || !Number.isFinite(rate) || rate <= 0) return null;
   return rate;
 }

@@ -8,8 +8,9 @@ function toNumber(value: MoneyLike): number {
 }
 
 /**
- * Prefer homeCurrencyTotal for company reporting; otherwise use total when
+ * Prefer homeCurrencyTotal when FX is known; otherwise use total when
  * currencies match; otherwise convert with exchangeRate when present.
+ * Returns null when foreign currency has no usable rate (exclude from sums).
  */
 export function invoiceAmountInHomeCurrency(input: {
   total: MoneyLike;
@@ -18,12 +19,6 @@ export function invoiceAmountInHomeCurrency(input: {
   homeCurrencyTotal?: MoneyLike;
   exchangeRate?: MoneyLike;
 }): number | null {
-  const homeTotal = input.homeCurrencyTotal;
-  if (homeTotal != null) {
-    const n = toNumber(homeTotal);
-    if (Number.isFinite(n)) return n;
-  }
-
   const doc = input.currency.trim().toUpperCase();
   const home = input.homeCurrency.trim().toUpperCase();
   const total = toNumber(input.total);
@@ -33,6 +28,13 @@ export function invoiceAmountInHomeCurrency(input: {
 
   const rate = input.exchangeRate == null ? null : toNumber(input.exchangeRate);
   if (rate == null || !Number.isFinite(rate) || rate <= 0) return null;
+
+  const homeTotal = input.homeCurrencyTotal;
+  if (homeTotal != null) {
+    const n = toNumber(homeTotal);
+    if (Number.isFinite(n)) return n;
+  }
+
   return toHomeCurrency(total, rate);
 }
 

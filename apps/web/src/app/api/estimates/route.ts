@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireApiMember, parseJsonBody, validationError } from "@/lib/api/validation";
+import { requireApiWriter, parseJsonBody, validationError } from "@/lib/api/validation";
 import { prisma } from "@/lib/db";
 import {
   buildEstimateTotals,
@@ -7,6 +7,7 @@ import {
   isUniqueConstraintError,
   resolveClientForEstimate,
 } from "@/lib/estimate-service";
+import { documentTotalsPersistFields } from "@/lib/invoice-service";
 import { createEstimateSchema } from "@/lib/schemas/estimate";
 import {
   normalizeCustomFieldDefinitions,
@@ -19,7 +20,7 @@ import {
 } from "@/lib/document-revisions/service";
 
 export async function POST(request: Request) {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiWriter();
   if (response) return response;
 
   const body = await parseJsonBody<unknown>(request);
@@ -70,7 +71,26 @@ export async function POST(request: Request) {
     templateId = await getDefaultTemplateId(member.companyId);
   }
 
-  const { lineItems, totals } = buildEstimateTotals(parsed.data);
+  const homeCurrency = member.company.currency;
+  if (
+    parsed.data.currency !== homeCurrency &&
+    !(parsed.data.exchangeRate != null && parsed.data.exchangeRate > 0)
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          "Exchange rate is required when the document currency differs from your company currency",
+      },
+      { status: 400 },
+    );
+  }
+
+  const { lineItems, built } = buildEstimateTotals({
+    ...parsed.data,
+    taxesProvided: parsed.data.taxes !== undefined,
+    homeCurrency,
+  });
+  const totalsFields = documentTotalsPersistFields(built);
 
   try {
     const estimate = await prisma.estimate.create({
@@ -81,11 +101,8 @@ export async function POST(request: Request) {
         templateId: templateId ?? null,
         number: await generateNextEstimateNumber(member.companyId),
         currency: parsed.data.currency,
-        subtotal: totals.subtotal,
-        taxRate: parsed.data.taxRate,
-        taxAmount: totals.taxAmount,
         discount: parsed.data.discount,
-        total: totals.total,
+        ...totalsFields,
         scope: parsed.data.scope,
         notes: parsed.data.notes,
         customFields,

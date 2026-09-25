@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { requireApiMember } from "@/lib/api/validation";
+import { requireApiPaymentDeleter } from "@/lib/api/validation";
 import { deleteInvoicePayment } from "@/lib/invoice-payments";
 
 type RouteContext = { params: Promise<{ id: string; paymentId: string }> };
 
 export async function DELETE(_request: Request, context: RouteContext) {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiPaymentDeleter();
   if (response) return response;
 
   const { id, paymentId } = await context.params;

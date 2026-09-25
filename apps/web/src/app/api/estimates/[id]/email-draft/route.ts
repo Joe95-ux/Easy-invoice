@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireApiMember, parseJsonBody, validationError } from "@/lib/api/validation";
+import { requireApiWriter, parseJsonBody, validationError } from "@/lib/api/validation";
 import { formatMoney, getEstimateForMember } from "@/lib/estimates";
 
 const draftSchema = z.object({
@@ -33,7 +33,7 @@ function fallbackDraft(input: {
 }
 
 export async function POST(request: Request, context: RouteContext) {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiWriter();
   if (response) return response;
 
   const { id } = await context.params;

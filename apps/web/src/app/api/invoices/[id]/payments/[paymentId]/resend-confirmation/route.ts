@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireApiMember, parseJsonBody, validationError } from "@/lib/api/validation";
+import { requireApiWriter, parseJsonBody, validationError } from "@/lib/api/validation";
 import { resendPaymentConfirmation } from "@/lib/payment-confirmation";
 
 const resendSchema = z.object({
@@ -10,7 +10,7 @@ const resendSchema = z.object({
 type RouteContext = { params: Promise<{ id: string; paymentId: string }> };
 
 export async function POST(request: Request, context: RouteContext) {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiWriter();
   if (response) return response;
 
   const { id: invoiceId, paymentId } = await context.params;

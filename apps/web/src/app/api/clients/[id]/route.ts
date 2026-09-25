@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
-import { requireApiMember, parseJsonBody, validationError } from "@/lib/api/validation";
+import {
+  requireApiMember,
+  requireApiWriter,
+  requireApiDocumentDeleter,
+  parseJsonBody,
+  validationError,
+} from "@/lib/api/validation";
 import { recordAuditEvent } from "@/lib/audit/service";
 import { getClientForMember } from "@/lib/clients";
 import { AuditAction, AuditCategory, prisma } from "@/lib/db";
@@ -22,7 +28,7 @@ export async function GET(_request: Request, context: RouteContext) {
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiWriter();
   if (response) return response;
 
   const { id } = await context.params;
@@ -57,7 +63,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiDocumentDeleter();
   if (response) return response;
 
   const { id } = await context.params;

@@ -8,6 +8,8 @@ export type SectionableLineItem = {
   sortOrder?: number;
   sectionTitle?: string | null;
   sectionSortOrder?: number;
+  /** When false, line is excluded from tax. Default true. */
+  taxable?: boolean;
   timeEntryIds?: string[];
   expenseIds?: string[];
 };
@@ -26,6 +28,8 @@ export type FlattenedLineItemInput = {
   sortOrder: number;
   sectionTitle: string | null;
   sectionSortOrder: number;
+  /** When false, line is excluded from tax. Default true. */
+  taxable?: boolean;
   timeEntryIds?: string[];
   expenseIds?: string[];
 };
@@ -101,6 +105,7 @@ export function flattenSectionsToLineItems<
     description: string;
     quantity: number;
     unitPrice: number;
+    taxable?: boolean;
     timeEntryIds?: string[];
     expenseIds?: string[];
   },
@@ -118,6 +123,7 @@ export function flattenSectionsToLineItems<
         sortOrder: sortOrder++,
         sectionTitle: title,
         sectionSortOrder,
+        taxable: item.taxable !== false,
         ...(item.timeEntryIds?.length ? { timeEntryIds: item.timeEntryIds } : {}),
         ...(item.expenseIds?.length ? { expenseIds: item.expenseIds } : {}),
       });

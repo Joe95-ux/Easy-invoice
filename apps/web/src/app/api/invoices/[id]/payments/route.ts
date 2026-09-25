@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireApiMember, parseJsonBody, validationError } from "@/lib/api/validation";
+import { requireApiWriter, parseJsonBody, validationError } from "@/lib/api/validation";
 import { recordInvoicePayment } from "@/lib/invoice-payments";
 import { recordInvoicePaymentSchema } from "@/lib/schemas/invoice";
 import { isPlanLimitError, planLimitResponse } from "@/lib/billing/entitlements";
@@ -7,7 +7,7 @@ import { isPlanLimitError, planLimitResponse } from "@/lib/billing/entitlements"
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function POST(request: Request, context: RouteContext) {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiWriter();
   if (response) return response;
 
   const { id } = await context.params;

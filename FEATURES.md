@@ -297,7 +297,27 @@ Next-best-action on unpaid invoices from signals we already store (`sentAt`, `vi
 
 **Status:** Done
 
-App-native invites, roles (Owner / Admin / Member), company switcher.
+App-native invites, roles (Owner / Admin / Member / Viewer), company switcher.
+
+- **Viewer** — read-only access to invoices, estimates, and clients (no create/edit/send/delete).
+- **Member** — can create, edit, send documents and record payments; cannot delete invoices, estimates, or clients (or reverse payments).
+- **Admin / Owner** — full document access including deletes; team and company settings as before.
+
+---
+
+### 12. Tax rates & multi-currency
+
+**Status:** Done (v1)
+
+Company tax-rates library, multi-tax (additive or compound), tax-inclusive documents, per-line taxable, live ECB exchange rates, document FX → home-currency totals for analytics/dashboard.
+
+| Piece | Location |
+|-------|----------|
+| Schema | `Company.taxRates`, `taxInclusiveDefault`; doc `taxes`, `taxInclusive`, `exchangeRate`, `homeCurrencyTotal`; line `taxable` |
+| Math | `lib/calculator.ts`, `lib/document-totals.ts`, `lib/home-currency.ts` |
+| Settings | `/settings/tax`, `GET/PATCH /api/company/tax-rates` |
+| Creators | `DocumentTaxPanel` on invoice / estimate / recurring |
+| Reporting | Analytics + dashboard + client financial profile use home currency when possible |
 
 ---
 

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   parseJsonBody,
   requireApiMember,
+  requireApiWriter,
   validationError,
 } from "@/lib/api/validation";
 import { prisma } from "@/lib/db";
@@ -44,7 +45,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiWriter();
   if (response) return response;
 
   const body = await parseJsonBody<unknown>(request);

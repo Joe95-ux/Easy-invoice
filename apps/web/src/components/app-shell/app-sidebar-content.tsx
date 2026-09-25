@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { AppLogo } from "@/components/app-logo";
 import {
-  APP_QUICK_ACTIONS,
+  getAppQuickActionsForRole,
   getAppTeamItemsForRole,
   getAppWorkspaceItemsForRole,
   isAppQuickActionActive,
@@ -180,6 +180,7 @@ export function AppSidebarContent({
 }: AppSidebarContentProps) {
   const pathname = usePathname();
   const hasCompany = Boolean(companyName && activeCompanyId);
+  const quickActions = getAppQuickActionsForRole(userRole);
   const workspaceItems = getAppWorkspaceItemsForRole(userRole);
   const teamItems = getAppTeamItemsForRole(userRole);
 
@@ -222,15 +223,17 @@ export function AppSidebarContent({
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <NavMenu
-              items={APP_QUICK_ACTIONS}
-              isActive={(href) => isAppQuickActionActive(pathname, href)}
-              onNavigate={onNavigate}
-            />
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {quickActions.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <NavMenu
+                items={quickActions}
+                isActive={(href) => isAppQuickActionActive(pathname, href)}
+                onNavigate={onNavigate}
+              />
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         <SidebarSeparator />
 

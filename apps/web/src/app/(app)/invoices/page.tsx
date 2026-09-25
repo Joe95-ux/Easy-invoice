@@ -2,6 +2,7 @@ import { requireMember } from "@/lib/auth";
 import { getInvoicesForMember } from "@/lib/invoice-service";
 import { buildInvoicePaymentSummary } from "@/lib/invoice-payments";
 import { normalizeCustomFieldValues } from "@/lib/custom-fields";
+import { canDeleteDocuments, canWriteDocuments } from "@/lib/team";
 import { InvoicesTable } from "@/features/invoices/components/invoices-table";
 import Link from "next/link";
 import { FileTextIcon, PlusIcon } from "lucide-react";
@@ -19,6 +20,8 @@ function customFieldsSearchText(raw: unknown): string {
 
 export default async function InvoicesPage() {
   const member = await requireMember();
+  const canWrite = canWriteDocuments(member.role);
+  const canDelete = canDeleteDocuments(member.role);
   const invoices = await getInvoicesForMember(member.companyId);
 
   const rows = invoices.map((invoice) => {
@@ -44,10 +47,12 @@ export default async function InvoicesPage() {
         title="Invoices"
         description="Track, send, and manage every invoice in one place."
         actions={
-          <Button className={pageHeaderActionClass} render={<Link href="/invoices/new" />}>
-            <PlusIcon className="size-4" />
-            New invoice
-          </Button>
+          canWrite ? (
+            <Button className={pageHeaderActionClass} render={<Link href="/invoices/new" />}>
+              <PlusIcon className="size-4" />
+              New invoice
+            </Button>
+          ) : undefined
         }
       />
 
@@ -57,15 +62,22 @@ export default async function InvoicesPage() {
           title="No invoices yet"
           description="Create your first invoice in under a minute — by form or with AI."
           action={
-            <Button render={<Link href="/invoices/new" />}>
-              <PlusIcon className="size-4" />
-              Create your first invoice
-            </Button>
+            canWrite ? (
+              <Button render={<Link href="/invoices/new" />}>
+                <PlusIcon className="size-4" />
+                Create your first invoice
+              </Button>
+            ) : undefined
           }
         />
       ) : (
         <Card className="overflow-hidden py-0">
-          <InvoicesTable invoices={rows} companyName={member.company.name} />
+          <InvoicesTable
+            invoices={rows}
+            companyName={member.company.name}
+            canWrite={canWrite}
+            canDelete={canDelete}
+          />
         </Card>
       )}
     </PageScroll>

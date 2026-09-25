@@ -18,7 +18,6 @@ import { FormSection } from "@/components/forms/form-section";
 import { FormStepProgress, type FormStep } from "@/components/forms/form-step-progress";
 import { PhoneInput } from "@/components/forms/phone-input";
 import { SearchableSelect } from "@/components/forms/searchable-select";
-import { Input } from "@/components/ui/input";
 import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -37,6 +36,7 @@ import {
 import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
 import { InvoiceTotalsSummary } from "@/features/invoices/components/invoice-totals-summary";
 import { TemplateCarousel } from "@/features/invoices/components/template-carousel";
+import { DocumentTaxPanel } from "@/features/documents/components/document-tax-panel";
 import {
   calculateInvoiceTotals,
   calculateLineSubtotal,
@@ -61,6 +61,13 @@ import {
   seedCustomFieldDefaults,
 } from "@/lib/custom-fields";
 import type { CustomFieldDefinition, CustomFieldValues } from "@/lib/schemas/custom-fields";
+import type { AppliedTax, CompanyTaxRate } from "@/lib/schemas/tax-rates";
+import {
+  getDefaultTaxRate,
+  primaryTaxRate,
+  resolveAppliedTaxes,
+} from "@/lib/tax-rates";
+import { throwIfApiError, toastApiError } from "@/lib/billing/plan-api-error";
 import type { TemplateSummary } from "@/lib/templates";
 
 const BASE_STEPS: FormStep[] = [
@@ -85,6 +92,10 @@ export type EstimateInitialValues = {
   issueDate?: string;
   validUntil?: string | null;
   taxRate?: number;
+  taxes?: AppliedTax[] | null;
+  taxInclusive?: boolean;
+  taxCompound?: boolean;
+  exchangeRate?: number | null;
   discount?: number;
   lineItems?: Array<
     LineItemInput & {
@@ -98,6 +109,10 @@ type EstimateCreatorProps = {
   title?: string;
   description?: string;
   currency: string;
+  homeCurrency?: string;
+  companyTaxRates?: CompanyTaxRate[];
+  taxInclusiveDefault?: boolean;
+  taxCompoundDefault?: boolean;
   company: PreviewCompany;
   clients?: ClientListItem[];
   customFieldDefinitions?: CustomFieldDefinition[];
@@ -116,6 +131,10 @@ export function EstimateCreator({
   title = "New estimate",
   description = "Use the form or describe the job in your own words.",
   currency: defaultCurrency,
+  homeCurrency,
+  companyTaxRates = [],
+  taxInclusiveDefault = false,
+  taxCompoundDefault = false,
   company,
   clients = [],
   customFieldDefinitions = [],
@@ -130,6 +149,7 @@ export function EstimateCreator({
   preselectedTimeEntryIds = [],
 }: EstimateCreatorProps) {
   const router = useRouter();
+  const resolvedHomeCurrency = homeCurrency ?? defaultCurrency;
   const [activeEstimateId, setActiveEstimateId] = useState(estimateId);
   const [leaveAfterSave, setLeaveAfterSave] = useState(false);
   const isEditing = Boolean(activeEstimateId);
@@ -168,9 +188,25 @@ export function EstimateCreator({
   const [validUntil, setValidUntil] = useState(
     initialValues?.validUntil?.slice(0, 10) ?? "",
   );
-  const [taxRate, setTaxRate] = useState(
-    initialValues?.taxRate !== undefined ? initialValues.taxRate * 100 : 0,
+  const [taxes, setTaxes] = useState<AppliedTax[]>(() => {
+    const fromInitial = resolveAppliedTaxes({
+      taxes: initialValues?.taxes,
+      taxRate: initialValues?.taxRate,
+    });
+    if (fromInitial.length > 0 || isEditing || initialValues) return fromInitial;
+    const def = getDefaultTaxRate(companyTaxRates);
+    return def ? [{ id: def.id, name: def.name, rate: def.rate }] : [];
+  });
+  const [taxInclusive, setTaxInclusive] = useState(
+    initialValues?.taxInclusive ?? taxInclusiveDefault,
   );
+  const [taxCompound, setTaxCompound] = useState(
+    initialValues?.taxCompound ?? taxCompoundDefault,
+  );
+  const [exchangeRate, setExchangeRate] = useState<number | null>(
+    initialValues?.exchangeRate ?? null,
+  );
+  const taxRate = primaryTaxRate(taxes) * 100;
   const [discountMode, setDiscountMode] = useState<DiscountMode>("amount");
   const [discountValue, setDiscountValue] = useState(initialValues?.discount ?? 0);
   const [sections, setSections] = useState<LineItemSectionInput<LineItemInput>[]>(() => {
@@ -199,7 +235,9 @@ export function EstimateCreator({
         scope.trim() ||
         notes.trim() ||
         Object.values(customFields).some((value) => value.trim()) ||
-        taxRate !== 0 ||
+        taxes.length > 0 ||
+        taxInclusive !== taxInclusiveDefault ||
+        taxCompound !== taxCompoundDefault ||
         discountValue !== 0 ||
         aiSourceNotes ||
         sections.some(
@@ -218,7 +256,11 @@ export function EstimateCreator({
     scope,
     notes,
     customFields,
-    taxRate,
+    taxes,
+    taxInclusive,
+    taxInclusiveDefault,
+    taxCompound,
+    taxCompoundDefault,
     discountValue,
     aiSourceNotes,
     sections,
@@ -245,13 +287,17 @@ export function EstimateCreator({
   const lineItemsForTotals = lineItems.map((item) => ({
     quantity: item.quantity,
     unitPrice: item.unitPrice,
+    taxable: item.taxable !== false,
   }));
   const subtotal = calculateLineSubtotal(lineItemsForTotals);
   const discountAmount = resolveDiscountAmount(subtotal, discountMode, discountValue);
   const totals = calculateInvoiceTotals({
     lineItems: lineItemsForTotals,
+    taxes: taxes.map((tax) => ({ name: tax.name, rate: tax.rate })),
     taxRate: taxRate / 100,
     discount: discountAmount,
+    taxInclusive,
+    taxCompound,
   });
 
   const clientItems = useMemo(
@@ -339,7 +385,7 @@ export function EstimateCreator({
       setClientAddress(draft.client_address ?? "");
       setNotes(draft.notes ?? "");
       setCurrency(draft.currency ?? defaultCurrency);
-      setTaxRate((draft.tax_rate ?? 0) * 100);
+      setTaxes(resolveAppliedTaxes({ taxRate: draft.tax_rate ?? 0 }));
       setDiscountMode("amount");
       setDiscountValue(draft.discount ?? 0);
       if (draft.issue_date) {
@@ -355,7 +401,7 @@ export function EstimateCreator({
         setNotes((current) => (current.trim() ? `${current.trim()}\n${draft.notes}` : draft.notes ?? ""));
       }
       if ((draft.tax_rate ?? 0) > 0) {
-        setTaxRate((draft.tax_rate ?? 0) * 100);
+        setTaxes(resolveAppliedTaxes({ taxRate: draft.tax_rate ?? 0 }));
       }
       if ((draft.discount ?? 0) > 0) {
         setDiscountMode("amount");
@@ -429,11 +475,16 @@ export function EstimateCreator({
       issueDate: issueDate ? new Date(issueDate).toISOString() : undefined,
       validUntil: validUntil ? new Date(validUntil).toISOString() : undefined,
       taxRate: taxRate / 100,
+      taxes,
+      taxInclusive,
+      taxCompound,
+      exchangeRate,
       discount: discountAmount,
       lineItems: flattenSectionsToLineItems(sections).map((item) => ({
         description: item.description,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
+        taxable: item.taxable !== false,
         sortOrder: item.sortOrder,
         sectionTitle: item.sectionTitle,
         sectionSortOrder: item.sectionSortOrder,
@@ -638,31 +689,32 @@ export function EstimateCreator({
               currency={currency}
             />
           </FormSection>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field>
-              <FieldLabel htmlFor="tax-rate" className="h-[26px] items-center">
-                Tax rate (%)
-              </FieldLabel>
-              <FieldContent>
-                <Input
-                  id="tax-rate"
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={taxRate}
-                  onChange={(e) => setTaxRate(Number(e.target.value))}
-                />
-              </FieldContent>
-            </Field>
-            <DiscountField
-              mode={discountMode}
-              value={discountValue}
-              currency={currency}
-              onModeChange={setDiscountMode}
-              onValueChange={setDiscountValue}
-            />
-          </div>
-          <InvoiceTotalsSummary currency={currency} totals={totals} discount={discountAmount} />
+          <DocumentTaxPanel
+            companyTaxRates={companyTaxRates}
+            taxes={taxes}
+            onTaxesChange={setTaxes}
+            taxInclusive={taxInclusive}
+            onTaxInclusiveChange={setTaxInclusive}
+            taxCompound={taxCompound}
+            onTaxCompoundChange={setTaxCompound}
+            currency={currency}
+            homeCurrency={resolvedHomeCurrency}
+            exchangeRate={exchangeRate}
+            onExchangeRateChange={setExchangeRate}
+          />
+          <DiscountField
+            mode={discountMode}
+            value={discountValue}
+            currency={currency}
+            onModeChange={setDiscountMode}
+            onValueChange={setDiscountValue}
+          />
+          <InvoiceTotalsSummary
+            currency={currency}
+            totals={totals}
+            discount={discountAmount}
+            taxInclusive={taxInclusive}
+          />
         </div>
       )}
 
@@ -795,6 +847,12 @@ export function EstimateCreator({
       items={lineItems}
       totals={totals}
       taxRate={taxRate}
+      taxInclusive={taxInclusive}
+      taxes={totals.taxBreakdown.map((line) => ({
+        name: line.name,
+        rate: line.rate,
+        amount: line.amount,
+      }))}
       discount={discountAmount}
     />
   );

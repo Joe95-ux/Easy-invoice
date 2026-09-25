@@ -21,6 +21,7 @@ type ClientOverviewTabProps = {
   saving: boolean;
   onSavingChange: (saving: boolean) => void;
   onUpdate: (data: ClientInput) => Promise<void>;
+  canWrite?: boolean;
 };
 
 function SummaryCard({
@@ -70,6 +71,7 @@ export function ClientOverviewTab({
   saving,
   onSavingChange,
   onUpdate,
+  canWrite = true,
 }: ClientOverviewTabProps) {
   const { summary } = client;
   const address = formatClientAddress(client);
@@ -122,19 +124,21 @@ export function ClientOverviewTab({
               {formatMoney(summary.unbilledValue, summary.currency)} ready to add to an invoice
             </p>
           </div>
-          <Button
-            render={
-              <Link
-                href={invoiceFromTimeUrl({
-                  clientId: client.id,
-                  openPicker: true,
-                })}
-              />
-            }
-          >
-            <FileTextIcon className="size-4" />
-            Invoice unbilled time
-          </Button>
+          {canWrite ? (
+            <Button
+              render={
+                <Link
+                  href={invoiceFromTimeUrl({
+                    clientId: client.id,
+                    openPicker: true,
+                  })}
+                />
+              }
+            >
+              <FileTextIcon className="size-4" />
+              Invoice unbilled time
+            </Button>
+          ) : null}
         </div>
       )}
 
@@ -218,24 +222,24 @@ export function ClientOverviewTab({
         <div
           className={cn(
             "rounded-xl border border-border bg-card p-4 text-sm ring-1 ring-foreground/10",
-            !editingNotes && "cursor-text",
+            canWrite && !editingNotes && "cursor-text",
           )}
           onClick={() => {
-            if (!editingNotes && !notesSaving) setEditingNotes(true);
+            if (canWrite && !editingNotes && !notesSaving) setEditingNotes(true);
           }}
           onKeyDown={(event) => {
-            if (editingNotes) return;
+            if (!canWrite || editingNotes) return;
             if (event.key === "Enter" || event.key === " ") {
               event.preventDefault();
               setEditingNotes(true);
             }
           }}
-          role={editingNotes ? undefined : "button"}
-          tabIndex={editingNotes ? undefined : 0}
-          aria-label={editingNotes ? undefined : "Edit notes"}
+          role={canWrite && !editingNotes ? "button" : undefined}
+          tabIndex={canWrite && !editingNotes ? 0 : undefined}
+          aria-label={canWrite && !editingNotes ? "Edit notes" : undefined}
         >
           <p className="font-medium">Notes{notesSaving ? " · Saving…" : ""}</p>
-          {editingNotes ? (
+          {editingNotes && canWrite ? (
             <Textarea
               ref={notesRef}
               value={notes}
@@ -253,36 +257,38 @@ export function ClientOverviewTab({
         </div>
       )}
 
-      <FormCard
-        title="Client details"
-        description="Update contact information used on invoices and estimates."
-        footer={
-          <Button type="submit" form="edit-client-form" disabled={saving}>
-            {saving ? "Saving..." : "Save changes"}
-          </Button>
-        }
-      >
-        <ClientForm
-          key={`${client.id}-${client.updatedAt}`}
-          formId="edit-client-form"
-          showSubmit={false}
-          onSubmittingChange={onSavingChange}
-          initialValues={{
-            name: client.name,
-            email: client.email ?? "",
-            phone: client.phone ?? "",
-            address: client.address ?? "",
-            city: client.city ?? "",
-            state: client.state ?? "",
-            zip: client.zip ?? "",
-            country: client.country ?? "US",
-            notes: client.notes ?? "",
-            defaultHourlyRate: client.defaultHourlyRate,
-          }}
-          submitLabel="Save changes"
-          onSubmit={onUpdate}
-        />
-      </FormCard>
+      {canWrite ? (
+        <FormCard
+          title="Client details"
+          description="Update contact information used on invoices and estimates."
+          footer={
+            <Button type="submit" form="edit-client-form" disabled={saving}>
+              {saving ? "Saving..." : "Save changes"}
+            </Button>
+          }
+        >
+          <ClientForm
+            key={`${client.id}-${client.updatedAt}`}
+            formId="edit-client-form"
+            showSubmit={false}
+            onSubmittingChange={onSavingChange}
+            initialValues={{
+              name: client.name,
+              email: client.email ?? "",
+              phone: client.phone ?? "",
+              address: client.address ?? "",
+              city: client.city ?? "",
+              state: client.state ?? "",
+              zip: client.zip ?? "",
+              country: client.country ?? "US",
+              notes: client.notes ?? "",
+              defaultHourlyRate: client.defaultHourlyRate,
+            }}
+            submitLabel="Save changes"
+            onSubmit={onUpdate}
+          />
+        </FormCard>
+      ) : null}
     </div>
   );
 }

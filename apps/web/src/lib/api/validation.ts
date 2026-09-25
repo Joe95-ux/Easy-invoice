@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import type { ZodError } from "zod";
 import { getCurrentMember } from "@/lib/auth";
-import { canManageCompanySettings, canManageTeam } from "@/lib/team";
+import {
+  canDeleteDocuments,
+  canDeletePayments,
+  canManageCompanySettings,
+  canManageTeam,
+  canWriteDocuments,
+} from "@/lib/team";
 import { zodFieldErrors } from "@/lib/validation/zod";
 
 export { zodFieldErrors };
@@ -42,6 +48,51 @@ export async function requireApiCompanyAdmin(): Promise<RequireApiMemberResult> 
   if (result.response) return result;
 
   if (!canManageCompanySettings(result.member.role)) {
+    return {
+      member: null,
+      response: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
+    };
+  }
+
+  return result;
+}
+
+/** Create/edit/send documents and record payments. */
+export async function requireApiWriter(): Promise<RequireApiMemberResult> {
+  const result = await requireApiMember();
+  if (result.response) return result;
+
+  if (!canWriteDocuments(result.member.role)) {
+    return {
+      member: null,
+      response: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
+    };
+  }
+
+  return result;
+}
+
+/** Delete invoices, estimates, or clients. */
+export async function requireApiDocumentDeleter(): Promise<RequireApiMemberResult> {
+  const result = await requireApiMember();
+  if (result.response) return result;
+
+  if (!canDeleteDocuments(result.member.role)) {
+    return {
+      member: null,
+      response: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
+    };
+  }
+
+  return result;
+}
+
+/** Reverse or delete recorded payments. */
+export async function requireApiPaymentDeleter(): Promise<RequireApiMemberResult> {
+  const result = await requireApiMember();
+  if (result.response) return result;
+
+  if (!canDeletePayments(result.member.role)) {
     return {
       member: null,
       response: NextResponse.json({ error: "Forbidden" }, { status: 403 }),

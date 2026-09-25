@@ -25,6 +25,7 @@ type DocumentTemplateManagerProps = {
   estimateId?: string;
   company: PreviewCompany;
   preview: PreviewData;
+  canWrite?: boolean;
 };
 
 export function DocumentTemplateManager({
@@ -35,6 +36,7 @@ export function DocumentTemplateManager({
   estimateId,
   company,
   preview,
+  canWrite = true,
 }: DocumentTemplateManagerProps) {
   const router = useRouter();
   const [selected, setSelected] = useState(value);
@@ -47,7 +49,7 @@ export function DocumentTemplateManager({
   );
 
   async function save(templateId: string) {
-    if (templateId === selected) return;
+    if (!canWrite || templateId === selected) return;
     const previousId = selected;
     setSelected(templateId);
     try {
@@ -81,6 +83,7 @@ export function DocumentTemplateManager({
         kind={kind}
         company={company}
         currency={preview.currency}
+        canWrite={canWrite}
       />
       <DocumentPreviewDrawer
         open={previewOpen}
@@ -90,10 +93,14 @@ export function DocumentTemplateManager({
         templateSlug={previewTemplate?.slug}
         templateName={previewTemplate?.name}
         isSelected={previewTemplate?.id === selected}
-        onUseTemplate={() => {
-          if (previewTemplate) save(previewTemplate.id);
-          setPreviewTemplateId(null);
-        }}
+        onUseTemplate={
+          canWrite
+            ? () => {
+                if (previewTemplate) save(previewTemplate.id);
+                setPreviewTemplateId(null);
+              }
+            : undefined
+        }
         {...preview}
       />
     </>

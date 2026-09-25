@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import { requireApiMember } from "@/lib/api/validation";
+import { requireApiTeamManager } from "@/lib/api/validation";
 import { prisma } from "@/lib/db";
 import { resolveMemberLoginEmails } from "@/lib/member-email";
 
 export async function GET() {
-  const authResult = await requireApiMember();
+  const authResult = await requireApiTeamManager();
   if (authResult.response) return authResult.response;
 
   const { member } = authResult;
@@ -26,7 +26,7 @@ export async function GET() {
     }),
   ]);
 
-  const roleOrder = { OWNER: 0, ADMIN: 1, MEMBER: 2 } as const;
+  const roleOrder = { OWNER: 0, ADMIN: 1, MEMBER: 2, VIEWER: 3 } as const;
   const sortedMembers = [...members].sort(
     (a, b) => roleOrder[a.role] - roleOrder[b.role],
   );

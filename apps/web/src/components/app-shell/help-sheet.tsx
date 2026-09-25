@@ -12,6 +12,7 @@ import {
   ListTodoIcon,
   MailIcon,
   MessageSquareTextIcon,
+  PercentIcon,
   SettingsIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -60,6 +61,12 @@ const linkOptions = [
     description: "Add PO numbers, job sites, and other extras to invoices.",
     href: "/settings/custom-fields",
     icon: ListTodoIcon,
+  },
+  {
+    title: "Tax rates",
+    description: "Named tax rates, inclusive pricing, and multi-currency exchange.",
+    href: "/settings/tax",
+    icon: PercentIcon,
   },
 ] as const;
 

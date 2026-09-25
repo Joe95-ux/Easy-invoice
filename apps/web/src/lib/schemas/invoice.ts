@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { normalizeDraftDate } from "@/lib/draft-dates";
 import { customFieldValuesSchema } from "@/lib/schemas/custom-fields";
+import { appliedTaxesSchema } from "@/lib/schemas/tax-rates";
 
 const lineItemSchema = z.object({
   description: z.string().min(1),
@@ -100,6 +101,7 @@ const invoiceLineItemInputSchema = z.object({
   sortOrder: z.number().int().nonnegative(),
   sectionTitle: z.string().trim().max(120).nullable().optional(),
   sectionSortOrder: z.number().int().nonnegative().optional(),
+  taxable: z.boolean().optional().default(true),
   timeEntryIds: z.array(z.string()).optional(),
   expenseIds: z.array(z.string()).optional(),
 });
@@ -122,7 +124,12 @@ export const createInvoiceSchema = z.object({
   notes: z.string().optional(),
   customFields: customFieldValuesSchema,
   currency: z.string().length(3),
+  /** Legacy single rate; prefer `taxes` when present. */
   taxRate: z.number().min(0).max(1),
+  taxes: appliedTaxesSchema.optional(),
+  taxInclusive: z.boolean().optional(),
+  taxCompound: z.boolean().optional(),
+  exchangeRate: z.number().positive().nullable().optional(),
   discount: z.number().min(0),
   issueDate: z.string().optional(),
   dueDate: z.string().optional(),

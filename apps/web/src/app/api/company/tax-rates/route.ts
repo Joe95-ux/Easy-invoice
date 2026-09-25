@@ -16,12 +16,17 @@ export async function GET() {
 
   const company = await prisma.company.findUnique({
     where: { id: member.companyId },
-    select: { taxRates: true, taxInclusiveDefault: true },
+    select: {
+      taxRates: true,
+      taxInclusiveDefault: true,
+      taxCompoundDefault: true,
+    },
   });
 
   return NextResponse.json({
     taxRates: normalizeCompanyTaxRates(company?.taxRates),
     taxInclusiveDefault: company?.taxInclusiveDefault ?? false,
+    taxCompoundDefault: company?.taxCompoundDefault ?? false,
   });
 }
 
@@ -36,21 +41,27 @@ export async function PATCH(request: Request) {
   if (!parsed.success) return validationError(parsed.error);
 
   const taxRates = normalizeCompanyTaxRates(parsed.data.taxRates);
-  const taxInclusiveDefault = parsed.data.taxInclusiveDefault ?? false;
+  const data: {
+    taxRates: typeof taxRates;
+    taxInclusiveDefault?: boolean;
+    taxCompoundDefault?: boolean;
+  } = { taxRates };
 
-  await prisma.company.update({
+  if (parsed.data.taxInclusiveDefault !== undefined) {
+    data.taxInclusiveDefault = parsed.data.taxInclusiveDefault;
+  }
+  if (parsed.data.taxCompoundDefault !== undefined) {
+    data.taxCompoundDefault = parsed.data.taxCompoundDefault;
+  }
+
+  const company = await prisma.company.update({
     where: { id: member.companyId },
-    data: {
-      taxRates,
-      ...(parsed.data.taxInclusiveDefault !== undefined
-        ? { taxInclusiveDefault }
-        : {}),
+    data,
+    select: {
+      taxRates: true,
+      taxInclusiveDefault: true,
+      taxCompoundDefault: true,
     },
-  });
-
-  const company = await prisma.company.findUniqueOrThrow({
-    where: { id: member.companyId },
-    select: { taxRates: true, taxInclusiveDefault: true },
   });
 
   await recordAuditEvent({
@@ -64,11 +75,13 @@ export async function PATCH(request: Request) {
     metadata: {
       taxRateCount: taxRates.length,
       taxInclusiveDefault: company.taxInclusiveDefault,
+      taxCompoundDefault: company.taxCompoundDefault,
     },
   }).catch(() => undefined);
 
   return NextResponse.json({
     taxRates: normalizeCompanyTaxRates(company.taxRates),
     taxInclusiveDefault: company.taxInclusiveDefault,
+    taxCompoundDefault: company.taxCompoundDefault,
   });
 }

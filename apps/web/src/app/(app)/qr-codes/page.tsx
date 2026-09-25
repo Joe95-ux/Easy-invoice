@@ -8,9 +8,11 @@ import { QrCodesTable } from "@/features/qr-codes/components/qr-codes-table";
 import { getAppOrigin } from "@/lib/app-url";
 import { requireMember } from "@/lib/auth";
 import { getQrCodesForCompany } from "@/lib/qr-codes/service";
+import { canWriteDocuments } from "@/lib/team";
 
 export default async function QrCodesPage() {
   const member = await requireMember();
+  const canWrite = canWriteDocuments(member.role);
   const [qrCodes, origin] = await Promise.all([
     getQrCodesForCompany(member.companyId),
     getAppOrigin(),
@@ -22,10 +24,12 @@ export default async function QrCodesPage() {
         title="QR codes"
         description="Create scannable codes for links, PDFs, contacts, and events — editable anytime."
         actions={
-          <Button className={pageHeaderActionClass} render={<Link href="/qr-codes/new" />}>
-            <PlusIcon className="size-4" />
-            Create QR code
-          </Button>
+          canWrite ? (
+            <Button className={pageHeaderActionClass} render={<Link href="/qr-codes/new" />}>
+              <PlusIcon className="size-4" />
+              Create QR code
+            </Button>
+          ) : undefined
         }
       />
 
@@ -35,10 +39,12 @@ export default async function QrCodesPage() {
           title="No QR codes yet"
           description="Generate your first dynamic QR code in a few clicks and download it print-ready."
           action={
-            <Button render={<Link href="/qr-codes/new" />}>
-              <PlusIcon className="size-4" />
-              Create your first QR code
-            </Button>
+            canWrite ? (
+              <Button render={<Link href="/qr-codes/new" />}>
+                <PlusIcon className="size-4" />
+                Create your first QR code
+              </Button>
+            ) : undefined
           }
         />
       ) : (
@@ -47,6 +53,7 @@ export default async function QrCodesPage() {
             qrCodes={qrCodes}
             origin={origin}
             companyLogoUrl={member.company.logoUrl}
+            canWrite={canWrite}
           />
         </Card>
       )}

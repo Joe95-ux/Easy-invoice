@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireApiMember, parseJsonBody, validationError } from "@/lib/api/validation";
+import { requireApiWriter, parseJsonBody, validationError } from "@/lib/api/validation";
 import { MIN_PLAN_BALANCE } from "@/lib/collections/advice";
 import { buildInvoicePaymentSummary } from "@/lib/invoice-payments";
 import { formatMoney, getInvoiceForMember } from "@/lib/invoices";
@@ -58,7 +58,7 @@ function fallbackDraft(input: {
 }
 
 export async function POST(request: Request, context: RouteContext) {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiWriter();
   if (response) return response;
 
   const { id } = await context.params;

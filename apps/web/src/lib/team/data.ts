@@ -5,7 +5,7 @@ import { resolveMemberLoginEmails } from "@/lib/member-email";
 import { canManageTeam } from "@/lib/team";
 import type { TeamData } from "@/features/team/types";
 
-const ROLE_ORDER = { OWNER: 0, ADMIN: 1, MEMBER: 2 } as const;
+const ROLE_ORDER = { OWNER: 0, ADMIN: 1, MEMBER: 2, VIEWER: 3 } as const;
 
 type GetTeamDataInput = {
   companyId: string;

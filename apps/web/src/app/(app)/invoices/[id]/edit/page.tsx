@@ -2,11 +2,12 @@ import { notFound } from "next/navigation";
 import { PageScroll } from "@/components/app-shell/app-shell";
 import { PageBackLink, PageHeader } from "@/components/app-shell/page-header";
 import { InvoiceCreator } from "@/features/invoices/components/invoice-creator";
-import { requireMember } from "@/lib/auth";
+import { requireWriter } from "@/lib/auth";
 import { getClientsForMember } from "@/lib/clients";
 import { getInvoiceForMember, getInvoiceLineItemsWithTimeEntries } from "@/lib/invoices";
 import { companyBrandingFields } from "@/lib/company-branding";
 import { normalizeCustomFieldDefinitions, normalizeCustomFieldValues } from "@/lib/custom-fields";
+import { normalizeAppliedTaxes, normalizeCompanyTaxRates } from "@/lib/tax-rates";
 import {
   attachExpenseIdsToLineItems,
   getExpensesForInvoice,
@@ -16,7 +17,7 @@ import { getDefaultTemplateId, getTemplatesForCompany } from "@/lib/templates";
 type PageProps = { params: Promise<{ id: string }> };
 
 export default async function EditInvoicePage({ params }: PageProps) {
-  const member = await requireMember();
+  const member = await requireWriter();
 
   const { id } = await params;
   const [invoice, clients, templates, defaultTemplateId, lineItemsWithTime, linkedExpenses] =
@@ -35,6 +36,7 @@ export default async function EditInvoicePage({ params }: PageProps) {
       description: item.description,
       quantity: Number(item.quantity),
       unitPrice: Number(item.unitPrice),
+      taxable: item.taxable !== false,
       sectionTitle: item.sectionTitle,
       sectionSortOrder: item.sectionSortOrder,
       timeEntryIds: item.timeEntries.map((entry) => entry.id),
@@ -53,6 +55,10 @@ export default async function EditInvoicePage({ params }: PageProps) {
 
       <InvoiceCreator
         currency={member.company.currency}
+        homeCurrency={member.company.currency}
+        companyTaxRates={normalizeCompanyTaxRates(member.company.taxRates)}
+        taxInclusiveDefault={member.company.taxInclusiveDefault}
+        taxCompoundDefault={member.company.taxCompoundDefault}
         company={{
           name: member.company.name,
           logoUrl: member.company.logoUrl,
@@ -88,6 +94,10 @@ export default async function EditInvoicePage({ params }: PageProps) {
           issueDate: invoice.issueDate.toISOString(),
           dueDate: invoice.dueDate?.toISOString() ?? null,
           taxRate: Number(invoice.taxRate),
+          taxes: normalizeAppliedTaxes(invoice.taxes),
+          taxInclusive: invoice.taxInclusive,
+          taxCompound: invoice.taxCompound,
+          exchangeRate: invoice.exchangeRate != null ? Number(invoice.exchangeRate) : null,
           discount: Number(invoice.discount),
           lineItems,
           installments: invoice.installments.map((row) => ({

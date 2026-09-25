@@ -8,6 +8,7 @@ export type SerializedRecurringLineItem = {
   description: string;
   quantity: number;
   unitPrice: number;
+  taxable: boolean;
   sortOrder: number;
   sectionTitle: string | null;
   sectionSortOrder: number;
@@ -28,6 +29,10 @@ export type SerializedRecurringInvoice = {
   autoSend: boolean;
   currency: string;
   taxRate: number;
+  taxes: Array<{ id?: string | null; name: string; rate: number }>;
+  taxInclusive: boolean;
+  taxCompound: boolean;
+  exchangeRate: number | null;
   discount: number;
   notes: string | null;
   customFields?: Record<string, string>;

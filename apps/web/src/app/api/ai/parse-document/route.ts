@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { parseDocumentFromFile } from "@/lib/ai-docs";
-import { requireApiMember } from "@/lib/api/validation";
+import { requireApiWriter } from "@/lib/api/validation";
 
 /** Must be a literal for Next.js route config (default 480s; see DOCUMENT_PARSE_MAX_DURATION_SECONDS). */
 export const maxDuration = 480;
@@ -26,7 +26,7 @@ function isAllowedFile(file: File): boolean {
 }
 
 export async function POST(request: Request) {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiWriter();
   if (response) return response;
 
   let formData: FormData;

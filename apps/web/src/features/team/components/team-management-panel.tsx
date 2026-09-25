@@ -40,21 +40,30 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ROLE_LABELS, roleBadgeVariant, type TeamData } from "@/features/team/types";
-import { canManageTeam, ROLE_DESCRIPTIONS } from "@/lib/team";
+import {
+  canAssignRole,
+  canManageTeam,
+  canModifyMember,
+  ROLE_DESCRIPTIONS,
+} from "@/lib/team";
 import type { UserRole } from "@/lib/db";
 
 const INVITE_ROLE_ITEMS = [
   { value: "MEMBER", label: "Member" },
+  { value: "VIEWER", label: "Viewer" },
   { value: "ADMIN", label: "Admin" },
 ] as const;
 
 const MEMBER_ROLE_ITEMS = [
   { value: "MEMBER", label: "Member" },
+  { value: "VIEWER", label: "Viewer" },
   { value: "ADMIN", label: "Admin" },
 ] as const;
 
+type AssignableRole = (typeof INVITE_ROLE_ITEMS)[number]["value"];
+
 export const MEMBERS_INFO =
-  "Invite teammates and control who can manage company settings. Owners assign admin or member roles; admins can invite and remove members only.";
+  "Invite teammates and assign roles. Owners can invite admins, members, or viewers; admins can invite and remove members and viewers. Members can create and edit documents but cannot delete them; viewers are read-only.";
 
 function RolePrivilegeBadge({ role }: { role: UserRole }) {
   return (
@@ -86,13 +95,12 @@ export function TeamManagementPanel({ initialData }: TeamManagementPanelProps) {
   const router = useRouter();
   const [data, setData] = useState(initialData);
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<"ADMIN" | "MEMBER">("MEMBER");
+  const [role, setRole] = useState<AssignableRole>("MEMBER");
   const [inviting, setInviting] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [memberToRemove, setMemberToRemove] = useState<TeamData["members"][number] | null>(null);
 
   const canManage = canManageTeam(data.currentRole);
-  const canInviteAdmin = data.currentRole === "OWNER";
 
   useEffect(() => {
     setData(initialData);
@@ -165,7 +173,7 @@ export function TeamManagementPanel({ initialData }: TeamManagementPanelProps) {
     }
   }
 
-  async function updateMemberRole(memberId: string, newRole: "ADMIN" | "MEMBER") {
+  async function updateMemberRole(memberId: string, newRole: AssignableRole) {
     setBusyId(memberId);
     try {
       const response = await fetch(`/api/company/members/${memberId}`, {
@@ -184,9 +192,12 @@ export function TeamManagementPanel({ initialData }: TeamManagementPanelProps) {
     }
   }
 
-  const inviteRoleItems = canInviteAdmin
-    ? INVITE_ROLE_ITEMS
-    : INVITE_ROLE_ITEMS.filter((item) => item.value === "MEMBER");
+  const inviteRoleItems = INVITE_ROLE_ITEMS.filter((item) =>
+    canAssignRole(data.currentRole, item.value),
+  );
+  const updateRoleItems = MEMBER_ROLE_ITEMS.filter((item) =>
+    canAssignRole(data.currentRole, item.value),
+  );
 
   return (
     <div className="space-y-6">
@@ -215,7 +226,7 @@ export function TeamManagementPanel({ initialData }: TeamManagementPanelProps) {
               <Label htmlFor="invite-role">Role</Label>
               <Select
                 value={role}
-                onValueChange={(value) => setRole(value as "ADMIN" | "MEMBER")}
+                onValueChange={(value) => setRole(value as AssignableRole)}
                 items={inviteRoleItems}
               >
                 <SelectTrigger id="invite-role" className="mb-0 w-full">
@@ -267,8 +278,7 @@ export function TeamManagementPanel({ initialData }: TeamManagementPanelProps) {
                 canManage &&
                 member.role !== "OWNER" &&
                 !member.isCurrentUser &&
-                (data.currentRole === "OWNER" ||
-                  (data.currentRole === "ADMIN" && member.role === "MEMBER"));
+                canModifyMember(data.currentRole, member.role);
 
               return (
                 <TableRow key={member.id}>
@@ -283,21 +293,21 @@ export function TeamManagementPanel({ initialData }: TeamManagementPanelProps) {
                     </div>
                   </TableCell>
                   <TableCell>
-                    {canEdit && data.currentRole === "OWNER" ? (
+                    {canEdit && updateRoleItems.length > 0 && member.role !== "OWNER" ? (
                       <div className="space-y-1">
                         <Select
-                          value={member.role === "ADMIN" ? "ADMIN" : "MEMBER"}
+                          value={member.role}
                           disabled={isBusy}
                           onValueChange={(value) =>
-                            updateMemberRole(member.id, value as "ADMIN" | "MEMBER")
+                            updateMemberRole(member.id, value as AssignableRole)
                           }
-                          items={MEMBER_ROLE_ITEMS}
+                          items={[...updateRoleItems]}
                         >
                           <SelectTrigger className="h-8 w-32">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            {MEMBER_ROLE_ITEMS.map((item) => (
+                            {updateRoleItems.map((item) => (
                               <SelectItem key={item.value} value={item.value}>
                                 {item.label}
                               </SelectItem>

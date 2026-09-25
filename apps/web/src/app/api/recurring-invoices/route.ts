@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { requireApiMember, parseJsonBody, validationError } from "@/lib/api/validation";
+import {
+  requireApiMember,
+  requireApiWriter,
+  parseJsonBody,
+  validationError,
+} from "@/lib/api/validation";
 import {
   createRecurringInvoice,
   listRecurringInvoices,
@@ -31,7 +36,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiWriter();
   if (response) return response;
 
   const body = await parseJsonBody<unknown>(request);

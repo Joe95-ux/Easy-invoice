@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { requireApiMember } from "@/lib/api/validation";
+import { requireApiWriter } from "@/lib/api/validation";
 import { mergeAllClientEmailDuplicates } from "@/lib/clients/merge-duplicates";
 
 /** Merge clients that share the same email within the active company. */
 export async function POST() {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiWriter();
   if (response) return response;
 
   try {

@@ -105,7 +105,12 @@ export function resolveAppliedTaxes(input: {
   taxes?: AppliedTax[] | null;
   taxRate?: number | null;
   taxName?: string | null;
+  /** When true, an empty/null taxes list clears tax (no taxRate fallback). */
+  taxesProvided?: boolean;
 }): AppliedTax[] {
+  if (input.taxesProvided) {
+    return normalizeAppliedTaxes(input.taxes ?? []);
+  }
   const fromList = normalizeAppliedTaxes(input.taxes);
   if (fromList.length > 0) return fromList;
   const rate = input.taxRate ?? 0;
@@ -129,4 +134,47 @@ export function primaryTaxRate(taxes: AppliedTax[]): number {
 export function formatTaxPercent(rate: number): string {
   const pct = rate * 100;
   return Number.isInteger(pct) ? String(pct) : pct.toFixed(2).replace(/\.?0+$/, "");
+}
+
+function roundMoney(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+/** Labels + amounts for invoice/estimate detail and summary UIs. */
+export function buildTaxDisplayRows(input: {
+  taxes: unknown;
+  taxRate: number;
+  taxAmount: number;
+  taxInclusive?: boolean;
+}): Array<{ label: string; amount: number }> {
+  const taxAmount = Number(input.taxAmount);
+  if (!Number.isFinite(taxAmount) || taxAmount <= 0) return [];
+
+  const applied = normalizeAppliedTaxes(input.taxes);
+  const inclusiveSuffix = input.taxInclusive ? " incl." : "";
+
+  if (applied.length <= 1) {
+    const name = applied[0]?.name ?? "Tax";
+    const rate = applied[0]?.rate ?? input.taxRate;
+    return [
+      {
+        label: `${name} (${formatTaxPercent(rate)}%)${inclusiveSuffix}`,
+        amount: roundMoney(taxAmount),
+      },
+    ];
+  }
+
+  const rateSum = applied.reduce((sum, tax) => sum + tax.rate, 0) || 1;
+  let assigned = 0;
+  return applied.map((tax, index) => {
+    const isLast = index === applied.length - 1;
+    const amount = isLast
+      ? roundMoney(taxAmount - assigned)
+      : roundMoney((taxAmount * tax.rate) / rateSum);
+    assigned = roundMoney(assigned + amount);
+    return {
+      label: `${tax.name} (${formatTaxPercent(tax.rate)}%)${inclusiveSuffix}`,
+      amount,
+    };
+  });
 }

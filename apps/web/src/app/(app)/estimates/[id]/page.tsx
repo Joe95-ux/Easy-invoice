@@ -14,6 +14,7 @@ import { EstimateRemindersSection } from "@/features/estimates/components/estima
 import { DocumentHistorySection } from "@/components/document-history-section";
 import { DocumentTemplateManager } from "@/features/invoices/components/document-template-manager";
 import { requireMember } from "@/lib/auth";
+import { canDeleteDocuments, canWriteDocuments } from "@/lib/team";
 import {
   companyBrandingFields,
   logoPreviewClassName,
@@ -34,6 +35,7 @@ import {
   buildCustomFieldDisplayRows,
   normalizeCustomFieldDefinitions,
 } from "@/lib/custom-fields";
+import { buildTaxDisplayRows } from "@/lib/tax-rates";
 
 type PageProps = { params: Promise<{ id: string }> };
 
@@ -116,6 +118,8 @@ export default async function EstimateDetailPage({ params }: PageProps) {
             convertedInvoiceId={estimate.convertedInvoice?.id}
             convertedInvoiceNumber={estimate.convertedInvoice?.number}
             projectId={estimate.projectId}
+            canWrite={canWriteDocuments(member.role)}
+            canDelete={canDeleteDocuments(member.role)}
           />
         }
       />
@@ -127,6 +131,7 @@ export default async function EstimateDetailPage({ params }: PageProps) {
             templates={templates}
             value={estimate.templateId ?? templates.find((t) => t.isDefault)?.id ?? templates[0]?.id ?? ""}
             estimateId={estimate.id}
+            canWrite={canWriteDocuments(member.role)}
             company={{
               name: estimate.company.name,
               logoUrl: estimate.company.logoUrl,
@@ -326,14 +331,17 @@ export default async function EstimateDetailPage({ params }: PageProps) {
                 <span>-{formatMoney(estimate.discount, estimate.currency)}</span>
               </div>
             )}
-            {Number(estimate.taxAmount) > 0 && (
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">
-                  Tax ({(Number(estimate.taxRate) * 100).toFixed(1)}%)
-                </span>
-                <span>{formatMoney(estimate.taxAmount, estimate.currency)}</span>
+            {buildTaxDisplayRows({
+              taxes: estimate.taxes,
+              taxRate: Number(estimate.taxRate),
+              taxAmount: Number(estimate.taxAmount),
+              taxInclusive: estimate.taxInclusive,
+            }).map((row) => (
+              <div key={row.label} className="flex justify-between">
+                <span className="text-muted-foreground">{row.label}</span>
+                <span>{formatMoney(row.amount, estimate.currency)}</span>
               </div>
-            )}
+            ))}
             <div className="flex justify-between border-t pt-2 text-base font-semibold">
               <span>Total</span>
               <span>{formatMoney(estimate.total, estimate.currency)}</span>

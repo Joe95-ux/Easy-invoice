@@ -35,6 +35,7 @@ type TemplateCarouselProps = {
   label?: string;
   /** Label for the select action button — use "Set" for default template settings. */
   selectLabel?: string;
+  canWrite?: boolean;
 };
 
 function TemplateThumb({ html }: { html: string }) {
@@ -88,6 +89,7 @@ function TemplateCard({
   html,
   selected,
   selectLabel,
+  canWrite,
   onSelect,
   onPreview,
 }: {
@@ -95,25 +97,33 @@ function TemplateCard({
   html: string;
   selected: boolean;
   selectLabel: string;
+  canWrite: boolean;
   onSelect: () => void;
   onPreview: () => void;
 }) {
   return (
     <div
-      role="button"
-      tabIndex={0}
-      onClick={onSelect}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          onSelect();
-        }
-      }}
+      role={canWrite ? "button" : undefined}
+      tabIndex={canWrite ? 0 : undefined}
+      onClick={canWrite ? onSelect : undefined}
+      onKeyDown={
+        canWrite
+          ? (event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onSelect();
+              }
+            }
+          : undefined
+      }
       className={cn(
-        "group relative cursor-pointer overflow-hidden rounded-xl border bg-card transition-colors",
+        "group relative overflow-hidden rounded-xl border bg-card transition-colors",
+        canWrite ? "cursor-pointer" : "cursor-default",
         selected
           ? "border-primary ring-2 ring-primary/30"
-          : "border-border hover:border-foreground/20",
+          : canWrite
+            ? "border-border hover:border-foreground/20"
+            : "border-border",
       )}
     >
       <div className="relative border-b border-border">
@@ -121,7 +131,7 @@ function TemplateCard({
         <div
           className={cn(
             "pointer-events-none absolute inset-0 bg-foreground/0 transition-colors",
-            !selected && "group-hover:bg-foreground/[0.04]",
+            canWrite && !selected && "group-hover:bg-foreground/[0.04]",
           )}
         />
         {selected && (
@@ -142,7 +152,7 @@ function TemplateCard({
             <EyeIcon className="size-3.5" />
             Preview
           </button>
-          {!selected && (
+          {canWrite && !selected && (
             <button
               type="button"
               onClick={(event) => {
@@ -174,7 +184,7 @@ function TemplateCard({
             <EyeIcon className="size-3.5" />
             Preview
           </button>
-          {!selected && (
+          {canWrite && !selected && (
             <button
               type="button"
               onClick={(event) => {
@@ -208,6 +218,7 @@ export function TemplateCarousel({
   currency,
   label = "Template",
   selectLabel = "Select",
+  canWrite = true,
 }: TemplateCarouselProps) {
   const thumbs = useMemo(() => {
     const map = new Map<string, string>();
@@ -250,6 +261,7 @@ export function TemplateCarousel({
               html={thumbs.get(template.id) ?? ""}
               selected={template.id === value}
               selectLabel={selectLabel}
+              canWrite={canWrite}
               onSelect={() => onChange(template.id)}
               onPreview={() => onPreview(template.id)}
             />

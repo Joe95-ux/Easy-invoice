@@ -62,6 +62,7 @@ import {
   recurringStatusVariant,
   type SerializedRecurringInvoice,
 } from "@/lib/recurring-invoices-shared";
+import type { CompanyTaxRate } from "@/lib/schemas/tax-rates";
 import { cn } from "@/lib/utils";
 import type { RecurringInvoiceStatus } from "@easy-invoice/db";
 
@@ -77,8 +78,13 @@ type RecurringInvoicesPageContentProps = {
   clients: RecurringClientOption[];
   invoices: RecurringInvoiceOption[];
   currency: string;
+  homeCurrency?: string;
+  companyTaxRates?: CompanyTaxRate[];
+  taxInclusiveDefault?: boolean;
+  taxCompoundDefault?: boolean;
   /** Open this schedule’s edit drawer on load (`?id=`). */
   highlightId?: string | null;
+  canWrite?: boolean;
 };
 
 function formatDateOnly(value: string): string {
@@ -96,7 +102,12 @@ export function RecurringInvoicesPageContent({
   clients,
   invoices,
   currency,
+  homeCurrency,
+  companyTaxRates = [],
+  taxInclusiveDefault = false,
+  taxCompoundDefault = false,
   highlightId = null,
+  canWrite = true,
 }: RecurringInvoicesPageContentProps) {
   const router = useRouter();
   const { isPro } = useCompanyPlan();
@@ -135,23 +146,23 @@ export function RecurringInvoicesPageContent({
   }, [initialRows]);
 
   useEffect(() => {
-    if (!isPro || highlightHandled || !highlightId) return;
+    if (!isPro || !canWrite || highlightHandled || !highlightId) return;
     const match = rows.find((row) => row.id === highlightId);
     if (!match) return;
     setEditing(match);
     setDialogOpen(true);
     setHighlightHandled(true);
     router.replace("/recurring-invoices", { scroll: false });
-  }, [highlightId, highlightHandled, rows, router, isPro]);
+  }, [highlightId, highlightHandled, rows, router, isPro, canWrite]);
 
   function openCreate() {
-    if (!isPro) return;
+    if (!isPro || !canWrite) return;
     setEditing(null);
     setDialogOpen(true);
   }
 
   function openEdit(row: SerializedRecurringInvoice) {
-    if (!isPro) return;
+    if (!isPro || !canWrite) return;
     setEditing(row);
     setDialogOpen(true);
   }
@@ -261,7 +272,7 @@ export function RecurringInvoicesPageContent({
         title="Recurring invoices"
         description="Automatically create invoices on a schedule for retainers and subscriptions."
         actions={
-          isPro ? (
+          !canWrite ? undefined : isPro ? (
             <Button
               className={pageHeaderActionClass}
               onClick={openCreate}
@@ -281,7 +292,7 @@ export function RecurringInvoicesPageContent({
         }
       />
 
-      {!isPro ? (
+      {!isPro && canWrite ? (
         <ProFeatureGate
           variant="banner"
           className="mb-6"
@@ -302,7 +313,7 @@ export function RecurringInvoicesPageContent({
                 : "Pick an existing invoice and set how often new ones should be created."
           }
           action={
-            !isPro ? (
+            !canWrite ? undefined : !isPro ? (
               <Button render={<Link href="/settings/billing/plans" />}>Upgrade to Pro</Button>
             ) : invoices.length > 0 ? (
               <Button onClick={openCreate}>
@@ -375,13 +386,18 @@ export function RecurringInvoicesPageContent({
                     onSort={table.toggleSort}
                     className="text-right [&_button]:ml-auto"
                   />
-                  <TableHead className="w-14 text-right">Actions</TableHead>
+                  {canWrite ? (
+                    <TableHead className="w-14 text-right">Actions</TableHead>
+                  ) : null}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {table.pageRows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                    <TableCell
+                      colSpan={canWrite ? 7 : 6}
+                      className="h-24 text-center text-muted-foreground"
+                    >
                       {table.hasActiveFilters
                         ? "No schedules match your filters."
                         : "No schedules."}
@@ -400,13 +416,17 @@ export function RecurringInvoicesPageContent({
                       >
                         <TableCell>
                           <div className="min-w-0">
-                            <button
-                              type="button"
-                              onClick={() => openEdit(row)}
-                              className="cursor-pointer truncate text-left font-medium hover:underline"
-                            >
-                              {row.name}
-                            </button>
+                            {canWrite ? (
+                              <button
+                                type="button"
+                                onClick={() => openEdit(row)}
+                                className="cursor-pointer truncate text-left font-medium hover:underline"
+                              >
+                                {row.name}
+                              </button>
+                            ) : (
+                              <p className="truncate font-medium">{row.name}</p>
+                            )}
                             <p className="text-xs text-muted-foreground sm:hidden">
                               {row.client.name}
                             </p>
@@ -448,72 +468,74 @@ export function RecurringInvoicesPageContent({
                         <TableCell className="text-right tabular-nums">
                           {formatMoney(row.estimatedTotal, row.currency || currency)}
                         </TableCell>
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger
-                              render={
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  aria-label={`Actions for ${row.name}`}
-                                  disabled={busy}
-                                />
-                              }
-                            >
-                              <MoreHorizontalIcon />
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="min-w-44">
-                              <DropdownMenuItem onClick={() => openEdit(row)}>
-                                <PencilIcon className="size-4" />
-                                Edit
-                              </DropdownMenuItem>
-                              {row.status === "ACTIVE" || row.status === "PAUSED" ? (
-                                <DropdownMenuItem
-                                  onClick={() => void generateNow(row)}
-                                  disabled={busy}
-                                >
-                                  <RefreshCwIcon className="size-4" />
-                                  Generate now
-                                </DropdownMenuItem>
-                              ) : null}
-                              {row.status === "ACTIVE" ? (
-                                <DropdownMenuItem
-                                  onClick={() => void patchStatus(row, "PAUSED")}
-                                  disabled={busy}
-                                >
-                                  <PauseIcon className="size-4" />
-                                  Pause
-                                </DropdownMenuItem>
-                              ) : null}
-                              {row.status === "PAUSED" || row.status === "ENDED" ? (
-                                <DropdownMenuItem
-                                  onClick={() => void patchStatus(row, "ACTIVE")}
-                                  disabled={busy}
-                                >
-                                  <PlayIcon className="size-4" />
-                                  Resume
-                                </DropdownMenuItem>
-                              ) : null}
-                              {row.status !== "ENDED" ? (
-                                <DropdownMenuItem
-                                  onClick={() => void patchStatus(row, "ENDED")}
-                                  disabled={busy}
-                                >
-                                  <SquareIcon className="size-4" />
-                                  End schedule
-                                </DropdownMenuItem>
-                              ) : null}
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                variant="destructive"
-                                onClick={() => setPendingDelete(row)}
+                        {canWrite ? (
+                          <TableCell className="text-right">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger
+                                render={
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    aria-label={`Actions for ${row.name}`}
+                                    disabled={busy}
+                                  />
+                                }
                               >
-                                <Trash2Icon className="size-4" />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
+                                <MoreHorizontalIcon />
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="min-w-44">
+                                <DropdownMenuItem onClick={() => openEdit(row)}>
+                                  <PencilIcon className="size-4" />
+                                  Edit
+                                </DropdownMenuItem>
+                                {row.status === "ACTIVE" || row.status === "PAUSED" ? (
+                                  <DropdownMenuItem
+                                    onClick={() => void generateNow(row)}
+                                    disabled={busy}
+                                  >
+                                    <RefreshCwIcon className="size-4" />
+                                    Generate now
+                                  </DropdownMenuItem>
+                                ) : null}
+                                {row.status === "ACTIVE" ? (
+                                  <DropdownMenuItem
+                                    onClick={() => void patchStatus(row, "PAUSED")}
+                                    disabled={busy}
+                                  >
+                                    <PauseIcon className="size-4" />
+                                    Pause
+                                  </DropdownMenuItem>
+                                ) : null}
+                                {row.status === "PAUSED" || row.status === "ENDED" ? (
+                                  <DropdownMenuItem
+                                    onClick={() => void patchStatus(row, "ACTIVE")}
+                                    disabled={busy}
+                                  >
+                                    <PlayIcon className="size-4" />
+                                    Resume
+                                  </DropdownMenuItem>
+                                ) : null}
+                                {row.status !== "ENDED" ? (
+                                  <DropdownMenuItem
+                                    onClick={() => void patchStatus(row, "ENDED")}
+                                    disabled={busy}
+                                  >
+                                    <SquareIcon className="size-4" />
+                                    End schedule
+                                  </DropdownMenuItem>
+                                ) : null}
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  variant="destructive"
+                                  onClick={() => setPendingDelete(row)}
+                                >
+                                  <Trash2Icon className="size-4" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        ) : null}
                       </TableRow>
                     );
                   })
@@ -536,22 +558,28 @@ export function RecurringInvoicesPageContent({
         </Card>
       )}
 
-      <RecurringScheduleDrawer
-        open={dialogOpen}
-        onOpenChange={(open) => {
-          setDialogOpen(open);
-          if (!open) setEditing(null);
-        }}
-        mode={editing ? "edit" : "create"}
-        invoices={invoices}
-        clients={clients}
-        currency={currency}
-        editing={editing}
-        onSaved={(row) => {
-          upsertRow(row);
-          router.refresh();
-        }}
-      />
+      {canWrite ? (
+        <RecurringScheduleDrawer
+          open={dialogOpen}
+          onOpenChange={(open) => {
+            setDialogOpen(open);
+            if (!open) setEditing(null);
+          }}
+          mode={editing ? "edit" : "create"}
+          invoices={invoices}
+          clients={clients}
+          currency={currency}
+          homeCurrency={homeCurrency ?? currency}
+          companyTaxRates={companyTaxRates}
+          taxInclusiveDefault={taxInclusiveDefault}
+          taxCompoundDefault={taxCompoundDefault}
+          editing={editing}
+          onSaved={(row) => {
+            upsertRow(row);
+            router.refresh();
+          }}
+        />
+      ) : null}
 
       <AlertDialog
         open={Boolean(pendingDelete)}

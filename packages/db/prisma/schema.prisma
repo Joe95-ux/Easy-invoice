@@ -61,6 +61,7 @@ enum UserRole {
   OWNER
   ADMIN
   MEMBER
+  VIEWER
 }
 
 enum QrCodeType {
@@ -193,6 +194,8 @@ model Company {
   taxRates Json?
   /// Default for new invoices/estimates when applying tax.
   taxInclusiveDefault Boolean @default(false)
+  /// When true, stacked taxes compound (each rate applies to base + prior tax).
+  taxCompoundDefault Boolean @default(false)
   plan      Plan     @default(FREE)
   defaultTemplateId String?
   stripeCustomerId     String? @unique
@@ -461,6 +464,8 @@ model RecurringInvoice {
   currency           String                 @default("USD")
   taxRate            Decimal                @default(0) @db.Decimal(5, 4)
   taxInclusive       Boolean                @default(false)
+  /// When true with multiple taxes, each rate applies to base + prior tax.
+  taxCompound        Boolean                @default(false)
   /// Applied taxes snapshot: [{ id?, name, rate }]
   taxes              Json?
   /// Document currency → company (home) currency. 1 when currencies match.
@@ -540,6 +545,8 @@ model Invoice {
   taxRate       Decimal       @default(0) @db.Decimal(5, 4)
   taxAmount     Decimal       @default(0) @db.Decimal(12, 2)
   taxInclusive  Boolean       @default(false)
+  /// When true with multiple taxes, each rate applies to base + prior tax.
+  taxCompound   Boolean       @default(false)
   /// Applied taxes snapshot: [{ id?, name, rate }]
   taxes         Json?
   discount      Decimal       @default(0) @db.Decimal(12, 2)
@@ -778,6 +785,8 @@ model Estimate {
   taxRate       Decimal        @default(0) @db.Decimal(5, 4)
   taxAmount     Decimal        @default(0) @db.Decimal(12, 2)
   taxInclusive  Boolean        @default(false)
+  /// When true with multiple taxes, each rate applies to base + prior tax.
+  taxCompound   Boolean        @default(false)
   /// Applied taxes snapshot: [{ id?, name, rate }]
   taxes         Json?
   discount      Decimal        @default(0) @db.Decimal(12, 2)

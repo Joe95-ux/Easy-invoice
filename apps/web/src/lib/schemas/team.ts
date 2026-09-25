@@ -1,12 +1,14 @@
 import { z } from "zod";
 
+const assignableRoleSchema = z.enum(["ADMIN", "MEMBER", "VIEWER"]);
+
 export const inviteMemberSchema = z.object({
   email: z.string().email("Enter a valid email address"),
-  role: z.enum(["ADMIN", "MEMBER"]).default("MEMBER"),
+  role: assignableRoleSchema.default("MEMBER"),
 });
 
 export const updateMemberRoleSchema = z.object({
-  role: z.enum(["ADMIN", "MEMBER"]),
+  role: assignableRoleSchema,
 });
 
 export const acceptInviteSchema = z.object({

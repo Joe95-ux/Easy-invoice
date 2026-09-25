@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireApiMember, parseJsonBody, validationError } from "@/lib/api/validation";
+import { requireApiWriter, parseJsonBody, validationError } from "@/lib/api/validation";
 import { getAppOrigin } from "@/lib/app-url";
 import { publicDocumentUrl } from "@/lib/document-tokens";
 import { sendInvoiceEmail } from "@/lib/email";
@@ -29,7 +29,7 @@ const sendSchema = z.object({
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function POST(request: Request, context: RouteContext) {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiWriter();
   if (response) return response;
 
   const { id } = await context.params;

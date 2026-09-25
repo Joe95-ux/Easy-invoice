@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireApiMember, parseJsonBody, validationError } from "@/lib/api/validation";
+import { requireApiWriter, parseJsonBody, validationError } from "@/lib/api/validation";
 import { buildEqualPaymentPlan, MIN_PLAN_BALANCE } from "@/lib/collections/advice";
 import { prisma } from "@/lib/db";
 import {
@@ -23,7 +23,7 @@ const schema = z.object({
 
 /** Owner: split an unpaid invoice into a 2- or 3-part payment plan. */
 export async function POST(request: Request, context: RouteContext) {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiWriter();
   if (response) return response;
 
   const { id } = await context.params;
@@ -107,7 +107,7 @@ export async function POST(request: Request, context: RouteContext) {
 
 /** Owner: remove an unpaid payment schedule. */
 export async function DELETE(_request: Request, context: RouteContext) {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiWriter();
   if (response) return response;
 
   try {

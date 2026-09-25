@@ -27,10 +27,12 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   OWNER: "Owner",
   ADMIN: "Admin",
   MEMBER: "Member",
+  VIEWER: "Viewer",
 };
 
 export function roleBadgeVariant(role: UserRole) {
   if (role === "OWNER") return "default" as const;
   if (role === "ADMIN") return "info" as const;
+  if (role === "VIEWER") return "outline" as const;
   return "secondary" as const;
 }

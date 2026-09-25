@@ -60,6 +60,7 @@ type FollowUpsPageContentProps = {
   estimates: FollowUpLinkOption[];
   members: FollowUpMemberOption[];
   currentMemberId: string;
+  canWrite?: boolean;
 };
 
 const DUE_FILTER_ITEMS = [
@@ -166,6 +167,7 @@ function FollowUpRow({
   item,
   showHandle,
   busy,
+  canWrite,
   onToggle,
   onEdit,
   onDelete,
@@ -173,6 +175,7 @@ function FollowUpRow({
   item: SerializedFollowUp;
   showHandle: boolean;
   busy: boolean;
+  canWrite: boolean;
   onToggle: (item: SerializedFollowUp) => void;
   onEdit: (item: SerializedFollowUp) => void;
   onDelete: (item: SerializedFollowUp) => void;
@@ -204,24 +207,38 @@ function FollowUpRow({
       <Checkbox
         checked={item.status === "DONE"}
         data-no-dnd=""
-        onCheckedChange={() => onToggle(item)}
+        onCheckedChange={() => {
+          if (canWrite) onToggle(item);
+        }}
+        disabled={!canWrite || busy}
         className="mt-0.5 cursor-pointer"
         aria-label={item.status === "DONE" ? "Mark open" : "Mark done"}
       />
 
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            data-no-dnd=""
-            onClick={() => onEdit(item)}
-            className={cn(
-              "cursor-pointer text-left text-sm font-medium hover:underline",
-              item.status === "DONE" && "text-muted-foreground line-through",
-            )}
-          >
-            {item.title}
-          </button>
+          {canWrite ? (
+            <button
+              type="button"
+              data-no-dnd=""
+              onClick={() => onEdit(item)}
+              className={cn(
+                "cursor-pointer text-left text-sm font-medium hover:underline",
+                item.status === "DONE" && "text-muted-foreground line-through",
+              )}
+            >
+              {item.title}
+            </button>
+          ) : (
+            <span
+              className={cn(
+                "text-sm font-medium",
+                item.status === "DONE" && "text-muted-foreground line-through",
+              )}
+            >
+              {item.title}
+            </span>
+          )}
           {source ? (
             <Badge variant="secondary" className="font-normal">
               {source}
@@ -253,36 +270,38 @@ function FollowUpRow({
         ) : null}
       </div>
 
-      <div className="flex shrink-0 items-center gap-0.5">
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          data-no-dnd=""
-          className="size-8 cursor-pointer opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
-          disabled={busy}
-          onClick={() => onEdit(item)}
-          aria-label="Edit follow-up"
-        >
-          <PencilIcon className="size-4" />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          data-no-dnd=""
-          className="size-8 cursor-pointer opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
-          disabled={busy}
-          onClick={() => onDelete(item)}
-          aria-label="Delete follow-up"
-        >
-          {busy ? (
-            <Loader2Icon className="size-4 animate-spin" />
-          ) : (
-            <Trash2Icon className="size-4" />
-          )}
-        </Button>
-      </div>
+      {canWrite ? (
+        <div className="flex shrink-0 items-center gap-0.5">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            data-no-dnd=""
+            className="size-8 cursor-pointer opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
+            disabled={busy}
+            onClick={() => onEdit(item)}
+            aria-label="Edit follow-up"
+          >
+            <PencilIcon className="size-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            data-no-dnd=""
+            className="size-8 cursor-pointer opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
+            disabled={busy}
+            onClick={() => onDelete(item)}
+            aria-label="Delete follow-up"
+          >
+            {busy ? (
+              <Loader2Icon className="size-4 animate-spin" />
+            ) : (
+              <Trash2Icon className="size-4" />
+            )}
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -294,6 +313,7 @@ export function FollowUpsPageContent({
   estimates,
   members,
   currentMemberId,
+  canWrite = true,
 }: FollowUpsPageContentProps) {
   const isMobile = useIsMobile();
   const [followUps, setFollowUps] = useState(initialFollowUps);
@@ -576,20 +596,22 @@ export function FollowUpsPageContent({
         title="Follow-ups"
         description="Checklist and calendar for invoice and estimate follow-through."
         actions={
-          <div className={cn("flex flex-wrap gap-2", pageHeaderActionClass)}>
-            <Button variant="outline" onClick={() => void handleSync()} disabled={syncing}>
-              {syncing ? (
-                <Loader2Icon className="size-4 animate-spin" />
-              ) : (
-                <RefreshCwIcon className="size-4" />
-              )}
-              Sync suggestions
-            </Button>
-            <Button onClick={openCreate}>
-              <PlusIcon className="size-4" />
-              Add follow-up
-            </Button>
-          </div>
+          canWrite ? (
+            <div className={cn("flex flex-wrap gap-2", pageHeaderActionClass)}>
+              <Button variant="outline" onClick={() => void handleSync()} disabled={syncing}>
+                {syncing ? (
+                  <Loader2Icon className="size-4 animate-spin" />
+                ) : (
+                  <RefreshCwIcon className="size-4" />
+                )}
+                Sync suggestions
+              </Button>
+              <Button onClick={openCreate}>
+                <PlusIcon className="size-4" />
+                Add follow-up
+              </Button>
+            </div>
+          ) : undefined
         }
       />
 
@@ -723,15 +745,17 @@ export function FollowUpsPageContent({
               title="No follow-ups yet"
               description="Add a manual follow-up, or sync suggestions from overdue invoices and expiring estimates."
               action={
-                <div className="flex flex-wrap justify-center gap-2">
-                  <Button variant="outline" onClick={() => void handleSync()} disabled={syncing}>
-                    Sync suggestions
-                  </Button>
-                  <Button onClick={openCreate}>
-                    <PlusIcon className="size-4" />
-                    Add follow-up
-                  </Button>
-                </div>
+                canWrite ? (
+                  <div className="flex flex-wrap justify-center gap-2">
+                    <Button variant="outline" onClick={() => void handleSync()} disabled={syncing}>
+                      Sync suggestions
+                    </Button>
+                    <Button onClick={openCreate}>
+                      <PlusIcon className="size-4" />
+                      Add follow-up
+                    </Button>
+                  </div>
+                ) : undefined
               }
             />
           ) : openItems.length === 0 && doneItems.length === 0 ? (
@@ -761,7 +785,7 @@ export function FollowUpsPageContent({
                       {filtersActive ? " matches these filters" : ""}. Sync suggestions or add a
                       follow-up.
                     </p>
-                  ) : (
+                  ) : canWrite ? (
                     <FollowUpSortableList
                       items={openItems}
                       onReorder={handleReorder}
@@ -770,12 +794,26 @@ export function FollowUpsPageContent({
                           item={item}
                           showHandle
                           busy={busyId === item.id}
+                          canWrite={canWrite}
                           onToggle={handleToggle}
                           onEdit={openEdit}
                           onDelete={setPendingDelete}
                         />
                       )}
                     />
+                  ) : (
+                    openItems.map((item) => (
+                      <FollowUpRow
+                        key={item.id}
+                        item={item}
+                        showHandle={false}
+                        busy={busyId === item.id}
+                        canWrite={canWrite}
+                        onToggle={handleToggle}
+                        onEdit={openEdit}
+                        onDelete={setPendingDelete}
+                      />
+                    ))
                   )}
                 </CardContent>
               </Card>
@@ -793,6 +831,7 @@ export function FollowUpsPageContent({
                         item={item}
                         showHandle={false}
                         busy={busyId === item.id}
+                        canWrite={canWrite}
                         onToggle={handleToggle}
                         onEdit={openEdit}
                         onDelete={setPendingDelete}
@@ -820,6 +859,7 @@ export function FollowUpsPageContent({
             itemsByDay={itemsByDay}
             isMobile={isMobile}
             busyId={busyId}
+            canWrite={canWrite}
             onToggle={handleToggle}
             onEdit={openEdit}
             onDelete={setPendingDelete}
@@ -830,6 +870,7 @@ export function FollowUpsPageContent({
                 item={item}
                 showHandle={false}
                 busy={busyId === item.id}
+                canWrite={canWrite}
                 onToggle={handleToggle}
                 onEdit={openEdit}
                 onDelete={setPendingDelete}
@@ -839,20 +880,22 @@ export function FollowUpsPageContent({
         </TabsContent>
       </Tabs>
 
-      <FollowUpDialog
-        open={dialogOpen}
-        onOpenChange={(open) => {
-          setDialogOpen(open);
-          if (!open) setEditing(null);
-        }}
-        clients={clients}
-        invoices={invoices}
-        estimates={estimates}
-        members={members}
-        currentMemberId={currentMemberId}
-        followUp={editing}
-        onSaved={handleSaved}
-      />
+      {canWrite ? (
+        <FollowUpDialog
+          open={dialogOpen}
+          onOpenChange={(open) => {
+            setDialogOpen(open);
+            if (!open) setEditing(null);
+          }}
+          clients={clients}
+          invoices={invoices}
+          estimates={estimates}
+          members={members}
+          currentMemberId={currentMemberId}
+          followUp={editing}
+          onSaved={handleSaved}
+        />
+      ) : null}
 
       <AlertDialog
         open={Boolean(pendingDelete)}

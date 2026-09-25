@@ -7,6 +7,7 @@ import {
 } from "@/lib/company-branding";
 import { normalizePaymentMethods, isPaymentLinkUrl } from "@/lib/company-payment-methods";
 import { formatPhoneForDisplay } from "@/lib/phone";
+import { formatTaxPercent } from "@/lib/tax-rates";
 
 function escapeHtml(value: string): string {
   return value
@@ -371,14 +372,38 @@ function buildSections(data: InvoiceHtmlData) {
   const hasPartialPayment = amountPaid > 0.001;
   const hasSchedule = (data.installments?.length ?? 0) > 0;
 
+  const taxRows = (() => {
+    if (invoice.taxAmount <= 0) return "";
+    const taxes = invoice.taxes?.filter((tax) => tax.rate > 0) ?? [];
+    const inclusiveNote = invoice.taxInclusive
+      ? `<div class="totals-row"><span style="opacity:0.75">Tax included in prices</span><span></span></div>`
+      : "";
+    if (taxes.length > 1) {
+      const rateSum = taxes.reduce((sum, tax) => sum + tax.rate, 0) || 1;
+      const lines = taxes
+        .map((tax) => {
+          const amount =
+            tax.amount != null
+              ? tax.amount
+              : Math.round(((invoice.taxAmount * tax.rate) / rateSum) * 100) / 100;
+          return `<div class="totals-row"><span>${escapeHtml(tax.name)} (${formatTaxPercent(tax.rate)}%)</span><span>${formatMoney(amount, invoice.currency)}</span></div>`;
+        })
+        .join("");
+      return `${inclusiveNote}${lines}`;
+    }
+    const label =
+      taxes.length === 1
+        ? `${escapeHtml(taxes[0]!.name)} (${formatTaxPercent(taxes[0]!.rate)}%)`
+        : `Tax (${formatTaxPercent(invoice.taxRate)}%)`;
+    return `${inclusiveNote}<div class="totals-row"><span>${label}</span><span>${formatMoney(invoice.taxAmount, invoice.currency)}</span></div>`;
+  })();
+
   const totals = [
     `<div class="totals-row"><span>Subtotal</span><span>${formatMoney(invoice.subtotal, invoice.currency)}</span></div>`,
     invoice.discount > 0
       ? `<div class="totals-row"><span>Discount</span><span>-${formatMoney(invoice.discount, invoice.currency)}</span></div>`
       : "",
-    invoice.taxAmount > 0
-      ? `<div class="totals-row"><span>Tax (${(invoice.taxRate * 100).toFixed(1)}%)</span><span>${formatMoney(invoice.taxAmount, invoice.currency)}</span></div>`
-      : "",
+    taxRows,
     hasPartialPayment
       ? `<div class="totals-row"><span>Invoice total</span><span>${formatMoney(invoice.total, invoice.currency)}</span></div>`
       : `<div class="totals-row total"><span>${labels.totalLabel}</span><span>${formatMoney(invoice.total, invoice.currency)}</span></div>`,

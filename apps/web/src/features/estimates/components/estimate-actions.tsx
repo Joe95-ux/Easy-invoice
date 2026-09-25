@@ -57,6 +57,8 @@ type EstimateActionsProps = {
   convertedInvoiceId?: string | null;
   convertedInvoiceNumber?: string | null;
   projectId?: string | null;
+  canWrite?: boolean;
+  canDelete?: boolean;
 };
 
 const TERMINAL_STATUSES: EstimateStatus[] = ["ACCEPTED", "DECLINED", "EXPIRED", "CANCELLED"];
@@ -73,6 +75,8 @@ export function EstimateActions({
   convertedInvoiceId,
   convertedInvoiceNumber,
   projectId,
+  canWrite = true,
+  canDelete = true,
 }: EstimateActionsProps) {
   const router = useRouter();
   const { openPdfDownload, pdfDownloadDialog } = usePdfDownload();
@@ -273,15 +277,17 @@ export function EstimateActions({
     <>
       <div className={cn("flex w-full flex-col gap-2 sm:w-auto sm:flex-row", pageHeaderActionClass)}>
         <ButtonGroup className="w-full sm:w-auto">
-          <Button
-            variant="outline"
-            className="flex-1 sm:flex-none"
-            render={<Link href={`/estimates/${estimateId}/edit`} />}
-          >
-            <PencilIcon />
-            Edit
-          </Button>
-          {canSend ? (
+          {canWrite ? (
+            <Button
+              variant="outline"
+              className="flex-1 sm:flex-none"
+              render={<Link href={`/estimates/${estimateId}/edit`} />}
+            >
+              <PencilIcon />
+              Edit
+            </Button>
+          ) : null}
+          {canWrite && canSend ? (
             <Button
               variant="outline"
               className="flex-1 text-primary hover:text-primary sm:flex-none"
@@ -345,7 +351,7 @@ export function EstimateActions({
                   Share link
                 </DropdownMenuItem>
               )}
-              {canMarkAsSent && (
+              {canWrite && canMarkAsSent && (
                 <DropdownMenuItem onClick={() => void handleMarkAsSent()} disabled={isBusy}>
                   <CheckCheckIcon className="size-4" />
                   {loading === "mark-sent" ? "Marking..." : "Mark as sent"}
@@ -363,7 +369,7 @@ export function EstimateActions({
                   View invoice
                 </DropdownMenuItem>
               )}
-              {canConvert && (
+              {canWrite && canConvert && (
                 <DropdownMenuItem onClick={handleConvertToInvoice}>
                   <FileTextIcon className="size-4" />
                   Convert to invoice
@@ -374,13 +380,13 @@ export function EstimateActions({
                   <BriefcaseIcon className="size-4" />
                   View project
                 </DropdownMenuItem>
-              ) : (
+              ) : canWrite ? (
                 <DropdownMenuItem onClick={() => void handleCreateProject()} disabled={isBusy}>
                   <BriefcaseIcon className="size-4" />
                   {loading === "project" ? "Creating…" : "Create project"}
                 </DropdownMenuItem>
-              )}
-              {canSend && (
+              ) : null}
+              {canWrite && canSend && (
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => updateStatus("ACCEPTED")}>
@@ -391,16 +397,24 @@ export function EstimateActions({
                   </DropdownMenuItem>
                 </>
               )}
-              <DropdownMenuItem onClick={handleDuplicate} disabled={isBusy}>
-                <CopyIcon className="size-4" />
-                {loading === "duplicate" ? "Duplicating..." : "Duplicate"}
-              </DropdownMenuItem>
-              <FollowUpQuickAddMenuItem onSelect={() => setFollowUpOpen(true)} />
-              <DropdownMenuSeparator />
-              <DropdownMenuItem variant="destructive" onClick={() => setDeleteOpen(true)}>
-                <Trash2Icon className="size-4" />
-                Delete
-              </DropdownMenuItem>
+              {canWrite ? (
+                <DropdownMenuItem onClick={handleDuplicate} disabled={isBusy}>
+                  <CopyIcon className="size-4" />
+                  {loading === "duplicate" ? "Duplicating..." : "Duplicate"}
+                </DropdownMenuItem>
+              ) : null}
+              {canWrite ? (
+                <FollowUpQuickAddMenuItem onSelect={() => setFollowUpOpen(true)} />
+              ) : null}
+              {canDelete ? (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem variant="destructive" onClick={() => setDeleteOpen(true)}>
+                    <Trash2Icon className="size-4" />
+                    Delete
+                  </DropdownMenuItem>
+                </>
+              ) : null}
             </DropdownMenuContent>
           </DropdownMenu>
         </ButtonGroup>

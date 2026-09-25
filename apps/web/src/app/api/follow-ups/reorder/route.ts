@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   parseJsonBody,
-  requireApiMember,
+  requireApiWriter,
   validationError,
 } from "@/lib/api/validation";
 import {
@@ -11,7 +11,7 @@ import {
 import { reorderFollowUpsSchema } from "@/lib/schemas/follow-up";
 
 export async function POST(request: Request) {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiWriter();
   if (response) return response;
 
   const body = await parseJsonBody<unknown>(request);

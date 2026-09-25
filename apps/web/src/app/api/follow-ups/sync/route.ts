@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { requireApiMember } from "@/lib/api/validation";
+import { requireApiWriter } from "@/lib/api/validation";
 import {
   serializeFollowUp,
   syncFollowUpSuggestions,
 } from "@/lib/follow-ups/service";
 
 export async function POST() {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiWriter();
   if (response) return response;
 
   try {

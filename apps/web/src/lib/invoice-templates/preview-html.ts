@@ -95,6 +95,8 @@ export type BuildDocumentHtmlOptions = {
   items: PreviewLineItem[];
   totals: { subtotal: number; taxAmount: number; total: number };
   taxRate: number;
+  taxInclusive?: boolean;
+  taxes?: Array<{ name: string; rate: number; amount?: number }>;
   discount: number;
   installments?: PreviewInstallment[];
   amountPaid?: number;
@@ -182,6 +184,8 @@ export function buildDocumentHtml(options: BuildDocumentHtmlOptions): string {
       subtotal: options.totals.subtotal,
       taxRate: options.taxRate / 100,
       taxAmount: options.totals.taxAmount,
+      taxInclusive: options.taxInclusive === true,
+      taxes: options.taxes,
       discount: options.discount,
       total: options.totals.total,
       notes: options.notes?.trim() ? options.notes : null,

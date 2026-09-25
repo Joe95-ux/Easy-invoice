@@ -4,11 +4,18 @@ import type { Decimal } from "@prisma/client/runtime/library";
 import { formatMoney } from "@/lib/invoices";
 import type { DocumentSnapshot, DocumentSnapshotLineItem } from "@/lib/document-revisions/types";
 import { normalizeCustomFieldValues } from "@/lib/custom-fields";
+import { normalizeAppliedTaxes } from "@/lib/tax-rates";
 
 type MoneyInput = number | string | Decimal;
 
 function toNumber(value: MoneyInput): number {
   return typeof value === "number" ? value : parseFloat(value.toString());
+}
+
+function optionalMoney(value: MoneyInput | null | undefined): number | null {
+  if (value == null) return null;
+  const n = toNumber(value);
+  return Number.isFinite(n) ? n : null;
 }
 
 function toIsoDate(value: Date | string | null | undefined): string | null {
@@ -30,6 +37,10 @@ export function invoiceToSnapshot(
     dueDate?: Date | null;
     currency: string;
     taxRate: MoneyInput;
+    taxes?: unknown;
+    taxInclusive?: boolean;
+    exchangeRate?: MoneyInput | null;
+    homeCurrencyTotal?: MoneyInput | null;
     discount: MoneyInput;
     subtotal: MoneyInput;
     taxAmount: MoneyInput;
@@ -52,6 +63,7 @@ export function invoiceToSnapshot(
       sortOrder: number;
       sectionTitle?: string | null;
       sectionSortOrder?: number;
+      taxable?: boolean;
     }>;
   },
   timeEntryIdsBySortOrder?: Map<number, string[]>,
@@ -64,6 +76,10 @@ export function invoiceToSnapshot(
     dueDate: toIsoDate(invoice.dueDate),
     currency: invoice.currency,
     taxRate: toNumber(invoice.taxRate),
+    taxes: normalizeAppliedTaxes(invoice.taxes),
+    taxInclusive: invoice.taxInclusive === true,
+    exchangeRate: optionalMoney(invoice.exchangeRate),
+    homeCurrencyTotal: optionalMoney(invoice.homeCurrencyTotal),
     discount: toNumber(invoice.discount),
     subtotal: toNumber(invoice.subtotal),
     taxAmount: toNumber(invoice.taxAmount),
@@ -86,6 +102,7 @@ export function invoiceToSnapshot(
       sortOrder: item.sortOrder,
       sectionTitle: item.sectionTitle ?? null,
       sectionSortOrder: item.sectionSortOrder ?? 0,
+      taxable: item.taxable !== false,
       timeEntryIds: timeEntryIdsBySortOrder?.get(item.sortOrder),
     })),
   };
@@ -99,6 +116,10 @@ export function estimateToSnapshot(estimate: {
   validUntil?: Date | null;
   currency: string;
   taxRate: MoneyInput;
+  taxes?: unknown;
+  taxInclusive?: boolean;
+  exchangeRate?: MoneyInput | null;
+  homeCurrencyTotal?: MoneyInput | null;
   discount: MoneyInput;
   subtotal: MoneyInput;
   taxAmount: MoneyInput;
@@ -115,6 +136,7 @@ export function estimateToSnapshot(estimate: {
     sortOrder: number;
     sectionTitle?: string | null;
     sectionSortOrder?: number;
+    taxable?: boolean;
   }>;
 }): DocumentSnapshot {
   return {
@@ -125,6 +147,10 @@ export function estimateToSnapshot(estimate: {
     validUntil: toIsoDate(estimate.validUntil),
     currency: estimate.currency,
     taxRate: toNumber(estimate.taxRate),
+    taxes: normalizeAppliedTaxes(estimate.taxes),
+    taxInclusive: estimate.taxInclusive === true,
+    exchangeRate: optionalMoney(estimate.exchangeRate),
+    homeCurrencyTotal: optionalMoney(estimate.homeCurrencyTotal),
     discount: toNumber(estimate.discount),
     subtotal: toNumber(estimate.subtotal),
     taxAmount: toNumber(estimate.taxAmount),
@@ -141,6 +167,7 @@ export function estimateToSnapshot(estimate: {
       sortOrder: item.sortOrder,
       sectionTitle: item.sectionTitle ?? null,
       sectionSortOrder: item.sectionSortOrder ?? 0,
+      taxable: item.taxable !== false,
     })),
   };
 }
@@ -233,6 +260,7 @@ export function snapshotLineItemsToCreate(
   sortOrder: number;
   sectionTitle: string | null;
   sectionSortOrder: number;
+  taxable: boolean;
 }> {
   return lineItems.map((item) => ({
     description: item.description,
@@ -242,6 +270,7 @@ export function snapshotLineItemsToCreate(
     sortOrder: item.sortOrder,
     sectionTitle: item.sectionTitle?.trim() || null,
     sectionSortOrder: item.sectionSortOrder ?? 0,
+    taxable: item.taxable !== false,
   }));
 }
 

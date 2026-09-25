@@ -51,11 +51,15 @@ const CLIENT_FILTER_OPTIONS = [
 type ClientsTableProps = {
   clients: ClientListItem[];
   duplicateEmailGroups?: number;
+  canWrite?: boolean;
+  canDelete?: boolean;
 };
 
 export function ClientsTable({
   clients,
   duplicateEmailGroups = 0,
+  canWrite = true,
+  canDelete = true,
 }: ClientsTableProps) {
   const router = useRouter();
   const [loadingId, setLoadingId] = useState<string | null>(null);
@@ -150,7 +154,7 @@ export function ClientsTable({
 
   return (
     <div>
-      {duplicateEmailGroups > 0 ? (
+      {duplicateEmailGroups > 0 && canWrite ? (
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/30 px-4 py-3">
           <p className="text-sm text-muted-foreground">
             {duplicateEmailGroups} email
@@ -259,46 +263,56 @@ export function ClientsTable({
                         <EyeIcon className="size-4" />
                         View details
                       </DropdownMenuItem>
-                      <DropdownMenuItem
-                        render={<Link href={`/invoices/new?clientId=${client.id}`} />}
-                        onClick={(event) => event.stopPropagation()}
-                      >
-                        <FileTextIcon className="size-4" />
-                        New invoice
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        render={<Link href={`/estimates/new?clientId=${client.id}`} />}
-                        onClick={(event) => event.stopPropagation()}
-                      >
-                        <ClipboardListIcon className="size-4" />
-                        New estimate
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        disabled={!client.email?.trim() || loadingId === client.id}
-                        title={
-                          client.email?.trim()
-                            ? undefined
-                            : "Add an email on this client first"
-                        }
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          void handleInviteToPortal(client);
-                        }}
-                      >
-                        <SendIcon className="size-4" />
-                        Invite to portal
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        variant="destructive"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setPendingDelete(client);
-                        }}
-                      >
-                        <Trash2Icon className="size-4" />
-                        Delete
-                      </DropdownMenuItem>
+                      {canWrite ? (
+                        <DropdownMenuItem
+                          render={<Link href={`/invoices/new?clientId=${client.id}`} />}
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          <FileTextIcon className="size-4" />
+                          New invoice
+                        </DropdownMenuItem>
+                      ) : null}
+                      {canWrite ? (
+                        <DropdownMenuItem
+                          render={<Link href={`/estimates/new?clientId=${client.id}`} />}
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          <ClipboardListIcon className="size-4" />
+                          New estimate
+                        </DropdownMenuItem>
+                      ) : null}
+                      {canWrite ? (
+                        <DropdownMenuItem
+                          disabled={!client.email?.trim() || loadingId === client.id}
+                          title={
+                            client.email?.trim()
+                              ? undefined
+                              : "Add an email on this client first"
+                          }
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void handleInviteToPortal(client);
+                          }}
+                        >
+                          <SendIcon className="size-4" />
+                          Invite to portal
+                        </DropdownMenuItem>
+                      ) : null}
+                      {canDelete ? (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setPendingDelete(client);
+                            }}
+                          >
+                            <Trash2Icon className="size-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </>
+                      ) : null}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>

@@ -17,6 +17,8 @@ export type LineItemInput = {
   description: string;
   quantity: number;
   unitPrice: number;
+  /** When false, line is excluded from tax. Default true. */
+  taxable?: boolean;
   timeEntryIds?: string[];
   expenseIds?: string[];
 };
@@ -26,7 +28,7 @@ export type { LineItemSectionInput };
 export const DEFAULT_LINE_ITEM_COUNT = 3;
 
 export function createEmptyLineItem(): LineItemInput {
-  return { description: "", quantity: 1, unitPrice: 0 };
+  return { description: "", quantity: 1, unitPrice: 0, taxable: true };
 }
 
 export function createDefaultLineItems(
@@ -80,7 +82,7 @@ type InvoiceLineItemsProps = {
 };
 
 const desktopGrid =
-  "sm:grid sm:grid-cols-[minmax(0,1fr)_84px_112px_36px] sm:items-center sm:gap-2";
+  "sm:grid sm:grid-cols-[minmax(0,1fr)_84px_112px_52px_36px] sm:items-center sm:gap-2";
 
 function FieldLabel({ children, className }: { children: ReactNode; className?: string }) {
   return (
@@ -204,6 +206,7 @@ export function InvoiceLineItems({
                 <span>Description</span>
                 <span>Qty</span>
                 <span>Rate</span>
+                <span>Tax</span>
                 <span className="sr-only">Remove</span>
               </div>
 
@@ -287,17 +290,39 @@ export function InvoiceLineItems({
                       </div>
                     </div>
 
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      className="hidden shrink-0 text-muted-foreground hover:text-destructive sm:inline-flex"
-                      disabled={!canRemove}
-                      onClick={() => removeItem(sectionIndex, itemIndex)}
-                      aria-label="Remove line item"
-                    >
-                      <Trash2Icon className="size-4" />
-                    </Button>
+                    <div className="mt-3 flex items-center justify-between gap-2 sm:mt-0 sm:contents">
+                      <FieldLabel className="sm:hidden">Taxable</FieldLabel>
+                      <Button
+                        type="button"
+                        variant={item.taxable === false ? "outline" : "secondary"}
+                        size="sm"
+                        className="h-8 w-full px-2 text-xs sm:w-auto"
+                        title={
+                          item.taxable === false
+                            ? "Not taxed — click to tax"
+                            : "Taxed — click to exclude"
+                        }
+                        onClick={() =>
+                          updateItem(sectionIndex, itemIndex, {
+                            taxable: item.taxable === false,
+                          })
+                        }
+                      >
+                        {item.taxable === false ? "No" : "Yes"}
+                      </Button>
+
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        className="hidden shrink-0 text-muted-foreground hover:text-destructive sm:inline-flex"
+                        disabled={!canRemove}
+                        onClick={() => removeItem(sectionIndex, itemIndex)}
+                        aria-label="Remove line item"
+                      >
+                        <Trash2Icon className="size-4" />
+                      </Button>
+                    </div>
                   </div>
                 );
               })}

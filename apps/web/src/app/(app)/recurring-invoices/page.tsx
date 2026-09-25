@@ -7,6 +7,8 @@ import {
   listRecurringInvoices,
   serializeRecurringInvoice,
 } from "@/lib/recurring-invoices";
+import { normalizeCompanyTaxRates } from "@/lib/tax-rates";
+import { canWriteDocuments } from "@/lib/team";
 
 type PageProps = {
   searchParams: Promise<{ id?: string }>;
@@ -40,7 +42,12 @@ export default async function RecurringInvoicesPage({ searchParams }: PageProps)
             clientEmail: invoice.client?.email ?? null,
           }))}
         currency={member.company.currency}
+        homeCurrency={member.company.currency}
+        companyTaxRates={normalizeCompanyTaxRates(member.company.taxRates)}
+        taxInclusiveDefault={member.company.taxInclusiveDefault}
+        taxCompoundDefault={member.company.taxCompoundDefault}
         highlightId={params.id ?? null}
+        canWrite={canWriteDocuments(member.role)}
       />
     </PageScroll>
   );

@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { requireApiMember } from "@/lib/api/validation";
+import { requireApiWriter } from "@/lib/api/validation";
 import { inviteClientToPortal } from "@/lib/portal/auth";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function POST(_request: Request, context: RouteContext) {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiWriter();
   if (response) return response;
 
   const { id } = await context.params;

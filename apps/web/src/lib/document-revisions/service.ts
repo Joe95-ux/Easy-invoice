@@ -4,7 +4,6 @@ import {
   buildRevisionSummary,
   estimateToSnapshot,
   invoiceToSnapshot,
-  snapshotLineItemsToCreate,
   snapshotsEqual,
 } from "@/lib/document-revisions/snapshot";
 import {
@@ -25,6 +24,7 @@ import {
 import { estimateDetailInclude, getEstimateForMember } from "@/lib/estimates";
 import {
   buildInvoiceTotals,
+  documentTotalsPersistFields,
   generateNextInvoiceNumber,
 } from "@/lib/invoice-service";
 import { getInvoiceForMember } from "@/lib/invoices";
@@ -36,8 +36,41 @@ import {
 import { releaseProjectExpensesForInvoice } from "@/lib/project-expenses";
 import { syncInvoiceInstallments, validateInstallments } from "@/lib/invoice-payments";
 import { formatRevisionActor } from "@/lib/member-email";
+import { normalizeAppliedTaxes } from "@/lib/tax-rates";
 
 const MAX_REVISIONS_PER_DOCUMENT = 50;
+
+async function companyHomeCurrency(companyId: string): Promise<string> {
+  const company = await prisma.company.findUniqueOrThrow({
+    where: { id: companyId },
+    select: { currency: true },
+  });
+  return company.currency;
+}
+
+function snapshotTotalsInput(
+  snapshot: DocumentSnapshot,
+  homeCurrency: string,
+) {
+  return {
+    currency: snapshot.currency,
+    taxRate: snapshot.taxRate,
+    taxes: normalizeAppliedTaxes(snapshot.taxes),
+    taxInclusive: snapshot.taxInclusive === true,
+    exchangeRate: snapshot.exchangeRate ?? null,
+    discount: snapshot.discount,
+    homeCurrency,
+    lineItems: snapshot.lineItems.map((item) => ({
+      description: item.description,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      sortOrder: item.sortOrder,
+      sectionTitle: item.sectionTitle ?? null,
+      sectionSortOrder: item.sectionSortOrder ?? 0,
+      taxable: item.taxable !== false,
+    })),
+  };
+}
 
 async function nextRevisionNumber(documentType: DocumentType, documentId: string) {
   const last = await prisma.documentRevision.findFirst({
@@ -300,6 +333,12 @@ async function applyInvoiceSnapshot(
   await releaseProjectExpensesForInvoice(invoiceId);
   await prisma.invoiceLineItem.deleteMany({ where: { invoiceId } });
 
+  const homeCurrency = await companyHomeCurrency(companyId);
+  const { lineItems, built } = buildInvoiceTotals(
+    snapshotTotalsInput(snapshot, homeCurrency),
+  );
+  const totalsFields = documentTotalsPersistFields(built);
+
   await prisma.invoice.update({
     where: { id: invoiceId },
     data: {
@@ -307,11 +346,8 @@ async function applyInvoiceSnapshot(
       issueDate: new Date(snapshot.issueDate),
       dueDate: snapshot.dueDate ? new Date(snapshot.dueDate) : null,
       currency: snapshot.currency,
-      taxRate: snapshot.taxRate,
       discount: snapshot.discount,
-      subtotal: snapshot.subtotal,
-      taxAmount: snapshot.taxAmount,
-      total: snapshot.total,
+      ...totalsFields,
       notes: snapshot.notes,
       ...("customFields" in snapshot
         ? { customFields: snapshot.customFields ?? {} }
@@ -324,9 +360,16 @@ async function applyInvoiceSnapshot(
   });
 
   await prisma.invoiceLineItem.createMany({
-    data: snapshotLineItemsToCreate(snapshot.lineItems).map((item) => ({
+    data: lineItems.map((item) => ({
       invoiceId,
-      ...item,
+      description: item.description,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      amount: item.amount,
+      taxable: item.taxable,
+      sortOrder: item.sortOrder,
+      sectionTitle: item.sectionTitle,
+      sectionSortOrder: item.sectionSortOrder,
     })),
   });
 
@@ -366,6 +409,12 @@ async function applyEstimateSnapshot(
 ) {
   await prisma.estimateLineItem.deleteMany({ where: { estimateId } });
 
+  const homeCurrency = await companyHomeCurrency(companyId);
+  const { lineItems, built } = buildEstimateTotals(
+    snapshotTotalsInput(snapshot, homeCurrency),
+  );
+  const totalsFields = documentTotalsPersistFields(built);
+
   await prisma.estimate.update({
     where: { id: estimateId },
     data: {
@@ -373,11 +422,8 @@ async function applyEstimateSnapshot(
       issueDate: new Date(snapshot.issueDate),
       validUntil: snapshot.validUntil ? new Date(snapshot.validUntil) : null,
       currency: snapshot.currency,
-      taxRate: snapshot.taxRate,
       discount: snapshot.discount,
-      subtotal: snapshot.subtotal,
-      taxAmount: snapshot.taxAmount,
-      total: snapshot.total,
+      ...totalsFields,
       notes: snapshot.notes,
       ...("customFields" in snapshot
         ? { customFields: snapshot.customFields ?? {} }
@@ -388,9 +434,16 @@ async function applyEstimateSnapshot(
   });
 
   await prisma.estimateLineItem.createMany({
-    data: snapshotLineItemsToCreate(snapshot.lineItems).map((item) => ({
+    data: lineItems.map((item) => ({
       estimateId,
-      ...item,
+      description: item.description,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      amount: item.amount,
+      taxable: item.taxable,
+      sortOrder: item.sortOrder,
+      sectionTitle: item.sectionTitle,
+      sectionSortOrder: item.sectionSortOrder,
     })),
   });
 }
@@ -475,27 +528,11 @@ export async function duplicateDocumentFromRevision(
       throw new Error("This invoice cannot be duplicated from history");
     }
 
-    const client = snapshot.clientId
-      ? await prisma.client.findFirst({
-          where: { id: snapshot.clientId, companyId },
-          select: { id: true, name: true },
-        })
-      : null;
-
-    const { lineItems, totals } = buildInvoiceTotals({
-      clientName: client?.name ?? "Client",
-      currency: snapshot.currency,
-      taxRate: snapshot.taxRate,
-      discount: snapshot.discount,
-      lineItems: snapshot.lineItems.map((item) => ({
-        description: item.description,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        sortOrder: item.sortOrder,
-        sectionTitle: item.sectionTitle ?? null,
-        sectionSortOrder: item.sectionSortOrder ?? 0,
-      })),
-    });
+    const homeCurrency = await companyHomeCurrency(companyId);
+    const { lineItems, built } = buildInvoiceTotals(
+      snapshotTotalsInput(snapshot, homeCurrency),
+    );
+    const totalsFields = documentTotalsPersistFields(built);
 
     const created = await prisma.invoice.create({
       data: {
@@ -505,11 +542,8 @@ export async function duplicateDocumentFromRevision(
         number: await generateNextInvoiceNumber(companyId),
         status: "DRAFT",
         currency: snapshot.currency,
-        subtotal: totals.subtotal,
-        taxRate: snapshot.taxRate,
-        taxAmount: totals.taxAmount,
         discount: snapshot.discount,
-        total: totals.total,
+        ...totalsFields,
         notes: snapshot.notes,
         customFields: snapshot.customFields ?? {},
         issueDate: new Date(),
@@ -551,27 +585,11 @@ export async function duplicateDocumentFromRevision(
     throw new Error("This estimate cannot be duplicated from history");
   }
 
-  const client = snapshot.clientId
-    ? await prisma.client.findFirst({
-        where: { id: snapshot.clientId, companyId },
-        select: { id: true, name: true },
-      })
-    : null;
-
-  const { lineItems, totals } = buildEstimateTotals({
-    clientName: client?.name ?? "Client",
-    currency: snapshot.currency,
-    taxRate: snapshot.taxRate,
-    discount: snapshot.discount,
-    lineItems: snapshot.lineItems.map((item) => ({
-      description: item.description,
-      quantity: item.quantity,
-      unitPrice: item.unitPrice,
-      sortOrder: item.sortOrder,
-      sectionTitle: item.sectionTitle ?? null,
-      sectionSortOrder: item.sectionSortOrder ?? 0,
-    })),
-  });
+  const homeCurrency = await companyHomeCurrency(companyId);
+  const { lineItems, built } = buildEstimateTotals(
+    snapshotTotalsInput(snapshot, homeCurrency),
+  );
+  const totalsFields = documentTotalsPersistFields(built);
 
   const created = await prisma.estimate.create({
     data: {
@@ -581,11 +599,8 @@ export async function duplicateDocumentFromRevision(
       number: await generateNextEstimateNumber(companyId),
       status: "DRAFT",
       currency: snapshot.currency,
-      subtotal: totals.subtotal,
-      taxRate: snapshot.taxRate,
-      taxAmount: totals.taxAmount,
       discount: snapshot.discount,
-      total: totals.total,
+      ...totalsFields,
       notes: snapshot.notes,
       customFields: snapshot.customFields ?? {},
       scope: snapshot.scope ?? null,
@@ -613,17 +628,6 @@ export async function duplicateDocumentFromRevision(
   return created;
 }
 
-async function resolveSnapshotClientName(companyId: string, clientId: string | null) {
-  if (!clientId) return "Client";
-
-  const client = await prisma.client.findFirst({
-    where: { id: clientId, companyId },
-    select: { name: true },
-  });
-
-  return client?.name ?? "Client";
-}
-
 export async function duplicateInvoice(
   companyId: string,
   memberId: string,
@@ -631,28 +635,17 @@ export async function duplicateInvoice(
 ) {
   const company = await prisma.company.findUniqueOrThrow({
     where: { id: companyId },
-    select: { plan: true },
+    select: { plan: true, currency: true },
   });
   await assertWithinInvoiceQuota(companyId, company.plan);
 
   const snapshot = await loadInvoiceSnapshot(companyId, invoiceId);
   if (!snapshot) throw new Error("Invoice not found");
 
-  const clientName = await resolveSnapshotClientName(companyId, snapshot.clientId);
-  const { lineItems, totals } = buildInvoiceTotals({
-    clientName,
-    currency: snapshot.currency,
-    taxRate: snapshot.taxRate,
-    discount: snapshot.discount,
-    lineItems: snapshot.lineItems.map((item) => ({
-      description: item.description,
-      quantity: item.quantity,
-      unitPrice: item.unitPrice,
-      sortOrder: item.sortOrder,
-      sectionTitle: item.sectionTitle ?? null,
-      sectionSortOrder: item.sectionSortOrder ?? 0,
-    })),
-  });
+  const { lineItems, totals, built } = buildInvoiceTotals(
+    snapshotTotalsInput(snapshot, company.currency),
+  );
+  const totalsFields = documentTotalsPersistFields(built);
 
   const installments =
     snapshot.installments?.map((row) => ({
@@ -675,11 +668,8 @@ export async function duplicateInvoice(
       number: await generateNextInvoiceNumber(companyId),
       status: "DRAFT",
       currency: snapshot.currency,
-      subtotal: totals.subtotal,
-      taxRate: snapshot.taxRate,
-      taxAmount: totals.taxAmount,
       discount: snapshot.discount,
-      total: totals.total,
+      ...totalsFields,
       notes: snapshot.notes,
       customFields: snapshot.customFields ?? {},
       issueDate: new Date(),
@@ -728,21 +718,11 @@ export async function duplicateEstimate(
     select: { projectId: true },
   });
 
-  const clientName = await resolveSnapshotClientName(companyId, snapshot.clientId);
-  const { lineItems, totals } = buildEstimateTotals({
-    clientName,
-    currency: snapshot.currency,
-    taxRate: snapshot.taxRate,
-    discount: snapshot.discount,
-    lineItems: snapshot.lineItems.map((item) => ({
-      description: item.description,
-      quantity: item.quantity,
-      unitPrice: item.unitPrice,
-      sortOrder: item.sortOrder,
-      sectionTitle: item.sectionTitle ?? null,
-      sectionSortOrder: item.sectionSortOrder ?? 0,
-    })),
-  });
+  const homeCurrency = await companyHomeCurrency(companyId);
+  const { lineItems, built } = buildEstimateTotals(
+    snapshotTotalsInput(snapshot, homeCurrency),
+  );
+  const totalsFields = documentTotalsPersistFields(built);
 
   const created = await prisma.estimate.create({
     data: {
@@ -753,11 +733,8 @@ export async function duplicateEstimate(
       number: await generateNextEstimateNumber(companyId),
       status: "DRAFT",
       currency: snapshot.currency,
-      subtotal: totals.subtotal,
-      taxRate: snapshot.taxRate,
-      taxAmount: totals.taxAmount,
       discount: snapshot.discount,
-      total: totals.total,
+      ...totalsFields,
       notes: snapshot.notes,
       customFields: snapshot.customFields ?? {},
       scope: snapshot.scope ?? null,

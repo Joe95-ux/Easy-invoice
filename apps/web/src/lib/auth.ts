@@ -5,7 +5,7 @@ import {
   setActiveCompanyCookie,
 } from "@/lib/active-company";
 import { prisma } from "@/lib/db";
-import { canManageCompanySettings } from "@/lib/team";
+import { canManageCompanySettings, canWriteDocuments } from "@/lib/team";
 import { resolveMemberProfile } from "@/lib/member-email";
 
 const memberInclude = { company: true } as const;
@@ -73,6 +73,13 @@ export async function requireMember() {
 export async function requireCompanyAdmin() {
   const member = await requireMember();
   if (!canManageCompanySettings(member.role)) redirect("/dashboard");
+  return member;
+}
+
+/** Block viewers from create/edit document pages. */
+export async function requireWriter() {
+  const member = await requireMember();
+  if (!canWriteDocuments(member.role)) redirect("/dashboard");
   return member;
 }
 

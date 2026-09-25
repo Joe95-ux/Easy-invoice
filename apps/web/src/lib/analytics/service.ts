@@ -17,6 +17,10 @@ import type {
   AnalyticsData,
   PipelineSegment,
 } from "@/features/analytics/types";
+import {
+  invoiceAmountInHomeCurrency,
+  paymentAmountInHomeCurrency,
+} from "@/lib/home-currency";
 
 function toNumber(value: { toString(): string } | number | null | undefined): number {
   if (value == null) return 0;
@@ -59,27 +63,62 @@ function agingKeyForDaysPastDue(daysPastDue: number): AgingBucketKey {
   return "90+";
 }
 
-async function sumPaymentsInRange(companyId: string, start: Date, end: Date) {
-  const result = await prisma.invoicePayment.aggregate({
+async function sumPaymentsInRange(
+  companyId: string,
+  homeCurrency: string,
+  start: Date,
+  end: Date,
+) {
+  const payments = await prisma.invoicePayment.findMany({
     where: {
       paidAt: { gte: start, lte: end },
       invoice: { companyId },
     },
-    _sum: { amount: true },
+    select: {
+      amount: true,
+      invoice: { select: { currency: true, exchangeRate: true } },
+    },
   });
-  return toNumber(result._sum.amount);
+  return payments.reduce((sum, payment) => {
+    const converted = paymentAmountInHomeCurrency({
+      amount: payment.amount,
+      invoiceCurrency: payment.invoice.currency,
+      homeCurrency,
+      exchangeRate: payment.invoice.exchangeRate,
+    });
+    return converted == null ? sum : sum + converted;
+  }, 0);
 }
 
-async function sumInvoicedInRange(companyId: string, start: Date, end: Date) {
-  const result = await prisma.invoice.aggregate({
+async function sumInvoicedInRange(
+  companyId: string,
+  homeCurrency: string,
+  start: Date,
+  end: Date,
+) {
+  const invoices = await prisma.invoice.findMany({
     where: {
       companyId,
       status: { notIn: ["DRAFT", "CANCELLED"] },
       issueDate: { gte: start, lte: end },
     },
-    _sum: { total: true },
+    select: {
+      total: true,
+      currency: true,
+      homeCurrencyTotal: true,
+      exchangeRate: true,
+    },
   });
-  return toNumber(result._sum.total);
+  return invoices.reduce((sum, invoice) => {
+    const converted = invoiceAmountInHomeCurrency({
+      total: invoice.total,
+      currency: invoice.currency,
+      homeCurrency,
+      homeCurrencyTotal: invoice.homeCurrencyTotal,
+      exchangeRate: invoice.exchangeRate,
+    });
+    return converted == null ? sum : sum + converted;
+  }, 0);
 }
 
 export async function getAnalyticsData(
@@ -98,8 +137,6 @@ export async function getAnalyticsData(
     periodPayments,
     periodInvoices,
     periodExpenses,
-    previousCollected,
-    previousInvoiced,
     paidInPeriod,
     convertedEstimates,
   ] = await Promise.all([
@@ -127,6 +164,9 @@ export async function getAnalyticsData(
         number: true,
         status: true,
         total: true,
+        currency: true,
+        homeCurrencyTotal: true,
+        exchangeRate: true,
         dueDate: true,
         issueDate: true,
         client: { select: { name: true } },
@@ -145,6 +185,8 @@ export async function getAnalyticsData(
           select: {
             id: true,
             clientId: true,
+            currency: true,
+            exchangeRate: true,
             client: { select: { name: true } },
           },
         },
@@ -156,7 +198,13 @@ export async function getAnalyticsData(
         status: { notIn: ["DRAFT", "CANCELLED"] },
         issueDate: { gte: periodStart, lte: periodEnd },
       },
-      select: { total: true, issueDate: true },
+      select: {
+        total: true,
+        issueDate: true,
+        currency: true,
+        homeCurrencyTotal: true,
+        exchangeRate: true,
+      },
     }),
     prisma.projectExpense.findMany({
       where: {
@@ -165,8 +213,6 @@ export async function getAnalyticsData(
       },
       select: { amount: true, currency: true },
     }),
-    sumPaymentsInRange(companyId, previous.start, previous.end),
-    sumInvoicedInRange(companyId, previous.start, previous.end),
     prisma.invoice.findMany({
       where: {
         companyId,
@@ -185,12 +231,24 @@ export async function getAnalyticsData(
     }),
   ]);
 
+  const [previousCollected, previousInvoiced] = await Promise.all([
+    sumPaymentsInRange(companyId, company.currency, previous.start, previous.end),
+    sumInvoicedInRange(companyId, company.currency, previous.start, previous.end),
+  ]);
+
+  const homeCurrency = company.currency;
   const revenueByMonth = buildRevenueMonthBucketsForRange(periodStart, periodEnd);
   const monthIndex = new Map(revenueByMonth.map((row, index) => [row.month, index]));
 
   let revenueCollected = 0;
   for (const payment of periodPayments) {
-    const amount = toNumber(payment.amount);
+    const amount = paymentAmountInHomeCurrency({
+      amount: payment.amount,
+      invoiceCurrency: payment.invoice.currency,
+      homeCurrency,
+      exchangeRate: payment.invoice.exchangeRate,
+    });
+    if (amount == null) continue;
     revenueCollected += amount;
     const key = format(payment.paidAt, "yyyy-MM");
     const index = monthIndex.get(key);
@@ -201,7 +259,14 @@ export async function getAnalyticsData(
 
   let invoicedTotal = 0;
   for (const invoice of periodInvoices) {
-    const amount = toNumber(invoice.total);
+    const amount = invoiceAmountInHomeCurrency({
+      total: invoice.total,
+      currency: invoice.currency,
+      homeCurrency,
+      homeCurrencyTotal: invoice.homeCurrencyTotal,
+      exchangeRate: invoice.exchangeRate,
+    });
+    if (amount == null) continue;
     invoicedTotal += amount;
     const key = format(invoice.issueDate, "yyyy-MM");
     const index = monthIndex.get(key);
@@ -221,11 +286,19 @@ export async function getAnalyticsData(
   let overdueCount = 0;
 
   for (const invoice of openInvoices) {
-    const balanceDue = buildInvoicePaymentSummary({
+    const balanceDueDoc = buildInvoicePaymentSummary({
       total: invoice.total,
       payments: invoice.payments,
     }).balanceDue;
-    if (balanceDue <= 0) continue;
+    if (balanceDueDoc <= 0) continue;
+
+    const balanceDue = paymentAmountInHomeCurrency({
+      amount: balanceDueDoc,
+      invoiceCurrency: invoice.currency,
+      homeCurrency,
+      exchangeRate: invoice.exchangeRate,
+    });
+    if (balanceDue == null) continue;
 
     outstandingAr += balanceDue;
 
@@ -324,7 +397,14 @@ export async function getAnalyticsData(
       revenue: 0,
       invoiceIds: new Set<string>(),
     };
-    existing.revenue += toNumber(payment.amount);
+    const revenue = paymentAmountInHomeCurrency({
+      amount: payment.amount,
+      invoiceCurrency: payment.invoice.currency,
+      homeCurrency,
+      exchangeRate: payment.invoice.exchangeRate,
+    });
+    if (revenue == null) continue;
+    existing.revenue += revenue;
     existing.invoiceIds.add(payment.invoice.id);
     clientTotals.set(clientId, existing);
   }

@@ -132,6 +132,7 @@ type FollowUpCalendarProps = {
   itemsByDay: Map<string, SerializedFollowUp[]>;
   isMobile: boolean;
   busyId: string | null;
+  canWrite?: boolean;
   onToggle: (item: SerializedFollowUp) => void;
   onEdit: (item: SerializedFollowUp) => void;
   onDelete: (item: SerializedFollowUp) => void;
@@ -147,6 +148,7 @@ export function FollowUpCalendar({
   itemsByDay,
   isMobile,
   busyId,
+  canWrite = true,
   onToggle,
   onEdit,
   onDelete,
@@ -171,6 +173,10 @@ export function FollowUpCalendar({
   }
 
   function handleDragStart(event: DragEvent, item: SerializedFollowUp) {
+    if (!canWrite) {
+      event.preventDefault();
+      return;
+    }
     dragMovedRef.current = true;
     event.dataTransfer.setData(DRAG_MIME, item.id);
     event.dataTransfer.setData("text/plain", item.id);
@@ -209,6 +215,7 @@ export function FollowUpCalendar({
 
   function handleDayDrop(event: DragEvent, day: Date, dayKey: string) {
     event.preventDefault();
+    if (!canWrite) return;
     const id = event.dataTransfer.getData(DRAG_MIME) || event.dataTransfer.getData("text/plain");
     setDropDayKey(null);
     setDraggingId(null);
@@ -319,6 +326,7 @@ export function FollowUpCalendar({
                             open={openId === item.id}
                             dragging={draggingId === item.id}
                             busy={busyId === item.id}
+                            canWrite={canWrite}
                             onOpenChange={(next) => handleChipOpen(item, day, next)}
                             onToggle={() => {
                               closePopover();
@@ -362,7 +370,9 @@ export function FollowUpCalendar({
               <span className="size-2 rounded-sm bg-primary" aria-hidden />
               Upcoming
             </span>
-            <span className="text-muted-foreground/80">Drag items to reschedule</span>
+            <span className="text-muted-foreground/80">
+              {canWrite ? "Drag items to reschedule" : "View-only calendar"}
+            </span>
           </div>
         </CardContent>
       </Card>
@@ -394,6 +404,7 @@ function CalendarEventChip({
   open,
   dragging,
   busy,
+  canWrite,
   onOpenChange,
   onToggle,
   onEdit,
@@ -406,6 +417,7 @@ function CalendarEventChip({
   open: boolean;
   dragging: boolean;
   busy: boolean;
+  canWrite: boolean;
   onOpenChange: (open: boolean) => void;
   onToggle: () => void;
   onEdit: () => void;
@@ -418,12 +430,13 @@ function CalendarEventChip({
 
   return (
     <div
-      draggable
+      draggable={canWrite}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onClick={(event) => event.stopPropagation()}
       className={cn(
-        "group/chip flex w-full min-w-0 cursor-grab overflow-hidden rounded-sm transition-colors active:cursor-grabbing",
+        "group/chip flex w-full min-w-0 overflow-hidden rounded-sm transition-colors",
+        canWrite ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
         calendarChipSurface(urgency),
         dragging && "opacity-40",
       )}
@@ -432,31 +445,36 @@ function CalendarEventChip({
         className={cn("w-0.5 shrink-0 self-stretch sm:w-1", calendarBandClass(urgency))}
         aria-hidden
       />
-      <button
-        type="button"
-        aria-label="Mark as complete"
-        disabled={busy}
-        draggable={false}
-        onClick={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          onToggle();
-        }}
-        onPointerDown={(event) => event.stopPropagation()}
-        onMouseDown={(event) => event.stopPropagation()}
-        className={cn(
-          "m-0.5 flex size-3.5 shrink-0 items-center justify-center rounded-full border border-foreground/35 bg-background/90 text-foreground",
-          "opacity-100 transition-opacity sm:opacity-0 sm:group-hover/chip:opacity-100 sm:group-focus-within/chip:opacity-100",
-          "hover:border-foreground/60 hover:bg-background disabled:pointer-events-none disabled:opacity-50",
-        )}
-      >
-        <CheckIcon className="size-2.5 opacity-0 group-hover/chip:opacity-50" aria-hidden />
-      </button>
+      {canWrite ? (
+        <button
+          type="button"
+          aria-label="Mark as complete"
+          disabled={busy}
+          draggable={false}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onToggle();
+          }}
+          onPointerDown={(event) => event.stopPropagation()}
+          onMouseDown={(event) => event.stopPropagation()}
+          className={cn(
+            "m-0.5 flex size-3.5 shrink-0 items-center justify-center rounded-full border border-foreground/35 bg-background/90 text-foreground",
+            "opacity-100 transition-opacity sm:opacity-0 sm:group-hover/chip:opacity-100 sm:group-focus-within/chip:opacity-100",
+            "hover:border-foreground/60 hover:bg-background disabled:pointer-events-none disabled:opacity-50",
+          )}
+        >
+          <CheckIcon className="size-2.5 opacity-0 group-hover/chip:opacity-50" aria-hidden />
+        </button>
+      ) : (
+        <span className="m-0.5 size-3.5 shrink-0" aria-hidden />
+      )}
 
       <Popover open={open} onOpenChange={onOpenChange}>
         <PopoverTrigger
           className={cn(
-            "min-w-0 flex-1 cursor-grab rounded-none bg-transparent py-0.5 pr-1 text-left outline-none",
+            "min-w-0 flex-1 rounded-none bg-transparent py-0.5 pr-1 text-left outline-none",
+            canWrite ? "cursor-grab" : "cursor-pointer",
             "focus-visible:ring-0",
           )}
           title={[item.title, meta].filter(Boolean).join(" — ")}
@@ -487,6 +505,7 @@ function CalendarEventChip({
           <CalendarEventPopover
             item={item}
             busy={busy}
+            canWrite={canWrite}
             onClose={() => onOpenChange(false)}
             onEdit={onEdit}
             onDelete={onDelete}
@@ -501,6 +520,7 @@ function CalendarEventChip({
 function CalendarEventPopover({
   item,
   busy,
+  canWrite,
   onClose,
   onEdit,
   onDelete,
@@ -508,6 +528,7 @@ function CalendarEventPopover({
 }: {
   item: SerializedFollowUp;
   busy: boolean;
+  canWrite: boolean;
   onClose: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -523,27 +544,31 @@ function CalendarEventPopover({
   return (
     <div className="flex flex-col">
       <div className="flex items-center justify-end gap-0.5 border-b border-border/60 px-1.5 py-1">
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="size-8"
-          onClick={onEdit}
-          aria-label="Edit follow-up"
-        >
-          <PencilIcon className="size-4" />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="size-8"
-          disabled={busy}
-          onClick={onDelete}
-          aria-label="Delete follow-up"
-        >
-          <Trash2Icon className="size-4" />
-        </Button>
+        {canWrite ? (
+          <>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-8"
+              onClick={onEdit}
+              aria-label="Edit follow-up"
+            >
+              <PencilIcon className="size-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-8"
+              disabled={busy}
+              onClick={onDelete}
+              aria-label="Delete follow-up"
+            >
+              <Trash2Icon className="size-4" />
+            </Button>
+          </>
+        ) : null}
         <Button
           type="button"
           variant="ghost"
@@ -623,11 +648,13 @@ function CalendarEventPopover({
         ) : null}
       </div>
 
-      <div className="flex justify-end border-t border-border/60 px-3 py-2.5">
-        <Button type="button" size="sm" disabled={busy} onClick={onToggle}>
-          Mark as complete
-        </Button>
-      </div>
+      {canWrite ? (
+        <div className="flex justify-end border-t border-border/60 px-3 py-2.5">
+          <Button type="button" size="sm" disabled={busy} onClick={onToggle}>
+            Mark as complete
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

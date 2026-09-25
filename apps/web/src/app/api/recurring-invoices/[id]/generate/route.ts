@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireApiMember } from "@/lib/api/validation";
+import { requireApiWriter } from "@/lib/api/validation";
 import {
   getRecurringInvoice,
   issueRecurringInvoiceOccurrence,
@@ -10,7 +10,7 @@ type RouteContext = { params: Promise<{ id: string }> };
 
 /** Manually generate the next invoice now (even if not yet due). */
 export async function POST(_request: Request, context: RouteContext) {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiWriter();
   if (response) return response;
 
   const { id } = await context.params;

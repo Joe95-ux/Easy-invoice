@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { appliedTaxesSchema } from "@/lib/schemas/tax-rates";
 
 const lineItemSchema = z.object({
   description: z.string().min(1, "Description is required").max(2000),
@@ -7,6 +8,7 @@ const lineItemSchema = z.object({
   sortOrder: z.number().int().nonnegative().default(0),
   sectionTitle: z.string().trim().max(120).nullable().optional(),
   sectionSortOrder: z.number().int().nonnegative().optional(),
+  taxable: z.boolean().optional().default(true),
 });
 
 const dateOnlySchema = z
@@ -29,7 +31,12 @@ const recurringInvoiceFieldsSchema = z.object({
   dueDaysAfterIssue: z.number().int().min(0).max(365).default(14),
   autoSend: z.boolean().default(false),
   currency: z.string().length(3).default("USD"),
+  /** Legacy single rate; prefer `taxes` when present. */
   taxRate: z.number().min(0).max(1).default(0),
+  taxes: appliedTaxesSchema.optional(),
+  taxInclusive: z.boolean().optional(),
+  taxCompound: z.boolean().optional(),
+  exchangeRate: z.number().positive().nullable().optional(),
   discount: z.number().min(0).default(0),
   notes: z.string().max(5000).optional().nullable(),
   customFields: z.record(z.string(), z.string().max(5000)).optional().nullable(),

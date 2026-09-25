@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   parseJsonBody,
   requireApiMember,
+  requireApiWriter,
   validationError,
 } from "@/lib/api/validation";
 import { prisma } from "@/lib/db";
@@ -42,7 +43,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiWriter();
   if (response) return response;
 
   const body = await parseJsonBody<unknown>(request);
@@ -62,7 +63,7 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiWriter();
   if (response) return response;
 
   const body = await parseJsonBody<unknown>(request);
@@ -81,7 +82,7 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE() {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiWriter();
   if (response) return response;
 
   await discardActiveTimer(member.companyId, member.id);

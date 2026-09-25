@@ -74,9 +74,16 @@ const STATUS_FILTER_OPTIONS = [
 type InvoicesTableProps = {
   invoices: InvoiceRow[];
   companyName: string;
+  canWrite?: boolean;
+  canDelete?: boolean;
 };
 
-export function InvoicesTable({ invoices, companyName }: InvoicesTableProps) {
+export function InvoicesTable({
+  invoices,
+  companyName,
+  canWrite = true,
+  canDelete = true,
+}: InvoicesTableProps) {
   const router = useRouter();
   const { openPdfDownload, pdfDownloadDialog } = usePdfDownload();
   const [loadingId, setLoadingId] = useState<string | null>(null);
@@ -253,36 +260,46 @@ export function InvoicesTable({ invoices, companyName }: InvoicesTableProps) {
                         <EyeIcon className="size-4" />
                         View
                       </DropdownMenuItem>
-                      <DropdownMenuItem render={<Link href={`/invoices/${invoice.id}/edit`} />}>
-                        <PencilIcon className="size-4" />
-                        Edit
-                      </DropdownMenuItem>
+                      {canWrite ? (
+                        <DropdownMenuItem render={<Link href={`/invoices/${invoice.id}/edit`} />}>
+                          <PencilIcon className="size-4" />
+                          Edit
+                        </DropdownMenuItem>
+                      ) : null}
                       <DropdownMenuItem onClick={() => handleDownload(invoice)}>
                         <DownloadIcon className="size-4" />
                         Download PDF
                       </DropdownMenuItem>
-                      <DropdownMenuItem render={<Link href={`/invoices/${invoice.id}`} />}>
-                        <SendIcon className="size-4" />
-                        Send invoice
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleDuplicate(invoice)}>
-                        <CopyIcon className="size-4" />
-                        Duplicate
-                      </DropdownMenuItem>
-                      {invoice.clientId && invoice.status !== "CANCELLED" ? (
+                      {canWrite ? (
+                        <DropdownMenuItem render={<Link href={`/invoices/${invoice.id}`} />}>
+                          <SendIcon className="size-4" />
+                          Send invoice
+                        </DropdownMenuItem>
+                      ) : null}
+                      {canWrite ? (
+                        <DropdownMenuItem onClick={() => handleDuplicate(invoice)}>
+                          <CopyIcon className="size-4" />
+                          Duplicate
+                        </DropdownMenuItem>
+                      ) : null}
+                      {canWrite && invoice.clientId && invoice.status !== "CANCELLED" ? (
                         <DropdownMenuItem onClick={() => setMakeRecurringInvoice(invoice)}>
                           <RefreshCwIcon className="size-4" />
                           Make recurring
                         </DropdownMenuItem>
                       ) : null}
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        variant="destructive"
-                        onClick={() => setPendingDelete(invoice)}
-                      >
-                        <Trash2Icon className="size-4" />
-                        Delete
-                      </DropdownMenuItem>
+                      {canDelete ? (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onClick={() => setPendingDelete(invoice)}
+                          >
+                            <Trash2Icon className="size-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </>
+                      ) : null}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>

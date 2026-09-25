@@ -129,9 +129,15 @@ type QrCodesTableProps = {
   qrCodes: SerializedQrCode[];
   origin: string;
   companyLogoUrl?: string | null;
+  canWrite?: boolean;
 };
 
-export function QrCodesTable({ qrCodes, origin, companyLogoUrl }: QrCodesTableProps) {
+export function QrCodesTable({
+  qrCodes,
+  origin,
+  companyLogoUrl,
+  canWrite = true,
+}: QrCodesTableProps) {
   const router = useRouter();
   const [loadingAction, setLoadingAction] = useState<{
     id: string;
@@ -429,13 +435,15 @@ export function QrCodesTable({ qrCodes, origin, companyLogoUrl }: QrCodesTablePr
                           <span className="truncate font-medium text-muted-foreground">
                             {qr.name}
                           </span>
-                        ) : (
+                        ) : canWrite ? (
                           <Link
                             href={`/qr-codes/${qr.id}/edit`}
                             className="truncate font-medium hover:underline"
                           >
                             {qr.name}
                           </Link>
+                        ) : (
+                          <span className="truncate font-medium">{qr.name}</span>
                         )}
                         {qr.passwordProtected && (
                           <LockIcon
@@ -480,36 +488,44 @@ export function QrCodesTable({ qrCodes, origin, companyLogoUrl }: QrCodesTablePr
                       <DropdownMenuContent align="end" className="min-w-48 w-52">
                         {isDeleted ? (
                           <>
-                            <DropdownMenuItem
-                              disabled={loadingAction?.id === qr.id}
-                              onClick={() =>
-                                void handleStatus(qr, "ACTIVE", "restore", "QR code restored")
-                              }
-                            >
-                              {loadingAction?.id === qr.id &&
-                              loadingAction.action === "restore" ? (
-                                <Loader2Icon className="size-4 animate-spin" />
-                              ) : (
-                                <RotateCcwIcon className="size-4" />
-                              )}
-                              Restore
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              variant="destructive"
-                              disabled={loadingAction?.id === qr.id}
-                              onClick={() => setPendingDelete({ qr, mode: "permanent" })}
-                            >
-                              <Trash2Icon className="size-4" />
-                              Delete permanently
-                            </DropdownMenuItem>
+                            {canWrite ? (
+                              <DropdownMenuItem
+                                disabled={loadingAction?.id === qr.id}
+                                onClick={() =>
+                                  void handleStatus(qr, "ACTIVE", "restore", "QR code restored")
+                                }
+                              >
+                                {loadingAction?.id === qr.id &&
+                                loadingAction.action === "restore" ? (
+                                  <Loader2Icon className="size-4 animate-spin" />
+                                ) : (
+                                  <RotateCcwIcon className="size-4" />
+                                )}
+                                Restore
+                              </DropdownMenuItem>
+                            ) : null}
+                            {canWrite ? (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  variant="destructive"
+                                  disabled={loadingAction?.id === qr.id}
+                                  onClick={() => setPendingDelete({ qr, mode: "permanent" })}
+                                >
+                                  <Trash2Icon className="size-4" />
+                                  Delete permanently
+                                </DropdownMenuItem>
+                              </>
+                            ) : null}
                           </>
                         ) : (
                           <>
-                            <DropdownMenuItem render={<Link href={`/qr-codes/${qr.id}/edit`} />}>
-                              <PencilIcon className="size-4" />
-                              Edit
-                            </DropdownMenuItem>
+                            {canWrite ? (
+                              <DropdownMenuItem render={<Link href={`/qr-codes/${qr.id}/edit`} />}>
+                                <PencilIcon className="size-4" />
+                                Edit
+                              </DropdownMenuItem>
+                            ) : null}
                             <DropdownMenuItem onClick={() => handleDownload(qr)}>
                               <DownloadIcon className="size-4" />
                               Download PNG
@@ -530,8 +546,8 @@ export function QrCodesTable({ qrCodes, origin, companyLogoUrl }: QrCodesTablePr
                               <ExternalLinkIcon className="size-4" />
                               Open link
                             </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            {qr.status === "ACTIVE" ? (
+                            {canWrite ? <DropdownMenuSeparator /> : null}
+                            {canWrite && qr.status === "ACTIVE" ? (
                               <DropdownMenuItem
                                 disabled={loadingAction?.id === qr.id}
                                 onClick={() =>
@@ -546,7 +562,8 @@ export function QrCodesTable({ qrCodes, origin, companyLogoUrl }: QrCodesTablePr
                                 )}
                                 Pause
                               </DropdownMenuItem>
-                            ) : (
+                            ) : null}
+                            {canWrite && qr.status !== "ACTIVE" ? (
                               <DropdownMenuItem
                                 disabled={loadingAction?.id === qr.id}
                                 onClick={() =>
@@ -566,15 +583,17 @@ export function QrCodesTable({ qrCodes, origin, companyLogoUrl }: QrCodesTablePr
                                 )}
                                 Activate
                               </DropdownMenuItem>
-                            )}
-                            <DropdownMenuItem
-                              variant="destructive"
-                              disabled={loadingAction?.id === qr.id}
-                              onClick={() => setPendingDelete({ qr, mode: "soft" })}
-                            >
-                              <Trash2Icon className="size-4" />
-                              Delete
-                            </DropdownMenuItem>
+                            ) : null}
+                            {canWrite ? (
+                              <DropdownMenuItem
+                                variant="destructive"
+                                disabled={loadingAction?.id === qr.id}
+                                onClick={() => setPendingDelete({ qr, mode: "soft" })}
+                              >
+                                <Trash2Icon className="size-4" />
+                                Delete
+                              </DropdownMenuItem>
+                            ) : null}
                           </>
                         )}
                       </DropdownMenuContent>

@@ -23,9 +23,12 @@ export type TotalsLineItem = {
 export type BuildDocumentTotalsInput = {
   lineItems: TotalsLineItem[];
   taxes?: AppliedTax[] | null;
+  /** When true, an empty taxes array clears tax (no fallback to taxRate). */
+  taxesProvided?: boolean;
   taxRate?: number | null;
   discount: number;
   taxInclusive?: boolean;
+  taxCompound?: boolean;
   currency: string;
   homeCurrency: string;
   exchangeRate?: number | null;
@@ -46,8 +49,11 @@ export type BuiltDocumentTotals = {
   taxes: AppliedTax[];
   taxRate: number;
   taxInclusive: boolean;
-  exchangeRate: number;
-  homeCurrencyTotal: number;
+  taxCompound: boolean;
+  /** null when document currency ≠ home and FX is unknown. */
+  exchangeRate: number | null;
+  /** null when FX is unknown. */
+  homeCurrencyTotal: number | null;
 };
 
 export function buildDocumentTotals(
@@ -55,9 +61,11 @@ export function buildDocumentTotals(
 ): BuiltDocumentTotals {
   const taxes = resolveAppliedTaxes({
     taxes: input.taxes,
-    taxRate: input.taxRate,
+    taxRate: input.taxesProvided ? undefined : input.taxRate,
+    taxesProvided: input.taxesProvided,
   });
   const taxInclusive = input.taxInclusive === true;
+  const taxCompound = input.taxCompound === true;
 
   const lineItems = input.lineItems.map((item) => ({
     description: item.description,
@@ -80,6 +88,7 @@ export function buildDocumentTotals(
     taxRate: primaryTaxRate(taxes),
     discount: input.discount,
     taxInclusive,
+    taxCompound,
   });
 
   const exchangeRate = resolveExchangeRate({
@@ -94,6 +103,7 @@ export function buildDocumentTotals(
     taxes,
     taxRate: primaryTaxRate(taxes),
     taxInclusive,
+    taxCompound,
     exchangeRate,
     homeCurrencyTotal: toHomeCurrency(totals.total, exchangeRate),
   };
@@ -105,7 +115,9 @@ export function buildInvoiceTotals(input: {
   taxRate: number;
   discount: number;
   taxes?: AppliedTax[] | null;
+  taxesProvided?: boolean;
   taxInclusive?: boolean;
+  taxCompound?: boolean;
   currency?: string;
   homeCurrency?: string;
   exchangeRate?: number | null;
@@ -114,8 +126,10 @@ export function buildInvoiceTotals(input: {
     lineItems: input.lineItems,
     taxRate: input.taxRate,
     taxes: input.taxes,
+    taxesProvided: input.taxesProvided,
     discount: input.discount,
     taxInclusive: input.taxInclusive,
+    taxCompound: input.taxCompound,
     currency: input.currency ?? "USD",
     homeCurrency: input.homeCurrency ?? input.currency ?? "USD",
     exchangeRate: input.exchangeRate,

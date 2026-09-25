@@ -3,6 +3,7 @@ import {
   getActionableFollowUpPreviews,
   getFollowUpActionCounts,
 } from "@/lib/follow-ups/service";
+import { paymentAmountInHomeCurrency } from "@/lib/home-currency";
 import { buildInvoicePaymentSummary } from "@/lib/invoice-payments";
 import {
   getCompanyUnbilledTimeStats,
@@ -13,6 +14,7 @@ const ATTENTION_PREVIEW_TAKE = 5;
 
 export async function getDashboardStats(companyId: string) {
   const [
+    company,
     statusGroups,
     clientCount,
     recentInvoices,
@@ -22,6 +24,10 @@ export async function getDashboardStats(companyId: string) {
     followUpPreviews,
     unbilledPreviews,
   ] = await Promise.all([
+    prisma.company.findUniqueOrThrow({
+      where: { id: companyId },
+      select: { currency: true },
+    }),
     prisma.invoice.groupBy({
       by: ["status"],
       where: { companyId },
@@ -39,7 +45,12 @@ export async function getDashboardStats(companyId: string) {
         companyId,
         status: { in: ["SENT", "VIEWED", "OVERDUE", "PARTIALLY_PAID"] },
       },
-      include: { payments: { select: { amount: true } } },
+      select: {
+        total: true,
+        currency: true,
+        exchangeRate: true,
+        payments: { select: { amount: true } },
+      },
     }),
     getCompanyUnbilledTimeStats(companyId),
     getFollowUpActionCounts(companyId),
@@ -52,14 +63,20 @@ export async function getDashboardStats(companyId: string) {
   ) as Record<string, number>;
 
   const totalInvoices = statusGroups.reduce((sum, group) => sum + group._count._all, 0);
+  const homeCurrency = company.currency;
   const outstandingTotal = openInvoices.reduce((sum, invoice) => {
-    return (
-      sum +
-      buildInvoicePaymentSummary({
-        total: invoice.total,
-        payments: invoice.payments,
-      }).balanceDue
-    );
+    const balanceDueDoc = buildInvoicePaymentSummary({
+      total: invoice.total,
+      payments: invoice.payments,
+    }).balanceDue;
+    if (balanceDueDoc <= 0) return sum;
+    const balanceDue = paymentAmountInHomeCurrency({
+      amount: balanceDueDoc,
+      invoiceCurrency: invoice.currency,
+      homeCurrency,
+      exchangeRate: invoice.exchangeRate,
+    });
+    return balanceDue == null ? sum : sum + balanceDue;
   }, 0);
 
   return {

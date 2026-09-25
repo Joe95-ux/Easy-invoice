@@ -3,7 +3,12 @@ import type {
   RecurringInvoiceStatus,
 } from "@easy-invoice/db";
 import { prisma } from "@/lib/db";
-import { buildInvoiceTotals, generateNextInvoiceNumber } from "@/lib/invoice-service";
+import {
+  buildInvoiceTotals,
+  documentTotalsPersistFields,
+  generateNextInvoiceNumber,
+} from "@/lib/invoice-service";
+import { normalizeAppliedTaxes } from "@/lib/tax-rates";
 import { startOfUtcDay } from "@/lib/reminders/dates";
 import {
   loadInvoiceSnapshot,
@@ -140,9 +145,13 @@ function assertScheduleDates(input: {
 }
 
 function computeEstimatedTotal(input: {
-  lineItems: { quantity: number; unitPrice: number }[];
+  lineItems: { quantity: number; unitPrice: number; taxable?: boolean }[];
   taxRate: number;
+  taxes?: ReturnType<typeof normalizeAppliedTaxes>;
+  taxInclusive?: boolean;
+  taxCompound?: boolean;
   discount: number;
+  currency?: string;
 }): number {
   const { totals } = buildInvoiceTotals({
     lineItems: input.lineItems.map((item, index) => ({
@@ -150,9 +159,15 @@ function computeEstimatedTotal(input: {
       quantity: item.quantity,
       unitPrice: item.unitPrice,
       sortOrder: index,
+      taxable: item.taxable,
     })),
     taxRate: input.taxRate,
+    taxes: input.taxes,
+    taxInclusive: input.taxInclusive,
+    taxCompound: input.taxCompound,
     discount: input.discount,
+    currency: input.currency ?? "USD",
+    homeCurrency: input.currency ?? "USD",
   });
   return totals.total;
 }
@@ -172,6 +187,10 @@ type RecurringWithRelations = {
   autoSend: boolean;
   currency: string;
   taxRate: { toString(): string } | number;
+  taxInclusive: boolean;
+  taxCompound: boolean;
+  taxes: unknown;
+  exchangeRate: { toString(): string } | number | null;
   discount: { toString(): string } | number;
   notes: string | null;
   customFields: unknown;
@@ -187,6 +206,7 @@ type RecurringWithRelations = {
     description: string;
     quantity: { toString(): string } | number;
     unitPrice: { toString(): string } | number;
+    taxable: boolean;
     sortOrder: number;
     sectionTitle: string | null;
     sectionSortOrder: number;
@@ -205,6 +225,7 @@ export function serializeRecurringInvoice(
       description: item.description,
       quantity: Number(item.quantity),
       unitPrice: Number(item.unitPrice),
+      taxable: item.taxable !== false,
       sortOrder: item.sortOrder,
       sectionTitle: item.sectionTitle,
       sectionSortOrder: item.sectionSortOrder,
@@ -212,6 +233,11 @@ export function serializeRecurringInvoice(
 
   const taxRate = Number(row.taxRate);
   const discount = Number(row.discount);
+  const taxes = normalizeAppliedTaxes(row.taxes);
+  const taxInclusive = row.taxInclusive === true;
+  const taxCompound = row.taxCompound === true;
+  const exchangeRate =
+    row.exchangeRate == null ? null : Number(row.exchangeRate);
 
   return {
     id: row.id,
@@ -228,6 +254,10 @@ export function serializeRecurringInvoice(
     autoSend: row.autoSend,
     currency: row.currency,
     taxRate,
+    taxes,
+    taxInclusive,
+    taxCompound,
+    exchangeRate,
     discount,
     notes: row.notes,
     customFields:
@@ -246,7 +276,11 @@ export function serializeRecurringInvoice(
     estimatedTotal: computeEstimatedTotal({
       lineItems: items,
       taxRate,
+      taxes,
+      taxInclusive,
+      taxCompound,
       discount,
+      currency: row.currency,
     }),
     invoicesCount: row._count?.invoices,
   };
@@ -302,6 +336,7 @@ function mapLineItemCreates(
     description: item.description.trim(),
     quantity: item.quantity,
     unitPrice: item.unitPrice,
+    taxable: item.taxable !== false,
     sortOrder: item.sortOrder ?? index,
     sectionTitle: item.sectionTitle?.trim() || null,
     sectionSortOrder: item.sectionSortOrder ?? 0,
@@ -340,6 +375,10 @@ export async function createRecurringInvoice(
       autoSend: input.autoSend,
       currency: input.currency.toUpperCase(),
       taxRate: input.taxRate,
+      taxes: input.taxes ?? [],
+      taxInclusive: input.taxInclusive === true,
+      taxCompound: input.taxCompound === true,
+      exchangeRate: input.exchangeRate ?? null,
       discount: input.discount,
       notes: input.notes?.trim() || null,
       customFields: input.customFields ?? {},
@@ -403,6 +442,10 @@ export async function createRecurringFromInvoice(
     autoSend: input.autoSend,
     currency: invoice.currency,
     taxRate: Number(invoice.taxRate),
+    taxes: normalizeAppliedTaxes(invoice.taxes),
+    taxInclusive: invoice.taxInclusive,
+    taxCompound: invoice.taxCompound,
+    exchangeRate: invoice.exchangeRate != null ? Number(invoice.exchangeRate) : null,
     discount: Number(invoice.discount),
     notes: invoice.notes,
     customFields:
@@ -417,6 +460,7 @@ export async function createRecurringFromInvoice(
       description: item.description,
       quantity: Number(item.quantity),
       unitPrice: Number(item.unitPrice),
+      taxable: item.taxable !== false,
       sortOrder: item.sortOrder ?? index,
       sectionTitle: item.sectionTitle,
       sectionSortOrder: item.sectionSortOrder ?? 0,
@@ -520,6 +564,16 @@ export async function updateRecurringInvoice(
           ? { currency: input.currency.toUpperCase() }
           : {}),
         ...(input.taxRate !== undefined ? { taxRate: input.taxRate } : {}),
+        ...(input.taxes !== undefined ? { taxes: input.taxes } : {}),
+        ...(input.taxInclusive !== undefined
+          ? { taxInclusive: input.taxInclusive }
+          : {}),
+        ...(input.taxCompound !== undefined
+          ? { taxCompound: input.taxCompound }
+          : {}),
+        ...(input.exchangeRate !== undefined
+          ? { exchangeRate: input.exchangeRate }
+          : {}),
         ...(input.discount !== undefined ? { discount: input.discount } : {}),
         ...(input.notes !== undefined ? { notes: input.notes?.trim() || null } : {}),
         ...(input.customFields !== undefined ? { customFields: input.customFields ?? {} } : {}),
@@ -670,7 +724,7 @@ export async function issueRecurringInvoiceOccurrence(
 
   const company = await prisma.company.findUnique({
     where: { id: companyId },
-    select: { plan: true },
+    select: { plan: true, currency: true },
   });
   if (!company || !isProPlan(company.plan)) {
     return {
@@ -800,7 +854,8 @@ export async function issueRecurringInvoiceOccurrence(
     };
   }
 
-  const { lineItems, totals } = buildInvoiceTotals({
+  const scheduleTaxes = normalizeAppliedTaxes(schedule.taxes);
+  const { lineItems, built } = buildInvoiceTotals({
     lineItems: schedule.items.map((item, index) => ({
       description: item.description,
       quantity: Number(item.quantity),
@@ -808,10 +863,18 @@ export async function issueRecurringInvoiceOccurrence(
       sortOrder: item.sortOrder ?? index,
       sectionTitle: item.sectionTitle,
       sectionSortOrder: item.sectionSortOrder ?? 0,
+      taxable: item.taxable !== false,
     })),
     taxRate: Number(schedule.taxRate),
+    taxes: scheduleTaxes,
+    taxInclusive: schedule.taxInclusive,
+    taxCompound: schedule.taxCompound,
+    exchangeRate: schedule.exchangeRate != null ? Number(schedule.exchangeRate) : null,
     discount: Number(schedule.discount),
+    currency: schedule.currency,
+    homeCurrency: company.currency,
   });
+  const totalsFields = documentTotalsPersistFields(built);
 
   const dueDate = new Date(
     issueDate.getTime() + schedule.dueDaysAfterIssue * 86_400_000,
@@ -857,11 +920,8 @@ export async function issueRecurringInvoiceOccurrence(
           number: invoiceNumber,
           status: "DRAFT",
           currency: schedule.currency,
-          subtotal: totals.subtotal,
-          taxRate: Number(schedule.taxRate),
-          taxAmount: totals.taxAmount,
           discount: Number(schedule.discount),
-          total: totals.total,
+          ...totalsFields,
           notes: schedule.notes,
           customFields:
             schedule.customFields &&

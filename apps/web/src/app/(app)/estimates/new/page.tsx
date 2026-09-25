@@ -1,9 +1,10 @@
 import { PageScroll } from "@/components/app-shell/app-shell";
 import { PageBackLink } from "@/components/app-shell/page-header";
-import { requireMember } from "@/lib/auth";
+import { requireWriter } from "@/lib/auth";
 import { getClientsForMember } from "@/lib/clients";
 import { companyBrandingFields } from "@/lib/company-branding";
 import { normalizeCustomFieldDefinitions } from "@/lib/custom-fields";
+import { normalizeCompanyTaxRates } from "@/lib/tax-rates";
 import { formatSubmissionAsScope } from "@/lib/form-submission-to-estimate";
 import { getFormSubmissionForEstimatePrefill } from "@/lib/project-forms";
 import { getDefaultTemplateId, getTemplatesForCompany } from "@/lib/templates";
@@ -20,7 +21,7 @@ type PageProps = {
 };
 
 export default async function NewEstimatePage({ searchParams }: PageProps) {
-  const member = await requireMember();
+  const member = await requireWriter();
 
   const { clientId, projectId, addTime, timeEntryIds, submissionId } = await searchParams;
   const preselectedTimeEntryIds = timeEntryIds
@@ -57,6 +58,10 @@ export default async function NewEstimatePage({ searchParams }: PageProps) {
       </PageBackLink>
       <EstimateCreator
         currency={member.company.currency}
+        homeCurrency={member.company.currency}
+        companyTaxRates={normalizeCompanyTaxRates(member.company.taxRates)}
+        taxInclusiveDefault={member.company.taxInclusiveDefault}
+        taxCompoundDefault={member.company.taxCompoundDefault}
         company={{
           name: member.company.name,
           logoUrl: member.company.logoUrl,

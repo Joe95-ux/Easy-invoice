@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { requireApiMember, parseJsonBody, validationError } from "@/lib/api/validation";
+import {
+  requireApiMember,
+  requireApiWriter,
+  parseJsonBody,
+  validationError,
+} from "@/lib/api/validation";
 import { getClientsForMember } from "@/lib/clients";
 import { prisma } from "@/lib/db";
 import { clientSchema } from "@/lib/schemas/client";
@@ -13,7 +18,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiWriter();
   if (response) return response;
 
   const body = await parseJsonBody<unknown>(request);

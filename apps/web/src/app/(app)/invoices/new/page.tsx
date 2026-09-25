@@ -1,9 +1,10 @@
 import { PageScroll } from "@/components/app-shell/app-shell";
 import { PageBackLink } from "@/components/app-shell/page-header";
-import { requireMember } from "@/lib/auth";
+import { requireWriter } from "@/lib/auth";
 import { getClientsForMember } from "@/lib/clients";
 import { companyBrandingFields } from "@/lib/company-branding";
 import { normalizeCustomFieldDefinitions } from "@/lib/custom-fields";
+import { normalizeCompanyTaxRates } from "@/lib/tax-rates";
 import { prisma } from "@/lib/db";
 import { getDefaultTemplateId, getTemplatesForCompany } from "@/lib/templates";
 import { InvoiceCreator } from "@/features/invoices/components/invoice-creator";
@@ -19,7 +20,7 @@ type PageProps = {
 };
 
 export default async function NewInvoicePage({ searchParams }: PageProps) {
-  const member = await requireMember();
+  const member = await requireWriter();
 
   const { clientId, projectId, addTime, timeEntryIds, expenseIds } = await searchParams;
   const preselectedTimeEntryIds = timeEntryIds
@@ -51,6 +52,10 @@ export default async function NewInvoicePage({ searchParams }: PageProps) {
       </PageBackLink>
       <InvoiceCreator
         currency={currency}
+        homeCurrency={member.company.currency}
+        companyTaxRates={normalizeCompanyTaxRates(member.company.taxRates)}
+        taxInclusiveDefault={member.company.taxInclusiveDefault}
+        taxCompoundDefault={member.company.taxCompoundDefault}
         company={{
           name: member.company.name,
           logoUrl: member.company.logoUrl,

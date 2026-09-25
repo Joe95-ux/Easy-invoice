@@ -49,9 +49,16 @@ const clientTabTriggerClass =
 type ClientDetailProps = {
   client: ClientFinancialProfile;
   companyName: string;
+  canWrite?: boolean;
+  canDelete?: boolean;
 };
 
-export function ClientDetail({ client, companyName }: ClientDetailProps) {
+export function ClientDetail({
+  client,
+  companyName,
+  canWrite = true,
+  canDelete = true,
+}: ClientDetailProps) {
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -123,80 +130,94 @@ export function ClientDetail({ client, companyName }: ClientDetailProps) {
         description={descriptionParts.join(" · ")}
         actions={
           <>
-            <Button
-              className={pageHeaderActionClass}
-              render={<Link href={`/invoices/new?clientId=${client.id}`} />}
-            >
-              <FileTextIcon className="size-4" />
-              New invoice
-            </Button>
-            <InviteClientPortalButton clientId={client.id} clientEmail={client.email} />
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    className="shrink-0"
-                    aria-label="More client actions"
-                    disabled={deleting}
-                  />
-                }
+            {canWrite ? (
+              <Button
+                className={pageHeaderActionClass}
+                render={<Link href={`/invoices/new?clientId=${client.id}`} />}
               >
-                <MoreHorizontalIcon className="size-4" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="min-w-48">
-                <DropdownMenuItem
-                  render={<Link href={`/estimates/new?clientId=${client.id}`} />}
+                <FileTextIcon className="size-4" />
+                New invoice
+              </Button>
+            ) : null}
+            {canWrite ? (
+              <InviteClientPortalButton clientId={client.id} clientEmail={client.email} />
+            ) : null}
+            {canWrite || canDelete ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="shrink-0"
+                      aria-label="More client actions"
+                      disabled={deleting}
+                    />
+                  }
                 >
-                  <ClipboardListIcon className="size-4" />
-                  New estimate
-                </DropdownMenuItem>
-                {summary.unbilledEntryCount > 0 ? (
-                  <DropdownMenuItem
-                    render={
-                      <Link
-                        href={invoiceFromTimeUrl({
-                          clientId: client.id,
-                          openPicker: true,
-                        })}
-                      />
-                    }
-                  >
-                    <ClockIcon className="size-4" />
-                    Invoice time
-                  </DropdownMenuItem>
-                ) : null}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  variant="destructive"
-                  disabled={deleting}
-                  onClick={() => setDeleteOpen(true)}
-                >
-                  <Trash2Icon className="size-4" />
-                  Delete client
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete client?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will delete {client.name}. Their invoices and estimates will remain but
-                    will no longer be linked to this client. Any recurring invoice schedules for
-                    this client will be deleted.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => void handleDelete()}>
-                    {deleting ? "Deleting..." : "Delete"}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+                  <MoreHorizontalIcon className="size-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-48">
+                  {canWrite ? (
+                    <DropdownMenuItem
+                      render={<Link href={`/estimates/new?clientId=${client.id}`} />}
+                    >
+                      <ClipboardListIcon className="size-4" />
+                      New estimate
+                    </DropdownMenuItem>
+                  ) : null}
+                  {canWrite && summary.unbilledEntryCount > 0 ? (
+                    <DropdownMenuItem
+                      render={
+                        <Link
+                          href={invoiceFromTimeUrl({
+                            clientId: client.id,
+                            openPicker: true,
+                          })}
+                        />
+                      }
+                    >
+                      <ClockIcon className="size-4" />
+                      Invoice time
+                    </DropdownMenuItem>
+                  ) : null}
+                  {canDelete ? (
+                    <>
+                      {canWrite ? <DropdownMenuSeparator /> : null}
+                      <DropdownMenuItem
+                        variant="destructive"
+                        disabled={deleting}
+                        onClick={() => setDeleteOpen(true)}
+                      >
+                        <Trash2Icon className="size-4" />
+                        Delete client
+                      </DropdownMenuItem>
+                    </>
+                  ) : null}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : null}
+            {canDelete ? (
+              <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete client?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will delete {client.name}. Their invoices and estimates will remain but
+                      will no longer be linked to this client. Any recurring invoice schedules for
+                      this client will be deleted.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => void handleDelete()}>
+                      {deleting ? "Deleting..." : "Delete"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            ) : null}
           </>
         }
       />
@@ -248,6 +269,7 @@ export function ClientDetail({ client, companyName }: ClientDetailProps) {
             saving={saving}
             onSavingChange={setSaving}
             onUpdate={handleUpdate}
+            canWrite={canWrite}
           />
         </TabsContent>
 

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   parseJsonBody,
-  requireApiMember,
+  requireApiCompanyAdmin,
   validationError,
 } from "@/lib/api/validation";
 import {
@@ -14,7 +14,7 @@ import { updateFormTemplateSchema } from "@/lib/schemas/project-form";
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function PATCH(request: Request, context: RouteContext) {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiCompanyAdmin();
   if (response) return response;
 
   const { id } = await context.params;
@@ -33,7 +33,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiCompanyAdmin();
   if (response) return response;
 
   const { id } = await context.params;

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireApiMember } from "@/lib/api/validation";
+import { requireApiWriter } from "@/lib/api/validation";
 import { getAppOrigin } from "@/lib/app-url";
 import { publicDocumentUrl } from "@/lib/document-tokens";
 import { ensureEstimatePublicToken } from "@/lib/public-documents";
@@ -7,7 +7,7 @@ import { ensureEstimatePublicToken } from "@/lib/public-documents";
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function GET(_request: Request, context: RouteContext) {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiWriter();
   if (response) return response;
 
   const { id } = await context.params;

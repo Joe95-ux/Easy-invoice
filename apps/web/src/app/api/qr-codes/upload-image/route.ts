@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireApiMember } from "@/lib/api/validation";
+import { requireApiWriter } from "@/lib/api/validation";
 import {
   isCloudinaryConfigured,
   uploadQrSocialImage,
@@ -7,7 +7,7 @@ import {
 } from "@/lib/cloudinary";
 
 export async function POST(request: Request) {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiWriter();
   if (response) return response;
 
   if (!isCloudinaryConfigured()) {

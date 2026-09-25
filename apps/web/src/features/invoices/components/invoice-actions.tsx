@@ -80,6 +80,8 @@ type InvoiceActionsProps = {
   dueDate?: string | null;
   sentAt?: string | null;
   celebrateInvoicePaid?: boolean;
+  canWrite?: boolean;
+  canDelete?: boolean;
 };
 
 export function InvoiceActions({
@@ -95,6 +97,8 @@ export function InvoiceActions({
   dueDate,
   sentAt,
   celebrateInvoicePaid = false,
+  canWrite = true,
+  canDelete = true,
 }: InvoiceActionsProps) {
   const router = useRouter();
   const { openPdfDownload, pdfDownloadDialog } = usePdfDownload();
@@ -213,15 +217,17 @@ export function InvoiceActions({
     <>
       <div className={cn("flex w-full flex-col gap-2 sm:w-auto sm:flex-row", pageHeaderActionClass)}>
         <ButtonGroup className="w-full sm:w-auto">
-          <Button
-            variant="outline"
-            className="flex-1 sm:flex-none"
-            render={<Link href={`/invoices/${invoiceId}/edit`} />}
-          >
-            <PencilIcon />
-            Edit
-          </Button>
-          {canSend ? (
+          {canWrite ? (
+            <Button
+              variant="outline"
+              className="flex-1 sm:flex-none"
+              render={<Link href={`/invoices/${invoiceId}/edit`} />}
+            >
+              <PencilIcon />
+              Edit
+            </Button>
+          ) : null}
+          {canWrite && canSend ? (
             <Button
               variant="outline"
               className="flex-1 text-primary hover:text-primary sm:flex-none"
@@ -245,7 +251,7 @@ export function InvoiceActions({
         </ButtonGroup>
 
         <ButtonGroup className="w-full sm:w-auto">
-          {canSend ? (
+          {canWrite && canSend ? (
             <Button
               variant="outline"
               className="flex-1 sm:flex-none"
@@ -255,7 +261,7 @@ export function InvoiceActions({
               <DownloadIcon />
               Download PDF
             </Button>
-          ) : (
+          ) : canWrite ? (
             <Button
               variant="outline"
               className="flex-1 sm:flex-none"
@@ -265,7 +271,7 @@ export function InvoiceActions({
               <LinkIcon />
               Share link
             </Button>
-          )}
+          ) : null}
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
@@ -281,31 +287,31 @@ export function InvoiceActions({
               <MoreHorizontalIcon />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-44 w-48">
-              {canSend && (
+              {canWrite && canSend && (
                 <DropdownMenuItem onClick={() => setShareOpen(true)}>
                   <LinkIcon className="size-4" />
                   Share link
                 </DropdownMenuItem>
               )}
-              {canMarkAsSent && (
+              {canWrite && canMarkAsSent && (
                 <DropdownMenuItem onClick={() => void handleMarkAsSent()} disabled={isBusy}>
                   <CheckCheckIcon className="size-4" />
                   {loading === "mark-sent" ? "Marking..." : "Mark as sent"}
                 </DropdownMenuItem>
               )}
-              {!canSend && (
+              {canWrite && !canSend && (
                 <DropdownMenuItem onClick={handleDownloadPdf}>
                   <DownloadIcon className="size-4" />
                   Download PDF
                 </DropdownMenuItem>
               )}
-              {canRecordPayment && (
+              {canWrite && canRecordPayment && (
                 <DropdownMenuItem onClick={() => setPaymentOpen(true)}>
                   <BanknoteCheckIcon className="size-4" />
                   Record payment
                 </DropdownMenuItem>
               )}
-              {canRemind && (
+              {canWrite && canRemind && (
                 <DropdownMenuItem
                   onClick={() => {
                     setReminderEmail(clientEmail ?? "");
@@ -316,11 +322,13 @@ export function InvoiceActions({
                   Send payment reminder
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem onClick={handleDuplicate} disabled={isBusy}>
-                <CopyIcon className="size-4" />
-                {loading === "duplicate" ? "Duplicating..." : "Duplicate"}
-              </DropdownMenuItem>
-              {canMakeRecurring ? (
+              {canWrite ? (
+                <DropdownMenuItem onClick={handleDuplicate} disabled={isBusy}>
+                  <CopyIcon className="size-4" />
+                  {loading === "duplicate" ? "Duplicating..." : "Duplicate"}
+                </DropdownMenuItem>
+              ) : null}
+              {canWrite && canMakeRecurring ? (
                 <DropdownMenuItem
                   onClick={() => setMakeRecurringOpen(true)}
                   disabled={isBusy}
@@ -329,12 +337,24 @@ export function InvoiceActions({
                   Make recurring
                 </DropdownMenuItem>
               ) : null}
-              <FollowUpQuickAddMenuItem onSelect={() => setFollowUpOpen(true)} />
-              <DropdownMenuSeparator />
-              <DropdownMenuItem variant="destructive" onClick={() => setDeleteOpen(true)}>
-                <Trash2Icon className="size-4" />
-                Delete
-              </DropdownMenuItem>
+              {canWrite ? (
+                <FollowUpQuickAddMenuItem onSelect={() => setFollowUpOpen(true)} />
+              ) : null}
+              {!canWrite ? (
+                <DropdownMenuItem onClick={() => setShareOpen(true)}>
+                  <LinkIcon className="size-4" />
+                  Share link
+                </DropdownMenuItem>
+              ) : null}
+              {canDelete ? (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem variant="destructive" onClick={() => setDeleteOpen(true)}>
+                    <Trash2Icon className="size-4" />
+                    Delete
+                  </DropdownMenuItem>
+                </>
+              ) : null}
             </DropdownMenuContent>
           </DropdownMenu>
         </ButtonGroup>

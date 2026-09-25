@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { requireApiMember } from "@/lib/api/validation";
+import { requireApiWriter } from "@/lib/api/validation";
 import { prisma } from "@/lib/db";
 import { serializeTimeEntry } from "@/lib/time-tracking/service";
 import { stopActiveTimerAndLogEntry } from "@/lib/time-tracking/timer-service";
 
 export async function POST() {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiWriter();
   if (response) return response;
 
   const company = await prisma.company.findUnique({

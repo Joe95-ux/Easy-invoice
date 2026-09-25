@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { requireApiMember, parseJsonBody, validationError } from "@/lib/api/validation";
+import {
+  requireApiMember,
+  requireApiWriter,
+  parseJsonBody,
+  validationError,
+} from "@/lib/api/validation";
 import {
   createProjectForm,
   listProjectForms,
@@ -20,7 +25,7 @@ export async function GET(_request: Request, context: RouteContext) {
 }
 
 export async function POST(request: Request, context: RouteContext) {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiWriter();
   if (response) return response;
 
   const { id: projectId } = await context.params;

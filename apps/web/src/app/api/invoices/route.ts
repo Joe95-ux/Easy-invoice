@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { requireApiMember, parseJsonBody, validationError } from "@/lib/api/validation";
+import { requireApiWriter, parseJsonBody, validationError } from "@/lib/api/validation";
 import { prisma } from "@/lib/db";
 import {
   buildInvoiceTotals,
+  documentTotalsPersistFields,
   generateNextInvoiceNumber,
   isUniqueConstraintError,
   resolveClientForInvoice,
@@ -33,7 +34,7 @@ import {
 } from "@/lib/billing/entitlements";
 
 export async function POST(request: Request) {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiWriter();
   if (response) return response;
 
   const body = await parseJsonBody<unknown>(request);
@@ -84,7 +85,26 @@ export async function POST(request: Request) {
     templateId = await getDefaultTemplateId(member.companyId);
   }
 
-  const { lineItems, totals } = buildInvoiceTotals(parsed.data);
+  const homeCurrency = member.company.currency;
+  if (
+    parsed.data.currency !== homeCurrency &&
+    !(parsed.data.exchangeRate != null && parsed.data.exchangeRate > 0)
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          "Exchange rate is required when the document currency differs from your company currency",
+      },
+      { status: 400 },
+    );
+  }
+
+  const { lineItems, totals, built } = buildInvoiceTotals({
+    ...parsed.data,
+    taxesProvided: parsed.data.taxes !== undefined,
+    homeCurrency,
+  });
+  const totalsFields = documentTotalsPersistFields(built);
 
   const installmentError = validateInstallments(parsed.data.installments ?? [], totals.total);
   if (installmentError) {
@@ -110,11 +130,8 @@ export async function POST(request: Request) {
         templateId: templateId ?? null,
         number: await generateNextInvoiceNumber(member.companyId),
         currency: parsed.data.currency,
-        subtotal: totals.subtotal,
-        taxRate: parsed.data.taxRate,
-        taxAmount: totals.taxAmount,
         discount: parsed.data.discount,
-        total: totals.total,
+        ...totalsFields,
         notes: parsed.data.notes,
         customFields,
         issueDate: parsed.data.issueDate ? new Date(parsed.data.issueDate) : new Date(),

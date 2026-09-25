@@ -49,11 +49,13 @@ import { cn } from "@/lib/utils";
 type ProductsPageContentProps = {
   initialProducts: SerializedProduct[];
   currency: string;
+  canWrite?: boolean;
 };
 
 export function ProductsPageContent({
   initialProducts,
   currency,
+  canWrite = true,
 }: ProductsPageContentProps) {
   const [products, setProducts] = useState(initialProducts);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -122,10 +124,12 @@ export function ProductsPageContent({
         title="Products"
         description="Reusable products and services for faster invoicing."
         actions={
-          <Button className={pageHeaderActionClass} onClick={openCreate}>
-            <PlusIcon className="size-4" />
-            Add product
-          </Button>
+          canWrite ? (
+            <Button className={pageHeaderActionClass} onClick={openCreate}>
+              <PlusIcon className="size-4" />
+              Add product
+            </Button>
+          ) : undefined
         }
       />
 
@@ -135,10 +139,12 @@ export function ProductsPageContent({
           title="No products yet"
           description="Save products or services once, then add them to invoices and estimates in one click."
           action={
-            <Button onClick={openCreate}>
-              <PlusIcon className="size-4" />
-              Add your first product
-            </Button>
+            canWrite ? (
+              <Button onClick={openCreate}>
+                <PlusIcon className="size-4" />
+                Add your first product
+              </Button>
+            ) : undefined
           }
         />
       ) : (
@@ -177,13 +183,18 @@ export function ProductsPageContent({
                     className="w-24 text-right [&_button]:ml-auto"
                   />
                   <TableHead className="w-28">Unit</TableHead>
-                  <TableHead className="w-14 text-right">Actions</TableHead>
+                  {canWrite ? (
+                    <TableHead className="w-14 text-right">Actions</TableHead>
+                  ) : null}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {table.pageRows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                    <TableCell
+                      colSpan={canWrite ? 5 : 4}
+                      className="h-24 text-center text-muted-foreground"
+                    >
                       {table.hasActiveFilters
                         ? "No products match your search."
                         : "No products."}
@@ -193,18 +204,29 @@ export function ProductsPageContent({
                   table.pageRows.map((product) => (
                     <TableRow key={product.id}>
                       <TableCell>
-                        <button
-                          type="button"
-                          onClick={() => openEdit(product)}
-                          className="cursor-pointer text-left"
-                        >
-                          <p className="font-medium hover:underline">{product.name}</p>
-                          {product.description ? (
-                            <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
-                              {product.description}
-                            </p>
-                          ) : null}
-                        </button>
+                        {canWrite ? (
+                          <button
+                            type="button"
+                            onClick={() => openEdit(product)}
+                            className="cursor-pointer text-left"
+                          >
+                            <p className="font-medium hover:underline">{product.name}</p>
+                            {product.description ? (
+                              <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
+                                {product.description}
+                              </p>
+                            ) : null}
+                          </button>
+                        ) : (
+                          <div>
+                            <p className="font-medium">{product.name}</p>
+                            {product.description ? (
+                              <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
+                                {product.description}
+                              </p>
+                            ) : null}
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
                         {formatMoney(product.unitPrice, currency)}
@@ -215,32 +237,34 @@ export function ProductsPageContent({
                       <TableCell className="text-muted-foreground">
                         {product.unit || "—"}
                       </TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger
-                            className={cn(
-                              "inline-flex size-8 cursor-pointer items-center justify-center rounded-[10px] border border-transparent text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
-                            )}
-                            aria-label="Product actions"
-                          >
-                            <MoreHorizontalIcon className="size-4" />
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => openEdit(product)}>
-                              <PencilIcon className="size-4" />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              variant="destructive"
-                              onClick={() => setPendingDelete(product)}
+                      {canWrite ? (
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger
+                              className={cn(
+                                "inline-flex size-8 cursor-pointer items-center justify-center rounded-[10px] border border-transparent text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+                              )}
+                              aria-label="Product actions"
                             >
-                              <Trash2Icon className="size-4" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
+                              <MoreHorizontalIcon className="size-4" />
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => openEdit(product)}>
+                                <PencilIcon className="size-4" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                variant="destructive"
+                                onClick={() => setPendingDelete(product)}
+                              >
+                                <Trash2Icon className="size-4" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      ) : null}
                     </TableRow>
                   ))
                 )}
@@ -262,16 +286,18 @@ export function ProductsPageContent({
         </Card>
       )}
 
-      <ProductDialog
-        open={dialogOpen}
-        onOpenChange={(open) => {
-          setDialogOpen(open);
-          if (!open) setEditing(null);
-        }}
-        product={editing}
-        currency={currency}
-        onSaved={handleSaved}
-      />
+      {canWrite ? (
+        <ProductDialog
+          open={dialogOpen}
+          onOpenChange={(open) => {
+            setDialogOpen(open);
+            if (!open) setEditing(null);
+          }}
+          product={editing}
+          currency={currency}
+          onSaved={handleSaved}
+        />
+      ) : null}
 
       <AlertDialog
         open={Boolean(pendingDelete)}

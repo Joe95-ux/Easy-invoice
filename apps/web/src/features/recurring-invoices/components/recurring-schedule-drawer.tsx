@@ -25,6 +25,7 @@ import {
   createDefaultSections,
   type LineItemInput,
 } from "@/features/invoices/components/invoice-line-items";
+import { DocumentTaxPanel } from "@/features/documents/components/document-tax-panel";
 import {
   RecurringScheduleFields,
   type RecurringScheduleFormState,
@@ -36,6 +37,8 @@ import {
 } from "@/lib/line-item-sections";
 import { frequencyLabel, localDateOnly } from "@/lib/recurring-invoices-shared";
 import type { SerializedRecurringInvoice } from "@/lib/recurring-invoices-shared";
+import type { AppliedTax, CompanyTaxRate } from "@/lib/schemas/tax-rates";
+import { getDefaultTaxRate, primaryTaxRate, resolveAppliedTaxes } from "@/lib/tax-rates";
 
 export type RecurringInvoiceOption = {
   id: string;
@@ -59,6 +62,10 @@ type RecurringScheduleDrawerProps = {
   invoices?: RecurringInvoiceOption[];
   clients?: RecurringClientOption[];
   currency: string;
+  homeCurrency?: string;
+  companyTaxRates?: CompanyTaxRate[];
+  taxInclusiveDefault?: boolean;
+  taxCompoundDefault?: boolean;
   editing?: SerializedRecurringInvoice | null;
   /** When creating from an invoice detail/list action, skip the picker. */
   preselectedInvoiceId?: string | null;
@@ -105,16 +112,24 @@ export function RecurringScheduleDrawer({
   invoices = [],
   clients = [],
   currency,
+  homeCurrency,
+  companyTaxRates = [],
+  taxInclusiveDefault = false,
+  taxCompoundDefault = false,
   editing = null,
   preselectedInvoiceId = null,
   onSaved,
 }: RecurringScheduleDrawerProps) {
   const isEdit = mode === "edit";
+  const resolvedHomeCurrency = homeCurrency ?? currency;
   const { isPro } = useCompanyPlan();
   const [schedule, setSchedule] = useState<RecurringScheduleFormState>(defaultScheduleState());
   const [invoiceId, setInvoiceId] = useState("");
   const [clientId, setClientId] = useState("");
-  const [taxRatePercent, setTaxRatePercent] = useState("0");
+  const [taxes, setTaxes] = useState<AppliedTax[]>([]);
+  const [taxInclusive, setTaxInclusive] = useState(false);
+  const [taxCompound, setTaxCompound] = useState(false);
+  const [exchangeRate, setExchangeRate] = useState<number | null>(null);
   const [discount, setDiscount] = useState("0");
   const [notes, setNotes] = useState("");
   const [sections, setSections] =
@@ -161,7 +176,15 @@ export function RecurringScheduleDrawer({
           autoSend: editing.autoSend,
         });
         setClientId(editing.client.id);
-        setTaxRatePercent(String(Number((editing.taxRate * 100).toFixed(4))));
+        setTaxes(
+          resolveAppliedTaxes({
+            taxes: editing.taxes,
+            taxRate: editing.taxRate,
+          }),
+        );
+        setTaxInclusive(editing.taxInclusive);
+        setTaxCompound(editing.taxCompound);
+        setExchangeRate(editing.exchangeRate);
         setDiscount(String(editing.discount));
         setNotes(editing.notes ?? "");
         const grouped = groupLineItemsIntoSections(
@@ -169,6 +192,7 @@ export function RecurringScheduleDrawer({
             description: item.description,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
+            taxable: item.taxable,
             sortOrder: item.sortOrder,
             sectionTitle: item.sectionTitle,
             sectionSortOrder: item.sectionSortOrder,
@@ -182,6 +206,7 @@ export function RecurringScheduleDrawer({
                   description: item.description,
                   quantity: item.quantity,
                   unitPrice: item.unitPrice,
+                  taxable: item.taxable !== false,
                 })),
               }))
             : createDefaultSections(),
@@ -196,14 +221,31 @@ export function RecurringScheduleDrawer({
           defaultScheduleState(preselected?.clientName, preselected?.number),
         );
         setClientId("");
-        setTaxRatePercent("0");
+        const defaultTax = getDefaultTaxRate(companyTaxRates);
+        setTaxes(
+          defaultTax
+            ? [{ id: defaultTax.id, name: defaultTax.name, rate: defaultTax.rate }]
+            : [],
+        );
+        setTaxInclusive(taxInclusiveDefault);
+        setTaxCompound(taxCompoundDefault);
+        setExchangeRate(null);
         setDiscount("0");
         setNotes("");
         setSections(createDefaultSections());
       }
     }
     wasOpen.current = open;
-  }, [open, isEdit, editing, preselectedInvoiceId, invoices]);
+  }, [
+    open,
+    isEdit,
+    editing,
+    preselectedInvoiceId,
+    invoices,
+    companyTaxRates,
+    taxInclusiveDefault,
+    taxCompoundDefault,
+  ]);
 
   function patchSchedule(patch: Partial<RecurringScheduleFormState>) {
     setSchedule((prev) => ({ ...prev, ...patch }));
@@ -313,12 +355,7 @@ export function RecurringScheduleDrawer({
       return;
     }
 
-    const parsedTaxPercent = Number(taxRatePercent);
     const parsedDiscount = Number(discount);
-    if (!Number.isFinite(parsedTaxPercent) || parsedTaxPercent < 0 || parsedTaxPercent > 100) {
-      toast.error("Tax rate must be between 0 and 100");
-      return;
-    }
     if (!Number.isFinite(parsedDiscount) || parsedDiscount < 0) {
       toast.error("Discount must be zero or more");
       return;
@@ -349,10 +386,17 @@ export function RecurringScheduleDrawer({
           dueDaysAfterIssue: parsedDueDays,
           autoSend: schedule.autoSend,
           currency: editing.currency,
-          taxRate: parsedTaxPercent / 100,
+          taxRate: primaryTaxRate(taxes),
+          taxes,
+          taxInclusive,
+          taxCompound,
+          exchangeRate,
           discount: parsedDiscount,
           notes: notes.trim() || null,
-          lineItems,
+          lineItems: lineItems.map((item) => ({
+            ...item,
+            taxable: item.taxable !== false,
+          })),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -471,32 +515,31 @@ export function RecurringScheduleDrawer({
 
             {isEdit ? (
               <>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="recurring-tax">Tax %</Label>
-                    <Input
-                      id="recurring-tax"
-                      type="number"
-                      min={0}
-                      max={100}
-                      step="0.01"
-                      value={taxRatePercent}
-                      onChange={(e) => setTaxRatePercent(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="recurring-discount">
-                      Discount ({editing?.currency ?? currency})
-                    </Label>
-                    <Input
-                      id="recurring-discount"
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      value={discount}
-                      onChange={(e) => setDiscount(e.target.value)}
-                    />
-                  </div>
+                <DocumentTaxPanel
+                  companyTaxRates={companyTaxRates}
+                  taxes={taxes}
+                  onTaxesChange={setTaxes}
+                  taxInclusive={taxInclusive}
+                  onTaxInclusiveChange={setTaxInclusive}
+                  taxCompound={taxCompound}
+                  onTaxCompoundChange={setTaxCompound}
+                  currency={editing?.currency ?? currency}
+                  homeCurrency={resolvedHomeCurrency}
+                  exchangeRate={exchangeRate}
+                  onExchangeRateChange={setExchangeRate}
+                />
+                <div className="space-y-2">
+                  <Label htmlFor="recurring-discount">
+                    Discount ({editing?.currency ?? currency})
+                  </Label>
+                  <Input
+                    id="recurring-discount"
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={discount}
+                    onChange={(e) => setDiscount(e.target.value)}
+                  />
                 </div>
 
                 <div className="space-y-2">

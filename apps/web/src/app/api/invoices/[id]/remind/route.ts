@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import {
   parseJsonBody,
-  requireApiMember,
+  requireApiWriter,
   validationError,
 } from "@/lib/api/validation";
 import { ReminderKind } from "@/lib/db";
@@ -16,7 +16,7 @@ const remindSchema = z.object({
 type RouteContext = { params: Promise<{ id: string }> };
 
 export async function POST(request: Request, context: RouteContext) {
-  const { member, response } = await requireApiMember();
+  const { member, response } = await requireApiWriter();
   if (response) return response;
 
   const { id } = await context.params;
