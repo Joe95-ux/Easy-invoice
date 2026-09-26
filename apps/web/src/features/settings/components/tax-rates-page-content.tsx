@@ -1,35 +1,22 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2Icon, PlusIcon, StarIcon, Trash2Icon } from "lucide-react";
+import { Loader2Icon, PlusIcon } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader, pageHeaderActionClass } from "@/components/app-shell/page-header";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { newFormFieldId } from "@/lib/project-form-ids";
+import { TaxRateDrawer } from "@/features/settings/components/tax-rate-drawer";
+import { TaxRatesTable } from "@/features/settings/components/tax-rates-table";
 import {
   updateCompanyTaxRatesSchema,
   type CompanyTaxRate,
 } from "@/lib/schemas/tax-rates";
 import {
-  formatTaxPercent,
   MAX_COMPANY_TAX_RATES,
   normalizeCompanyTaxRates,
 } from "@/lib/tax-rates";
 import { cn } from "@/lib/utils";
-
-function emptyRate(): CompanyTaxRate {
-  return {
-    id: newFormFieldId(),
-    name: "",
-    rate: 0,
-    region: null,
-    isDefault: false,
-    enabled: true,
-  };
-}
 
 export function TaxRatesPageContent() {
   const [taxRates, setTaxRates] = useState<CompanyTaxRate[]>([]);
@@ -39,6 +26,9 @@ export function TaxRatesPageContent() {
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saved" | "error">("idle");
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [editing, setEditing] = useState<CompanyTaxRate | null>(null);
+
   const taxRatesRef = useRef(taxRates);
   taxRatesRef.current = taxRates;
   const taxInclusiveRef = useRef(taxInclusiveDefault);
@@ -150,33 +140,44 @@ export function TaxRatesPageContent() {
     return () => window.clearTimeout(timer);
   }, [dirty, loading, persist, taxRates, taxInclusiveDefault, taxCompoundDefault]);
 
+  useEffect(() => {
+    if (saveState !== "error" || !dirty || loading || saving) return;
+    const timer = window.setTimeout(() => {
+      void persist(
+        taxRatesRef.current,
+        taxInclusiveRef.current,
+        taxCompoundRef.current,
+        { silent: true },
+      );
+    }, 2500);
+    return () => window.clearTimeout(timer);
+  }, [saveState, dirty, loading, saving, persist]);
+
   function applyRates(next: CompanyTaxRate[]) {
     setTaxRates(next);
     bumpDirty();
   }
 
-  function updateRate(id: string, patch: Partial<CompanyTaxRate>) {
-    applyRates(
-      taxRates.map((rate) => {
-        if (rate.id !== id) {
-          if (patch.isDefault === true) return { ...rate, isDefault: false };
-          return rate;
-        }
-        return { ...rate, ...patch };
-      }),
-    );
-  }
-
-  function addRate() {
-    if (taxRates.length >= MAX_COMPANY_TAX_RATES) {
-      toast.error(`You can add at most ${MAX_COMPANY_TAX_RATES} tax rates`);
-      return;
+  function handleDrawerSubmit(rate: CompanyTaxRate) {
+    if (editing) {
+      applyRates(
+        taxRates.map((row) => {
+          if (row.id === editing.id) return rate;
+          if (rate.isDefault) return { ...row, isDefault: false };
+          return row;
+        }),
+      );
+    } else {
+      if (taxRates.length >= MAX_COMPANY_TAX_RATES) {
+        toast.error(`You can add at most ${MAX_COMPANY_TAX_RATES} tax rates`);
+        return;
+      }
+      const next = rate.isDefault
+        ? taxRates.map((row) => ({ ...row, isDefault: false }))
+        : taxRates;
+      applyRates([...next, rate]);
     }
-    applyRates([...taxRates, emptyRate()]);
-  }
-
-  function removeRate(id: string) {
-    applyRates(taxRates.filter((rate) => rate.id !== id));
+    setEditing(null);
   }
 
   const saveHint =
@@ -190,11 +191,13 @@ export function TaxRatesPageContent() {
             ? "Save failed"
             : null;
 
+  const atLimit = taxRates.length >= MAX_COMPANY_TAX_RATES;
+
   return (
     <>
       <PageHeader
         title="Tax rates"
-        description="Manage named tax rates for invoices, estimates, and recurring schedules."
+        description="Named rates for invoices, estimates, and recurring schedules — with defaults for how tax is calculated."
         actions={
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
             {saveHint ? (
@@ -213,8 +216,15 @@ export function TaxRatesPageContent() {
             ) : null}
             <Button
               className={pageHeaderActionClass}
-              disabled={loading || taxRates.length >= MAX_COMPANY_TAX_RATES}
-              onClick={addRate}
+              disabled={loading || atLimit}
+              onClick={() => {
+                if (atLimit) {
+                  toast.error(`You can add at most ${MAX_COMPANY_TAX_RATES} tax rates`);
+                  return;
+                }
+                setEditing(null);
+                setDrawerOpen(true);
+              }}
             >
               <PlusIcon className="size-4" />
               Add tax rate
@@ -229,158 +239,98 @@ export function TaxRatesPageContent() {
         </div>
       ) : (
         <div className="space-y-6">
-          <div className="flex flex-col gap-3 rounded-xl border border-border/70 bg-muted/10 px-4 py-3 sm:flex-row sm:items-stretch sm:gap-0">
-            <div className="flex flex-1 items-center justify-between gap-4 sm:pr-4">
-              <div className="min-w-0">
-                <p className="text-sm font-medium">Tax-inclusive prices by default</p>
-                <p className="text-xs text-muted-foreground">
-                  When on, new documents treat line prices as including tax.
-                </p>
-              </div>
-              <Switch
-                checked={taxInclusiveDefault}
-                onCheckedChange={(checked) => {
-                  setTaxInclusiveDefault(checked);
-                  bumpDirty();
-                }}
-                aria-label="Tax-inclusive prices by default"
-              />
-            </div>
-            <div className="hidden w-px bg-border/70 sm:block" />
-            <div className="flex flex-1 items-center justify-between gap-4 border-t border-border/50 pt-3 sm:border-t-0 sm:pl-4 sm:pt-0">
-              <div className="min-w-0">
-                <p className="text-sm font-medium">Compound tax by default</p>
-                <p className="text-xs text-muted-foreground">
-                  When on with multiple taxes, each rate stacks on prior tax.
-                </p>
-              </div>
-              <Switch
-                checked={taxCompoundDefault}
-                onCheckedChange={(checked) => {
-                  setTaxCompoundDefault(checked);
-                  bumpDirty();
-                }}
-                aria-label="Compound tax by default"
-              />
-            </div>
-          </div>
-
-          {taxRates.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border/80 px-6 py-12 text-center">
-              <p className="text-sm font-medium">No tax rates yet</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Add VAT, sales tax, or other rates your documents can pick from.
+          <section className="overflow-hidden rounded-xl border border-border/80 bg-card">
+            <div className="border-b border-border/70 px-4 py-3">
+              <h2 className="text-sm font-medium text-foreground">Defaults</h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Applied when creating new documents. Individual documents can still override.
               </p>
-              <Button className="mt-4" variant="outline" onClick={addRate}>
-                <PlusIcon className="size-4" />
-                Add tax rate
-              </Button>
             </div>
-          ) : (
-            <ul className="space-y-3">
-              {taxRates.map((rate) => (
-                <li
-                  key={rate.id}
-                  className={cn(
-                    "rounded-xl border border-border/70 bg-card p-4",
-                    !rate.enabled && "opacity-70",
-                  )}
+            <div className="divide-y divide-border/70">
+              <label className="flex cursor-pointer items-center justify-between gap-4 px-4 py-3.5">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">Tax-inclusive prices</p>
+                  <p className="text-xs text-muted-foreground">
+                    Line prices already include tax
+                  </p>
+                </div>
+                <Switch
+                  checked={taxInclusiveDefault}
+                  onCheckedChange={(checked) => {
+                    setTaxInclusiveDefault(checked);
+                    bumpDirty();
+                  }}
+                  aria-label="Tax-inclusive prices by default"
+                />
+              </label>
+              <label className="flex cursor-pointer items-center justify-between gap-4 px-4 py-3.5">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">Compound stacked taxes</p>
+                  <p className="text-xs text-muted-foreground">
+                    Each rate applies to the base plus prior tax
+                  </p>
+                </div>
+                <Switch
+                  checked={taxCompoundDefault}
+                  onCheckedChange={(checked) => {
+                    setTaxCompoundDefault(checked);
+                    bumpDirty();
+                  }}
+                  aria-label="Compound tax by default"
+                />
+              </label>
+            </div>
+          </section>
+
+          <section className="space-y-3">
+            <div className="flex items-end justify-between gap-3 px-0.5">
+              <div>
+                <h2 className="text-sm font-medium text-foreground">Library</h2>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {taxRates.length === 0
+                    ? "Rates available when creating documents"
+                    : `${taxRates.length} rate${taxRates.length === 1 ? "" : "s"}`}
+                </p>
+              </div>
+              {taxRates.length > 0 ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={atLimit}
+                  className="text-muted-foreground"
+                  onClick={() => {
+                    setEditing(null);
+                    setDrawerOpen(true);
+                  }}
                 >
-                  <div className="grid gap-3 sm:grid-cols-[1fr_7rem_7rem_auto] sm:items-end">
-                    <div className="space-y-1.5">
-                      <Label htmlFor={`tax-name-${rate.id}`}>Name</Label>
-                      <Input
-                        id={`tax-name-${rate.id}`}
-                        value={rate.name}
-                        placeholder="e.g. VAT"
-                        onChange={(e) => updateRate(rate.id, { name: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor={`tax-rate-${rate.id}`}>Rate (%)</Label>
-                      <Input
-                        id={`tax-rate-${rate.id}`}
-                        type="number"
-                        min={0}
-                        max={100}
-                        step="0.01"
-                        value={Number((rate.rate * 100).toFixed(4))}
-                        onChange={(e) => {
-                          const pct = Number(e.target.value);
-                          updateRate(rate.id, {
-                            rate: Number.isFinite(pct)
-                              ? Math.min(1, Math.max(0, pct / 100))
-                              : 0,
-                          });
-                        }}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor={`tax-region-${rate.id}`}>Region</Label>
-                      <Input
-                        id={`tax-region-${rate.id}`}
-                        value={rate.region ?? ""}
-                        placeholder="Optional"
-                        onChange={(e) =>
-                          updateRate(rate.id, {
-                            region: e.target.value.trim() ? e.target.value : null,
-                          })
-                        }
-                      />
-                    </div>
-                    <div className="flex items-center gap-1 sm:justify-end sm:pb-0.5">
-                      <Button
-                        type="button"
-                        variant={rate.isDefault ? "secondary" : "ghost"}
-                        size="icon-sm"
-                        title={rate.isDefault ? "Default rate" : "Set as default"}
-                        onClick={() =>
-                          updateRate(rate.id, { isDefault: true, enabled: true })
-                        }
-                      >
-                        <StarIcon
-                          className={cn(
-                            "size-4",
-                            rate.isDefault && "fill-current text-amber-500",
-                          )}
-                        />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        className="text-muted-foreground hover:text-destructive"
-                        onClick={() => removeRate(rate.id)}
-                        aria-label={`Delete ${rate.name || "tax rate"}`}
-                      >
-                        <Trash2Icon className="size-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-border/50 pt-3">
-                    <p className="text-xs text-muted-foreground">
-                      Stored as {formatTaxPercent(rate.rate)}%
-                      {rate.isDefault ? " · Default" : ""}
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor={`tax-enabled-${rate.id}`} className="text-xs">
-                        Enabled
-                      </Label>
-                      <Switch
-                        id={`tax-enabled-${rate.id}`}
-                        checked={rate.enabled}
-                        onCheckedChange={(checked) =>
-                          updateRate(rate.id, { enabled: checked })
-                        }
-                      />
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
+                  <PlusIcon className="size-3.5" />
+                  Add
+                </Button>
+              ) : null}
+            </div>
+
+            <TaxRatesTable
+              taxRates={taxRates}
+              onChange={applyRates}
+              onEdit={(rate) => {
+                setEditing(rate);
+                setDrawerOpen(true);
+              }}
+            />
+          </section>
         </div>
       )}
+
+      <TaxRateDrawer
+        open={drawerOpen}
+        onOpenChange={(open) => {
+          setDrawerOpen(open);
+          if (!open) setEditing(null);
+        }}
+        rate={editing}
+        onSubmit={handleDrawerSubmit}
+      />
     </>
   );
 }
