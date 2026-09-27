@@ -7,7 +7,7 @@ export default async function TaxRatesSettingsPage() {
   await requireCompanyAdmin();
 
   return (
-    <PageScroll maxWidth="85rem">
+    <PageScroll maxWidth="50rem">
       <nav className="mb-5 text-sm text-muted-foreground" aria-label="Breadcrumb">
         <ol className="flex flex-wrap items-center gap-1.5">
           <li>

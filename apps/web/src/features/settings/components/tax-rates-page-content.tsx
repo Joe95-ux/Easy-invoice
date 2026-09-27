@@ -239,86 +239,50 @@ export function TaxRatesPageContent() {
         </div>
       ) : (
         <div className="space-y-6">
-          <section className="overflow-hidden rounded-xl border border-border/80 bg-card">
-            <div className="border-b border-border/70 px-4 py-3">
-              <h2 className="text-sm font-medium text-foreground">Defaults</h2>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Applied when creating new documents. Individual documents can still override.
-              </p>
-            </div>
-            <div className="divide-y divide-border/70">
-              <label className="flex cursor-pointer items-center justify-between gap-4 px-4 py-3.5">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium">Tax-inclusive prices</p>
-                  <p className="text-xs text-muted-foreground">
-                    Line prices already include tax
-                  </p>
-                </div>
-                <Switch
-                  checked={taxInclusiveDefault}
-                  onCheckedChange={(checked) => {
-                    setTaxInclusiveDefault(checked);
-                    bumpDirty();
-                  }}
-                  aria-label="Tax-inclusive prices by default"
-                />
-              </label>
-              <label className="flex cursor-pointer items-center justify-between gap-4 px-4 py-3.5">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium">Compound stacked taxes</p>
-                  <p className="text-xs text-muted-foreground">
-                    Each rate applies to the base plus prior tax
-                  </p>
-                </div>
-                <Switch
-                  checked={taxCompoundDefault}
-                  onCheckedChange={(checked) => {
-                    setTaxCompoundDefault(checked);
-                    bumpDirty();
-                  }}
-                  aria-label="Compound tax by default"
-                />
-              </label>
-            </div>
-          </section>
-
-          <section className="space-y-3">
-            <div className="flex items-end justify-between gap-3 px-0.5">
-              <div>
-                <h2 className="text-sm font-medium text-foreground">Library</h2>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {taxRates.length === 0
-                    ? "Rates available when creating documents"
-                    : `${taxRates.length} rate${taxRates.length === 1 ? "" : "s"}`}
+          <div className="flex flex-col gap-3 rounded-xl border border-border/70 bg-muted/10 px-4 py-3 sm:flex-row sm:items-stretch sm:gap-0">
+            <div className="flex flex-1 items-center justify-between gap-4 sm:pr-4">
+              <div className="min-w-0">
+                <p className="text-sm font-medium">Tax-inclusive prices by default</p>
+                <p className="text-xs text-muted-foreground">
+                  When on, new documents treat line prices as including tax.
                 </p>
               </div>
-              {taxRates.length > 0 ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled={atLimit}
-                  className="text-muted-foreground"
-                  onClick={() => {
-                    setEditing(null);
-                    setDrawerOpen(true);
-                  }}
-                >
-                  <PlusIcon className="size-3.5" />
-                  Add
-                </Button>
-              ) : null}
+              <Switch
+                checked={taxInclusiveDefault}
+                onCheckedChange={(checked) => {
+                  setTaxInclusiveDefault(checked);
+                  bumpDirty();
+                }}
+                aria-label="Tax-inclusive prices by default"
+              />
             </div>
+            <div className="hidden w-px bg-border/70 sm:block" />
+            <div className="flex flex-1 items-center justify-between gap-4 border-t border-border/50 pt-3 sm:border-t-0 sm:pl-4 sm:pt-0">
+              <div className="min-w-0">
+                <p className="text-sm font-medium">Compound tax by default</p>
+                <p className="text-xs text-muted-foreground">
+                  When on with multiple taxes, each rate stacks on prior tax.
+                </p>
+              </div>
+              <Switch
+                checked={taxCompoundDefault}
+                onCheckedChange={(checked) => {
+                  setTaxCompoundDefault(checked);
+                  bumpDirty();
+                }}
+                aria-label="Compound tax by default"
+              />
+            </div>
+          </div>
 
-            <TaxRatesTable
-              taxRates={taxRates}
-              onChange={applyRates}
-              onEdit={(rate) => {
-                setEditing(rate);
-                setDrawerOpen(true);
-              }}
-            />
-          </section>
+          <TaxRatesTable
+            taxRates={taxRates}
+            onChange={applyRates}
+            onEdit={(rate) => {
+              setEditing(rate);
+              setDrawerOpen(true);
+            }}
+          />
         </div>
       )}
 
