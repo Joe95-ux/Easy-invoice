@@ -60,9 +60,9 @@ export function TaxRatesTable({
 
   return (
     <div className="overflow-hidden rounded-xl border border-border/80 bg-card">
-      <div className="hidden grid-cols-[minmax(0,1.4fr)_5.5rem_6.5rem_5rem_4.5rem_2.25rem] gap-2 border-b border-border/70 bg-muted/25 px-3 py-2.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground sm:grid">
+      <div className="hidden grid-cols-[minmax(0,1.35fr)_6rem_minmax(0,0.75fr)_5rem_4.5rem_2.25rem] gap-x-5 border-b border-border/70 bg-muted/25 px-3 py-2.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground sm:grid">
         <span>Name</span>
-        <span className="text-right">Rate</span>
+        <span>Rate</span>
         <span>Region</span>
         <span className="text-center">Default</span>
         <span className="text-center">Enabled</span>
@@ -85,7 +85,7 @@ export function TaxRatesTable({
             <li key={rate.id}>
               <div
                 className={cn(
-                  "grid grid-cols-[1fr_auto] items-center gap-x-2 gap-y-2.5 px-3 py-3 transition-colors sm:grid-cols-[minmax(0,1.4fr)_5.5rem_6.5rem_5rem_4.5rem_2.25rem] sm:gap-2",
+                  "grid grid-cols-[1fr_auto] items-center gap-x-2 gap-y-2.5 px-3 py-3 transition-colors sm:grid-cols-[minmax(0,1.35fr)_6rem_minmax(0,0.75fr)_5rem_4.5rem_2.25rem] sm:gap-x-5 sm:gap-y-2",
                   !rate.enabled && "bg-muted/20",
                 )}
               >
@@ -105,7 +105,7 @@ export function TaxRatesTable({
                   </p>
                 </button>
 
-                <p className="hidden text-right text-sm tabular-nums text-muted-foreground sm:block">
+                <p className="hidden text-sm tabular-nums text-muted-foreground sm:block">
                   {formatTaxPercent(rate.rate)}%
                 </p>
 
