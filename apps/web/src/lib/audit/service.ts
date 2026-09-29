@@ -1,19 +1,43 @@
 import { Prisma, type AuditAction, type AuditCategory } from "@easy-invoice/db";
+import { endOfDay, parseISO, startOfDay, isValid } from "date-fns";
 import { prisma } from "@/lib/db";
 import { formatRevisionActor, resolveMemberProfile } from "@/lib/member-email";
 import { notifyAuditAlert } from "./alerts";
+import { DEFAULT_AUDIT_PAGE_SIZE, MAX_AUDIT_PAGE_SIZE } from "./constants";
 import type { AuditEventListItem, RecordAuditEventInput } from "./types";
 
-const DEFAULT_PAGE_SIZE = 50;
-const MAX_PAGE_SIZE = 100;
 const MAX_EXPORT_ROWS = 5000;
+
+type AuditDateRange = {
+  from?: string | null;
+  to?: string | null;
+};
 
 type ListAuditEventsInput = {
   companyId: string;
   category?: AuditCategory;
-  cursor?: string;
-  limit?: number;
+  from?: string | null;
+  to?: string | null;
+  page?: number;
+  pageSize?: number;
 };
+
+function parseDateBound(value: string | null | undefined, end: boolean): Date | null {
+  if (!value) return null;
+  const parsed = parseISO(value);
+  if (!isValid(parsed)) return null;
+  return end ? endOfDay(parsed) : startOfDay(parsed);
+}
+
+function buildCreatedAtFilter(range: AuditDateRange): Prisma.DateTimeFilter | undefined {
+  const gte = parseDateBound(range.from, false);
+  const lte = parseDateBound(range.to, true);
+  if (!gte && !lte) return undefined;
+  return {
+    ...(gte ? { gte } : {}),
+    ...(lte ? { lte } : {}),
+  };
+}
 
 async function resolveActorMetadata(memberId?: string | null) {
   if (!memberId) return {};
@@ -64,10 +88,44 @@ export async function recordAuditEvent(input: RecordAuditEventInput) {
   return event;
 }
 
+/**
+ * Record a member sign-in once per Clerk session (deduped by sessionId).
+ */
+export async function recordMemberSignIn(input: {
+  companyId: string;
+  memberId: string;
+  sessionId: string;
+}) {
+  const sessionId = input.sessionId.trim();
+  if (!sessionId) return null;
+
+  const existing = await prisma.auditEvent.findFirst({
+    where: {
+      companyId: input.companyId,
+      memberId: input.memberId,
+      action: "MEMBER_SIGNED_IN",
+      metadata: { path: ["sessionId"], equals: sessionId },
+    },
+    select: { id: true },
+  });
+  if (existing) return existing;
+
+  return recordAuditEvent({
+    companyId: input.companyId,
+    memberId: input.memberId,
+    category: "AUTH",
+    action: "MEMBER_SIGNED_IN",
+    summary: "Signed in",
+    entityType: "session",
+    entityId: sessionId,
+    metadata: { sessionId },
+  });
+}
+
 function toListItem(event: {
   id: string;
   category: AuditCategory;
-  action: import("@easy-invoice/db").AuditAction;
+  action: AuditAction;
   summary: string;
   entityType: string | null;
   entityId: string | null;
@@ -101,40 +159,87 @@ function toListItem(event: {
   };
 }
 
-export async function listAuditEvents(input: ListAuditEventsInput) {
-  const limit = Math.min(Math.max(input.limit ?? DEFAULT_PAGE_SIZE, 1), MAX_PAGE_SIZE);
-
-  const events = await prisma.auditEvent.findMany({
-    where: {
-      companyId: input.companyId,
-      ...(input.category ? { category: input.category } : {}),
-      ...(input.cursor ? { id: { lt: input.cursor } } : {}),
-    },
-    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    take: limit + 1,
-    include: {
-      member: {
-        select: { name: true, email: true },
-      },
-    },
-  });
-
-  const hasMore = events.length > limit;
-  const page = hasMore ? events.slice(0, limit) : events;
-  const nextCursor = hasMore ? page[page.length - 1]?.id ?? null : null;
-
+function listWhere(input: {
+  companyId: string;
+  category?: AuditCategory;
+  from?: string | null;
+  to?: string | null;
+}): Prisma.AuditEventWhereInput {
+  const createdAt = buildCreatedAtFilter({ from: input.from, to: input.to });
   return {
-    events: page.map(toListItem),
-    nextCursor,
+    companyId: input.companyId,
+    ...(input.category ? { category: input.category } : {}),
+    ...(createdAt ? { createdAt } : {}),
   };
 }
 
-export async function listAuditEventsForExport(companyId: string, category?: AuditCategory) {
+export async function listAuditEvents(input: ListAuditEventsInput) {
+  const pageSize = Math.min(
+    Math.max(input.pageSize ?? DEFAULT_AUDIT_PAGE_SIZE, 1),
+    MAX_AUDIT_PAGE_SIZE,
+  );
+  const page = Math.max(input.page ?? 1, 1);
+  const where = listWhere(input);
+
+  const [totalCount, events] = await Promise.all([
+    prisma.auditEvent.count({ where }),
+    prisma.auditEvent.findMany({
+      where,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      include: {
+        member: {
+          select: { name: true, email: true },
+        },
+      },
+    }),
+  ]);
+
+  const pageCount = Math.max(1, Math.ceil(totalCount / pageSize));
+  const safePage = Math.min(page, pageCount);
+  // If page was past the end (e.g. after filter change), refetch last page.
+  if (safePage !== page && totalCount > 0) {
+    const retry = await prisma.auditEvent.findMany({
+      where,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      skip: (safePage - 1) * pageSize,
+      take: pageSize,
+      include: {
+        member: {
+          select: { name: true, email: true },
+        },
+      },
+    });
+    return {
+      events: retry.map(toListItem),
+      totalCount,
+      page: safePage,
+      pageSize,
+      pageCount,
+    };
+  }
+
+  return {
+    events: events.map(toListItem),
+    totalCount,
+    page: safePage,
+    pageSize,
+    pageCount,
+  };
+}
+
+export async function listAuditEventsForExport(
+  companyId: string,
+  options?: { category?: AuditCategory; from?: string | null; to?: string | null },
+) {
   const events = await prisma.auditEvent.findMany({
-    where: {
+    where: listWhere({
       companyId,
-      ...(category ? { category } : {}),
-    },
+      category: options?.category,
+      from: options?.from,
+      to: options?.to,
+    }),
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: MAX_EXPORT_ROWS,
     include: {

@@ -4,6 +4,7 @@ export const AUDIT_CATEGORY_LABELS: Record<AuditCategory, string> = {
   TEAM: "Team",
   SETTINGS: "Settings",
   DOCUMENT: "Documents",
+  AUTH: "Sign-in",
 };
 
 export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
@@ -12,6 +13,7 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   MEMBER_JOINED: "Member joined",
   MEMBER_ROLE_CHANGED: "Role changed",
   MEMBER_REMOVED: "Member removed",
+  MEMBER_SIGNED_IN: "Signed in",
   COMPANY_PROFILE_UPDATED: "Profile updated",
   COMPANY_LOGO_UPLOADED: "Logo uploaded",
   COMPANY_LOGO_REMOVED: "Logo removed",

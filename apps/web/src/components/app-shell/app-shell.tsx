@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppHeader } from "@/components/app-shell/app-header";
 import { ActiveCompanySync } from "@/components/app-shell/active-company-sync";
+import { AuditSessionRecorder } from "@/components/app-shell/audit-session-recorder";
 import { AppSidebar } from "@/components/app-shell/app-sidebar";
 import { AppWorkspaceFooter } from "@/components/app-shell/app-workspace-footer";
 import { CompanyPlanProvider } from "@/components/billing/company-plan-context";
@@ -90,6 +91,7 @@ export function AppShell({
       <TimeTimerProvider activeCompanyId={activeCompanyId}>
         <CompanyPlanProvider plan={plan}>
           <ActiveCompanySync />
+          <AuditSessionRecorder />
           {!immersive ? (
             <AppSidebar
               activeCompanyId={activeCompanyId}

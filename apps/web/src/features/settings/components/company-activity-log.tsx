@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader, pageHeaderActionClass } from "@/components/app-shell/page-header";
+import { TablePagination } from "@/components/data-table/table-pagination";
 import {
   Popover,
   PopoverContent,
@@ -20,6 +21,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  ActivityDateRangePicker,
+  DEFAULT_ACTIVITY_DATE_RANGE,
+  type ActivityDateRangeValue,
+} from "@/features/settings/components/activity-date-range-picker";
+import { AUDIT_PAGE_SIZE_OPTIONS } from "@/lib/audit/constants";
 import type { AuditEventListItem } from "@/lib/audit/types";
 import type { AuditCategory } from "@/lib/db";
 import { formatDateTime } from "@/lib/invoices";
@@ -28,23 +35,29 @@ const CATEGORY_LABELS: Record<AuditCategory, string> = {
   TEAM: "Team",
   SETTINGS: "Settings",
   DOCUMENT: "Documents",
+  AUTH: "Sign-in",
 };
 
-const CATEGORY_VARIANT: Record<AuditCategory, "default" | "info" | "warning"> = {
+const CATEGORY_VARIANT: Record<
+  AuditCategory,
+  "default" | "info" | "warning" | "secondary"
+> = {
   TEAM: "default",
   SETTINGS: "info",
   DOCUMENT: "warning",
+  AUTH: "secondary",
 };
 
 const CATEGORY_FILTER_ITEMS: { value: AuditCategory | "ALL"; label: string }[] = [
   { value: "ALL", label: "All activity" },
+  { value: "AUTH", label: "Sign-in" },
   { value: "TEAM", label: "Team" },
   { value: "SETTINGS", label: "Settings" },
   { value: "DOCUMENT", label: "Documents" },
 ];
 
 export const ACTIVITY_LOG_INFO =
-  "Immutable record of team, settings, and destructive changes. Admins receive email alerts for sensitive actions. Export to CSV for disputes or record-keeping.";
+  "Immutable record of sign-ins, team changes, settings updates, and destructive actions. Admins receive email alerts for sensitive actions. Export to CSV for disputes or record-keeping.";
 
 export function ActivityLogInfoPopover() {
   return (
@@ -69,36 +82,62 @@ export function ActivityLogInfoPopover() {
 
 type ActivityLogPageContentProps = {
   initialEvents: AuditEventListItem[];
-  initialCursor: string | null;
+  initialTotalCount: number;
+  initialPage: number;
+  initialPageSize: number;
+  initialPageCount: number;
+};
+
+type AuditListResponse = {
+  events: AuditEventListItem[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
 };
 
 export function ActivityLogPageContent({
   initialEvents,
-  initialCursor,
+  initialTotalCount,
+  initialPage,
+  initialPageSize,
+  initialPageCount,
 }: ActivityLogPageContentProps) {
   const [events, setEvents] = useState(initialEvents);
-  const [cursor, setCursor] = useState<string | null>(initialCursor);
+  const [totalCount, setTotalCount] = useState(initialTotalCount);
+  const [page, setPage] = useState(initialPage);
+  const [pageSize, setPageSize] = useState(initialPageSize);
+  const [pageCount, setPageCount] = useState(initialPageCount);
   const [category, setCategory] = useState<AuditCategory | "ALL">("ALL");
+  const [dateRange, setDateRange] = useState<ActivityDateRangeValue>(
+    DEFAULT_ACTIVITY_DATE_RANGE,
+  );
   const [loading, setLoading] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [exporting, setExporting] = useState(false);
 
   const fetchEvents = useCallback(
-    async (opts: { category: AuditCategory | "ALL"; cursor?: string; append?: boolean }) => {
+    async (opts: {
+      category: AuditCategory | "ALL";
+      dateRange: ActivityDateRangeValue;
+      page: number;
+      pageSize: number;
+    }) => {
       const params = new URLSearchParams();
       if (opts.category !== "ALL") params.set("category", opts.category);
-      if (opts.cursor) params.set("cursor", opts.cursor);
+      if (opts.dateRange.from) params.set("from", opts.dateRange.from);
+      if (opts.dateRange.to) params.set("to", opts.dateRange.to);
+      params.set("page", String(opts.page));
+      params.set("pageSize", String(opts.pageSize));
 
       const response = await fetch(`/api/company/audit?${params.toString()}`);
       if (!response.ok) throw new Error("Failed to load activity");
 
-      const data = (await response.json()) as {
-        events: AuditEventListItem[];
-        nextCursor: string | null;
-      };
-
-      setEvents((current) => (opts.append ? [...current, ...data.events] : data.events));
-      setCursor(data.nextCursor);
+      const data = (await response.json()) as AuditListResponse;
+      setEvents(data.events);
+      setTotalCount(data.totalCount);
+      setPage(data.page);
+      setPageSize(data.pageSize);
+      setPageCount(data.pageCount);
     },
     [],
   );
@@ -109,12 +148,13 @@ export function ActivityLogPageContent({
     async function load() {
       setLoading(true);
       try {
-        await fetchEvents({ category });
+        await fetchEvents({ category, dateRange, page, pageSize });
         if (cancelled) return;
       } catch {
         if (!cancelled) {
           setEvents([]);
-          setCursor(null);
+          setTotalCount(0);
+          setPageCount(1);
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -125,16 +165,21 @@ export function ActivityLogPageContent({
     return () => {
       cancelled = true;
     };
-  }, [category, fetchEvents]);
+  }, [category, dateRange, page, pageSize, fetchEvents]);
 
-  async function handleLoadMore() {
-    if (!cursor) return;
-    setLoadingMore(true);
-    try {
-      await fetchEvents({ category, cursor, append: true });
-    } finally {
-      setLoadingMore(false);
-    }
+  function handleCategoryChange(value: AuditCategory | "ALL") {
+    setCategory(value);
+    setPage(1);
+  }
+
+  function handleDateRangeChange(next: ActivityDateRangeValue) {
+    setDateRange(next);
+    setPage(1);
+  }
+
+  function handlePageSizeChange(next: number) {
+    setPageSize(next);
+    setPage(1);
   }
 
   async function handleExport() {
@@ -142,6 +187,8 @@ export function ActivityLogPageContent({
     try {
       const params = new URLSearchParams();
       if (category !== "ALL") params.set("category", category);
+      if (dateRange.from) params.set("from", dateRange.from);
+      if (dateRange.to) params.set("to", dateRange.to);
 
       const response = await fetch(`/api/company/audit/export?${params.toString()}`);
       if (!response.ok) throw new Error("Export failed");
@@ -163,6 +210,9 @@ export function ActivityLogPageContent({
       setExporting(false);
     }
   }
+
+  const rangeStart = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
+  const rangeEnd = Math.min(page * pageSize, totalCount);
 
   return (
     <>
@@ -213,29 +263,37 @@ export function ActivityLogPageContent({
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
               <HistoryIcon className="size-4 text-muted-foreground" />
-              {!loading && events.length > 0 && (
-                <Badge variant="secondary">{events.length} shown</Badge>
+              {!loading && totalCount > 0 && (
+                <Badge variant="secondary">{totalCount} events</Badge>
               )}
             </div>
-            <Select
-              value={category}
-              onValueChange={(value) => setCategory(value as AuditCategory | "ALL")}
-              items={CATEGORY_FILTER_ITEMS}
-            >
-              <SelectTrigger
-                className="w-full data-[size=default]:h-8 sm:w-[180px]"
-                aria-label="Filter by category"
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <ActivityDateRangePicker
+                value={dateRange}
+                onChange={handleDateRangeChange}
+              />
+              <Select
+                value={category}
+                onValueChange={(value) =>
+                  handleCategoryChange(value as AuditCategory | "ALL")
+                }
+                items={CATEGORY_FILTER_ITEMS}
               >
-                <SelectValue placeholder="All activity" />
-              </SelectTrigger>
-              <SelectContent align="end">
-                {CATEGORY_FILTER_ITEMS.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                <SelectTrigger
+                  className="w-full data-[size=default]:h-8 sm:w-[180px]"
+                  aria-label="Filter by category"
+                >
+                  <SelectValue placeholder="All activity" />
+                </SelectTrigger>
+                <SelectContent align="end">
+                  {CATEGORY_FILTER_ITEMS.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {loading ? (
@@ -244,7 +302,8 @@ export function ActivityLogPageContent({
             </div>
           ) : events.length === 0 ? (
             <p className="py-16 text-center text-sm text-muted-foreground">
-              No activity recorded yet. Team and settings changes will appear here.
+              No activity in this range. Sign-ins, team, and settings changes will
+              appear here.
             </p>
           ) : (
             <div className="divide-y divide-border overflow-hidden rounded-lg border border-border">
@@ -258,7 +317,9 @@ export function ActivityLogPageContent({
                       <Badge variant={CATEGORY_VARIANT[event.category]}>
                         {CATEGORY_LABELS[event.category]}
                       </Badge>
-                      <span className="text-sm font-medium text-foreground">{event.summary}</span>
+                      <span className="text-sm font-medium text-foreground">
+                        {event.summary}
+                      </span>
                     </div>
                     <p className="text-sm text-muted-foreground">By {event.actorLabel}</p>
                   </div>
@@ -273,22 +334,19 @@ export function ActivityLogPageContent({
             </div>
           )}
 
-          {cursor && !loading && (
-            <div className="flex justify-center">
-              <Button
-                variant="outline"
-                className="cursor-pointer"
-                onClick={() => void handleLoadMore()}
-                disabled={loadingMore}
-              >
-                {loadingMore ? (
-                  <Loader2Icon className="size-4 animate-spin" />
-                ) : (
-                  "Load more"
-                )}
-              </Button>
-            </div>
-          )}
+          {!loading && totalCount > 0 ? (
+            <TablePagination
+              page={page}
+              pageCount={pageCount}
+              pageSize={pageSize}
+              pageSizeOptions={AUDIT_PAGE_SIZE_OPTIONS}
+              totalCount={totalCount}
+              rangeStart={rangeStart}
+              rangeEnd={rangeEnd}
+              onPageChange={setPage}
+              onPageSizeChange={handlePageSizeChange}
+            />
+          ) : null}
         </CardContent>
       </Card>
     </>
