@@ -44,6 +44,13 @@ export type InvoiceHtmlData = {
     scope?: string | null;
     amountPaid?: number;
     balanceDue?: number;
+    /** FX metadata for PDF when currencies differ. */
+    exchangeRate?: number | null;
+    exchangeRateDate?: string | null;
+    exchangeRateSource?: string | null;
+    homeCurrency?: string | null;
+    homeCurrencyTotal?: number | null;
+    showExchangeRateOnPdf?: boolean;
   };
   /** Resolved custom field rows for PDF/preview (label + display value). */
   customFields?: Array<{ id?: string; label: string; value: string; multiline?: boolean }>;

@@ -9,6 +9,7 @@ import {
 } from "@/lib/estimate-service";
 import { documentTotalsPersistFields } from "@/lib/invoice-service";
 import { createEstimateSchema } from "@/lib/schemas/estimate";
+import { exchangeRateMetaPersistFields } from "@/lib/fx-meta";
 import {
   normalizeCustomFieldDefinitions,
   prepareCustomFieldsForSave,
@@ -103,6 +104,11 @@ export async function POST(request: Request) {
         currency: parsed.data.currency,
         discount: parsed.data.discount,
         ...totalsFields,
+        ...exchangeRateMetaPersistFields({
+          exchangeRateDate: parsed.data.exchangeRateDate,
+          exchangeRateSource: parsed.data.exchangeRateSource,
+          exchangeRateLocked: parsed.data.exchangeRateLocked,
+        }),
         scope: parsed.data.scope,
         notes: parsed.data.notes,
         customFields,

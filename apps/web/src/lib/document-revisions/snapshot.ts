@@ -40,6 +40,9 @@ export function invoiceToSnapshot(
     taxes?: unknown;
     taxInclusive?: boolean;
     exchangeRate?: MoneyInput | null;
+    exchangeRateDate?: Date | string | null;
+    exchangeRateSource?: string | null;
+    exchangeRateLocked?: boolean;
     homeCurrencyTotal?: MoneyInput | null;
     discount: MoneyInput;
     subtotal: MoneyInput;
@@ -79,6 +82,15 @@ export function invoiceToSnapshot(
     taxes: normalizeAppliedTaxes(invoice.taxes),
     taxInclusive: invoice.taxInclusive === true,
     exchangeRate: optionalMoney(invoice.exchangeRate),
+    exchangeRateDate: invoice.exchangeRateDate
+      ? (toIsoDate(
+          invoice.exchangeRateDate instanceof Date
+            ? invoice.exchangeRateDate
+            : new Date(`${String(invoice.exchangeRateDate).slice(0, 10)}T00:00:00.000Z`),
+        )?.slice(0, 10) ?? null)
+      : null,
+    exchangeRateSource: invoice.exchangeRateSource ?? null,
+    exchangeRateLocked: invoice.exchangeRateLocked === true,
     homeCurrencyTotal: optionalMoney(invoice.homeCurrencyTotal),
     discount: toNumber(invoice.discount),
     subtotal: toNumber(invoice.subtotal),
@@ -119,6 +131,9 @@ export function estimateToSnapshot(estimate: {
   taxes?: unknown;
   taxInclusive?: boolean;
   exchangeRate?: MoneyInput | null;
+  exchangeRateDate?: Date | string | null;
+  exchangeRateSource?: string | null;
+  exchangeRateLocked?: boolean;
   homeCurrencyTotal?: MoneyInput | null;
   discount: MoneyInput;
   subtotal: MoneyInput;
@@ -150,6 +165,15 @@ export function estimateToSnapshot(estimate: {
     taxes: normalizeAppliedTaxes(estimate.taxes),
     taxInclusive: estimate.taxInclusive === true,
     exchangeRate: optionalMoney(estimate.exchangeRate),
+    exchangeRateDate: estimate.exchangeRateDate
+      ? (toIsoDate(
+          estimate.exchangeRateDate instanceof Date
+            ? estimate.exchangeRateDate
+            : new Date(`${String(estimate.exchangeRateDate).slice(0, 10)}T00:00:00.000Z`),
+        )?.slice(0, 10) ?? null)
+      : null,
+    exchangeRateSource: estimate.exchangeRateSource ?? null,
+    exchangeRateLocked: estimate.exchangeRateLocked === true,
     homeCurrencyTotal: optionalMoney(estimate.homeCurrencyTotal),
     discount: toNumber(estimate.discount),
     subtotal: toNumber(estimate.subtotal),

@@ -59,6 +59,13 @@ export default async function EditInvoicePage({ params }: PageProps) {
         companyTaxRates={normalizeCompanyTaxRates(member.company.taxRates)}
         taxInclusiveDefault={member.company.taxInclusiveDefault}
         taxCompoundDefault={member.company.taxCompoundDefault}
+        fxSettings={{
+          fxPreferredSource: member.company.fxPreferredSource as "auto" | "ecb" | "open-er",
+          fxStaleDays: member.company.fxStaleDays,
+          fxShowOnPdf: member.company.fxShowOnPdf,
+          fxLockOnSend: member.company.fxLockOnSend,
+          fxAutoFetch: member.company.fxAutoFetch,
+        }}
         company={{
           name: member.company.name,
           logoUrl: member.company.logoUrl,
@@ -98,6 +105,16 @@ export default async function EditInvoicePage({ params }: PageProps) {
           taxInclusive: invoice.taxInclusive,
           taxCompound: invoice.taxCompound,
           exchangeRate: invoice.exchangeRate != null ? Number(invoice.exchangeRate) : null,
+          exchangeRateDate: invoice.exchangeRateDate
+            ? invoice.exchangeRateDate.toISOString().slice(0, 10)
+            : null,
+          exchangeRateSource:
+            invoice.exchangeRateSource === "ecb" ||
+            invoice.exchangeRateSource === "open-er" ||
+            invoice.exchangeRateSource === "manual"
+              ? invoice.exchangeRateSource
+              : null,
+          exchangeRateLocked: invoice.exchangeRateLocked,
           discount: Number(invoice.discount),
           lineItems,
           installments: invoice.installments.map((row) => ({

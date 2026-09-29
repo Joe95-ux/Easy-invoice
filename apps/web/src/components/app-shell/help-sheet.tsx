@@ -63,7 +63,7 @@ const linkOptions = [
     icon: ListTodoIcon,
   },
   {
-    title: "Tax rates",
+    title: "Tax & currency",
     description: "Named tax rates, inclusive pricing, and multi-currency exchange.",
     href: "/settings/tax",
     icon: PercentIcon,

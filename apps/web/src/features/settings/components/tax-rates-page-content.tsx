@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { TaxRateDrawer } from "@/features/settings/components/tax-rate-drawer";
 import { TaxRatesTable } from "@/features/settings/components/tax-rates-table";
+import { CurrencyFxSettingsSection } from "@/features/settings/components/currency-fx-settings-section";
 import {
   updateCompanyTaxRatesSchema,
   type CompanyTaxRate,
@@ -196,8 +197,8 @@ export function TaxRatesPageContent() {
   return (
     <>
       <PageHeader
-        title="Tax rates"
-        description="Named rates for invoices, estimates, and recurring schedules — with defaults for how tax is calculated."
+        title="Tax & currency"
+        description="Named rates for invoices, estimates, and recurring schedules — plus defaults for tax math and multi-currency exchange."
         actions={
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
             {saveHint ? (
@@ -283,6 +284,8 @@ export function TaxRatesPageContent() {
               setDrawerOpen(true);
             }}
           />
+
+          <CurrencyFxSettingsSection />
         </div>
       )}
 

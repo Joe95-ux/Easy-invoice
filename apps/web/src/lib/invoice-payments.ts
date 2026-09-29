@@ -170,6 +170,45 @@ export async function recordInvoicePayment(input: {
   }
 
   const receiptNumber = await allocateReceiptNumber(input.companyId);
+
+  const company = await prisma.company.findUnique({
+    where: { id: input.companyId },
+    select: { currency: true, fxPreferredSource: true },
+  });
+  const homeCurrency = company?.currency ?? "USD";
+  const paidAt = input.paidAt ?? new Date();
+  let paymentExchangeRate: number | null = null;
+  let homeCurrencyAmount: number | null = null;
+
+  if (invoice.currency.trim().toUpperCase() === homeCurrency.trim().toUpperCase()) {
+    paymentExchangeRate = 1;
+    homeCurrencyAmount = amount;
+  } else {
+    // Prefer locked invoice rate for consistent reporting; else fetch as-of payment date.
+    const invoiceRate =
+      invoice.exchangeRate != null ? Number(invoice.exchangeRate) : null;
+    if (invoiceRate != null && Number.isFinite(invoiceRate) && invoiceRate > 0) {
+      paymentExchangeRate = invoiceRate;
+    } else {
+      const { fetchExchangeRate } = await import("@/lib/exchange-rates");
+      const fx = await fetchExchangeRate({
+        from: invoice.currency,
+        to: homeCurrency,
+        date: paidAt.toISOString().slice(0, 10),
+        prefer:
+          company?.fxPreferredSource === "ecb" || company?.fxPreferredSource === "open-er"
+            ? company.fxPreferredSource
+            : "auto",
+      });
+      if (!("error" in fx)) {
+        paymentExchangeRate = fx.rate;
+      }
+    }
+    if (paymentExchangeRate != null) {
+      homeCurrencyAmount = roundMoney(amount * paymentExchangeRate);
+    }
+  }
+
   const createdPayment = await prisma.invoicePayment.create({
     data: {
       invoiceId: input.invoiceId,
@@ -177,7 +216,9 @@ export async function recordInvoicePayment(input: {
       receiptNumber,
       publicToken: generatePublicToken(),
       amount,
-      paidAt: input.paidAt ?? new Date(),
+      exchangeRate: paymentExchangeRate,
+      homeCurrencyAmount,
+      paidAt,
       method: input.method ?? "OTHER",
       reference: input.reference ?? null,
       note: input.note ?? null,

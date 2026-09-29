@@ -14,6 +14,7 @@ import {
   documentTotalsPersistFields,
   resolveClientForInvoice,
 } from "@/lib/invoice-service";
+import { exchangeRateMetaPersistFields } from "@/lib/fx-meta";
 import { getInvoiceForMember } from "@/lib/invoices";
 import { normalizeAppliedTaxes } from "@/lib/tax-rates";
 import { releaseTimeEntriesForInvoice, linkTimeEntriesToInvoice } from "@/lib/time-tracking/service";
@@ -151,6 +152,23 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   const hasLineItems = data.lineItems && data.lineItems.length > 0;
   let totalsUpdate: ReturnType<typeof documentTotalsPersistFields> | null = null;
+
+  const rateLocked =
+    data.exchangeRateLocked !== undefined
+      ? data.exchangeRateLocked
+      : existing.exchangeRateLocked;
+  if (
+    existing.exchangeRateLocked &&
+    rateLocked !== false &&
+    data.exchangeRate !== undefined &&
+    data.exchangeRate !==
+      (existing.exchangeRate != null ? Number(existing.exchangeRate) : null)
+  ) {
+    return NextResponse.json(
+      { error: "Exchange rate is locked. Unlock it before changing the rate." },
+      { status: 400 },
+    );
+  }
 
   if (
     hasLineItems &&
@@ -291,6 +309,11 @@ export async function PATCH(request: Request, context: RouteContext) {
       }),
       ...(data.exchangeRate !== undefined && !totalsUpdate && {
         exchangeRate: data.exchangeRate,
+      }),
+      ...exchangeRateMetaPersistFields({
+        exchangeRateDate: data.exchangeRateDate,
+        exchangeRateSource: data.exchangeRateSource,
+        exchangeRateLocked: data.exchangeRateLocked,
       }),
       ...(data.discount !== undefined && !totalsUpdate && { discount: data.discount }),
       ...(data.issueDate !== undefined && {

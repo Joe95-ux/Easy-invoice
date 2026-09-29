@@ -62,6 +62,13 @@ export default async function NewEstimatePage({ searchParams }: PageProps) {
         companyTaxRates={normalizeCompanyTaxRates(member.company.taxRates)}
         taxInclusiveDefault={member.company.taxInclusiveDefault}
         taxCompoundDefault={member.company.taxCompoundDefault}
+        fxSettings={{
+          fxPreferredSource: member.company.fxPreferredSource as "auto" | "ecb" | "open-er",
+          fxStaleDays: member.company.fxStaleDays,
+          fxShowOnPdf: member.company.fxShowOnPdf,
+          fxLockOnSend: member.company.fxLockOnSend,
+          fxAutoFetch: member.company.fxAutoFetch,
+        }}
         company={{
           name: member.company.name,
           logoUrl: member.company.logoUrl,

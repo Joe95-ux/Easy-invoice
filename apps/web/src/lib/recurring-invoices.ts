@@ -8,6 +8,7 @@ import {
   documentTotalsPersistFields,
   generateNextInvoiceNumber,
 } from "@/lib/invoice-service";
+import { exchangeRateMetaPersistFields } from "@/lib/fx-meta";
 import { normalizeAppliedTaxes } from "@/lib/tax-rates";
 import { startOfUtcDay } from "@/lib/reminders/dates";
 import {
@@ -191,6 +192,9 @@ type RecurringWithRelations = {
   taxCompound: boolean;
   taxes: unknown;
   exchangeRate: { toString(): string } | number | null;
+  exchangeRateDate: Date | null;
+  exchangeRateSource: string | null;
+  exchangeRateLocked: boolean;
   discount: { toString(): string } | number;
   notes: string | null;
   customFields: unknown;
@@ -258,6 +262,16 @@ export function serializeRecurringInvoice(
     taxInclusive,
     taxCompound,
     exchangeRate,
+    exchangeRateDate: row.exchangeRateDate
+      ? toDateOnlyString(row.exchangeRateDate)
+      : null,
+    exchangeRateSource:
+      row.exchangeRateSource === "ecb" ||
+      row.exchangeRateSource === "open-er" ||
+      row.exchangeRateSource === "manual"
+        ? row.exchangeRateSource
+        : null,
+    exchangeRateLocked: row.exchangeRateLocked === true,
     discount,
     notes: row.notes,
     customFields:
@@ -379,6 +393,11 @@ export async function createRecurringInvoice(
       taxInclusive: input.taxInclusive === true,
       taxCompound: input.taxCompound === true,
       exchangeRate: input.exchangeRate ?? null,
+      ...exchangeRateMetaPersistFields({
+        exchangeRateDate: input.exchangeRateDate,
+        exchangeRateSource: input.exchangeRateSource,
+        exchangeRateLocked: input.exchangeRateLocked,
+      }),
       discount: input.discount,
       notes: input.notes?.trim() || null,
       customFields: input.customFields ?? {},
@@ -574,6 +593,11 @@ export async function updateRecurringInvoice(
         ...(input.exchangeRate !== undefined
           ? { exchangeRate: input.exchangeRate }
           : {}),
+        ...exchangeRateMetaPersistFields({
+          exchangeRateDate: input.exchangeRateDate,
+          exchangeRateSource: input.exchangeRateSource,
+          exchangeRateLocked: input.exchangeRateLocked,
+        }),
         ...(input.discount !== undefined ? { discount: input.discount } : {}),
         ...(input.notes !== undefined ? { notes: input.notes?.trim() || null } : {}),
         ...(input.customFields !== undefined ? { customFields: input.customFields ?? {} } : {}),
@@ -922,6 +946,9 @@ export async function issueRecurringInvoiceOccurrence(
           currency: schedule.currency,
           discount: Number(schedule.discount),
           ...totalsFields,
+          exchangeRateDate: schedule.exchangeRateDate,
+          exchangeRateSource: schedule.exchangeRateSource,
+          exchangeRateLocked: schedule.exchangeRateLocked,
           notes: schedule.notes,
           customFields:
             schedule.customFields &&

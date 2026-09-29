@@ -76,6 +76,8 @@ async function sumPaymentsInRange(
     },
     select: {
       amount: true,
+      exchangeRate: true,
+      homeCurrencyAmount: true,
       invoice: { select: { currency: true, exchangeRate: true } },
     },
   });
@@ -84,7 +86,8 @@ async function sumPaymentsInRange(
       amount: payment.amount,
       invoiceCurrency: payment.invoice.currency,
       homeCurrency,
-      exchangeRate: payment.invoice.exchangeRate,
+      homeCurrencyAmount: payment.homeCurrencyAmount,
+      exchangeRate: payment.exchangeRate ?? payment.invoice.exchangeRate,
     });
     return converted == null ? sum : sum + converted;
   }, 0);
@@ -181,6 +184,8 @@ export async function getAnalyticsData(
       select: {
         amount: true,
         paidAt: true,
+        exchangeRate: true,
+        homeCurrencyAmount: true,
         invoice: {
           select: {
             id: true,
@@ -246,7 +251,8 @@ export async function getAnalyticsData(
       amount: payment.amount,
       invoiceCurrency: payment.invoice.currency,
       homeCurrency,
-      exchangeRate: payment.invoice.exchangeRate,
+      homeCurrencyAmount: payment.homeCurrencyAmount,
+      exchangeRate: payment.exchangeRate ?? payment.invoice.exchangeRate,
     });
     if (amount == null) continue;
     revenueCollected += amount;
@@ -401,7 +407,8 @@ export async function getAnalyticsData(
       amount: payment.amount,
       invoiceCurrency: payment.invoice.currency,
       homeCurrency,
-      exchangeRate: payment.invoice.exchangeRate,
+      homeCurrencyAmount: payment.homeCurrencyAmount,
+      exchangeRate: payment.exchangeRate ?? payment.invoice.exchangeRate,
     });
     if (revenue == null) continue;
     existing.revenue += revenue;

@@ -73,7 +73,7 @@ export const APP_TEAM_ITEMS: AppNavItem[] = [
     children: [
       { href: "/settings/general", label: "General" },
       { href: "/settings/custom-fields", label: "Custom fields" },
-      { href: "/settings/tax", label: "Tax rates" },
+      { href: "/settings/tax", label: "Tax & currency" },
       { href: "/settings/form-templates", label: "Form templates" },
       { href: "/settings/billing", label: "Billing" },
     ],

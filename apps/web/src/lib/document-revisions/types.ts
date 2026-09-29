@@ -45,6 +45,9 @@ export type DocumentSnapshot = {
   taxes?: DocumentSnapshotTax[];
   taxInclusive?: boolean;
   exchangeRate?: number | null;
+  exchangeRateDate?: string | null;
+  exchangeRateSource?: string | null;
+  exchangeRateLocked?: boolean;
   homeCurrencyTotal?: number | null;
   discount: number;
   subtotal: number;

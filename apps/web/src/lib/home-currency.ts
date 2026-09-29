@@ -44,6 +44,8 @@ export function paymentAmountInHomeCurrency(input: {
   invoiceCurrency: string;
   homeCurrency: string;
   exchangeRate?: MoneyLike;
+  /** Prefer stored payment-time home amount when present. */
+  homeCurrencyAmount?: MoneyLike;
 }): number | null {
   const amount = toNumber(input.amount);
   if (!Number.isFinite(amount)) return null;
@@ -51,6 +53,11 @@ export function paymentAmountInHomeCurrency(input: {
   const doc = input.invoiceCurrency.trim().toUpperCase();
   const home = input.homeCurrency.trim().toUpperCase();
   if (!doc || !home || doc === home) return amount;
+
+  if (input.homeCurrencyAmount != null) {
+    const homeAmount = toNumber(input.homeCurrencyAmount);
+    if (Number.isFinite(homeAmount)) return homeAmount;
+  }
 
   const rate = input.exchangeRate == null ? null : toNumber(input.exchangeRate);
   if (rate == null || !Number.isFinite(rate) || rate <= 0) return null;

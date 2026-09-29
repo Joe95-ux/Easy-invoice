@@ -61,6 +61,7 @@ import {
   seedCustomFieldDefaults,
 } from "@/lib/custom-fields";
 import type { CustomFieldDefinition, CustomFieldValues } from "@/lib/schemas/custom-fields";
+import type { CompanyFxSettings, FxRateSource } from "@/lib/schemas/fx-settings";
 import type { AppliedTax, CompanyTaxRate } from "@/lib/schemas/tax-rates";
 import {
   getDefaultTaxRate,
@@ -96,6 +97,9 @@ export type EstimateInitialValues = {
   taxInclusive?: boolean;
   taxCompound?: boolean;
   exchangeRate?: number | null;
+  exchangeRateDate?: string | null;
+  exchangeRateSource?: "ecb" | "open-er" | "manual" | null;
+  exchangeRateLocked?: boolean;
   discount?: number;
   lineItems?: Array<
     LineItemInput & {
@@ -113,6 +117,7 @@ type EstimateCreatorProps = {
   companyTaxRates?: CompanyTaxRate[];
   taxInclusiveDefault?: boolean;
   taxCompoundDefault?: boolean;
+  fxSettings?: Partial<CompanyFxSettings> | null;
   company: PreviewCompany;
   clients?: ClientListItem[];
   customFieldDefinitions?: CustomFieldDefinition[];
@@ -135,6 +140,7 @@ export function EstimateCreator({
   companyTaxRates = [],
   taxInclusiveDefault = false,
   taxCompoundDefault = false,
+  fxSettings,
   company,
   clients = [],
   customFieldDefinitions = [],
@@ -205,6 +211,15 @@ export function EstimateCreator({
   );
   const [exchangeRate, setExchangeRate] = useState<number | null>(
     initialValues?.exchangeRate ?? null,
+  );
+  const [exchangeRateDate, setExchangeRateDate] = useState<string | null>(
+    initialValues?.exchangeRateDate ?? null,
+  );
+  const [exchangeRateSource, setExchangeRateSource] = useState<FxRateSource | null>(
+    initialValues?.exchangeRateSource ?? null,
+  );
+  const [exchangeRateLocked, setExchangeRateLocked] = useState(
+    initialValues?.exchangeRateLocked ?? false,
   );
   const taxRate = primaryTaxRate(taxes) * 100;
   const [discountMode, setDiscountMode] = useState<DiscountMode>("amount");
@@ -479,6 +494,9 @@ export function EstimateCreator({
       taxInclusive,
       taxCompound,
       exchangeRate,
+      exchangeRateDate,
+      exchangeRateSource,
+      exchangeRateLocked,
       discount: discountAmount,
       lineItems: flattenSectionsToLineItems(sections).map((item) => ({
         description: item.description,
@@ -701,6 +719,16 @@ export function EstimateCreator({
             homeCurrency={resolvedHomeCurrency}
             exchangeRate={exchangeRate}
             onExchangeRateChange={setExchangeRate}
+            exchangeRateDate={exchangeRateDate}
+            exchangeRateSource={exchangeRateSource}
+            onExchangeMetaChange={(meta) => {
+              setExchangeRateDate(meta.date);
+              setExchangeRateSource(meta.source);
+            }}
+            exchangeRateLocked={exchangeRateLocked}
+            onExchangeRateLockedChange={setExchangeRateLocked}
+            rateAsOfDate={issueDate || null}
+            fxSettings={fxSettings}
           />
           <DiscountField
             mode={discountMode}

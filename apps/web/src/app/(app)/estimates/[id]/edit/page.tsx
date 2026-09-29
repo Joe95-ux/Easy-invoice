@@ -39,6 +39,13 @@ export default async function EditEstimatePage({ params }: PageProps) {
         companyTaxRates={normalizeCompanyTaxRates(member.company.taxRates)}
         taxInclusiveDefault={member.company.taxInclusiveDefault}
         taxCompoundDefault={member.company.taxCompoundDefault}
+        fxSettings={{
+          fxPreferredSource: member.company.fxPreferredSource as "auto" | "ecb" | "open-er",
+          fxStaleDays: member.company.fxStaleDays,
+          fxShowOnPdf: member.company.fxShowOnPdf,
+          fxLockOnSend: member.company.fxLockOnSend,
+          fxAutoFetch: member.company.fxAutoFetch,
+        }}
         company={{
           name: member.company.name,
           logoUrl: member.company.logoUrl,
@@ -78,6 +85,16 @@ export default async function EditEstimatePage({ params }: PageProps) {
           taxInclusive: estimate.taxInclusive,
           taxCompound: estimate.taxCompound,
           exchangeRate: estimate.exchangeRate != null ? Number(estimate.exchangeRate) : null,
+          exchangeRateDate: estimate.exchangeRateDate
+            ? estimate.exchangeRateDate.toISOString().slice(0, 10)
+            : null,
+          exchangeRateSource:
+            estimate.exchangeRateSource === "ecb" ||
+            estimate.exchangeRateSource === "open-er" ||
+            estimate.exchangeRateSource === "manual"
+              ? estimate.exchangeRateSource
+              : null,
+          exchangeRateLocked: estimate.exchangeRateLocked,
           discount: Number(estimate.discount),
           lineItems: estimate.items.map((item) => ({
             description: item.description,

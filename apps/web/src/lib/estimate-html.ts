@@ -98,6 +98,18 @@ export function estimateToHtmlData(
       total: Number(estimate.total),
       notes: estimate.notes,
       scope: estimate.scope,
+      exchangeRate:
+        estimate.exchangeRate != null ? Number(estimate.exchangeRate) : null,
+      exchangeRateDate: estimate.exchangeRateDate
+        ? estimate.exchangeRateDate.toISOString().slice(0, 10)
+        : null,
+      exchangeRateSource: estimate.exchangeRateSource,
+      homeCurrency: estimate.company.currency,
+      homeCurrencyTotal:
+        estimate.homeCurrencyTotal != null
+          ? Number(estimate.homeCurrencyTotal)
+          : null,
+      showExchangeRateOnPdf: estimate.company.fxShowOnPdf !== false,
     },
     customFields: customFieldRows.map((row) => ({
       id: row.id,

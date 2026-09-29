@@ -62,6 +62,7 @@ import {
   recurringStatusVariant,
   type SerializedRecurringInvoice,
 } from "@/lib/recurring-invoices-shared";
+import type { CompanyFxSettings } from "@/lib/schemas/fx-settings";
 import type { CompanyTaxRate } from "@/lib/schemas/tax-rates";
 import { cn } from "@/lib/utils";
 import type { RecurringInvoiceStatus } from "@easy-invoice/db";
@@ -82,6 +83,7 @@ type RecurringInvoicesPageContentProps = {
   companyTaxRates?: CompanyTaxRate[];
   taxInclusiveDefault?: boolean;
   taxCompoundDefault?: boolean;
+  fxSettings?: Partial<CompanyFxSettings> | null;
   /** Open this schedule’s edit drawer on load (`?id=`). */
   highlightId?: string | null;
   canWrite?: boolean;
@@ -106,6 +108,7 @@ export function RecurringInvoicesPageContent({
   companyTaxRates = [],
   taxInclusiveDefault = false,
   taxCompoundDefault = false,
+  fxSettings,
   highlightId = null,
   canWrite = true,
 }: RecurringInvoicesPageContentProps) {
@@ -573,6 +576,7 @@ export function RecurringInvoicesPageContent({
           companyTaxRates={companyTaxRates}
           taxInclusiveDefault={taxInclusiveDefault}
           taxCompoundDefault={taxCompoundDefault}
+          fxSettings={fxSettings}
           editing={editing}
           onSaved={(row) => {
             upsertRow(row);

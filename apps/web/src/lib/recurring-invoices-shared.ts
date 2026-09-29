@@ -33,6 +33,9 @@ export type SerializedRecurringInvoice = {
   taxInclusive: boolean;
   taxCompound: boolean;
   exchangeRate: number | null;
+  exchangeRateDate: string | null;
+  exchangeRateSource: "ecb" | "open-er" | "manual" | null;
+  exchangeRateLocked: boolean;
   discount: number;
   notes: string | null;
   customFields?: Record<string, string>;

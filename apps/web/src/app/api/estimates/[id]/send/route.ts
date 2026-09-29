@@ -77,6 +77,11 @@ export async function POST(request: Request, context: RouteContext) {
       data: {
         status: estimate.status === "DRAFT" ? "SENT" : estimate.status,
         sentAt: estimate.sentAt ?? new Date(),
+        ...(estimate.company.fxLockOnSend !== false &&
+        estimate.currency !== estimate.company.currency &&
+        estimate.exchangeRate != null
+          ? { exchangeRateLocked: true }
+          : {}),
       },
       include: {
         client: true,

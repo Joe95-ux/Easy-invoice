@@ -8,6 +8,7 @@ import {
 import { normalizePaymentMethods, isPaymentLinkUrl } from "@/lib/company-payment-methods";
 import { formatPhoneForDisplay } from "@/lib/phone";
 import { formatTaxPercent } from "@/lib/tax-rates";
+import { formatFxSourceLabel } from "@/lib/schemas/fx-settings";
 
 function escapeHtml(value: string): string {
   return value
@@ -398,6 +399,27 @@ function buildSections(data: InvoiceHtmlData) {
     return `${inclusiveNote}<div class="totals-row"><span>${label}</span><span>${formatMoney(invoice.taxAmount, invoice.currency)}</span></div>`;
   })();
 
+  const fxRow = (() => {
+    if (invoice.showExchangeRateOnPdf === false) return "";
+    const home = invoice.homeCurrency?.trim().toUpperCase();
+    const doc = invoice.currency.trim().toUpperCase();
+    if (!home || !doc || home === doc) return "";
+    const rate = invoice.exchangeRate;
+    if (rate == null || !(rate > 0)) return "";
+    const source = formatFxSourceLabel(invoice.exchangeRateSource);
+    const meta = [
+      invoice.exchangeRateDate ? `as of ${invoice.exchangeRateDate}` : null,
+      source,
+    ]
+      .filter(Boolean)
+      .join(", ");
+    const homeTotal =
+      invoice.homeCurrencyTotal != null
+        ? ` · ${formatMoney(invoice.homeCurrencyTotal, home)}`
+        : "";
+    return `<div class="totals-row"><span>Exchange rate</span><span>1 ${escapeHtml(doc)} = ${rate} ${escapeHtml(home)}${meta ? ` (${escapeHtml(meta)})` : ""}${homeTotal}</span></div>`;
+  })();
+
   const totals = [
     `<div class="totals-row"><span>Subtotal</span><span>${formatMoney(invoice.subtotal, invoice.currency)}</span></div>`,
     invoice.discount > 0
@@ -407,6 +429,7 @@ function buildSections(data: InvoiceHtmlData) {
     hasPartialPayment
       ? `<div class="totals-row"><span>Invoice total</span><span>${formatMoney(invoice.total, invoice.currency)}</span></div>`
       : `<div class="totals-row total"><span>${labels.totalLabel}</span><span>${formatMoney(invoice.total, invoice.currency)}</span></div>`,
+    fxRow,
     hasPartialPayment
       ? `<div class="totals-row"><span>Amount paid</span><span>-${formatMoney(amountPaid, invoice.currency)}</span></div>`
       : "",

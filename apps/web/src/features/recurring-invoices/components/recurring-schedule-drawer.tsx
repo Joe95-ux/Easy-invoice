@@ -37,6 +37,7 @@ import {
 } from "@/lib/line-item-sections";
 import { frequencyLabel, localDateOnly } from "@/lib/recurring-invoices-shared";
 import type { SerializedRecurringInvoice } from "@/lib/recurring-invoices-shared";
+import type { CompanyFxSettings } from "@/lib/schemas/fx-settings";
 import type { AppliedTax, CompanyTaxRate } from "@/lib/schemas/tax-rates";
 import { getDefaultTaxRate, primaryTaxRate, resolveAppliedTaxes } from "@/lib/tax-rates";
 
@@ -66,6 +67,7 @@ type RecurringScheduleDrawerProps = {
   companyTaxRates?: CompanyTaxRate[];
   taxInclusiveDefault?: boolean;
   taxCompoundDefault?: boolean;
+  fxSettings?: Partial<CompanyFxSettings> | null;
   editing?: SerializedRecurringInvoice | null;
   /** When creating from an invoice detail/list action, skip the picker. */
   preselectedInvoiceId?: string | null;
@@ -116,6 +118,7 @@ export function RecurringScheduleDrawer({
   companyTaxRates = [],
   taxInclusiveDefault = false,
   taxCompoundDefault = false,
+  fxSettings,
   editing = null,
   preselectedInvoiceId = null,
   onSaved,
@@ -130,6 +133,10 @@ export function RecurringScheduleDrawer({
   const [taxInclusive, setTaxInclusive] = useState(false);
   const [taxCompound, setTaxCompound] = useState(false);
   const [exchangeRate, setExchangeRate] = useState<number | null>(null);
+  const [exchangeRateDate, setExchangeRateDate] = useState<string | null>(null);
+  const [exchangeRateSource, setExchangeRateSource] = useState<
+    "ecb" | "open-er" | "manual" | null
+  >(null);
   const [discount, setDiscount] = useState("0");
   const [notes, setNotes] = useState("");
   const [sections, setSections] =
@@ -185,6 +192,14 @@ export function RecurringScheduleDrawer({
         setTaxInclusive(editing.taxInclusive);
         setTaxCompound(editing.taxCompound);
         setExchangeRate(editing.exchangeRate);
+        setExchangeRateDate(editing.exchangeRateDate ?? null);
+        setExchangeRateSource(
+          editing.exchangeRateSource === "ecb" ||
+            editing.exchangeRateSource === "open-er" ||
+            editing.exchangeRateSource === "manual"
+            ? editing.exchangeRateSource
+            : null,
+        );
         setDiscount(String(editing.discount));
         setNotes(editing.notes ?? "");
         const grouped = groupLineItemsIntoSections(
@@ -230,6 +245,8 @@ export function RecurringScheduleDrawer({
         setTaxInclusive(taxInclusiveDefault);
         setTaxCompound(taxCompoundDefault);
         setExchangeRate(null);
+        setExchangeRateDate(null);
+        setExchangeRateSource(null);
         setDiscount("0");
         setNotes("");
         setSections(createDefaultSections());
@@ -391,6 +408,8 @@ export function RecurringScheduleDrawer({
           taxInclusive,
           taxCompound,
           exchangeRate,
+          exchangeRateDate,
+          exchangeRateSource,
           discount: parsedDiscount,
           notes: notes.trim() || null,
           lineItems: lineItems.map((item) => ({
@@ -527,6 +546,14 @@ export function RecurringScheduleDrawer({
                   homeCurrency={resolvedHomeCurrency}
                   exchangeRate={exchangeRate}
                   onExchangeRateChange={setExchangeRate}
+                  exchangeRateDate={exchangeRateDate}
+                  exchangeRateSource={exchangeRateSource}
+                  onExchangeMetaChange={(meta) => {
+                    setExchangeRateDate(meta.date);
+                    setExchangeRateSource(meta.source);
+                  }}
+                  rateAsOfDate={schedule.nextIssueDate || schedule.startDate || null}
+                  fxSettings={fxSettings}
                 />
                 <div className="space-y-2">
                   <Label htmlFor="recurring-discount">

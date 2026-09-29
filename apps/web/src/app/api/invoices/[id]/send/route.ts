@@ -89,6 +89,11 @@ export async function POST(request: Request, context: RouteContext) {
       data: {
         status: invoice.status === "DRAFT" ? "SENT" : invoice.status,
         sentAt: invoice.sentAt ?? new Date(),
+        ...(invoice.company.fxLockOnSend !== false &&
+        invoice.currency !== invoice.company.currency &&
+        invoice.exchangeRate != null
+          ? { exchangeRateLocked: true }
+          : {}),
       },
       include: {
         client: true,

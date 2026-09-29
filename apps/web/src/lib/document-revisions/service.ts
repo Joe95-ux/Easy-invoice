@@ -27,6 +27,7 @@ import {
   documentTotalsPersistFields,
   generateNextInvoiceNumber,
 } from "@/lib/invoice-service";
+import { exchangeRateMetaPersistFields } from "@/lib/fx-meta";
 import { getInvoiceForMember } from "@/lib/invoices";
 import { assertWithinInvoiceQuota } from "@/lib/billing/entitlements";
 import {
@@ -348,6 +349,11 @@ async function applyInvoiceSnapshot(
       currency: snapshot.currency,
       discount: snapshot.discount,
       ...totalsFields,
+      ...exchangeRateMetaPersistFields({
+        exchangeRateDate: snapshot.exchangeRateDate,
+        exchangeRateSource: snapshot.exchangeRateSource,
+        exchangeRateLocked: snapshot.exchangeRateLocked,
+      }),
       notes: snapshot.notes,
       ...("customFields" in snapshot
         ? { customFields: snapshot.customFields ?? {} }
@@ -424,6 +430,11 @@ async function applyEstimateSnapshot(
       currency: snapshot.currency,
       discount: snapshot.discount,
       ...totalsFields,
+      ...exchangeRateMetaPersistFields({
+        exchangeRateDate: snapshot.exchangeRateDate,
+        exchangeRateSource: snapshot.exchangeRateSource,
+        exchangeRateLocked: snapshot.exchangeRateLocked,
+      }),
       notes: snapshot.notes,
       ...("customFields" in snapshot
         ? { customFields: snapshot.customFields ?? {} }
@@ -544,6 +555,11 @@ export async function duplicateDocumentFromRevision(
         currency: snapshot.currency,
         discount: snapshot.discount,
         ...totalsFields,
+        ...exchangeRateMetaPersistFields({
+          exchangeRateDate: snapshot.exchangeRateDate,
+          exchangeRateSource: snapshot.exchangeRateSource,
+          exchangeRateLocked: snapshot.exchangeRateLocked,
+        }),
         notes: snapshot.notes,
         customFields: snapshot.customFields ?? {},
         issueDate: new Date(),
@@ -601,6 +617,11 @@ export async function duplicateDocumentFromRevision(
       currency: snapshot.currency,
       discount: snapshot.discount,
       ...totalsFields,
+      ...exchangeRateMetaPersistFields({
+        exchangeRateDate: snapshot.exchangeRateDate,
+        exchangeRateSource: snapshot.exchangeRateSource,
+        exchangeRateLocked: snapshot.exchangeRateLocked,
+      }),
       notes: snapshot.notes,
       customFields: snapshot.customFields ?? {},
       scope: snapshot.scope ?? null,
@@ -670,6 +691,11 @@ export async function duplicateInvoice(
       currency: snapshot.currency,
       discount: snapshot.discount,
       ...totalsFields,
+      ...exchangeRateMetaPersistFields({
+        exchangeRateDate: snapshot.exchangeRateDate,
+        exchangeRateSource: snapshot.exchangeRateSource,
+        exchangeRateLocked: snapshot.exchangeRateLocked,
+      }),
       notes: snapshot.notes,
       customFields: snapshot.customFields ?? {},
       issueDate: new Date(),
@@ -735,6 +761,11 @@ export async function duplicateEstimate(
       currency: snapshot.currency,
       discount: snapshot.discount,
       ...totalsFields,
+      ...exchangeRateMetaPersistFields({
+        exchangeRateDate: snapshot.exchangeRateDate,
+        exchangeRateSource: snapshot.exchangeRateSource,
+        exchangeRateLocked: snapshot.exchangeRateLocked,
+      }),
       notes: snapshot.notes,
       customFields: snapshot.customFields ?? {},
       scope: snapshot.scope ?? null,

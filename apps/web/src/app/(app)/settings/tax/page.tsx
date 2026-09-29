@@ -21,7 +21,7 @@ export default async function TaxRatesSettingsPage() {
           <li aria-hidden className="text-muted-foreground/60">
             ›
           </li>
-          <li className="text-foreground">Tax rates</li>
+          <li className="text-foreground">Tax &amp; currency</li>
         </ol>
       </nav>
       <TaxRatesPageContent />

@@ -8,6 +8,7 @@ import {
   isUniqueConstraintError,
   resolveClientForInvoice,
 } from "@/lib/invoice-service";
+import { exchangeRateMetaPersistFields } from "@/lib/fx-meta";
 import { linkTimeEntriesToInvoice } from "@/lib/time-tracking/service";
 import {
   linkProjectExpensesToInvoice,
@@ -132,6 +133,11 @@ export async function POST(request: Request) {
         currency: parsed.data.currency,
         discount: parsed.data.discount,
         ...totalsFields,
+        ...exchangeRateMetaPersistFields({
+          exchangeRateDate: parsed.data.exchangeRateDate,
+          exchangeRateSource: parsed.data.exchangeRateSource,
+          exchangeRateLocked: parsed.data.exchangeRateLocked,
+        }),
         notes: parsed.data.notes,
         customFields,
         issueDate: parsed.data.issueDate ? new Date(parsed.data.issueDate) : new Date(),

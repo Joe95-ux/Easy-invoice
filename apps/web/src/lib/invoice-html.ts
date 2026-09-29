@@ -115,6 +115,18 @@ export function invoiceToHtmlData(
       notes: invoice.notes,
       amountPaid: paymentSummary.amountPaid,
       balanceDue: paymentSummary.balanceDue,
+      exchangeRate:
+        invoice.exchangeRate != null ? Number(invoice.exchangeRate) : null,
+      exchangeRateDate: invoice.exchangeRateDate
+        ? invoice.exchangeRateDate.toISOString().slice(0, 10)
+        : null,
+      exchangeRateSource: invoice.exchangeRateSource,
+      homeCurrency: invoice.company.currency,
+      homeCurrencyTotal:
+        invoice.homeCurrencyTotal != null
+          ? Number(invoice.homeCurrencyTotal)
+          : null,
+      showExchangeRateOnPdf: invoice.company.fxShowOnPdf !== false,
     },
     customFields: customFieldRows.map((row) => ({
       id: row.id,

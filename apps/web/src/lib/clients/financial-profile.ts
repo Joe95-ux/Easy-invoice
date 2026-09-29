@@ -189,7 +189,8 @@ export async function getClientFinancialProfile(
           amount: payment.amount,
           invoiceCurrency: invoice.currency,
           homeCurrency: currency,
-          exchangeRate: invoice.exchangeRate,
+          homeCurrencyAmount: payment.homeCurrencyAmount,
+          exchangeRate: payment.exchangeRate ?? invoice.exchangeRate,
         }) ?? (invoice.currency === currency ? amountDoc : 0);
       totalCollected += amount;
       activity.push({

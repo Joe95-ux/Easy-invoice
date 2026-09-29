@@ -37,6 +37,13 @@ const recurringInvoiceFieldsSchema = z.object({
   taxInclusive: z.boolean().optional(),
   taxCompound: z.boolean().optional(),
   exchangeRate: z.number().positive().nullable().optional(),
+  exchangeRateDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable()
+    .optional(),
+  exchangeRateSource: z.enum(["ecb", "open-er", "manual"]).nullable().optional(),
+  exchangeRateLocked: z.boolean().optional(),
   discount: z.number().min(0).default(0),
   notes: z.string().max(5000).optional().nullable(),
   customFields: z.record(z.string(), z.string().max(5000)).optional().nullable(),
