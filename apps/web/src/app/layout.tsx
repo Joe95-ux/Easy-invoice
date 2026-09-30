@@ -37,10 +37,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider appearance={clerkAppearance}>
-      <html lang="en" suppressHydrationWarning>
-        <body
-          className={`${geistSans.variable} ${geistMono.variable} ${headingFont.variable} antialiased`}
+    <html lang="en" suppressHydrationWarning>
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} ${headingFont.variable} antialiased`}
+      >
+        <ClerkProvider
+          appearance={clerkAppearance}
+          signInUrl="/sign-in"
+          signUpUrl="/sign-up"
         >
           <AppTopLoader />
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
@@ -49,8 +53,8 @@ export default function RootLayout({
             </QueryProvider>
             <Toaster />
           </ThemeProvider>
-        </body>
-      </html>
-    </ClerkProvider>
+        </ClerkProvider>
+      </body>
+    </html>
   );
 }

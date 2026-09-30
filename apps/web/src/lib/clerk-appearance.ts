@@ -8,6 +8,5 @@ export const clerkAppearance: Appearance = {
     fontFamily: "var(--font-sans)",
     fontFamilyButtons: "var(--font-sans)",
     borderRadius: "var(--radius)",
-    colorModalBackdrop: "oklch(0 0 0 / 0.55)",
   },
 };

@@ -33,6 +33,7 @@ export default clerkMiddleware(async (auth, request) => {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     // Prefer an explicit sign-in redirect over auth.protect()'s 401 on RSC/prefetch.
+    // Absolute returnBackUrl is fine — sign-in page normalizes it to a path.
     return redirectToSignIn({ returnBackUrl: request.url });
   }
 });

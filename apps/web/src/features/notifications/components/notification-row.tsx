@@ -33,6 +33,8 @@ type NotificationRowProps = {
   notification: NotificationListItem;
   compact?: boolean;
   showTypeBadge?: boolean;
+  /** Portal dropdown into this element (required inside drawers). */
+  menuContainer?: HTMLElement | null;
   onReadChange?: (id: string, read: boolean) => void;
   onDelete?: (id: string) => void;
   onNavigate?: () => void;
@@ -42,6 +44,7 @@ export function NotificationRow({
   notification,
   compact = false,
   showTypeBadge = true,
+  menuContainer,
   onReadChange,
   onDelete,
   onNavigate,
@@ -146,7 +149,11 @@ export function NotificationRow({
             <MoreHorizontalIcon className="size-4" />
           )}
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-44">
+        <DropdownMenuContent
+          align="end"
+          className="w-44"
+          container={menuContainer}
+        >
           {notification.read ? (
             <DropdownMenuItem onClick={() => void setRead(false)}>
               <MailOpenIcon className="size-4" />

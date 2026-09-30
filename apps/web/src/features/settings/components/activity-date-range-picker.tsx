@@ -173,7 +173,7 @@ export function ActivityDateRangePicker({
           <button
             type="button"
             className={cn(
-              "inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-border/70 bg-background px-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+              "inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md px-1 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
               className,
             )}
             aria-label={`Date range: ${value.label}`}

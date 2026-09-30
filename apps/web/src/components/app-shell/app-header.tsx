@@ -5,16 +5,24 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { HelpSheet } from "@/components/app-shell/help-sheet";
 import { NotificationBell } from "@/components/app-shell/notification-bell";
+import { PageSearch } from "@/components/app-shell/page-search";
 import { TimerHeaderChip } from "@/features/time/components/timer-header-chip";
 import { TimerMobileNav } from "@/features/time/components/timer-mobile-nav";
+import type { UserRole } from "@/lib/db";
 
 type AppHeaderProps = {
   memberId: string;
+  userRole: UserRole;
   title?: string;
   description?: string;
 };
 
-export function AppHeader({ memberId, title, description }: AppHeaderProps) {
+export function AppHeader({
+  memberId,
+  userRole,
+  title,
+  description,
+}: AppHeaderProps) {
   return (
     <header className="sticky top-0 z-30 flex shrink-0 flex-col bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/65">
       <TimerMobileNav />
@@ -34,8 +42,14 @@ export function AppHeader({ memberId, title, description }: AppHeaderProps) {
         </div>
         <div className="flex items-center gap-1 sm:gap-2">
           <TimerHeaderChip className="hidden lg:inline-flex" />
+          <PageSearch userRole={userRole} />
           <NotificationBell key={memberId} memberId={memberId} />
-          <Button variant="ghost" size="sm" render={<Link href="/process" />}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="hidden md:inline-flex"
+            render={<Link href="/process" />}
+          >
             Process
           </Button>
           <HelpSheet />

@@ -115,7 +115,9 @@ export function AppShell({
                 !immersive && "md:rounded-xl md:shadow-sm",
               )}
             >
-              {!immersive ? <AppHeader memberId={memberId} /> : null}
+              {!immersive ? (
+                <AppHeader memberId={memberId} userRole={userRole} />
+              ) : null}
               <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
             </div>
             {!immersive ? <AppWorkspaceFooter /> : null}

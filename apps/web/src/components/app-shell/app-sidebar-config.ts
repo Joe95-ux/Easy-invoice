@@ -153,3 +153,86 @@ export function getAppTeamItemsForRole(role: UserRole): AppNavItem[] {
   if (!canManageCompanySettings(role)) return [];
   return APP_TEAM_ITEMS;
 }
+
+/** Flattened, role-filtered pages for the header Cmd/Ctrl+K search. */
+export type AppPageSearchItem = {
+  href: string;
+  label: string;
+  group: string;
+  icon: LucideIcon;
+  keywords: string;
+};
+
+function flattenNavItems(
+  items: AppNavItem[],
+  group: string,
+  childGroupByParent?: Record<string, string>,
+): AppPageSearchItem[] {
+  const out: AppPageSearchItem[] = [];
+  for (const item of items) {
+    if (item.children?.length) {
+      const childGroup = childGroupByParent?.[item.href] ?? group;
+      for (const child of item.children) {
+        out.push({
+          href: child.href,
+          label: child.label,
+          group: childGroup,
+          icon: item.icon,
+          keywords: `${item.label} ${child.label}`,
+        });
+      }
+      continue;
+    }
+    out.push({
+      href: item.href,
+      label: item.label,
+      group,
+      icon: item.icon,
+      keywords: item.label,
+    });
+  }
+  return out;
+}
+
+export function getAppPageSearchItemsForRole(role: UserRole): AppPageSearchItem[] {
+  const items: AppPageSearchItem[] = [
+    ...flattenNavItems(getAppQuickActionsForRole(role), "Quick actions"),
+    ...flattenNavItems(getAppWorkspaceItemsForRole(role), "Workspace"),
+    ...flattenNavItems(getAppTeamItemsForRole(role), "Team", {
+      "/settings": "Settings",
+    }),
+    {
+      href: "/process",
+      label: "Process",
+      group: "Workspace",
+      icon: CheckSquareIcon,
+      keywords: "process workflow pipeline",
+    },
+  ];
+
+  if (canManageCompanySettings(role)) {
+    items.push(
+      {
+        href: "/settings/notifications",
+        label: "Notification preferences",
+        group: "Settings",
+        icon: BellIcon,
+        keywords: "settings notifications preferences email",
+      },
+      {
+        href: "/settings/billing/plans",
+        label: "Plans",
+        group: "Settings",
+        icon: SettingsIcon,
+        keywords: "settings billing plans pricing upgrade",
+      },
+    );
+  }
+
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    if (seen.has(item.href)) return false;
+    seen.add(item.href);
+    return true;
+  });
+}

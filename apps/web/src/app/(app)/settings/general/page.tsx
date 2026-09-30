@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BellIcon, ClipboardListIcon, ListTreeIcon, UsersRoundIcon } from "lucide-react";
+import { BellIcon, ClipboardListIcon, InfoIcon, ListTreeIcon, UsersRoundIcon } from "lucide-react";
 import { CompanySettingsForm } from "@/features/settings/components/company-settings-form";
 import { ProjectSettingsSection } from "@/features/settings/components/project-settings-section";
 import { ReminderSettingsSection } from "@/features/settings/components/reminder-settings-section";
@@ -11,9 +11,37 @@ import { normalizePaymentMethods } from "@/lib/company-payment-methods";
 import { combinedReminderSettingsFromCompany } from "@/lib/reminders/estimate-settings";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { PageScroll } from "@/components/app-shell/app-shell";
 import { PageHeader, pageHeaderActionClass } from "@/components/app-shell/page-header";
 
+const GENERAL_SETTINGS_INFO =
+  "Company profile, templates, and reminder preferences.";
+
+function GeneralSettingsInfoPopover() {
+  return (
+    <Popover>
+      <PopoverTrigger
+        render={
+          <button
+            type="button"
+            className="inline-flex size-6 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            aria-label="About general settings"
+          />
+        }
+      >
+        <InfoIcon className="size-4" />
+      </PopoverTrigger>
+      <PopoverContent side="bottom" align="start" sideOffset={6} className="w-80 gap-0">
+        <p className="text-sm text-muted-foreground">{GENERAL_SETTINGS_INFO}</p>
+      </PopoverContent>
+    </Popover>
+  );
+}
 export default async function SettingsGeneralPage() {
   const member = await requireCompanyAdmin();
 
@@ -43,7 +71,12 @@ export default async function SettingsGeneralPage() {
     <PageScroll maxWidth="50rem">
       <PageHeader
         title="General"
-        description="Company profile, templates, and reminder preferences."
+        titleAddon={
+          <span className="hidden sm:inline-flex">
+            <GeneralSettingsInfoPopover />
+          </span>
+        }
+        description={<span className="sm:hidden">{GENERAL_SETTINGS_INFO}</span>}
         actions={
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
             <Button

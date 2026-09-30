@@ -48,6 +48,8 @@ export function NotificationBell({ memberId }: NotificationBellProps) {
   const [notifications, setNotifications] = useState<NotificationListItem[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [drawerPopupContainer, setDrawerPopupContainer] =
+    useState<HTMLElement | null>(null);
 
   const fetchNotifications = useCallback(async (limit: number) => {
     const params = new URLSearchParams({ limit: String(limit) });
@@ -278,7 +280,7 @@ export function NotificationBell({ memberId }: NotificationBellProps) {
     </div>
   );
 
-  const listBody = (
+  const listBody = (menuContainer?: HTMLElement | null) => (
     <>
       {loading ? (
         <div className="flex items-center justify-center py-8 text-muted-foreground">
@@ -311,6 +313,7 @@ export function NotificationBell({ memberId }: NotificationBellProps) {
               notification={notification}
               compact
               showTypeBadge={false}
+              menuContainer={menuContainer}
               onReadChange={handleReadChange}
               onDelete={handleDelete}
               onNavigate={closeSurfaces}
@@ -371,7 +374,7 @@ export function NotificationBell({ memberId }: NotificationBellProps) {
               listMaxHeightClass,
             )}
           >
-            {listBody}
+            {listBody()}
           </div>
 
           {viewAllFooter ? (
@@ -393,6 +396,7 @@ export function NotificationBell({ memberId }: NotificationBellProps) {
             "[view-transition-name:notification-panel]",
           )}
         >
+          <div ref={setDrawerPopupContainer} />
           <DrawerHeader className="border-b border-border text-left">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -407,7 +411,9 @@ export function NotificationBell({ memberId }: NotificationBellProps) {
             </div>
           </DrawerHeader>
 
-          <div className="min-h-0 flex-1 overflow-y-auto">{listBody}</div>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {listBody(drawerPopupContainer)}
+          </div>
 
           {viewAllFooter ? (
             <DrawerFooter className="border-t border-border">{viewAllFooter}</DrawerFooter>
