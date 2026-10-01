@@ -6,6 +6,7 @@ import { Command as CommandPrimitive } from "cmdk";
 import {
   CornerDownLeftIcon,
   SearchIcon,
+  XIcon,
 } from "lucide-react";
 import { getAppPageSearchItemsForRole } from "@/components/app-shell/app-sidebar-config";
 import { Button } from "@/components/ui/button";
@@ -58,11 +59,38 @@ function useModKeyLabel() {
   return modKey;
 }
 
+function SearchFooter({ showEscHint = true }: { showEscHint?: boolean }) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border px-3 py-2 text-xs text-muted-foreground">
+      <span className="inline-flex items-center gap-1.5">
+        <KbdGroup className="gap-0.5">
+          <Kbd>↑</Kbd>
+          <Kbd>↓</Kbd>
+        </KbdGroup>
+        navigate
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <Kbd>
+          <CornerDownLeftIcon className="size-3" />
+        </Kbd>
+        open
+      </span>
+      {showEscHint ? (
+        <span className="inline-flex items-center gap-1.5">
+          <Kbd>esc</Kbd>
+          close
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 function SearchResults({
   groups,
   listClassName,
   onSelect,
   onClose,
+  showEscChip = false,
 }: {
   groups: Array<{
     heading: string;
@@ -71,6 +99,7 @@ function SearchResults({
   listClassName?: string;
   onSelect: (href: string) => void;
   onClose: () => void;
+  showEscChip?: boolean;
 }) {
   return (
     <Command
@@ -89,6 +118,19 @@ function SearchResults({
           placeholder="Search pages and settings…"
           className="h-10 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
         />
+        {showEscChip ? (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close search"
+            className={cn(
+              "inline-flex h-5 w-fit min-w-5 shrink-0 cursor-pointer items-center justify-center rounded-sm bg-muted px-1.5 font-sans text-xs font-medium text-muted-foreground select-none",
+              "transition-colors hover:bg-muted-foreground/15 hover:text-foreground",
+            )}
+          >
+            Esc
+          </button>
+        ) : null}
       </div>
       <CommandList className={cn("px-1 py-2", listClassName)}>
         <CommandEmpty>No pages found.</CommandEmpty>
@@ -211,36 +253,17 @@ export function PageSearch({ userRole }: PageSearchProps) {
         <PopoverContent
           align="end"
           sideOffset={8}
-          className={cn(
-            "w-[min(calc(100vw-2rem),24rem)] gap-0 overflow-hidden p-0 sm:w-96",
-          )}
+          className="w-[min(calc(100vw-2rem),34rem)] gap-0 overflow-hidden p-0 sm:w-136"
         >
           <SearchResults
             key={open ? "open" : "closed"}
             groups={groups}
-            listClassName="max-h-[min(22rem,50dvh)]"
+            listClassName="max-h-[min(28rem,60dvh)]"
             onSelect={goTo}
             onClose={() => setOpen(false)}
+            showEscChip
           />
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border px-3 py-2 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1.5">
-              <KbdGroup className="gap-0.5">
-                <Kbd>↑</Kbd>
-                <Kbd>↓</Kbd>
-              </KbdGroup>
-              navigate
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <Kbd>
-                <CornerDownLeftIcon className="size-3" />
-              </Kbd>
-              open
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <Kbd>esc</Kbd>
-              close
-            </span>
-          </div>
+          <SearchFooter />
         </PopoverContent>
       </Popover>
 
@@ -257,21 +280,32 @@ export function PageSearch({ userRole }: PageSearchProps) {
             "data-[vaul-drawer-direction=right]:rounded-none",
           )}
         >
-          <DrawerHeader className="border-b border-border text-left">
+          <DrawerHeader className="relative border-b border-border pr-12 text-left">
             <DrawerTitle>Search</DrawerTitle>
             <DrawerDescription>
               Jump to pages, settings, and actions
             </DrawerDescription>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="absolute top-3 right-3"
+              aria-label="Close search"
+              onClick={() => setDrawerOpen(false)}
+            >
+              <XIcon className="size-4" />
+            </Button>
           </DrawerHeader>
           <div className="min-h-0 flex-1 overflow-hidden">
             <SearchResults
               key={drawerOpen ? "drawer-open" : "drawer-closed"}
               groups={groups}
-              listClassName="max-h-[calc(100dvh-8rem)]"
+              listClassName="max-h-[calc(100dvh-11rem)]"
               onSelect={goTo}
               onClose={() => setDrawerOpen(false)}
             />
           </div>
+          <SearchFooter showEscHint={false} />
         </DrawerContent>
       </Drawer>
     </>
