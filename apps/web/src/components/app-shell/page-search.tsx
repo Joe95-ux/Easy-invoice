@@ -9,6 +9,7 @@ import {
   XIcon,
 } from "lucide-react";
 import { getAppPageSearchItemsForRole } from "@/components/app-shell/app-sidebar-config";
+import { NavIcon } from "@/components/app-shell/nav-icon";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -136,22 +137,23 @@ function SearchResults({
         <CommandEmpty>No pages found.</CommandEmpty>
         {groups.map((group) => (
           <CommandGroup key={group.heading} heading={group.heading}>
-            {group.items.map((item) => {
-              const Icon = item.icon;
-              return (
-                <CommandItem
-                  key={item.href}
-                  value={`${item.label} ${item.keywords} ${item.href}`}
-                  onSelect={() => onSelect(item.href)}
-                >
-                  <Icon className="size-4 text-muted-foreground" />
-                  <span className="truncate">{item.label}</span>
-                  <CommandShortcut className="max-w-[45%] truncate font-normal normal-case tracking-normal">
-                    {item.href}
-                  </CommandShortcut>
-                </CommandItem>
-              );
-            })}
+                {group.items.map((item) => (
+                  <CommandItem
+                    key={item.href}
+                    value={`${item.label} ${item.keywords} ${item.href}`}
+                    onSelect={() => onSelect(item.href)}
+                  >
+                    <NavIcon
+                      icon={item.icon}
+                      motion={item.motion}
+                      className="text-muted-foreground"
+                    />
+                    <span className="truncate">{item.label}</span>
+                    <CommandShortcut className="max-w-[45%] truncate font-normal normal-case tracking-normal">
+                      {item.href}
+                    </CommandShortcut>
+                  </CommandItem>
+                ))}
           </CommandGroup>
         ))}
       </CommandList>

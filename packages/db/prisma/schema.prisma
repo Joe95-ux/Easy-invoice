@@ -113,6 +113,7 @@ enum AuditCategory {
   TEAM
   SETTINGS
   DOCUMENT
+  AUTH
 }
 
 enum NotificationType {
@@ -160,6 +161,7 @@ enum AuditAction {
   MEMBER_JOINED
   MEMBER_ROLE_CHANGED
   MEMBER_REMOVED
+  MEMBER_SIGNED_IN
   COMPANY_PROFILE_UPDATED
   COMPANY_LOGO_UPLOADED
   COMPANY_LOGO_REMOVED
@@ -196,6 +198,16 @@ model Company {
   taxInclusiveDefault Boolean @default(false)
   /// When true, stacked taxes compound (each rate applies to base + prior tax).
   taxCompoundDefault Boolean @default(false)
+  /// FX provider preference: auto | ecb | open-er
+  fxPreferredSource String @default("auto")
+  /// Warn when a stored rate is older than this many days.
+  fxStaleDays Int @default(7)
+  /// Show exchange rate on invoice/estimate PDFs when currencies differ.
+  fxShowOnPdf Boolean @default(true)
+  /// Lock exchange rate when a document is sent.
+  fxLockOnSend Boolean @default(true)
+  /// Auto-fetch exchange rate when document currency changes.
+  fxAutoFetch Boolean @default(true)
   plan      Plan     @default(FREE)
   defaultTemplateId String?
   stripeCustomerId     String? @unique
@@ -470,6 +482,11 @@ model RecurringInvoice {
   taxes              Json?
   /// Document currency → company (home) currency. 1 when currencies match.
   exchangeRate       Decimal?               @db.Decimal(18, 8)
+  /// As-of date for the stored exchange rate (YYYY-MM-DD).
+  exchangeRateDate   DateTime?              @db.Date
+  /// ecb | open-er | manual
+  exchangeRateSource String?
+  exchangeRateLocked Boolean                @default(false)
   discount           Decimal                @default(0) @db.Decimal(12, 2)
   customFields       Json?
   notes              String?
@@ -555,6 +572,11 @@ model Invoice {
   exchangeRate       Decimal? @db.Decimal(18, 8)
   /// total converted to company currency for reporting.
   homeCurrencyTotal  Decimal? @db.Decimal(12, 2)
+  /// As-of date for the stored exchange rate (YYYY-MM-DD).
+  exchangeRateDate   DateTime? @db.Date
+  /// ecb | open-er | manual
+  exchangeRateSource String?
+  exchangeRateLocked Boolean @default(false)
   notes         String?
   customFields  Json?
   templateId    String?
@@ -628,6 +650,10 @@ model InvoicePayment {
   receiptNumber String?       @unique
   publicToken   String?       @unique
   amount        Decimal       @db.Decimal(12, 2)
+  /// Snapshot of invoice→home rate at payment time (home units per 1 invoice unit).
+  exchangeRate  Decimal?      @db.Decimal(18, 8)
+  /// amount converted to company (home) currency.
+  homeCurrencyAmount Decimal? @db.Decimal(12, 2)
   paidAt        DateTime      @default(now())
   method        PaymentMethod @default(OTHER)
   reference     String?
@@ -795,6 +821,11 @@ model Estimate {
   exchangeRate       Decimal?  @db.Decimal(18, 8)
   /// total converted to company currency for reporting.
   homeCurrencyTotal  Decimal?  @db.Decimal(12, 2)
+  /// As-of date for the stored exchange rate (YYYY-MM-DD).
+  exchangeRateDate   DateTime? @db.Date
+  /// ecb | open-er | manual
+  exchangeRateSource String?
+  exchangeRateLocked Boolean @default(false)
   /// Project scope / deliverables shown before line items on the estimate PDF.
   scope         String?
   notes         String?

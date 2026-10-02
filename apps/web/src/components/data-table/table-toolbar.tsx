@@ -1,6 +1,7 @@
 "use client";
 
 import { SearchIcon } from "lucide-react";
+import type { ReactNode } from "react";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -20,6 +21,8 @@ type TableToolbarProps = {
   onFilterChange?: (value: string) => void;
   filterOptions?: ListTableFilterOption[];
   filterLabel?: string;
+  /** Optional trailing actions (e.g. Export). */
+  actions?: ReactNode;
   className?: string;
 };
 
@@ -31,6 +34,7 @@ export function TableToolbar({
   onFilterChange,
   filterOptions,
   filterLabel = "Filter",
+  actions,
   className,
 }: TableToolbarProps) {
   const showFilter = filterOptions && filterOptions.length > 0 && onFilterChange;
@@ -53,24 +57,29 @@ export function TableToolbar({
         />
       </div>
 
-      {showFilter && (
-        <Select
-          value={filter}
-          onValueChange={(value) => value && onFilterChange(value)}
-          items={filterOptions}
-        >
-          <SelectTrigger size="sm" className="w-full sm:w-[9.5rem]" aria-label={filterLabel}>
-            <SelectValue placeholder={filterLabel} />
-          </SelectTrigger>
-          <SelectContent align="end">
-            {filterOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      )}
+      {showFilter || actions ? (
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {showFilter ? (
+            <Select
+              value={filter}
+              onValueChange={(value) => value && onFilterChange(value)}
+              items={filterOptions}
+            >
+              <SelectTrigger size="sm" className="w-full sm:w-[9.5rem]" aria-label={filterLabel}>
+                <SelectValue placeholder={filterLabel} />
+              </SelectTrigger>
+              <SelectContent align="end">
+                {filterOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : null}
+          {actions}
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -139,6 +139,8 @@ export function useListTable<T extends object>({
     setPageSize,
     pageSizeOptions,
     pageRows: pagination.rows,
+    /** Filtered + sorted rows (all pages) — useful for exports. */
+    rows: processedRows,
     totalCount: pagination.total,
     pageCount: pagination.pageCount,
     rangeStart: pagination.start,

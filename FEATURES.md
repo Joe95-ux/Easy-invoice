@@ -307,17 +307,18 @@ App-native invites, roles (Owner / Admin / Member / Viewer), company switcher.
 
 ### 12. Tax rates & multi-currency
 
-**Status:** Done (v1)
+**Status:** Done (v2 hardening)
 
-Company tax-rates library, multi-tax (additive or compound), tax-inclusive documents, per-line taxable, live ECB exchange rates, document FX → home-currency totals for analytics/dashboard.
+Company tax-rates library, multi-tax (additive or compound), tax-inclusive documents, per-line taxable, historical + live exchange rates (ECB then market), rate date/source persistence, lock-on-send, PDF FX line, payment home-currency snapshots, document FX → home-currency totals for analytics/dashboard.
 
 | Piece | Location |
 |-------|----------|
-| Schema | `Company.taxRates`, `taxInclusiveDefault`; doc `taxes`, `taxInclusive`, `exchangeRate`, `homeCurrencyTotal`; line `taxable` |
-| Math | `lib/calculator.ts`, `lib/document-totals.ts`, `lib/home-currency.ts` |
-| Settings | `/settings/tax`, `GET/PATCH /api/company/tax-rates` |
-| Creators | `DocumentTaxPanel` on invoice / estimate / recurring |
-| Reporting | Analytics + dashboard + client financial profile use home currency when possible |
+| Schema | `Company` FX prefs (`fxPreferredSource`, `fxStaleDays`, `fxShowOnPdf`, `fxLockOnSend`, `fxAutoFetch`); doc `exchangeRate`, `exchangeRateDate`, `exchangeRateSource`, `exchangeRateLocked`, `homeCurrencyTotal`; payment `exchangeRate`, `homeCurrencyAmount` |
+| Math | `lib/calculator.ts`, `lib/document-totals.ts`, `lib/home-currency.ts`, `lib/exchange-rates.ts` |
+| Settings | `/settings/tax` (Tax & currency), `GET/PATCH /api/company/tax-rates`, `GET/PATCH /api/company/fx-settings` |
+| Creators | `DocumentTaxPanel` on invoice / estimate / recurring (auto-fetch, lock, stale warn) |
+| PDF | Exchange rate row in `invoice-templates/render.ts` when enabled |
+| Reporting | Analytics + dashboard + client financial profile prefer payment/home snapshots |
 
 ---
 

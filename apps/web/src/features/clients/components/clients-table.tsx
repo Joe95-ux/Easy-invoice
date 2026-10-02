@@ -6,6 +6,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import {
   ClipboardListIcon,
+  DownloadIcon,
   EyeIcon,
   FileTextIcon,
   GitMergeIcon,
@@ -34,6 +35,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ExportClientsDialog } from "@/features/clients/components/export-clients-dialog";
 import {
   inviteClientToPortalRequest,
   toastPortalInviteResult,
@@ -65,6 +67,7 @@ export function ClientsTable({
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [merging, setMerging] = useState(false);
   const [mergeOpen, setMergeOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<ClientListItem | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -186,6 +189,19 @@ export function ClientsTable({
         onFilterChange={table.setFilter}
         filterOptions={table.filterOptions}
         filterLabel="Clients"
+        actions={
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="cursor-pointer"
+            disabled={table.totalCount === 0}
+            onClick={() => setExportOpen(true)}
+          >
+            <DownloadIcon className="size-4" />
+            Export
+          </Button>
+        }
       />
 
       <Table stickyColumnWidths={["5.5rem", "10rem"]}>
@@ -332,6 +348,12 @@ export function ClientsTable({
         rangeEnd={table.rangeEnd}
         onPageChange={table.setPage}
         onPageSizeChange={table.setPageSize}
+      />
+
+      <ExportClientsDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        clients={table.rows}
       />
 
       <ConfirmActionDialog

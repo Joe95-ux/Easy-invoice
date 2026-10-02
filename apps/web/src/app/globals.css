@@ -94,7 +94,6 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
-  --animate-nav-icon-pop: nav-icon-pop 0.48s cubic-bezier(0.34, 1.45, 0.64, 1) both;
 }
 
 body {
@@ -122,25 +121,297 @@ body {
   animation: float 4s ease-in-out infinite;
 }
 
-/* Resend-style nav icon micro-bounce on row hover. */
-@keyframes nav-icon-pop {
-  0% {
-    transform: scale(1) rotate(0deg);
-  }
-  30% {
-    transform: scale(1.22) rotate(-9deg);
-  }
-  55% {
-    transform: scale(0.94) rotate(5deg);
-  }
-  100% {
-    transform: scale(1) rotate(0deg);
+/* Per-icon nav hover motions (sidebar + page search). */
+.nav-icon {
+  overflow: visible;
+  transform-origin: center;
+  will-change: transform;
+}
+
+.nav-icon[data-nav-motion="bars"] :is(path, line, rect):nth-child(n + 2),
+.nav-icon[data-nav-motion="tiles"] :is(rect, path),
+.nav-icon[data-nav-motion="lines"] path:nth-child(n + 2),
+.nav-icon[data-nav-motion="tick"] path,
+.nav-icon[data-nav-motion="check"] path:last-child,
+.nav-icon[data-nav-motion="scan"] :is(rect, path) {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  will-change: transform;
+}
+
+.nav-icon[data-nav-motion="tick"] path {
+  transform-origin: 12px 12px;
+}
+
+.nav-icon[data-nav-motion="swing"] {
+  transform-origin: top center;
+}
+
+@keyframes nav-icon-spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .animate-nav-icon-pop {
-    animation: none !important;
+@keyframes nav-icon-bar {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  35% {
+    transform: scaleY(0.4);
+  }
+  70% {
+    transform: scaleY(1.12);
+  }
+}
+
+@keyframes nav-icon-tile {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  40% {
+    transform: translateY(-1.5px);
+    opacity: 0.75;
+  }
+}
+
+@keyframes nav-icon-swing {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  20% {
+    transform: rotate(14deg);
+  }
+  40% {
+    transform: rotate(-10deg);
+  }
+  60% {
+    transform: rotate(6deg);
+  }
+  80% {
+    transform: rotate(-3deg);
+  }
+}
+
+@keyframes nav-icon-gear {
+  to {
+    transform: rotate(90deg);
+  }
+}
+
+@keyframes nav-icon-tick {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  45% {
+    transform: rotate(28deg);
+  }
+}
+
+@keyframes nav-icon-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.18);
+  }
+  65% {
+    transform: scale(0.94);
+  }
+}
+
+@keyframes nav-icon-line {
+  0%,
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  40% {
+    transform: translateX(1.5px);
+    opacity: 0.7;
+  }
+}
+
+@keyframes nav-icon-check {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  35% {
+    transform: scale(0.7);
+    opacity: 0.5;
+  }
+  65% {
+    transform: scale(1.12);
+    opacity: 1;
+  }
+}
+
+@keyframes nav-icon-scan {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  40% {
+    transform: scale(0.86);
+    opacity: 0.65;
+  }
+}
+
+@keyframes nav-icon-lift {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes nav-icon-flip {
+  to {
+    transform: rotateY(360deg);
+  }
+}
+
+@keyframes nav-icon-soft {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .group\/menu-button:hover > .nav-icon[data-nav-motion="spin"],
+  .group\/command-item:hover > .nav-icon[data-nav-motion="spin"] {
+    animation: nav-icon-spin 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .group\/menu-button:hover > .nav-icon[data-nav-motion="bars"] path:nth-child(2),
+  .group\/command-item:hover > .nav-icon[data-nav-motion="bars"] path:nth-child(2) {
+    animation: nav-icon-bar 0.5s cubic-bezier(0.34, 1.3, 0.64, 1);
+  }
+
+  .group\/menu-button:hover > .nav-icon[data-nav-motion="bars"] path:nth-child(3),
+  .group\/command-item:hover > .nav-icon[data-nav-motion="bars"] path:nth-child(3) {
+    animation: nav-icon-bar 0.5s cubic-bezier(0.34, 1.3, 0.64, 1) 0.06s;
+  }
+
+  .group\/menu-button:hover > .nav-icon[data-nav-motion="bars"] path:nth-child(4),
+  .group\/command-item:hover > .nav-icon[data-nav-motion="bars"] path:nth-child(4) {
+    animation: nav-icon-bar 0.5s cubic-bezier(0.34, 1.3, 0.64, 1) 0.12s;
+  }
+
+  .group\/menu-button:hover > .nav-icon[data-nav-motion="tiles"] rect:nth-child(1),
+  .group\/command-item:hover > .nav-icon[data-nav-motion="tiles"] rect:nth-child(1) {
+    animation: nav-icon-tile 0.45s ease 0s;
+  }
+
+  .group\/menu-button:hover > .nav-icon[data-nav-motion="tiles"] rect:nth-child(2),
+  .group\/command-item:hover > .nav-icon[data-nav-motion="tiles"] rect:nth-child(2) {
+    animation: nav-icon-tile 0.45s ease 0.05s;
+  }
+
+  .group\/menu-button:hover > .nav-icon[data-nav-motion="tiles"] rect:nth-child(3),
+  .group\/command-item:hover > .nav-icon[data-nav-motion="tiles"] rect:nth-child(3) {
+    animation: nav-icon-tile 0.45s ease 0.1s;
+  }
+
+  .group\/menu-button:hover > .nav-icon[data-nav-motion="tiles"] rect:nth-child(4),
+  .group\/command-item:hover > .nav-icon[data-nav-motion="tiles"] rect:nth-child(4) {
+    animation: nav-icon-tile 0.45s ease 0.15s;
+  }
+
+  .group\/menu-button:hover > .nav-icon[data-nav-motion="swing"],
+  .group\/command-item:hover > .nav-icon[data-nav-motion="swing"] {
+    animation: nav-icon-swing 0.55s ease;
+  }
+
+  .group\/menu-button:hover > .nav-icon[data-nav-motion="gear"],
+  .group\/command-item:hover > .nav-icon[data-nav-motion="gear"] {
+    animation: nav-icon-gear 0.55s cubic-bezier(0.34, 1.2, 0.64, 1);
+  }
+
+  .group\/menu-button:hover > .nav-icon[data-nav-motion="tick"] path,
+  .group\/command-item:hover > .nav-icon[data-nav-motion="tick"] path {
+    animation: nav-icon-tick 0.55s cubic-bezier(0.34, 1.3, 0.64, 1);
+  }
+
+  .group\/menu-button:hover > .nav-icon[data-nav-motion="pulse"],
+  .group\/command-item:hover > .nav-icon[data-nav-motion="pulse"] {
+    animation: nav-icon-pulse 0.45s cubic-bezier(0.34, 1.4, 0.64, 1);
+  }
+
+  .group\/menu-button:hover > .nav-icon[data-nav-motion="lines"] path:nth-child(2),
+  .group\/command-item:hover > .nav-icon[data-nav-motion="lines"] path:nth-child(2) {
+    animation: nav-icon-line 0.4s ease 0s;
+  }
+
+  .group\/menu-button:hover > .nav-icon[data-nav-motion="lines"] path:nth-child(3),
+  .group\/command-item:hover > .nav-icon[data-nav-motion="lines"] path:nth-child(3) {
+    animation: nav-icon-line 0.4s ease 0.05s;
+  }
+
+  .group\/menu-button:hover > .nav-icon[data-nav-motion="lines"] path:nth-child(4),
+  .group\/command-item:hover > .nav-icon[data-nav-motion="lines"] path:nth-child(4) {
+    animation: nav-icon-line 0.4s ease 0.1s;
+  }
+
+  .group\/menu-button:hover > .nav-icon[data-nav-motion="lines"] path:nth-child(5),
+  .group\/command-item:hover > .nav-icon[data-nav-motion="lines"] path:nth-child(5) {
+    animation: nav-icon-line 0.4s ease 0.14s;
+  }
+
+  .group\/menu-button:hover > .nav-icon[data-nav-motion="check"] path:last-child,
+  .group\/command-item:hover > .nav-icon[data-nav-motion="check"] path:last-child {
+    animation: nav-icon-check 0.45s cubic-bezier(0.34, 1.4, 0.64, 1);
+  }
+
+  .group\/menu-button:hover > .nav-icon[data-nav-motion="scan"] :is(rect, path),
+  .group\/command-item:hover > .nav-icon[data-nav-motion="scan"] :is(rect, path) {
+    animation: nav-icon-scan 0.5s ease;
+  }
+
+  .group\/menu-button:hover > .nav-icon[data-nav-motion="scan"] rect:nth-child(1),
+  .group\/command-item:hover > .nav-icon[data-nav-motion="scan"] rect:nth-child(1) {
+    animation-delay: 0s;
+  }
+
+  .group\/menu-button:hover > .nav-icon[data-nav-motion="scan"] rect:nth-child(2),
+  .group\/command-item:hover > .nav-icon[data-nav-motion="scan"] rect:nth-child(2) {
+    animation-delay: 0.05s;
+  }
+
+  .group\/menu-button:hover > .nav-icon[data-nav-motion="scan"] rect:nth-child(3),
+  .group\/command-item:hover > .nav-icon[data-nav-motion="scan"] rect:nth-child(3) {
+    animation-delay: 0.1s;
+  }
+
+  .group\/menu-button:hover > .nav-icon[data-nav-motion="lift"],
+  .group\/command-item:hover > .nav-icon[data-nav-motion="lift"] {
+    animation: nav-icon-lift 0.4s ease;
+  }
+
+  .group\/menu-button:hover > .nav-icon[data-nav-motion="flip"],
+  .group\/command-item:hover > .nav-icon[data-nav-motion="flip"] {
+    animation: nav-icon-flip 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-style: preserve-3d;
+  }
+
+  .group\/menu-button:hover > .nav-icon[data-nav-motion="soft"],
+  .group\/command-item:hover > .nav-icon[data-nav-motion="soft"] {
+    animation: nav-icon-soft 0.35s ease;
   }
 }
 

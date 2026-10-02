@@ -19,6 +19,7 @@ import {
   isAppWorkspaceItemActive,
   type AppNavItem,
 } from "@/components/app-shell/app-sidebar-config";
+import { NavIcon } from "@/components/app-shell/nav-icon";
 import { SidebarFooterPanel } from "@/components/app-shell/sidebar-footer-panel";
 import { SidebarOrgHeader } from "@/components/app-shell/sidebar-org-header";
 import { PublicFeaturesMobileNav } from "@/components/landing/public-nav-features";
@@ -92,7 +93,7 @@ function NavMenu({
               isActive={isActive(item.href)}
               render={<Link href={item.href} onClick={onNavigate} />}
             >
-              <item.icon />
+              <NavIcon icon={item.icon} motion={item.motion} />
               <span>{item.label}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -139,7 +140,7 @@ function NavCollapsibleItem({
             <SidebarMenuButton tooltip={item.label} />
           }
         >
-          <item.icon />
+          <NavIcon icon={item.icon} motion={item.motion} />
           <span>{item.label}</span>
           <ChevronRightIcon
             className={cn(
@@ -278,7 +279,7 @@ export function AppSidebarContent({
                         tooltip={item.label}
                         render={<Link href={item.href} onClick={onNavigate} />}
                       >
-                        <item.icon />
+                        <NavIcon icon={item.icon} motion="soft" />
                         <span>{item.label}</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
