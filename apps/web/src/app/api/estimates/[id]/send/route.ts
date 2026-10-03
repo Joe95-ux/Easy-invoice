@@ -70,6 +70,7 @@ export async function POST(request: Request, context: RouteContext) {
       message: parsed.data.message,
       subject: parsed.data.subject,
       customFieldRows,
+      replyTo: estimate.company.email,
     });
 
     const updated = await prisma.estimate.update({

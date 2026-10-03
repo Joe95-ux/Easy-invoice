@@ -43,6 +43,8 @@ type RecordPaymentDialogProps = {
   /** Prefill for the amount field; defaults to the full balance due. */
   initialAmount?: number;
   celebrateInvoicePaid?: boolean;
+  /** Called after a payment is recorded successfully (before dialog closes). */
+  onRecorded?: () => void;
 };
 
 export function RecordPaymentDialog({
@@ -55,6 +57,7 @@ export function RecordPaymentDialog({
   balanceDue,
   initialAmount,
   celebrateInvoicePaid = false,
+  onRecorded,
 }: RecordPaymentDialogProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -108,6 +111,7 @@ export function RecordPaymentDialog({
       }
 
       onOpenChange(false);
+      onRecorded?.();
       router.refresh();
     } catch (error) {
       toastApiError(error, "Could not record payment");

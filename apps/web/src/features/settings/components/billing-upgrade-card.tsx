@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import {
+  getPlanDefinition,
   getProPriceDisplay,
   PRO_UPGRADE_COLUMNS,
   type BillingInterval,
@@ -32,10 +33,11 @@ export function BillingUpgradeCard({
   );
 
   const pricing = getProPriceDisplay(interval);
-  const description =
+  const priceLine =
     trialDays > 0
       ? `${pricing.headerDescription} · ${trialDays}-day trial`
       : pricing.headerDescription;
+  const promise = getPlanDefinition("PRO").summary;
 
   async function upgrade() {
     if (!billingConfigured) {
@@ -67,7 +69,8 @@ export function BillingUpgradeCard({
       <CardHeader className="flex flex-col gap-3 space-y-0 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 space-y-2">
           <CardTitle className="text-base">Upgrade to Pro</CardTitle>
-          <p className="text-sm text-muted-foreground">{description}</p>
+          <p className="text-sm text-foreground">{promise}</p>
+          <p className="text-sm text-muted-foreground">{priceLine}</p>
           {hasYearlyPrice ? (
             <label className="flex w-fit cursor-pointer items-center gap-2 text-xs text-muted-foreground">
               <Switch

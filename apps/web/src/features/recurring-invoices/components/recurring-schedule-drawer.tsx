@@ -463,7 +463,7 @@ export function RecurringScheduleDrawer({
           <div className="flex-1 overflow-y-auto p-4">
             <ProFeatureGate
               title="Recurring invoices are on Pro"
-              description="Upgrade to schedule automatic invoices for retainers and subscriptions."
+              description="Schedule invoices that go out on time — optional auto-send so payment keeps coming in."
             />
           </div>
         ) : (

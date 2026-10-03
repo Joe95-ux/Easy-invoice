@@ -49,14 +49,14 @@ export const BILLING_PLANS: PlanDefinition[] = [
   {
     id: "PRO",
     name: "Pro",
-    summary: "For businesses that bill every day",
+    summary: "Unlimited invoicing that chases payment for you",
     features: [
       "Unlimited invoices, estimates & QR codes",
+      "Email invoices with Reply-To your company",
+      "Recurring invoices that send on schedule",
+      "Payment plans & collections chase tools",
       "Unlimited companies & team members",
       "Custom branding & logo on PDFs",
-      "Email invoices",
-      "Recurring invoices",
-      "Payment plans & collections tools",
       "Priority support",
     ],
   },
@@ -72,17 +72,17 @@ export const PRO_UPGRADE_COLUMNS: { title: string; features: string[] }[] = [
     title: "Invoicing",
     features: [
       "Unlimited invoices",
-      "Recurring invoices",
       "Email invoices",
+      "Recurring auto-send",
       "Custom branding & logo",
     ],
   },
   {
     title: "Get paid",
     features: [
-      "Unlimited QR codes",
       "Payment plans",
-      "Collections tools",
+      "Collections chase drafts",
+      "Unlimited QR codes",
     ],
   },
 ];
@@ -153,13 +153,13 @@ export const LANDING_PLANS = [
     name: "Pro",
     price: "$12",
     cadence: "per month",
-    description: "For busy businesses that bill every day. $10/mo billed yearly.",
+    description:
+      "Unlimited invoicing that chases payment for you. $10/mo billed yearly.",
     features: [
       "Everything in Free, unlimited",
+      "Email invoices & recurring auto-send",
+      "Payment plans & collections chase",
       "Custom branding & logo on PDFs",
-      "Email invoices",
-      "Recurring invoices",
-      "Payment plans & collections",
       "Unlimited QR codes",
       "Priority support",
     ],

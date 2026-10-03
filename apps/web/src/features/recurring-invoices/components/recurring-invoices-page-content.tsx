@@ -10,6 +10,7 @@ import {
   PlayIcon,
   PlusIcon,
   RefreshCwIcon,
+  SkipForwardIcon,
   SquareIcon,
   Trash2Icon,
 } from "lucide-react";
@@ -245,6 +246,31 @@ export function RecurringInvoicesPageContent({
     }
   }
 
+  async function skipNext(row: SerializedRecurringInvoice) {
+    setBusyId(row.id);
+    try {
+      const res = await fetch(`/api/recurring-invoices/${row.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ skipNext: true }),
+      });
+      const data = await res.json().catch(() => ({}));
+      throwIfApiError(res, data, "Could not skip next issue");
+      const updated = data.recurringInvoice as SerializedRecurringInvoice;
+      upsertRow(updated);
+      toast.success(
+        updated.status === "ENDED"
+          ? "Skipped — schedule ended"
+          : `Next issue moved to ${formatDateOnly(updated.nextIssueDate)}`,
+      );
+      router.refresh();
+    } catch (error) {
+      toastApiError(error, "Could not skip next issue");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   async function confirmDelete() {
     if (!pendingDelete) return;
     setDeleting(true);
@@ -300,7 +326,7 @@ export function RecurringInvoicesPageContent({
           variant="banner"
           className="mb-6"
           title="Recurring invoices are on Pro"
-          description="Schedule automatic invoices for retainers and subscriptions. Free plans can still create one-off invoices."
+          description="Schedule invoices that go out on time — optional auto-send so payment keeps coming in. Free plans can still create one-off invoices."
         />
       ) : null}
 
@@ -498,6 +524,15 @@ export function RecurringInvoicesPageContent({
                                   >
                                     <RefreshCwIcon className="size-4" />
                                     Generate now
+                                  </DropdownMenuItem>
+                                ) : null}
+                                {row.status === "ACTIVE" || row.status === "PAUSED" ? (
+                                  <DropdownMenuItem
+                                    onClick={() => void skipNext(row)}
+                                    disabled={busy}
+                                  >
+                                    <SkipForwardIcon className="size-4" />
+                                    Skip next
                                   </DropdownMenuItem>
                                 ) : null}
                                 {row.status === "ACTIVE" ? (

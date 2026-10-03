@@ -1,7 +1,5 @@
 import { requireMember } from "@/lib/auth";
-import { getInvoicesForMember } from "@/lib/invoice-service";
-import { buildInvoicePaymentSummary } from "@/lib/invoice-payments";
-import { normalizeCustomFieldValues } from "@/lib/custom-fields";
+import { listInvoicesForMember } from "@/lib/invoice-service";
 import { canDeleteDocuments, canWriteDocuments } from "@/lib/team";
 import { InvoicesTable } from "@/features/invoices/components/invoices-table";
 import Link from "next/link";
@@ -11,34 +9,16 @@ import { Card } from "@/components/ui/card";
 import { PageScroll } from "@/components/app-shell/app-shell";
 import { EmptyState, PageHeader, pageHeaderActionClass } from "@/components/app-shell/page-header";
 
-function customFieldsSearchText(raw: unknown): string {
-  return Object.values(normalizeCustomFieldValues(raw))
-    .map((value) => value.trim())
-    .filter(Boolean)
-    .join(" ");
-}
-
 export default async function InvoicesPage() {
   const member = await requireMember();
   const canWrite = canWriteDocuments(member.role);
   const canDelete = canDeleteDocuments(member.role);
-  const invoices = await getInvoicesForMember(member.companyId);
-
-  const rows = invoices.map((invoice) => {
-    const paymentSummary = buildInvoicePaymentSummary(invoice);
-    return {
-      id: invoice.id,
-      number: invoice.number,
-      status: invoice.status,
-      total: invoice.total.toString(),
-      balanceDue: paymentSummary.balanceDue.toString(),
-      currency: invoice.currency,
-      dueDate: invoice.dueDate?.toISOString() ?? null,
-      clientId: invoice.clientId,
-      clientName: invoice.client?.name ?? null,
-      clientEmail: invoice.client?.email ?? null,
-      customFieldsSearch: customFieldsSearchText(invoice.customFields),
-    };
+  const list = await listInvoicesForMember({
+    companyId: member.companyId,
+    page: 1,
+    pageSize: 15,
+    sortKey: "dueDate",
+    sortDir: "desc",
   });
 
   return (
@@ -56,7 +36,7 @@ export default async function InvoicesPage() {
         }
       />
 
-      {invoices.length === 0 ? (
+      {list.totalCount === 0 ? (
         <EmptyState
           icon={FileTextIcon}
           title="No invoices yet"
@@ -73,8 +53,13 @@ export default async function InvoicesPage() {
       ) : (
         <Card className="overflow-hidden py-0">
           <InvoicesTable
-            invoices={rows}
+            initialRows={list.rows}
+            initialTotalCount={list.totalCount}
+            initialPage={list.page}
+            initialPageSize={list.pageSize}
+            initialPageCount={list.pageCount}
             companyName={member.company.name}
+            celebrateInvoicePaid={member.celebrateInvoicePaid}
             canWrite={canWrite}
             canDelete={canDelete}
           />

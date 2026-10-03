@@ -53,7 +53,15 @@ type SendInvoiceEmailInput = {
   message?: string;
   subject?: string;
   customFieldRows?: Array<{ label: string; value: string }>;
+  /** When set, client replies go to the company instead of the platform From. */
+  replyTo?: string | null;
 };
+
+function sanitizeReplyTo(email?: string | null): string | undefined {
+  const trimmed = email?.trim();
+  if (!trimmed || !trimmed.includes("@")) return undefined;
+  return trimmed;
+}
 
 function formatCustomFieldsHtml(
   rows?: Array<{ label: string; value: string }>,
@@ -89,6 +97,7 @@ export async function sendInvoiceEmail(input: SendInvoiceEmailInput) {
   const { data, error } = await resend.emails.send({
     from,
     to: input.to,
+    ...(sanitizeReplyTo(input.replyTo) ? { replyTo: sanitizeReplyTo(input.replyTo) } : {}),
     subject,
     html: `
       <p>Hello,</p>
@@ -126,6 +135,8 @@ type SendEstimateEmailInput = {
   message?: string;
   subject?: string;
   customFieldRows?: Array<{ label: string; value: string }>;
+  /** When set, client replies go to the company instead of the platform From. */
+  replyTo?: string | null;
 };
 
 export async function sendEstimateEmail(input: SendEstimateEmailInput) {
@@ -144,6 +155,7 @@ export async function sendEstimateEmail(input: SendEstimateEmailInput) {
   const { data, error } = await resend.emails.send({
     from,
     to: input.to,
+    ...(sanitizeReplyTo(input.replyTo) ? { replyTo: sanitizeReplyTo(input.replyTo) } : {}),
     subject,
     html: `
       <p>Hello,</p>

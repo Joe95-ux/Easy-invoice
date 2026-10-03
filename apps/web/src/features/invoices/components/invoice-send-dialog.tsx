@@ -266,7 +266,7 @@ export function InvoiceSendDialog({
                   <ProFeatureGate
                     variant="banner"
                     title="Email invoices on Pro"
-                    description="Upgrade to send invoices by email with PDF attached. Free plans can still share a payment link."
+                    description="Send the PDF so clients can reply and pay faster. Free plans can still share a payment link."
                   />
                 </div>
               ) : null}

@@ -10,6 +10,7 @@ import {
   getRecurringInvoice,
   serializeRecurringInvoice,
   setRecurringInvoiceStatus,
+  skipNextRecurringOccurrence,
   updateRecurringInvoice,
 } from "@/lib/recurring-invoices";
 import { updateRecurringInvoiceSchema } from "@/lib/schemas/recurring-invoice";
@@ -76,6 +77,28 @@ export async function PATCH(request: Request, context: RouteContext) {
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Failed to update status";
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+  }
+
+  const skipOnly = z.object({ skipNext: z.literal(true) }).safeParse(body);
+  if (
+    skipOnly.success &&
+    body &&
+    typeof body === "object" &&
+    Object.keys(body as object).length === 1
+  ) {
+    try {
+      const updated = await skipNextRecurringOccurrence(member.companyId, id);
+      if (!updated) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
+      return NextResponse.json({
+        recurringInvoice: serializeRecurringInvoice(updated),
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to skip next issue";
       return NextResponse.json({ error: message }, { status: 400 });
     }
   }

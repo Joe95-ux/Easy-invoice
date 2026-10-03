@@ -21,7 +21,15 @@ type SendPaymentReminderEmailInput = {
   portalUrl?: string;
   kind: ReminderKind;
   pdfBuffer?: Buffer;
+  /** When set, client replies go to the company instead of the platform From. */
+  replyTo?: string | null;
 };
+
+function sanitizeReplyTo(email?: string | null): string | undefined {
+  const trimmed = email?.trim();
+  if (!trimmed || !trimmed.includes("@")) return undefined;
+  return trimmed;
+}
 
 function reminderCopy(
   kind: ReminderKind,
@@ -71,6 +79,7 @@ export async function sendPaymentReminderEmail(input: SendPaymentReminderEmailIn
   const { data, error } = await resend.emails.send({
     from,
     to: input.to,
+    ...(sanitizeReplyTo(input.replyTo) ? { replyTo: sanitizeReplyTo(input.replyTo) } : {}),
     subject,
     html: `
       <p>Hello,</p>

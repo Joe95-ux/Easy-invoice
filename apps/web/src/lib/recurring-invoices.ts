@@ -19,6 +19,7 @@ import { getDefaultTemplateId, getTemplateById } from "@/lib/templates";
 import { getAppOrigin } from "@/lib/app-url";
 import { publicDocumentUrl } from "@/lib/document-tokens";
 import { sendInvoiceEmail } from "@/lib/email";
+import { createNotification } from "@/lib/notifications/service";
 import { generateInvoicePdfBuffer } from "@/lib/invoice-service";
 import { formatMoney } from "@/lib/invoices";
 import { portalLoginUrl } from "@/lib/portal/urls";
@@ -657,6 +658,68 @@ export async function deleteRecurringInvoice(companyId: string, id: string) {
   return existing;
 }
 
+/**
+ * Advance nextIssueDate by one period without creating an invoice.
+ * Clears lastError. Ends the schedule when the new next date is past limits.
+ */
+export async function skipNextRecurringOccurrence(companyId: string, id: string) {
+  const existing = await getRecurringInvoice(id, companyId);
+  if (!existing) return null;
+  if (existing.status === "ENDED") {
+    throw new Error("Cannot skip an ended schedule");
+  }
+
+  const current = startOfUtcDay(existing.nextIssueDate);
+  const next = advanceIssueDate(current, existing.frequency, existing.interval);
+  const ended = shouldEndSchedule({
+    nextIssueDate: next,
+    endDate: existing.endDate,
+    maxOccurrences: existing.maxOccurrences,
+    occurrenceCount: existing.occurrenceCount,
+  });
+
+  return prisma.recurringInvoice.update({
+    where: { id },
+    data: {
+      nextIssueDate: next,
+      lastError: null,
+      status: ended ? "ENDED" : existing.status,
+    },
+    include: listInclude,
+  });
+}
+
+async function notifyRecurringAutoSendFailed(input: {
+  companyId: string;
+  scheduleId: string;
+  scheduleName: string;
+  invoiceId: string;
+  invoiceNumber: string;
+  message: string;
+}) {
+  const memberIds = (
+    await prisma.companyMember.findMany({
+      where: { companyId: input.companyId },
+      select: { id: true },
+    })
+  ).map((m) => m.id);
+
+  if (memberIds.length === 0) return;
+
+  await createNotification({
+    companyId: input.companyId,
+    recipientMemberIds: memberIds,
+    type: "RECURRING_AUTO_SEND_FAILED",
+    title: "Recurring auto-send failed",
+    body: `${input.scheduleName}: invoice ${input.invoiceNumber} was created but email failed — ${input.message}`,
+    linkUrl: `/invoices/${input.invoiceId}`,
+    metadata: {
+      recurringInvoiceId: input.scheduleId,
+      invoiceId: input.invoiceId,
+    },
+  }).catch(() => undefined);
+}
+
 async function sendGeneratedInvoice(
   invoiceId: string,
   companyId: string,
@@ -684,6 +747,7 @@ async function sendGeneratedInvoice(
       (await ensureInvoicePublicToken(invoiceId, companyId))!,
     ),
     portalUrl: portalLoginUrl(origin, recipientEmail),
+    replyTo: invoice.company.email,
   });
 
   await prisma.invoice.update({
@@ -851,7 +915,38 @@ export async function issueRecurringInvoiceOccurrence(
   });
 
   if (alreadyIssued) {
-    // Recover a stuck schedule: advance past this date.
+    // Recover a stuck schedule: if auto-send failed and the invoice is still a draft, retry send.
+    let autoSent = false;
+    let remainingError: string | null = schedule.lastError;
+    if (schedule.autoSend && schedule.lastError) {
+      const draft = await prisma.invoice.findFirst({
+        where: { id: alreadyIssued.id, companyId, status: "DRAFT", sentAt: null },
+        select: { id: true },
+      });
+      if (draft) {
+        try {
+          await sendGeneratedInvoice(
+            alreadyIssued.id,
+            companyId,
+            options?.memberId ?? schedule.memberId,
+          );
+          autoSent = true;
+          remainingError = null;
+        } catch (error) {
+          remainingError =
+            error instanceof Error ? error.message : "Auto-send failed";
+          await notifyRecurringAutoSendFailed({
+            companyId,
+            scheduleId: schedule.id,
+            scheduleName: schedule.name,
+            invoiceId: alreadyIssued.id,
+            invoiceNumber: alreadyIssued.number,
+            message: remainingError,
+          });
+        }
+      }
+    }
+
     const next = advanceIssueDate(issueDate, schedule.frequency, schedule.interval);
     const occurrenceCount = schedule.occurrenceCount;
     const ended = shouldEndSchedule({
@@ -865,7 +960,7 @@ export async function issueRecurringInvoiceOccurrence(
       data: {
         nextIssueDate: next,
         status: ended ? "ENDED" : schedule.status,
-        lastError: null,
+        lastError: remainingError,
       },
     });
     return {
@@ -874,7 +969,8 @@ export async function issueRecurringInvoiceOccurrence(
       invoiceNumber: alreadyIssued.number,
       skipped: true,
       ended,
-      autoSent: false,
+      autoSent,
+      ...(remainingError ? { error: remainingError } : {}),
     };
   }
 
@@ -1018,12 +1114,26 @@ export async function issueRecurringInvoiceOccurrence(
           options?.memberId ?? schedule.memberId,
         );
         autoSent = true;
+        if (schedule.lastError) {
+          await prisma.recurringInvoice.update({
+            where: { id: schedule.id },
+            data: { lastError: null },
+          });
+        }
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "Auto-send failed";
         await prisma.recurringInvoice.update({
           where: { id: schedule.id },
           data: { lastError: message },
+        });
+        await notifyRecurringAutoSendFailed({
+          companyId,
+          scheduleId: schedule.id,
+          scheduleName: schedule.name,
+          invoiceId: created.invoice.id,
+          invoiceNumber: created.invoice.number,
+          message,
         });
         return {
           recurringInvoiceId,

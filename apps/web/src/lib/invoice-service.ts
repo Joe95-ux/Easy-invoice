@@ -11,6 +11,26 @@ import { renderInvoiceHtmlForInvoice } from "@/lib/invoice-html";
 import { prisma } from "@/lib/db";
 import type { AppliedTax } from "@/lib/schemas/tax-rates";
 import { getInvoiceForMember } from "@/lib/invoices";
+import { buildInvoicePaymentSummary } from "@/lib/invoice-payments";
+import {
+  type InvoiceListPageSize,
+  type InvoiceListRow,
+  type InvoiceListSortKey,
+  type ListInvoicesResult,
+} from "@/lib/invoice-list-shared";
+
+export {
+  INVOICE_LIST_PAGE_SIZES,
+  type InvoiceListPageSize,
+  type InvoiceListRow,
+  type InvoiceListSortKey,
+  type ListInvoicesResult,
+} from "@/lib/invoice-list-shared";
+
+function clampInvoicePageSize(value: number | undefined): InvoiceListPageSize {
+  if (value === 25 || value === 50) return value;
+  return 15;
+}
 
 export async function getInvoicesForMember(companyId: string, limit = 50) {
   return prisma.invoice.findMany({
@@ -22,6 +42,105 @@ export async function getInvoicesForMember(companyId: string, limit = 50) {
     orderBy: { createdAt: "desc" },
     take: limit,
   });
+}
+
+/**
+ * Paginated invoice list for the workspace table — slim selects, DB search/filter.
+ */
+export async function listInvoicesForMember(input: {
+  companyId: string;
+  q?: string;
+  status?: InvoiceStatus | "all";
+  page?: number;
+  pageSize?: number;
+  sortKey?: InvoiceListSortKey;
+  sortDir?: "asc" | "desc";
+}): Promise<ListInvoicesResult> {
+  const pageSize = clampInvoicePageSize(input.pageSize);
+  const page = Math.max(1, Math.floor(input.page ?? 1));
+  const sortKey = input.sortKey ?? "dueDate";
+  const sortDir = input.sortDir ?? "desc";
+  const q = input.q?.trim() ?? "";
+
+  const where: Prisma.InvoiceWhereInput = {
+    companyId: input.companyId,
+    ...(input.status && input.status !== "all" ? { status: input.status } : {}),
+    ...(q
+      ? {
+          OR: [
+            { number: { contains: q, mode: "insensitive" } },
+            { client: { name: { contains: q, mode: "insensitive" } } },
+            { client: { email: { contains: q, mode: "insensitive" } } },
+          ],
+        }
+      : {}),
+  };
+
+  const orderBy: Prisma.InvoiceOrderByWithRelationInput[] = (() => {
+    switch (sortKey) {
+      case "number":
+        return [{ number: sortDir }];
+      case "total":
+        return [{ total: sortDir }];
+      case "status":
+        return [{ status: sortDir }];
+      case "clientName":
+        return [{ client: { name: sortDir } }];
+      case "createdAt":
+        return [{ createdAt: sortDir }];
+      case "dueDate":
+      default:
+        return [{ dueDate: sortDir }, { createdAt: "desc" }];
+    }
+  })();
+
+  const [totalCount, invoices] = await Promise.all([
+    prisma.invoice.count({ where }),
+    prisma.invoice.findMany({
+      where,
+      select: {
+        id: true,
+        number: true,
+        status: true,
+        total: true,
+        currency: true,
+        dueDate: true,
+        sentAt: true,
+        clientId: true,
+        client: { select: { name: true, email: true } },
+        payments: { select: { amount: true } },
+      },
+      orderBy,
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+  ]);
+
+  const pageCount = Math.max(1, Math.ceil(totalCount / pageSize));
+  const rows: InvoiceListRow[] = invoices.map((invoice) => {
+    const paymentSummary = buildInvoicePaymentSummary(invoice);
+    return {
+      id: invoice.id,
+      number: invoice.number,
+      status: invoice.status,
+      total: invoice.total.toString(),
+      balanceDue: paymentSummary.balanceDue.toString(),
+      currency: invoice.currency,
+      dueDate: invoice.dueDate?.toISOString() ?? null,
+      clientId: invoice.clientId,
+      clientName: invoice.client?.name ?? null,
+      clientEmail: invoice.client?.email ?? null,
+      sentAt: invoice.sentAt?.toISOString() ?? null,
+    };
+  });
+
+  return {
+    rows,
+    totalCount,
+    page: Math.min(page, pageCount),
+    pageSize,
+    pageCount,
+  };
 }
 
 export async function generateNextInvoiceNumber(companyId: string): Promise<string> {

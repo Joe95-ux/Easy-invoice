@@ -1,12 +1,21 @@
 import { NextResponse } from "next/server";
-import { requireApiWriter, parseJsonBody, validationError } from "@/lib/api/validation";
+import type { NextRequest } from "next/server";
+import type { InvoiceStatus } from "@easy-invoice/db";
+import {
+  requireApiMember,
+  requireApiWriter,
+  parseJsonBody,
+  validationError,
+} from "@/lib/api/validation";
 import { prisma } from "@/lib/db";
 import {
   buildInvoiceTotals,
   documentTotalsPersistFields,
   generateNextInvoiceNumber,
   isUniqueConstraintError,
+  listInvoicesForMember,
   resolveClientForInvoice,
+  type InvoiceListSortKey,
 } from "@/lib/invoice-service";
 import { exchangeRateMetaPersistFields } from "@/lib/fx-meta";
 import { linkTimeEntriesToInvoice } from "@/lib/time-tracking/service";
@@ -33,6 +42,50 @@ import {
   isPlanLimitError,
   planLimitResponse,
 } from "@/lib/billing/entitlements";
+import { z } from "zod";
+
+const INVOICE_STATUSES = [
+  "DRAFT",
+  "SENT",
+  "VIEWED",
+  "PARTIALLY_PAID",
+  "PAID",
+  "OVERDUE",
+  "CANCELLED",
+] as const;
+
+const listQuerySchema = z.object({
+  q: z.string().trim().max(200).optional(),
+  status: z.enum(["all", ...INVOICE_STATUSES]).optional(),
+  page: z.coerce.number().int().min(1).optional(),
+  pageSize: z.coerce.number().int().optional(),
+  sortKey: z
+    .enum(["dueDate", "createdAt", "number", "total", "status", "clientName"])
+    .optional(),
+  sortDir: z.enum(["asc", "desc"]).optional(),
+});
+
+export async function GET(request: NextRequest) {
+  const { member, response } = await requireApiMember();
+  if (response) return response;
+
+  const parsed = listQuerySchema.safeParse(
+    Object.fromEntries(request.nextUrl.searchParams.entries()),
+  );
+  if (!parsed.success) return validationError(parsed.error);
+
+  const result = await listInvoicesForMember({
+    companyId: member.companyId,
+    q: parsed.data.q,
+    status: (parsed.data.status as InvoiceStatus | "all" | undefined) ?? "all",
+    page: parsed.data.page,
+    pageSize: parsed.data.pageSize,
+    sortKey: parsed.data.sortKey as InvoiceListSortKey | undefined,
+    sortDir: parsed.data.sortDir,
+  });
+
+  return NextResponse.json(result);
+}
 
 export async function POST(request: Request) {
   const { member, response } = await requireApiWriter();

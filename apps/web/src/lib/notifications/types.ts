@@ -29,6 +29,7 @@ export const NOTIFICATION_TYPE_TO_PREF: Record<NotificationType, keyof Notificat
   ESTIMATE_EXPIRED: "notifyEstimateResponse",
   PAYMENT_RECEIVED: "notifyPaymentReceived",
   INVOICE_OVERDUE: "notifyInvoiceOverdue",
+  RECURRING_AUTO_SEND_FAILED: "notifyInvoiceOverdue",
   TEAM_INVITE_RECEIVED: "notifyTeamChanges",
   MEMBER_ROLE_CHANGED: "notifyTeamChanges",
   FORM_SUBMITTED: "notifyFormSubmitted",
@@ -48,8 +49,9 @@ export const NOTIFICATION_PREF_LABELS: Record<keyof NotificationPreferences, { t
     description: "When a payment is recorded on an invoice",
   },
   notifyInvoiceOverdue: {
-    title: "Invoice overdue",
-    description: "When an invoice passes its due date without payment",
+    title: "Invoice overdue & send failures",
+    description:
+      "When an invoice passes its due date, or a recurring auto-send email fails",
   },
   notifyTeamChanges: {
     title: "Team changes",

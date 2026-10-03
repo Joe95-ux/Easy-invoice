@@ -1,17 +1,20 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   BellRingIcon,
   CalendarPlusIcon,
   Loader2Icon,
+  LockIcon,
   SendIcon,
   SparklesIcon,
   SplitIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { throwIfApiError, toastApiError } from "@/lib/billing/plan-api-error";
+import { useCompanyPlan } from "@/components/billing/company-plan-context";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,6 +53,7 @@ export function InvoiceCollectionsCard({
   canRemind,
 }: InvoiceCollectionsCardProps) {
   const router = useRouter();
+  const { isPro } = useCompanyPlan();
   const [busy, setBusy] = useState<string | null>(null);
 
   // One clear nudge only — don't soft-sell plans on "On track".
@@ -81,6 +85,15 @@ export function InvoiceCollectionsCard({
   }
 
   async function offerPlan(parts: 2 | 3) {
+    if (!isPro) {
+      toast.message("Payment plans are on Pro", {
+        action: {
+          label: "Upgrade",
+          onClick: () => router.push("/settings/billing/plans"),
+        },
+      });
+      return;
+    }
     setBusy(`plan-${parts}`);
     try {
       const response = await fetch(`/api/invoices/${invoiceId}/payment-plan`, {
@@ -93,11 +106,16 @@ export function InvoiceCollectionsCard({
       toast.success(`${parts}-part payment plan enabled`, {
         description: canPayOnline
           ? "Share the invoice link so they can pay the first installment online."
-          : "Share the invoice link so they can see the schedule. Enable card payments in Settings for online installments.",
-        action: {
-          label: "Share link",
-          onClick: onShareLink,
-        },
+          : "Share the link so they can see the schedule. Connect Stripe in Settings for card installments.",
+        action: canPayOnline
+          ? {
+              label: "Share link",
+              onClick: onShareLink,
+            }
+          : {
+              label: "Connect Stripe",
+              onClick: () => router.push("/settings/billing"),
+            },
       });
       router.refresh();
     } catch (error) {
@@ -107,17 +125,43 @@ export function InvoiceCollectionsCard({
     }
   }
 
-  const showRemind =
-    (advice.action === "remind" || advice.action === "draft_chase") && canRemind;
-  const showChase =
+  function handleDraftChase() {
+    if (!isPro) {
+      toast.message("Chase drafts are on Pro", {
+        action: {
+          label: "Upgrade",
+          onClick: () => router.push("/settings/billing/plans"),
+        },
+      });
+      return;
+    }
+    onDraftChase();
+  }
+
+  // Primary = advice action. At most one secondary helper.
+  const primaryIsSend = advice.action === "send";
+  const primaryIsRemind = advice.action === "remind" && canRemind;
+  const primaryIsChase =
     advice.action === "draft_chase" ||
-    advice.action === "offer_plan" ||
-    advice.action === "remind";
-  const showFollowUp =
-    advice.action === "follow_up" ||
-    advice.action === "draft_chase" ||
-    advice.action === "offer_plan" ||
-    advice.action === "remind";
+    (advice.action === "remind" && !canRemind);
+  const primaryIsPlan = advice.action === "offer_plan";
+  const primaryIsFollowUp = advice.action === "follow_up";
+  const missingClientEmail = !clientEmail?.trim();
+
+  // Prefer the most useful single helper for the primary action.
+  const secondary:
+    | "remind"
+    | "follow_up"
+    | "plan"
+    | null = (() => {
+    if (primaryIsChase || primaryIsPlan) {
+      if (canRemind && !missingClientEmail) return "remind";
+      if (primaryIsChase && isPro && advice.canOfferPlan) return "plan";
+      if (primaryIsChase || primaryIsPlan) return "follow_up";
+    }
+    if (primaryIsRemind && missingClientEmail) return null;
+    return null;
+  })();
 
   return (
     <Card
@@ -144,19 +188,33 @@ export function InvoiceCollectionsCard({
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm text-muted-foreground">{advice.reason}</p>
+        {primaryIsRemind && missingClientEmail ? (
+          <p className="text-sm text-muted-foreground">
+            Add a client email before sending a reminder.
+          </p>
+        ) : null}
         <div className="flex flex-wrap gap-2">
-          {advice.action === "send" ? (
-            <Button type="button" disabled={busy !== null} onClick={onSendInvoice}>
-              <SendIcon className="size-4" />
-              Send invoice
-            </Button>
+          {primaryIsSend ? (
+            isPro ? (
+              <Button type="button" disabled={busy !== null} onClick={onSendInvoice}>
+                <SendIcon className="size-4" />
+                Send invoice
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                render={<Link href="/settings/billing/plans" />}
+              >
+                <LockIcon className="size-4" />
+                Unlock email send
+              </Button>
+            )
           ) : null}
 
-          {showRemind ? (
+          {primaryIsRemind ? (
             <Button
               type="button"
-              variant={advice.action === "remind" ? "default" : "outline"}
-              disabled={busy !== null || !clientEmail?.trim()}
+              disabled={busy !== null || missingClientEmail}
               onClick={() => void sendReminder()}
             >
               {busy === "remind" ? (
@@ -168,58 +226,101 @@ export function InvoiceCollectionsCard({
             </Button>
           ) : null}
 
-          {showChase ? (
+          {primaryIsChase ? (
             <Button
               type="button"
-              variant={
-                advice.action === "draft_chase" ||
-                (advice.action === "remind" && !canRemind)
-                  ? "default"
-                  : "outline"
-              }
               disabled={busy !== null}
-              onClick={onDraftChase}
+              onClick={handleDraftChase}
             >
-              <SparklesIcon className="size-4" />
+              {isPro ? (
+                <SparklesIcon className="size-4" />
+              ) : (
+                <LockIcon className="size-4" />
+              )}
               Draft chase email
             </Button>
           ) : null}
 
-          {advice.canOfferPlan ? (
-            <>
-              <Button
-                type="button"
-                variant={advice.action === "offer_plan" ? "default" : "outline"}
-                disabled={busy !== null}
-                onClick={() => void offerPlan(2)}
-              >
-                {busy === "plan-2" ? (
-                  <Loader2Icon className="size-4 animate-spin" />
-                ) : (
-                  <SplitIcon className="size-4" />
-                )}
-                Offer 2-pay plan
+          {primaryIsPlan ? (
+            isPro ? (
+              <>
+                <Button
+                  type="button"
+                  disabled={busy !== null}
+                  onClick={() => void offerPlan(2)}
+                >
+                  {busy === "plan-2" ? (
+                    <Loader2Icon className="size-4 animate-spin" />
+                  ) : (
+                    <SplitIcon className="size-4" />
+                  )}
+                  Offer 2-pay plan
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={busy !== null}
+                  onClick={() => void offerPlan(3)}
+                >
+                  {busy === "plan-3" ? (
+                    <Loader2Icon className="size-4 animate-spin" />
+                  ) : (
+                    <SplitIcon className="size-4" />
+                  )}
+                  Offer 3-pay plan
+                </Button>
+              </>
+            ) : (
+              <Button render={<Link href="/settings/billing/plans" />}>
+                <LockIcon className="size-4" />
+                Unlock payment plans
               </Button>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={busy !== null}
-                onClick={() => void offerPlan(3)}
-              >
-                {busy === "plan-3" ? (
-                  <Loader2Icon className="size-4 animate-spin" />
-                ) : (
-                  <SplitIcon className="size-4" />
-                )}
-                Offer 3-pay plan
-              </Button>
-            </>
+            )
           ) : null}
 
-          {showFollowUp ? (
+          {primaryIsFollowUp ? (
+            <Button type="button" disabled={busy !== null} onClick={onAddFollowUp}>
+              <CalendarPlusIcon className="size-4" />
+              Add follow-up
+            </Button>
+          ) : null}
+
+          {secondary === "remind" ? (
             <Button
               type="button"
-              variant={advice.action === "follow_up" ? "default" : "outline"}
+              variant="outline"
+              disabled={busy !== null || missingClientEmail}
+              onClick={() => void sendReminder()}
+            >
+              {busy === "remind" ? (
+                <Loader2Icon className="size-4 animate-spin" />
+              ) : (
+                <BellRingIcon className="size-4" />
+              )}
+              Send reminder
+            </Button>
+          ) : null}
+
+          {secondary === "plan" ? (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy !== null}
+              onClick={() => void offerPlan(2)}
+            >
+              {busy === "plan-2" ? (
+                <Loader2Icon className="size-4 animate-spin" />
+              ) : (
+                <SplitIcon className="size-4" />
+              )}
+              Offer plan
+            </Button>
+          ) : null}
+
+          {secondary === "follow_up" ? (
+            <Button
+              type="button"
+              variant="outline"
               disabled={busy !== null}
               onClick={onAddFollowUp}
             >

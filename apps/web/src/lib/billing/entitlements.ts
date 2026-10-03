@@ -20,10 +20,10 @@ export type PlanFeature =
 
 const PRO_FEATURE_LABEL: Record<PlanFeature, string> = {
   custom_branding: "Custom branding is available on Pro",
-  email_invoices: "Emailing invoices is available on Pro",
-  recurring_invoices: "Recurring invoices are available on Pro",
+  email_invoices: "Email invoices so clients can pay faster — available on Pro",
+  recurring_invoices: "Recurring invoices that chase payment for you — available on Pro",
   payment_plans: "Payment plans are available on Pro",
-  collections: "Collections tools are available on Pro",
+  collections: "Collections chase tools are available on Pro",
 };
 
 export class PlanLimitError extends Error {

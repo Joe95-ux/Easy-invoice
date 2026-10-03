@@ -14,6 +14,7 @@ import {
   MoreHorizontalIcon,
   SendIcon,
   Trash2Icon,
+  UploadIcon,
 } from "lucide-react";
 import { SortableTableHead } from "@/components/data-table/sortable-table-head";
 import { TablePagination } from "@/components/data-table/table-pagination";
@@ -36,6 +37,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ExportClientsDialog } from "@/features/clients/components/export-clients-dialog";
+import { ImportClientsDialog } from "@/features/clients/components/import-clients-dialog";
 import {
   inviteClientToPortalRequest,
   toastPortalInviteResult,
@@ -68,6 +70,7 @@ export function ClientsTable({
   const [merging, setMerging] = useState(false);
   const [mergeOpen, setMergeOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<ClientListItem | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -190,17 +193,31 @@ export function ClientsTable({
         filterOptions={table.filterOptions}
         filterLabel="Clients"
         actions={
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="cursor-pointer"
-            disabled={table.totalCount === 0}
-            onClick={() => setExportOpen(true)}
-          >
-            <DownloadIcon className="size-4" />
-            Export
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            {canWrite ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="cursor-pointer"
+                onClick={() => setImportOpen(true)}
+              >
+                <UploadIcon className="size-4" />
+                Import
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="cursor-pointer"
+              disabled={table.totalCount === 0}
+              onClick={() => setExportOpen(true)}
+            >
+              <DownloadIcon className="size-4" />
+              Export
+            </Button>
+          </div>
         }
       />
 
@@ -355,6 +372,9 @@ export function ClientsTable({
         onOpenChange={setExportOpen}
         clients={table.rows}
       />
+      {canWrite ? (
+        <ImportClientsDialog open={importOpen} onOpenChange={setImportOpen} />
+      ) : null}
 
       <ConfirmActionDialog
         open={mergeOpen}

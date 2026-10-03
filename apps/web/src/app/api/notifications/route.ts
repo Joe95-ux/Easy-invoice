@@ -11,13 +11,16 @@ import {
 const NOTIFICATION_TYPES = new Set<string>([
   "CLIENT_VIEWED_INVOICE",
   "CLIENT_VIEWED_ESTIMATE",
+  "CLIENT_PORTAL_OPENED",
   "ESTIMATE_ACCEPTED",
   "ESTIMATE_DECLINED",
   "ESTIMATE_EXPIRED",
   "PAYMENT_RECEIVED",
   "INVOICE_OVERDUE",
+  "RECURRING_AUTO_SEND_FAILED",
   "TEAM_INVITE_RECEIVED",
   "MEMBER_ROLE_CHANGED",
+  "FORM_SUBMITTED",
 ]);
 
 function parseReadFilter(value: string | null): "all" | "read" | "unread" {

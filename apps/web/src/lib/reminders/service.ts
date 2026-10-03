@@ -128,7 +128,8 @@ export async function sendInvoiceReminder(options: {
     },
   });
 
-  if (existing) {
+  // SENT slots are done. FAILED slots stay until we upgrade them in place.
+  if (existing?.status === ReminderDeliveryStatus.SENT) {
     return { ok: false, error: "Reminder already sent for this schedule", skipped: true };
   }
 
@@ -187,18 +188,28 @@ export async function sendInvoiceReminder(options: {
       portalUrl: portalLoginUrl(origin, toEmail),
       kind: options.kind,
       pdfBuffer: settings.reminderIncludePdf ? pdfBuffer : undefined,
+      replyTo: invoice.company.email,
     });
 
-    const reminder = await prisma.invoiceReminder.create({
-      data: {
-        invoiceId: options.invoiceId,
-        kind: options.kind,
-        offsetDays: options.offsetDays,
-        scheduleDate,
-        toEmail,
-        status: ReminderDeliveryStatus.SENT,
-      },
-    });
+    const reminder = existing
+      ? await prisma.invoiceReminder.update({
+          where: { id: existing.id },
+          data: {
+            toEmail,
+            status: ReminderDeliveryStatus.SENT,
+            error: null,
+          },
+        })
+      : await prisma.invoiceReminder.create({
+          data: {
+            invoiceId: options.invoiceId,
+            kind: options.kind,
+            offsetDays: options.offsetDays,
+            scheduleDate,
+            toEmail,
+            status: ReminderDeliveryStatus.SENT,
+          },
+        });
 
     await recordDocumentRevision({
       companyId: options.companyId,
@@ -219,17 +230,32 @@ export async function sendInvoiceReminder(options: {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to send reminder";
 
-    await prisma.invoiceReminder.create({
-      data: {
-        invoiceId: options.invoiceId,
-        kind: options.kind,
-        offsetDays: options.offsetDays,
-        scheduleDate,
-        toEmail,
-        status: ReminderDeliveryStatus.FAILED,
-        error: message,
-      },
-    }).catch(() => undefined);
+    if (existing) {
+      await prisma.invoiceReminder
+        .update({
+          where: { id: existing.id },
+          data: {
+            toEmail,
+            status: ReminderDeliveryStatus.FAILED,
+            error: message,
+          },
+        })
+        .catch(() => undefined);
+    } else {
+      await prisma.invoiceReminder
+        .create({
+          data: {
+            invoiceId: options.invoiceId,
+            kind: options.kind,
+            offsetDays: options.offsetDays,
+            scheduleDate,
+            toEmail,
+            status: ReminderDeliveryStatus.FAILED,
+            error: message,
+          },
+        })
+        .catch(() => undefined);
+    }
 
     return { ok: false, error: message };
   }

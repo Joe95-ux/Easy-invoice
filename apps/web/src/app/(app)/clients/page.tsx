@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { PlusIcon, UsersRoundIcon } from "lucide-react";
+import { PlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { PageScroll } from "@/components/app-shell/app-shell";
-import { EmptyState, PageHeader, pageHeaderActionClass } from "@/components/app-shell/page-header";
+import { PageHeader, pageHeaderActionClass } from "@/components/app-shell/page-header";
+import { ClientsEmptyState } from "@/features/clients/components/clients-empty-state";
 import { ClientsTable } from "@/features/clients/components/clients-table";
 import { requireMember } from "@/lib/auth";
 import { getClientsForMember } from "@/lib/clients";
@@ -36,19 +37,7 @@ export default async function ClientsPage() {
       />
 
       {clients.length === 0 ? (
-        <EmptyState
-          icon={UsersRoundIcon}
-          title="No clients yet"
-          description="Add a client once and reuse their details on every invoice."
-          action={
-            canWrite ? (
-              <Button render={<Link href="/clients/new" />}>
-                <PlusIcon className="size-4" />
-                Add your first client
-              </Button>
-            ) : undefined
-          }
-        />
+        <ClientsEmptyState canWrite={canWrite} />
       ) : (
         <Card className="overflow-hidden py-0">
           <ClientsTable

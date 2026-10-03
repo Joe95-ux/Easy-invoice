@@ -82,6 +82,7 @@ export async function POST(request: Request, context: RouteContext) {
       message: parsed.data.message,
       subject: parsed.data.subject,
       customFieldRows,
+      replyTo: invoice.company.email,
     });
 
     const updated = await prisma.invoice.update({
