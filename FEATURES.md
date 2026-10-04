@@ -255,13 +255,13 @@ Company-defined field definitions (text, textarea, number, date, select, checkbo
 
 **Status:** Done
 
-Schedule invoices (weekly / monthly / quarterly / yearly) with pause/resume, end date or max occurrences, optional auto-send, and daily cron generation. Schedules are based on an existing invoice (copied client/lines/totals), matching common invoicing tools.
+Schedule invoices (weekly / monthly / quarterly / yearly) with pause/resume, **skip next**, end date or max occurrences, optional auto-send, and daily cron generation. Failed auto-sends set `lastError`, notify the team (`RECURRING_AUTO_SEND_FAILED`), and leave the draft invoice for manual send. Schedules are based on an existing invoice (copied client/lines/totals), matching common invoicing tools.
 
 | Piece | Location |
 |-------|----------|
 | Schema | `RecurringInvoice`, `RecurringInvoiceLineItem`, `Invoice.recurringInvoiceId` |
-| Service | `lib/recurring-invoices.ts` |
-| API | `GET/POST /api/recurring-invoices`, `GET/PATCH/DELETE /api/recurring-invoices/[id]`, `POST …/generate`, `POST /api/invoices/[id]/make-recurring` |
+| Service | `lib/recurring-invoices.ts` — `skipNextRecurringOccurrence`, auto-send notify |
+| API | `GET/POST /api/recurring-invoices`, `GET/PATCH/DELETE /api/recurring-invoices/[id]` (`{ skipNext: true }` or `{ status }`), `POST …/generate`, `POST /api/invoices/[id]/make-recurring` |
 | Cron | Included in `GET /api/cron/invoice-reminders` |
 | UI | `/recurring-invoices` (right drawer: pick invoice + schedule), invoice **Make recurring**, schedule link on invoice detail |
 
@@ -271,7 +271,7 @@ Schedule invoices (weekly / monthly / quarterly / yearly) with pause/resume, end
 
 **Status:** Done
 
-Next-best-action on unpaid invoices from signals we already store (`sentAt`, `viewedAt`, due date, balance, installments) — not a full AR suite. **The team** can always offer/remove a plan from the invoice. **Clients** only see self-serve “Split into 2 / 3” when company policy `clientPaymentPlansEnabled` is on (Settings → Card payments; default off). Clients can always pay full, pay half, or pay the next installment when a plan exists. AI draft tone `collections` for firm chase emails.
+Next-best-action on unpaid invoices from signals we already store (`sentAt`, `viewedAt`, due date, balance, installments) — not a full AR suite. **Get paid** shows one primary CTA (send / remind / chase / plan / follow-up) plus at most one helper. Payment plans and collections chase drafts are **Pro**; remind/send/follow-up stay available on Free. **The team** can offer/remove a plan from the invoice. **Clients** only see self-serve “Split into 2 / 3” when company policy `clientPaymentPlansEnabled` is on (Settings → Card payments; default off). Clients can always pay full, pay half, or pay the next installment when a plan exists. AI draft tone `collections` for firm chase emails.
 
 | Piece | Location |
 |-------|----------|
@@ -319,6 +319,76 @@ Company tax-rates library, multi-tax (additive or compound), tax-inclusive docum
 | Creators | `DocumentTaxPanel` on invoice / estimate / recurring (auto-fetch, lock, stale warn) |
 | PDF | Exchange rate row in `invoice-templates/render.ts` when enabled |
 | Reporting | Analytics + dashboard + client financial profile prefer payment/home snapshots |
+
+---
+
+### 12b. Pro consolidation (SMB ops)
+
+**Status:** Done
+
+Harden Pro “get paid” and daily ops without Enterprise scope:
+
+| Item | Status | Notes |
+|------|--------|-------|
+| Email / recurring / Get paid reliability | Done | Reply-To company email; FAILED reminder retry; auto-send failure notification; skip next; tighter Get paid CTAs + Pro-gate plans/chase |
+| Clients CSV import | Done | `POST /api/clients/import` (max 500, skip duplicate emails); Import next to Export on Clients |
+| Light invoice bulk | Done | List multi-select → Send / Remind / Download PDFs (max 25) |
+| Server-side invoice list + pay-from-list | Done | `GET /api/invoices` paginated search; list **Record payment** |
+| Pro positioning / upgrade UX | Done | Catalog promise + upgrade card + gate/toast copy aligned to “chases payment” |
+
+---
+
+### 13. Enterprise plan (package outline)
+
+**Status:** Planned (sales-led tier — build features later; marketing/catalog stub OK sooner)
+
+Competitors **do** ship a top “Select / Corporate / Enterprise / Advanced” tier: self-serve mid plans, then **contact sales** for SSO, API, ERP sync, approvals, and SLA. Invoice Desk should mirror that pattern above Pro ($12/mo), not raise Pro to cover enterprise needs.
+
+#### Competitor pricing (approx., public list — verify before quoting)
+
+| Product | Mid / growth plans | Top / Enterprise pattern | Notes |
+|---------|-------------------|---------------------------|--------|
+| **FreshBooks** | Lite ~$23 · Plus ~$43 · Premium ~$70/mo | **Select — quote only** | Extra seats ~$11/user; Select = dedicated support, migration, preferred rates |
+| **BILL** | Essentials ~$49 · Team ~$65 · Corporate ~$89 **per user**/mo | **Enterprise — custom** | Accounting sync / approvals climb with tier; ERP + SSO on Enterprise |
+| **QuickBooks Online** | Simple Start → Plus (~$38–$115/mo range) | **Advanced ~$200–275/mo** (up to ~25 users) | Full accounting suite, not invoicing-only |
+| **Xero** | Early → Growing → Established (~$25–$90/mo) | Flat org pricing, unlimited users | Established adds multi-currency / richer ops |
+
+**Takeaway:** Mid-market finance tools charge **~$50–90/user** or **~$90–275/org** before custom Enterprise. A **$12 Pro** stays the PLG wedge; Enterprise is a different buyer (IT + finance), so price and sell separately.
+
+#### Invoice Desk — proposed Enterprise package
+
+Everything in **Pro**, plus:
+
+| Area | Capabilities |
+|------|----------------|
+| **Operations** | Bulk invoice actions (send, remind, void, mark paid, PDF zip); approval workflow (draft → approve → send); bulk payment apply / reconciliation aids; bulk import (clients, history) |
+| **Systems** | Public API + API keys; outbound webhooks; accounting sync (QuickBooks + Xero first; NetSuite later); server-side list/search + background jobs (required infrastructure) |
+| **Security & admin** | SSO (SAML / OIDC); SCIM later; finer roles/permissions; longer audit retention + export guarantees; custom sending domain |
+| **Support** | SLA (e.g. 99.9%); dedicated onboarding / CSM; named priority support |
+
+**Go-to-market:** Plans page shows Enterprise as **Contact sales** (no self-serve Checkout until 2–3 Enterprise features ship). Annual contracts preferred.
+
+#### Invoice Desk — proposed pricing
+
+| Band | When | Guide price |
+|------|------|-------------|
+| **List / starting at** | Marketing card | **From $199/mo** (annual ~$2,000–2,400/yr) |
+| **Standard Enterprise** | SSO + API + bulk ops, small finance team | **$199–299/mo** |
+| **Growth Enterprise** | + accounting sync, webhooks, approvals, SLA | **$499–999/mo** |
+| **High volume / custom** | 100–1000+ invoices/day, multi-entity, dedicated success | **$1,500–5,000+/mo** |
+| **Optional seat add-on** | After SSO | **+$15–25/seat/mo** above an included pack (e.g. 10 seats) |
+
+**Do not** sell Enterprise primarily as “more invoices” (Pro is already unlimited). Sell **control, integrations, and throughput**. Prefer metering seats / API / entities over punishing invoice count.
+
+**Positioning**
+- **Pro** — bill and get paid without limits.
+- **Enterprise** — run invoicing as a company system (bulk, integrations, SSO, API, SLA).
+
+#### Implementation notes (later)
+
+- Extend `PlanId` with `ENTERPRISE` in `plans-catalog` / entitlements when gating ships.
+- Keep Free + Pro Checkout; Enterprise via sales → manual Stripe / contract or Salesforce-style flow.
+- Feature flags per capability (SSO, API, QB sync) so early Enterprise customers can unlock incrementally.
 
 ---
 

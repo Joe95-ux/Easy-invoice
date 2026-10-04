@@ -125,6 +125,7 @@ enum NotificationType {
   ESTIMATE_EXPIRED
   PAYMENT_RECEIVED
   INVOICE_OVERDUE
+  RECURRING_AUTO_SEND_FAILED
   TEAM_INVITE_RECEIVED
   MEMBER_ROLE_CHANGED
   FORM_SUBMITTED
@@ -608,6 +609,8 @@ model Invoice {
 
   @@unique([companyId, number])
   @@index([companyId, status])
+  @@index([companyId, createdAt])
+  @@index([companyId, dueDate])
   @@index([recurringInvoiceId])
   @@index([projectId])
 }
