@@ -15,6 +15,7 @@ import { SiteFooter } from "@/components/marketing/site-footer";
 import { PublicNavbarLoader } from "@/components/public-navbar-loader";
 import { Reveal } from "@/components/landing/reveal";
 import { FaqAccordion } from "@/components/landing/faq-accordion";
+import { MoneyFlowIllustration } from "@/components/landing/money-flow-illustration";
 import { LANDING_PLANS, getLandingProCta } from "@/features/settings/lib/plans-catalog";
 import { getProTrialDays } from "@/lib/stripe-billing";
 import { cn } from "@/lib/utils";
@@ -207,6 +208,27 @@ export function HomePageV2() {
                 </Reveal>
               ))}
             </ol>
+          </div>
+        </section>
+
+        {/* Path map */}
+        <section className="border-b border-border/60">
+          <div className="mx-auto max-w-6xl px-6 py-20 md:py-28">
+            <Reveal className="mx-auto max-w-2xl text-center">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
+                Paths to paid
+              </p>
+              <h2 className="mt-3 font-heading text-3xl font-semibold tracking-tight sm:text-4xl">
+                Many ways in. One place they land.
+              </h2>
+              <p className="mt-4 text-muted-foreground">
+                A client can arrive through a form, a project, an estimate, logged time, or a
+                recurring schedule — every current still ends at get paid.
+              </p>
+            </Reveal>
+            <Reveal delay={120} className="mt-12 md:mt-14">
+              <MoneyFlowIllustration />
+            </Reveal>
           </div>
         </section>
 

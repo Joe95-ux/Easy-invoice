@@ -623,3 +623,47 @@ body {
     animation: none;
   }
 }
+
+/* Landing money-path flow illustration */
+.money-flow-rail {
+  stroke: color-mix(in oklch, var(--border) 85%, var(--primary));
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  opacity: 0.85;
+}
+
+.money-flow-current {
+  stroke-width: 2.25;
+  stroke-linecap: round;
+  stroke-dasharray: 7 110;
+  animation: money-flow-dash 3s linear infinite;
+}
+
+.money-flow-pulse {
+  animation: money-flow-pulse 2.4s ease-in-out infinite;
+  transform-origin: center;
+  transform-box: fill-box;
+}
+
+@keyframes money-flow-dash {
+  to {
+    stroke-dashoffset: -117;
+  }
+}
+
+@keyframes money-flow-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .money-flow-current,
+  .money-flow-pulse {
+    animation: none;
+  }
+}
