@@ -624,6 +624,224 @@ body {
   }
 }
 
+/*
+ * Landing page canvas — Apify-like continuous surface:
+ * one background, soft grid, light washes. Sections separate by
+ * space + hairlines, not zebra muted bands.
+ */
+.landing-canvas {
+  position: relative;
+  isolation: isolate;
+  overflow: clip;
+  background-color: var(--background);
+}
+
+.landing-canvas::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: 0.35;
+  background-position: 0 var(--landing-parallax-slow, 0px);
+  background-image:
+    radial-gradient(
+      ellipse 90% 40% at 50% -5%,
+      color-mix(in oklch, var(--primary) 10%, transparent),
+      transparent 55%
+    ),
+    radial-gradient(
+      ellipse 50% 35% at 100% 35%,
+      color-mix(in oklch, var(--primary) 5%, transparent),
+      transparent 60%
+    ),
+    radial-gradient(
+      ellipse 45% 30% at 0% 70%,
+      color-mix(in oklch, var(--primary) 4%, transparent),
+      transparent 55%
+    );
+}
+
+.landing-canvas::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: 0.4;
+  background-position: 0 var(--landing-parallax, 0px);
+  background-image:
+    linear-gradient(
+      color-mix(in oklch, var(--border) 55%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      color-mix(in oklch, var(--border) 55%, transparent) 1px,
+      transparent 1px
+    );
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 85% 70% at 50% 20%, #000 10%, transparent 75%);
+}
+
+.landing-canvas > * {
+  position: relative;
+  z-index: 1;
+}
+
+.landing-section {
+  position: relative;
+}
+
+.landing-section-rule {
+  border-top: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
+}
+
+.dark .landing-canvas::before {
+  opacity: 0.4;
+}
+
+.dark .landing-canvas::after {
+  opacity: 0.18;
+}
+
+/* Showcase band — same canvas, soft wash, no theme invert */
+.landing-band {
+  position: relative;
+  isolation: isolate;
+  overflow-x: clip;
+  background:
+    radial-gradient(
+      ellipse 70% 50% at 80% 0%,
+      color-mix(in oklch, var(--primary) 10%, transparent),
+      transparent 60%
+    ),
+    var(--background);
+}
+
+.landing-display {
+  font-family: var(--font-heading), var(--font-sans), system-ui;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  line-height: 0.95;
+}
+
+.landing-hero-frame {
+  border: 1px solid var(--border);
+  background: var(--card);
+  box-shadow: 0 18px 40px -16px oklch(0 0 0 / 0.22);
+}
+
+.dark .landing-hero-frame {
+  box-shadow: 0 18px 40px -16px oklch(0 0 0 / 0.65);
+}
+
+.landing-cta {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background-color: var(--background);
+}
+
+.landing-cta::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: 0.55;
+  background-image: repeating-linear-gradient(
+    -32deg,
+    transparent 0,
+    transparent 14px,
+    color-mix(in oklch, var(--border) 80%, transparent) 14px,
+    color-mix(in oklch, var(--border) 80%, transparent) 15px
+  );
+  mask-image: radial-gradient(ellipse 75% 70% at 50% 50%, #000 25%, transparent 80%);
+}
+
+.landing-cta::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: radial-gradient(
+    ellipse 50% 40% at 50% 100%,
+    color-mix(in oklch, var(--primary) 12%, transparent),
+    transparent 70%
+  );
+}
+
+.landing-cta > * {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes landing-caret {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.landing-caret {
+  animation: landing-caret 1s steps(1) infinite;
+}
+
+@keyframes landing-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.landing-pop-in {
+  animation: landing-pop-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-pop-in,
+  .landing-caret,
+  .landing-qr-scan {
+    animation: none;
+  }
+
+  .landing-canvas::before,
+  .landing-canvas::after {
+    background-position: 0 0;
+  }
+}
+
+@keyframes landing-qr-scan {
+  0% {
+    transform: translateY(-120%);
+    opacity: 0;
+  }
+  18% {
+    opacity: 1;
+  }
+  82% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(220%);
+    opacity: 0;
+  }
+}
+
+.landing-qr-scan {
+  animation: landing-qr-scan 2.4s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
 /* Landing money-path flow illustration */
 .money-flow-rail {
   stroke: color-mix(in oklch, var(--border) 85%, var(--primary));

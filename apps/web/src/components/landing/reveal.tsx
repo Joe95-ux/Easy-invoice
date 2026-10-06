@@ -8,11 +8,12 @@ type RevealProps = {
   className?: string;
   /** Stagger delay in milliseconds. */
   delay?: number;
-  /** Initial slide distance. */
+  /** Initial offset — keep tiny; Linear-quiet fade. */
   y?: number;
 };
 
-export function Reveal({ children, className, delay = 0, y = 16 }: RevealProps) {
+/** Quiet entrance: fade + 4px rise. No float, no scale theater. */
+export function Reveal({ children, className, delay = 0, y = 4 }: RevealProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
 
@@ -37,7 +38,7 @@ export function Reveal({ children, className, delay = 0, y = 16 }: RevealProps) 
           }
         }
       },
-      { threshold: 0.08, rootMargin: "0px 0px -5% 0px" },
+      { threshold: 0.1, rootMargin: "0px 0px -6% 0px" },
     );
 
     observer.observe(node);
@@ -48,7 +49,7 @@ export function Reveal({ children, className, delay = 0, y = 16 }: RevealProps) 
     <div
       ref={ref}
       className={cn(
-        "transition-all duration-700 ease-out will-change-transform motion-reduce:transition-none",
+        "transition-[opacity,transform] duration-300 ease-out motion-reduce:transition-none",
         visible ? "translate-y-0 opacity-100" : "opacity-0",
         className,
       )}

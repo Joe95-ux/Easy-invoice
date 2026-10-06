@@ -10,7 +10,7 @@ export function FaqAccordion({ className }: FaqAccordionProps) {
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-xl border border-border bg-card divide-y divide-border",
+        "overflow-hidden rounded-2xl border border-border bg-background divide-y divide-border",
         className,
       )}
     >

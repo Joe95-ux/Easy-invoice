@@ -21,41 +21,57 @@ type EdgeDef = {
   duration?: number;
 };
 
+/**
+ * Nodes & edges mirror real Invoice Desk paths (FEATURES + app routes):
+ * Client/Estimate/Project/Time/Expenses/Form/Recurring → Invoice → Get paid.
+ * Forms live on projects; submissions open Create estimate — not Client→Form.
+ */
 const NODES: NodeDef[] = [
-  { id: "client", label: "Client", x: 72, y: 210, start: true },
-  { id: "form", label: "Form", x: 250, y: 88 },
-  { id: "project", label: "Project", x: 430, y: 88 },
-  { id: "estimate", label: "Estimate", x: 610, y: 120 },
-  { id: "time", label: "Time", x: 430, y: 210 },
-  { id: "recurring", label: "Recurring", x: 430, y: 332 },
-  { id: "invoice", label: "Invoice", x: 720, y: 210, hub: true },
-  { id: "paid", label: "Get paid", x: 888, y: 210, end: true },
+  { id: "client", label: "Client", x: 78, y: 210, start: true },
+  { id: "project", label: "Project", x: 260, y: 96 },
+  { id: "form", label: "Form", x: 430, y: 68 },
+  { id: "estimate", label: "Estimate", x: 560, y: 128 },
+  { id: "time", label: "Time", x: 320, y: 220 },
+  { id: "expenses", label: "Expenses", x: 430, y: 300 },
+  { id: "recurring", label: "Recurring", x: 560, y: 332 },
+  { id: "invoice", label: "Invoice", x: 730, y: 210, hub: true },
+  { id: "paid", label: "Get paid", x: 898, y: 210, end: true },
 ];
 
 const EDGES: EdgeDef[] = [
-  { from: "client", to: "form", bend: -36, delay: 0, duration: 3.2 },
-  { from: "form", to: "project", bend: 0, delay: 0.4, duration: 2.8 },
-  { from: "project", to: "estimate", bend: 18, delay: 0.8, duration: 3 },
-  { from: "estimate", to: "invoice", bend: 28, delay: 1.2, duration: 2.6 },
-  { from: "client", to: "time", bend: 0, delay: 0.6, duration: 3.4 },
-  { from: "time", to: "invoice", bend: 0, delay: 1.1, duration: 2.9 },
-  { from: "client", to: "recurring", bend: 48, delay: 0.9, duration: 3.6 },
-  { from: "recurring", to: "invoice", bend: -20, delay: 1.4, duration: 2.7 },
-  { from: "project", to: "time", bend: 0, delay: 1.0, duration: 3.1 },
-  { from: "client", to: "invoice", bend: -70, delay: 0.2, duration: 4.2 },
-  { from: "invoice", to: "paid", bend: 0, delay: 0.3, duration: 2.2 },
+  // Core SMB path — strongest visual current
+  { from: "client", to: "invoice", bend: -78, delay: 0.1, duration: 4.0 },
+  // Quote path
+  { from: "client", to: "estimate", bend: -42, delay: 0.35, duration: 3.4 },
+  { from: "estimate", to: "invoice", bend: 18, delay: 0.9, duration: 2.7 },
+  // Job / project path
+  { from: "client", to: "project", bend: -28, delay: 0.2, duration: 3.0 },
+  { from: "project", to: "form", bend: -8, delay: 0.55, duration: 2.6 },
+  { from: "form", to: "estimate", bend: 22, delay: 0.95, duration: 2.8 },
+  { from: "project", to: "estimate", bend: 10, delay: 0.7, duration: 3.1 },
+  { from: "project", to: "invoice", bend: -36, delay: 0.85, duration: 3.3 },
+  { from: "project", to: "time", bend: 18, delay: 0.65, duration: 2.9 },
+  { from: "project", to: "expenses", bend: 36, delay: 0.8, duration: 3.0 },
+  // Time & expenses → invoice
+  { from: "client", to: "time", bend: 8, delay: 0.45, duration: 3.2 },
+  { from: "time", to: "invoice", bend: -6, delay: 1.05, duration: 2.8 },
+  { from: "expenses", to: "invoice", bend: -24, delay: 1.15, duration: 2.9 },
+  // Schedules keep issuing invoices
+  { from: "recurring", to: "invoice", bend: -30, delay: 1.25, duration: 2.7 },
+  // Terminal
+  { from: "invoice", to: "paid", bend: 0, delay: 0.25, duration: 2.1 },
 ];
 
 const NODE_W = 104;
 const NODE_H = 40;
 
 const MOBILE_STEPS = [
-  "Client",
-  "Form · Project · Estimate",
-  "Time · Recurring",
-  "Invoice",
-  "Get paid",
-] as const;
+  { label: "Client", kind: "start" as const },
+  { label: "Estimate · Project · Time", kind: "mid" as const },
+  { label: "Form · Expenses · Recurring", kind: "mid" as const },
+  { label: "Invoice", kind: "hub" as const },
+  { label: "Get paid", kind: "end" as const },
+];
 
 function nodeCenter(id: string) {
   const node = NODES.find((n) => n.id === id)!;
@@ -84,10 +100,10 @@ function FlowSvg({
 }) {
   return (
     <svg
-      viewBox="0 0 960 420"
+      viewBox="0 0 980 420"
       className="relative z-[1] hidden h-auto w-full md:block"
       role="img"
-      aria-label="Flow diagram showing paths from client through forms, projects, estimates, time, and recurring into invoices and get paid"
+      aria-label="Flow diagram of Invoice Desk: clients, estimates, projects, forms, time, expenses, and recurring all feed invoices, then get paid"
     >
       <defs>
         <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="0%">
@@ -212,34 +228,29 @@ function MobileFlow({ reduceMotion }: { reduceMotion: boolean }) {
       </svg>
 
       <ol className="relative space-y-3">
-        {MOBILE_STEPS.map((label, index) => {
-          const isEnd = index === MOBILE_STEPS.length - 1;
-          const isHub = index === MOBILE_STEPS.length - 2;
-          return (
-            <li key={label} className="flex justify-center">
-              <span
-                className={cn(
-                  "relative z-[1] rounded-[10px] border px-4 py-2.5 text-center text-sm font-medium tracking-tight shadow-sm",
-                  isEnd
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : isHub
-                      ? "border-primary/45 bg-card text-foreground"
-                      : "border-border bg-card text-foreground",
-                )}
-              >
-                {label}
-              </span>
-            </li>
-          );
-        })}
+        {MOBILE_STEPS.map((step) => (
+          <li key={step.label} className="flex justify-center">
+            <span
+              className={cn(
+                "relative z-[1] border px-4 py-2.5 text-center text-sm font-medium tracking-tight",
+                step.kind === "end"
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : step.kind === "hub"
+                    ? "border-primary/45 bg-card text-foreground"
+                    : "border-border bg-card text-foreground",
+              )}
+            >
+              {step.label}
+            </span>
+          </li>
+        ))}
       </ol>
     </div>
   );
 }
 
 /**
- * Automation-style path map: many ways work enters Invoice Desk, all currents
- * converge on Get paid. Decorative illustration for the landing page.
+ * Automation-style path map of real Invoice Desk routes to payment.
  */
 export function MoneyFlowIllustration({ className }: { className?: string }) {
   const reactId = useId();
@@ -258,25 +269,21 @@ export function MoneyFlowIllustration({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "money-flow relative overflow-hidden rounded-2xl border border-border/70 bg-background",
+        "money-flow relative overflow-hidden rounded-lg border border-border bg-background",
         className,
       )}
     >
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_85%_50%,color-mix(in_oklch,var(--primary)_12%,transparent),transparent_70%)]"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 hidden opacity-[0.35] md:block [background-image:linear-gradient(color-mix(in_oklch,var(--border)_70%,transparent)_1px,transparent_1px),linear-gradient(90deg,color-mix(in_oklch,var(--border)_70%,transparent)_1px,transparent_1px)] [background-size:28px_28px] [mask-image:radial-gradient(ellipse_70%_65%_at_50%_50%,#000_20%,transparent_75%)]"
+        className="pointer-events-none absolute inset-0 hidden opacity-[0.22] md:block [background-image:linear-gradient(color-mix(in_oklch,var(--border)_70%,transparent)_1px,transparent_1px),linear-gradient(90deg,color-mix(in_oklch,var(--border)_70%,transparent)_1px,transparent_1px)] [background-size:28px_28px] [mask-image:radial-gradient(ellipse_70%_65%_at_50%_50%,#000_20%,transparent_75%)]"
       />
 
       <FlowSvg gradId={gradId} glowId={glowId} reduceMotion={reduceMotion} />
       <MobileFlow reduceMotion={reduceMotion} />
 
       <p className="relative z-[1] border-t border-border/60 px-5 py-3 text-center text-xs text-muted-foreground sm:px-6">
-        Forms, projects, estimates, time, and recurring all feed invoices — then checkout
-        finishes the job.
+        Quote it, track it, or schedule it — every path lands on the same invoice and pay
+        link.
       </p>
     </div>
   );

@@ -61,7 +61,7 @@ import { resolveQrCenterLogoUrl } from "@/lib/qr-codes/design";
 import { exportQrCanvas, type QrExportFormat } from "@/lib/qr-codes/export";
 import { QR_ACCESS_PASSWORD_MIN_LENGTH } from "@/lib/qr-codes/password";
 import { qrScanUrl } from "@/lib/qr-codes/url";
-import type { SerializedQrCode } from "@/lib/qr-codes/types";
+import type { QrCodeType, SerializedQrCode } from "@/lib/qr-codes/types";
 import { cn } from "@/lib/utils";
 
 type QrCodeCreatorProps = {
@@ -69,6 +69,8 @@ type QrCodeCreatorProps = {
   origin: string;
   companyLogoUrl?: string | null;
   initial?: SerializedQrCode;
+  /** Pre-select a type from /qr-codes/new?type=WIFI */
+  initialType?: QrCodeType;
   /** Page back link + heading, hidden on the post-creation screen. */
   header?: ReactNode;
 };
@@ -113,15 +115,16 @@ export function QrCodeCreator({
   origin,
   companyLogoUrl,
   initial,
+  initialType,
   header,
 }: QrCodeCreatorProps) {
   const router = useRouter();
   const steps = mode === "edit" ? EDIT_STEPS : CREATE_STEPS;
 
   const [form, setForm] = useState<QrFormState>(() =>
-    initial ? formFromSerialized(initial) : emptyQrForm(),
+    initial ? formFromSerialized(initial) : emptyQrForm(initialType ?? "LINK"),
   );
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(() => (mode === "create" && initialType ? 1 : 0));
   const [submitting, setSubmitting] = useState(false);
   const [created, setCreated] = useState<SerializedQrCode | null>(null);
   const [exportFormat, setExportFormat] = useState<QrExportFormat>("png");

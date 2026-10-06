@@ -4,16 +4,18 @@ import {
   ArrowRightIcon,
   CheckIcon,
   CreditCardIcon,
-  FileTextIcon,
   Link2Icon,
   QrCodeIcon,
   SparklesIcon,
-  WifiIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { PublicNavbarLoader } from "@/components/public-navbar-loader";
 import { Reveal } from "@/components/landing/reveal";
+import { HeroDepth, LandingParallax } from "@/components/landing/hero-depth";
+import { AiDraftShowcase, CollectShowcase } from "@/components/landing/landing-showcase";
+import { ProductCanvas } from "@/components/landing/product-canvas";
+import { QrTypeGrid } from "@/components/landing/qr-type-grid";
 import { FaqAccordion } from "@/components/landing/faq-accordion";
 import { MoneyFlowIllustration } from "@/components/landing/money-flow-illustration";
 import { LANDING_PLANS, getLandingProCta } from "@/features/settings/lib/plans-catalog";
@@ -34,6 +36,7 @@ const landingBtnOutline = cn(
   "hover:-translate-y-0.5 hover:border-primary/35 hover:bg-primary/5 hover:text-foreground hover:shadow-sm active:translate-y-0 active:shadow-none",
 );
 
+const landingH = "landing-display text-4xl sm:text-6xl";
 const landingProCta = getLandingProCta(getProTrialDays());
 
 /**
@@ -45,18 +48,14 @@ export function HomePageV2() {
     <div className="min-h-screen bg-background text-foreground">
       <PublicNavbarLoader />
 
-      <main>
+      <LandingParallax>
         {/* Hero */}
-        <section className="relative overflow-hidden border-b border-border/60">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_55%_at_50%_-15%,color-mix(in_oklch,var(--primary)_18%,transparent),transparent_60%)]"
-          />
-          <div className="relative mx-auto max-w-4xl px-6 pb-12 pt-16 text-center md:pb-14 md:pt-24">
-            <h1 className="landing-hero-in font-heading text-[2.5rem] font-semibold leading-[1.05] tracking-tight sm:text-5xl md:text-6xl lg:text-[4.25rem]">
-              Describe the job.
+        <section className="landing-section relative">
+          <div className="relative mx-auto max-w-5xl px-6 pb-12 pt-16 text-center md:pb-14 md:pt-24">
+            <h1 className="landing-hero-in landing-display text-4xl sm:text-6xl lg:text-7xl">
+              Describe the job in a sentence.
               <br />
-              <span className="text-primary">Get paid.</span>
+              Send the invoice. <span className="text-primary">Get paid.</span>
             </h1>
             <p
               className="landing-hero-in mx-auto mt-6 max-w-xl text-base text-muted-foreground sm:text-lg"
@@ -82,16 +81,18 @@ export function HomePageV2() {
             </SignedOut>
           </div>
 
-          <div className="relative mx-auto max-w-6xl px-4 pb-16 md:px-6 md:pb-24">
+          <div className="relative mx-auto max-w-6xl px-4 pb-20 md:px-6 md:pb-28">
             <div className="landing-hero-in" style={{ animationDelay: "280ms" }}>
-              <ProductCanvas />
+              <HeroDepth>
+                <ProductCanvas />
+              </HeroDepth>
             </div>
           </div>
         </section>
 
         {/* Capability row */}
-        <section className="border-b border-border/60">
-          <div className="mx-auto grid max-w-6xl gap-px bg-border/60 sm:grid-cols-2 lg:grid-cols-4">
+        <section className="landing-section landing-section-rule">
+          <div className="mx-auto grid max-w-6xl gap-4 px-6 py-12 sm:grid-cols-2 lg:grid-cols-4 lg:gap-5 lg:py-16">
             {[
               {
                 icon: SparklesIcon,
@@ -114,60 +115,54 @@ export function HomePageV2() {
                 body: "Print once for Wi‑Fi, menus, or payment — update anytime.",
               },
             ].map((item, i) => (
-              <Reveal key={item.title} delay={i * 60} className="bg-background px-6 py-8">
+              <Reveal
+                key={item.title}
+                delay={i * 60}
+                className="rounded-2xl border border-border bg-background px-5 py-6"
+              >
                 <item.icon className="size-5 text-primary" />
                 <h2 className="mt-4 font-heading text-base font-semibold tracking-tight">
                   {item.title}
                 </h2>
-                <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{item.body}</p>
+                <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                  {item.body}
+                </p>
               </Reveal>
             ))}
           </div>
         </section>
 
-        {/* AI */}
-        <section id="features" className="scroll-mt-20">
-          <div className="mx-auto grid max-w-6xl items-center gap-12 px-6 py-20 md:py-28 lg:grid-cols-2 lg:gap-16">
+        {/* AI draft */}
+        <section id="features" className="landing-section landing-section-rule scroll-mt-20">
+          <div className="mx-auto max-w-6xl px-6 py-24 md:py-32">
             <Reveal>
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
                 AI draft
               </p>
-              <h2 className="mt-3 font-heading text-3xl font-semibold tracking-tight sm:text-4xl">
-                Rough notes in.
+              <h2 className={cn(landingH, "mt-5")}>
+                Type it like a text.
                 <br />
-                Client-ready invoice out.
+                Send it like a firm.
               </h2>
-              <p className="mt-4 max-w-md text-muted-foreground">
+              <p className="mt-5 max-w-xl text-base text-muted-foreground sm:text-lg">
                 Paste the job the way you&apos;d text a crew lead. Invoice Desk structures
                 quantities, rates, and discounts — you review once and send.
               </p>
-              <ul className="mt-8 space-y-3">
-                {[
-                  "Understands “$300 × 2 bathrooms”",
-                  "Turns “10% if paid this week” into a real discount",
-                  "Translates other languages automatically",
-                ].map((line) => (
-                  <li key={line} className="flex items-start gap-3 text-sm">
-                    <CheckIcon className="mt-0.5 size-4 shrink-0 text-primary" />
-                    <span>{line}</span>
-                  </li>
-                ))}
-              </ul>
             </Reveal>
-            <Reveal delay={100}>
-              <AiStrip />
+            <Reveal delay={80} className="mt-12">
+              <AiDraftShowcase />
             </Reveal>
           </div>
         </section>
 
         {/* How */}
-        <section id="how" className="scroll-mt-20 border-y border-border/60 bg-muted/35">
+        <section id="how" className="landing-section landing-section-rule scroll-mt-20">
           <div className="mx-auto max-w-6xl px-6 py-20 md:py-28">
             <Reveal className="max-w-xl">
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
                 How it works
               </p>
-              <h2 className="mt-3 font-heading text-3xl font-semibold tracking-tight sm:text-4xl">
+              <h2 className={cn(landingH, "mt-3")}>
                 From job site to paid in three moves
               </h2>
               <p className="mt-4 text-muted-foreground">
@@ -194,7 +189,7 @@ export function HomePageV2() {
                 },
               ].map((step, i) => (
                 <Reveal key={step.n} delay={i * 80}>
-                  <li className="relative border-t border-border pt-6">
+                  <li className="relative border-t border-border/70 pt-6">
                     <span className="font-mono text-xs tabular-nums text-muted-foreground">
                       {step.n}
                     </span>
@@ -212,18 +207,18 @@ export function HomePageV2() {
         </section>
 
         {/* Path map */}
-        <section className="border-b border-border/60">
+        <section className="landing-section landing-section-rule">
           <div className="mx-auto max-w-6xl px-6 py-20 md:py-28">
             <Reveal className="mx-auto max-w-2xl text-center">
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
                 Paths to paid
               </p>
-              <h2 className="mt-3 font-heading text-3xl font-semibold tracking-tight sm:text-4xl">
-                Many ways in. One place they land.
+              <h2 className={cn(landingH, "mt-3")}>
+                Many ways to bill. One place you get paid.
               </h2>
               <p className="mt-4 text-muted-foreground">
-                A client can arrive through a form, a project, an estimate, logged time, or a
-                recurring schedule — every current still ends at get paid.
+                Start from a client, estimate, project hours, expenses, or a recurring
+                schedule — then collect with checkout, reminders, and follow-ups.
               </p>
             </Reveal>
             <Reveal delay={120} className="mt-12 md:mt-14">
@@ -233,92 +228,96 @@ export function HomePageV2() {
         </section>
 
         {/* Get paid */}
-        <section className="border-b border-border/60">
-          <div className="mx-auto grid max-w-6xl items-center gap-12 px-6 py-20 md:py-28 lg:grid-cols-2 lg:gap-16">
-            <Reveal delay={80} className="order-2 lg:order-1">
-              <CollectPreview />
-            </Reveal>
-            <Reveal className="order-1 lg:order-2">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
+        <section className="landing-section landing-section-rule landing-band">
+          <div className="mx-auto max-w-6xl px-6 py-24 md:py-32">
+            <Reveal>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
                 Get paid
               </p>
-              <h2 className="mt-3 font-heading text-3xl font-semibold tracking-tight sm:text-4xl">
-                Checkout, reminders, and chase — in one place
+              <h2 className={cn(landingH, "mt-5")}>
+                Checkout. Remind. Close.
               </h2>
-              <p className="mt-4 max-w-md text-muted-foreground">
+              <p className="mt-5 max-w-xl text-base text-muted-foreground sm:text-lg">
                 Connect Stripe so clients pay online. Automatic reminders keep invoices
                 moving. Follow-ups and payment plans handle the awkward middle.
               </p>
             </Reveal>
+            <Reveal delay={80} className="mt-14">
+              <CollectShowcase />
+            </Reveal>
           </div>
         </section>
 
-        {/* QR codes */}
-        <section id="qr" className="scroll-mt-20 border-b border-border/60 bg-muted/35">
-          <div className="mx-auto grid max-w-6xl items-center gap-12 px-6 py-20 md:py-28 lg:grid-cols-2 lg:gap-16">
-            <Reveal>
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
-                QR codes
-              </p>
-              <h2 className="mt-3 font-heading text-3xl font-semibold tracking-tight sm:text-4xl">
-                Print once.
-                <br />
-                Change what it opens anytime.
-              </h2>
-              <p className="mt-4 max-w-md text-muted-foreground">
-                Dynamic QR codes for the places you already leave a mark — the van door,
-                the counter, the table tent, the job site. One short link behind every
-                print. Update the destination without reprinting. Count every scan.
-              </p>
-              <ul className="mt-8 space-y-3">
-                {[
-                  "Wi‑Fi, menus, business pages, PDFs, events, coupons, socials, or any link",
-                  "Brand with your colors and logo — password-protect when you need to",
-                  "5 codes on Free · unlimited on Pro",
-                ].map((line) => (
-                  <li key={line} className="flex items-start gap-3 text-sm">
-                    <CheckIcon className="mt-0.5 size-4 shrink-0 text-primary" />
-                    <span>{line}</span>
-                  </li>
-                ))}
-              </ul>
-              <div className="mt-9 flex flex-wrap gap-3">
-                <SignedOut>
-                  <Button
-                    size="lg"
-                    className={landingBtnPrimary}
-                    render={<Link href="/sign-up" />}
-                  >
-                    Create your first QR
-                    <ArrowRightIcon className="size-4" />
-                  </Button>
-                </SignedOut>
-                <SignedIn>
-                  <Button
-                    size="lg"
-                    className={landingBtnPrimary}
-                    render={<Link href="/qr-codes" />}
-                  >
-                    Open QR codes
-                    <ArrowRightIcon className="size-4" />
-                  </Button>
-                </SignedIn>
+        {/* QR codes — destination grid */}
+        <section id="qr" className="landing-section landing-section-rule scroll-mt-20">
+          <div className="mx-auto max-w-6xl px-6 py-24 md:py-32">
+            <Reveal className="grid items-end gap-10 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+                  QR codes
+                </p>
+                <h2 className={cn(landingH, "mt-5")}>
+                  Print once.
+                  <br />
+                  Change anything.
+                </h2>
+                <p className="mt-5 max-w-md text-muted-foreground">
+                  One short link behind the van door, the counter, the table tent. Update
+                  the destination without reprinting. Count every scan.
+                </p>
               </div>
+              <dl className="grid grid-cols-2 gap-8 border-t border-border pt-8 lg:border-t-0 lg:pt-0">
+                <div>
+                  <dt className="landing-display text-5xl text-primary sm:text-6xl">0</dt>
+                  <dd className="mt-2 text-sm text-muted-foreground">reprints when the password changes</dd>
+                </div>
+                <div>
+                  <dt className="landing-display text-5xl sm:text-6xl">1</dt>
+                  <dd className="mt-2 text-sm text-muted-foreground">printout. Any destination.</dd>
+                </div>
+              </dl>
             </Reveal>
-            <Reveal delay={100}>
-              <QrPreview />
+
+            <Reveal delay={80}>
+              <QrTypeGrid />
+            </Reveal>
+
+            <Reveal delay={120} className="mt-12 flex flex-wrap items-center gap-x-8 gap-y-4">
+              <SignedOut>
+                <Button
+                  size="lg"
+                  className={landingBtnPrimary}
+                  render={<Link href="/sign-up" />}
+                >
+                  Create your first QR
+                  <ArrowRightIcon className="size-4" />
+                </Button>
+              </SignedOut>
+              <SignedIn>
+                <Button
+                  size="lg"
+                  className={landingBtnPrimary}
+                  render={<Link href="/qr-codes" />}
+                >
+                  Open QR codes
+                  <ArrowRightIcon className="size-4" />
+                </Button>
+              </SignedIn>
+              <p className="text-sm text-muted-foreground">
+                5 codes on Free · unlimited on Pro
+              </p>
             </Reveal>
           </div>
         </section>
 
         {/* Pricing */}
-        <section id="pricing" className="scroll-mt-20">
+        <section id="pricing" className="landing-section landing-section-rule scroll-mt-20">
           <div className="mx-auto max-w-6xl px-6 py-20 md:py-28">
             <Reveal className="mx-auto max-w-xl text-center">
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
                 Pricing
               </p>
-              <h2 className="mt-3 font-heading text-3xl font-semibold tracking-tight sm:text-4xl">
+              <h2 className={cn(landingH, "mt-3")}>
                 Start free. Upgrade when it pays off.
               </h2>
               <p className="mt-4 text-muted-foreground">
@@ -333,8 +332,8 @@ export function HomePageV2() {
                   className={cn(
                     "flex flex-col rounded-2xl border p-7",
                     plan.highlighted
-                      ? "border-primary/40 bg-card shadow-sm ring-1 ring-primary/15"
-                      : "border-border bg-card/60",
+                      ? "border-primary/40 bg-background ring-1 ring-primary/15"
+                      : "border-border bg-background",
                   )}
                 >
                   <div className="flex items-baseline justify-between gap-3">
@@ -395,10 +394,10 @@ export function HomePageV2() {
         </section>
 
         {/* FAQ */}
-        <section id="faq" className="scroll-mt-20 border-t border-border/60 bg-muted/35">
+        <section id="faq" className="landing-section landing-section-rule scroll-mt-20">
           <div className="mx-auto max-w-2xl px-6 py-20 md:py-28">
             <Reveal className="text-center">
-              <h2 className="font-heading text-3xl font-semibold tracking-tight">FAQ</h2>
+              <h2 className={landingH}>FAQ</h2>
               <p className="mt-3 text-muted-foreground">
                 Straight answers before you create an account.
               </p>
@@ -410,10 +409,10 @@ export function HomePageV2() {
         </section>
 
         {/* Closing */}
-        <section className="border-t border-border/60">
+        <section className="landing-section landing-section-rule landing-cta">
           <div className="mx-auto max-w-3xl px-6 py-24 text-center md:py-32">
             <Reveal>
-              <h2 className="font-heading text-3xl font-semibold tracking-tight sm:text-5xl">
+              <h2 className={landingH}>
                 Your next invoice is a sentence away
               </h2>
               <p className="mx-auto mt-4 max-w-md text-muted-foreground">
@@ -432,7 +431,7 @@ export function HomePageV2() {
             </Reveal>
           </div>
         </section>
-      </main>
+      </LandingParallax>
 
       <SiteFooter />
     </div>
@@ -506,310 +505,5 @@ function ClosingCtas() {
         </Button>
       </SignedIn>
     </>
-  );
-}
-
-function ProductCanvas() {
-  const rows = [
-    { number: "INV-0042", client: "Rivera Homes", due: "Aug 28", total: "$1,620", status: "Sent" },
-    { number: "INV-0041", client: "Oak Street LLC", due: "Aug 22", total: "$840", status: "Paid" },
-    { number: "INV-0040", client: "Northside Clean", due: "Aug 18", total: "$390", status: "Overdue" },
-    { number: "INV-0039", client: "Bright HVAC", due: "Aug 12", total: "$2,150", status: "Paid" },
-  ] as const;
-
-  return (
-    <div className="relative">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -inset-x-6 bottom-0 top-1/3 rounded-full bg-primary/10 blur-3xl dark:bg-primary/20"
-      />
-      <div className="relative overflow-hidden rounded-xl border border-border bg-card shadow-2xl shadow-foreground/5 ring-1 ring-foreground/5">
-        <div className="flex items-center gap-2 border-b border-border bg-muted/40 px-4 py-2.5">
-          <span className="size-2.5 rounded-full bg-border" />
-          <span className="size-2.5 rounded-full bg-border" />
-          <span className="size-2.5 rounded-full bg-border" />
-          <span className="ml-3 truncate text-xs text-muted-foreground">
-            app.invoicedesk.app / invoices
-          </span>
-        </div>
-
-        <div className="grid min-h-[22rem] md:grid-cols-[13rem_minmax(0,1fr)]">
-          <aside className="hidden border-r border-border bg-muted/25 p-3 md:flex md:flex-col">
-            <div className="flex items-center gap-2 rounded-lg px-2 py-2">
-              <span className="flex size-7 items-center justify-center rounded-md bg-primary text-[10px] font-semibold text-primary-foreground">
-                ID
-              </span>
-              <div className="min-w-0">
-                <p className="truncate text-xs font-medium">Acme Trades</p>
-                <p className="truncate text-[10px] text-muted-foreground">Pro plan</p>
-              </div>
-            </div>
-            <p className="mt-4 px-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-              Workspace
-            </p>
-            <ul className="mt-1.5 space-y-0.5 text-sm">
-              {[
-                { label: "Invoices", active: true },
-                { label: "Estimates", active: false },
-                { label: "Clients", active: false },
-                { label: "Follow-ups", active: false },
-                { label: "Time", active: false },
-                { label: "QR codes", active: false },
-              ].map((item) => (
-                <li
-                  key={item.label}
-                  className={cn(
-                    "rounded-md px-2 py-1.5",
-                    item.active
-                      ? "bg-background font-medium text-foreground shadow-sm ring-1 ring-border/70"
-                      : "text-muted-foreground",
-                  )}
-                >
-                  {item.label}
-                </li>
-              ))}
-            </ul>
-            <div className="mt-auto rounded-lg border border-border/70 bg-background/80 p-3">
-              <p className="text-[11px] font-medium">Open balance</p>
-              <p className="mt-0.5 font-heading text-lg font-semibold tabular-nums">$2,010</p>
-              <p className="text-[10px] text-muted-foreground">3 unpaid invoices</p>
-            </div>
-          </aside>
-
-          <div className="flex min-w-0 flex-col">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3 sm:px-5">
-              <div>
-                <h3 className="font-heading text-base font-semibold tracking-tight">Invoices</h3>
-                <p className="text-xs text-muted-foreground">12 this month</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="hidden rounded-md border border-border px-2.5 py-1 text-xs text-muted-foreground sm:inline">
-                  Filter
-                </span>
-                <span className="inline-flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground">
-                  <FileTextIcon className="size-3" />
-                  New invoice
-                </span>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-x-auto">
-              <table className="w-full min-w-[32rem] text-left text-sm">
-                <thead>
-                  <tr className="border-b border-border text-xs text-muted-foreground">
-                    <th className="px-4 py-2.5 font-medium sm:px-5">Number</th>
-                    <th className="px-3 py-2.5 font-medium">Client</th>
-                    <th className="px-3 py-2.5 font-medium">Due</th>
-                    <th className="px-3 py-2.5 font-medium">Status</th>
-                    <th className="px-4 py-2.5 text-right font-medium sm:px-5">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row, i) => (
-                    <tr
-                      key={row.number}
-                      className={cn(
-                        "border-b border-border/70 last:border-0",
-                        i === 0 && "bg-muted/40",
-                      )}
-                    >
-                      <td className="px-4 py-2.5 font-medium tabular-nums sm:px-5">
-                        {row.number}
-                      </td>
-                      <td className="px-3 py-2.5 text-muted-foreground">{row.client}</td>
-                      <td className="px-3 py-2.5 tabular-nums text-muted-foreground">
-                        {row.due}
-                      </td>
-                      <td className="px-3 py-2.5">
-                        <StatusPill status={row.status} />
-                      </td>
-                      <td className="px-4 py-2.5 text-right tabular-nums sm:px-5">
-                        {row.total}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2 border-t border-border bg-muted/30 px-4 py-2.5 sm:px-5">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1 text-[11px] text-muted-foreground">
-                <SparklesIcon className="size-3 text-primary" />
-                INV-0042 drafted from notes
-              </span>
-              <span className="inline-flex rounded-full border border-border bg-background px-2.5 py-1 text-[11px] text-muted-foreground">
-                Pay link ready
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function StatusPill({ status }: { status: string }) {
-  const tone =
-    status === "Paid"
-      ? "bg-success/12 text-success"
-      : status === "Overdue"
-        ? "bg-destructive/10 text-destructive"
-        : "bg-muted text-muted-foreground";
-  return (
-    <span className={cn("inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium", tone)}>
-      {status}
-    </span>
-  );
-}
-
-function AiStrip() {
-  return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm ring-1 ring-foreground/5">
-      <div className="border-b border-border px-4 py-3 text-xs font-medium text-muted-foreground">
-        Your notes
-      </div>
-      <p className="px-4 py-4 text-sm leading-relaxed text-foreground/85">
-        “enlevé le carrelage 2 salles de bain 300$ chacune, posé du placo 600, peinture 420.
-        remise 10% si payé cette semaine.”
-      </p>
-      <div className="flex items-center justify-center gap-2 border-y border-border bg-muted/40 py-2.5 text-xs font-medium text-primary">
-        <SparklesIcon className="size-3.5" />
-        Translates &amp; structures
-      </div>
-      <div className="space-y-2 px-4 py-4 text-sm">
-        {[
-          ["Tile removal — 2 bathrooms", "$600.00"],
-          ["Drywall installation", "$600.00"],
-          ["Painting", "$420.00"],
-          ["Discount (10%)", "−$162.00"],
-        ].map(([label, amount]) => (
-          <div key={label} className="flex justify-between gap-4">
-            <span className="text-muted-foreground">{label}</span>
-            <span className="tabular-nums">{amount}</span>
-          </div>
-        ))}
-        <div className="flex justify-between border-t border-border pt-2 font-medium">
-          <span>Total</span>
-          <span className="tabular-nums">$1,458.00</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function CollectPreview() {
-  return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm ring-1 ring-foreground/5">
-      <div className="border-b border-border px-4 py-3">
-        <p className="text-xs font-medium text-muted-foreground">Public invoice</p>
-        <p className="font-heading text-sm font-semibold">INV-0042 · Rivera Homes</p>
-      </div>
-      <div className="space-y-4 p-4">
-        <div className="flex items-end justify-between gap-3">
-          <div>
-            <p className="text-xs text-muted-foreground">Balance due</p>
-            <p className="font-heading text-2xl font-semibold tabular-nums">$1,620.00</p>
-          </div>
-          <span className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
-            Due Aug 28
-          </span>
-        </div>
-        <div className="h-9 rounded-lg bg-primary text-center text-sm font-medium leading-9 text-primary-foreground">
-          Pay with card
-        </div>
-        <div className="grid grid-cols-2 gap-2 text-center text-[11px] text-muted-foreground">
-          <div className="rounded-lg border border-border px-2 py-2">Remind in 3 days</div>
-          <div className="rounded-lg border border-border px-2 py-2">Offer 2-part plan</div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function QrPreview() {
-  const types = [
-    { label: "Wi‑Fi", icon: WifiIcon },
-    { label: "Menu", icon: FileTextIcon },
-    { label: "Business", icon: Link2Icon },
-    { label: "Pay link", icon: CreditCardIcon },
-  ] as const;
-
-  // Stylized QR finder pattern — decorative mock, not a scannable code
-  const cells = [
-    [1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1],
-    [1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 1],
-    [1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1],
-    [1, 0, 1, 1, 1, 0, 1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1],
-    [1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1],
-    [1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 1],
-    [1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1],
-    [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0],
-    [1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0],
-    [0, 1, 0, 1, 1, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 1],
-    [1, 1, 1, 0, 0, 1, 1, 1, 0, 1, 1, 1, 0, 0, 1, 0, 1, 0, 0],
-    [0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 1, 1, 1, 0, 1, 0, 1, 1],
-    [1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1],
-    [1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 0],
-    [1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 1, 1],
-    [1, 0, 1, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1],
-    [1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0],
-    [1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 0, 1, 1, 1],
-    [1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0],
-  ];
-
-  return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm ring-1 ring-foreground/5">
-      <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
-        <div>
-          <p className="text-xs font-medium text-muted-foreground">Guest Wi‑Fi</p>
-          <p className="font-heading text-sm font-semibold">Active · 128 scans</p>
-        </div>
-        <span className="inline-flex items-center gap-1 rounded-full bg-success/12 px-2.5 py-1 text-[11px] font-medium text-success">
-          <WifiIcon className="size-3" />
-          Live
-        </span>
-      </div>
-
-      <div className="grid gap-5 p-5 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center">
-        <div
-          aria-hidden
-          className="mx-auto grid size-[11.5rem] shrink-0 gap-px rounded-lg border border-border bg-background p-2.5 shadow-inner"
-          style={{ gridTemplateColumns: "repeat(19, minmax(0, 1fr))" }}
-        >
-          {cells.flatMap((row, y) =>
-            row.map((on, x) => (
-              <span
-                key={`${y}-${x}`}
-                className={cn("aspect-square rounded-[1px]", on ? "bg-foreground" : "bg-transparent")}
-              />
-            )),
-          )}
-        </div>
-
-        <div className="min-w-0 space-y-4">
-          <div>
-            <p className="text-xs text-muted-foreground">Opens</p>
-            <p className="mt-0.5 text-sm font-medium">Join Café Norte · Guest network</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Same printout. New password next month — no reprint.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {types.map((type) => (
-              <span
-                key={type.label}
-                className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/40 px-2 py-1 text-[11px] text-muted-foreground"
-              >
-                <type.icon className="size-3" />
-                {type.label}
-              </span>
-            ))}
-          </div>
-          <p className="text-[11px] text-muted-foreground">
-            Plus PDFs, events, coupons, and socials — all editable after you print.
-          </p>
-        </div>
-      </div>
-    </div>
   );
 }
