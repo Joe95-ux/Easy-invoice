@@ -23,10 +23,29 @@ type EdgeDef = {
 
 /**
  * Nodes & edges mirror real Invoice Desk paths (FEATURES + app routes):
- * Client/Estimate/Project/Time/Expenses/Form/Recurring → Invoice → Get paid.
+ * Client / Estimate / Project / Time / Expenses / Form / Recurring → Invoice → Get paid.
  * Forms live on projects; submissions open Create estimate — not Client→Form.
+ * Recurring issues invoices on a schedule; it is not a step after Client.
  */
-const NODES: NodeDef[] = [
+const EDGES: EdgeDef[] = [
+  { from: "client", to: "invoice", bend: -78, delay: 0.1, duration: 4.0 },
+  { from: "client", to: "estimate", bend: -42, delay: 0.35, duration: 3.4 },
+  { from: "estimate", to: "invoice", bend: 18, delay: 0.9, duration: 2.7 },
+  { from: "client", to: "project", bend: -28, delay: 0.2, duration: 3.0 },
+  { from: "project", to: "form", bend: -8, delay: 0.55, duration: 2.6 },
+  { from: "form", to: "estimate", bend: 22, delay: 0.95, duration: 2.8 },
+  { from: "project", to: "estimate", bend: 10, delay: 0.7, duration: 3.1 },
+  { from: "project", to: "invoice", bend: -36, delay: 0.85, duration: 3.3 },
+  { from: "project", to: "time", bend: 18, delay: 0.65, duration: 2.9 },
+  { from: "project", to: "expenses", bend: 36, delay: 0.8, duration: 3.0 },
+  { from: "client", to: "time", bend: 8, delay: 0.45, duration: 3.2 },
+  { from: "time", to: "invoice", bend: -6, delay: 1.05, duration: 2.8 },
+  { from: "expenses", to: "invoice", bend: -24, delay: 1.15, duration: 2.9 },
+  { from: "recurring", to: "invoice", bend: -30, delay: 1.25, duration: 2.7 },
+  { from: "invoice", to: "paid", bend: 0, delay: 0.25, duration: 2.1 },
+];
+
+const DESKTOP_NODES: NodeDef[] = [
   { id: "client", label: "Client", x: 78, y: 210, start: true },
   { id: "project", label: "Project", x: 260, y: 96 },
   { id: "form", label: "Form", x: 430, y: 68 },
@@ -38,75 +57,101 @@ const NODES: NodeDef[] = [
   { id: "paid", label: "Get paid", x: 898, y: 210, end: true },
 ];
 
-const EDGES: EdgeDef[] = [
-  // Core SMB path — strongest visual current
-  { from: "client", to: "invoice", bend: -78, delay: 0.1, duration: 4.0 },
-  // Quote path
-  { from: "client", to: "estimate", bend: -42, delay: 0.35, duration: 3.4 },
-  { from: "estimate", to: "invoice", bend: 18, delay: 0.9, duration: 2.7 },
-  // Job / project path
-  { from: "client", to: "project", bend: -28, delay: 0.2, duration: 3.0 },
-  { from: "project", to: "form", bend: -8, delay: 0.55, duration: 2.6 },
-  { from: "form", to: "estimate", bend: 22, delay: 0.95, duration: 2.8 },
-  { from: "project", to: "estimate", bend: 10, delay: 0.7, duration: 3.1 },
-  { from: "project", to: "invoice", bend: -36, delay: 0.85, duration: 3.3 },
-  { from: "project", to: "time", bend: 18, delay: 0.65, duration: 2.9 },
-  { from: "project", to: "expenses", bend: 36, delay: 0.8, duration: 3.0 },
-  // Time & expenses → invoice
-  { from: "client", to: "time", bend: 8, delay: 0.45, duration: 3.2 },
-  { from: "time", to: "invoice", bend: -6, delay: 1.05, duration: 2.8 },
-  { from: "expenses", to: "invoice", bend: -24, delay: 1.15, duration: 2.9 },
-  // Schedules keep issuing invoices
-  { from: "recurring", to: "invoice", bend: -30, delay: 1.25, duration: 2.7 },
-  // Terminal
-  { from: "invoice", to: "paid", bend: 0, delay: 0.25, duration: 2.1 },
+/** Same graph, stacked so it stays readable on a narrow screen. */
+const MOBILE_NODES: NodeDef[] = [
+  { id: "client", label: "Client", x: 180, y: 40, start: true },
+  { id: "project", label: "Project", x: 70, y: 132 },
+  { id: "estimate", label: "Estimate", x: 180, y: 132 },
+  { id: "time", label: "Time", x: 290, y: 132 },
+  { id: "form", label: "Form", x: 70, y: 224 },
+  { id: "expenses", label: "Expenses", x: 180, y: 224 },
+  { id: "recurring", label: "Recurring", x: 290, y: 224 },
+  { id: "invoice", label: "Invoice", x: 180, y: 336, hub: true },
+  { id: "paid", label: "Get paid", x: 180, y: 428, end: true },
 ];
 
-const NODE_W = 104;
-const NODE_H = 40;
-
-const MOBILE_STEPS = [
-  { label: "Client", kind: "start" as const },
-  { label: "Estimate · Project · Time", kind: "mid" as const },
-  { label: "Form · Expenses · Recurring", kind: "mid" as const },
-  { label: "Invoice", kind: "hub" as const },
-  { label: "Get paid", kind: "end" as const },
-];
-
-function nodeCenter(id: string) {
-  const node = NODES.find((n) => n.id === id)!;
-  return { x: node.x, y: node.y };
+function nodeById(nodes: NodeDef[], id: string) {
+  const node = nodes.find((n) => n.id === id);
+  if (!node) throw new Error(`Unknown flow node: ${id}`);
+  return node;
 }
 
-function edgePath(from: string, to: string, bend = 0) {
-  const a = nodeCenter(from);
-  const b = nodeCenter(to);
+/** Left-to-right connectors for the wide desktop map. */
+function desktopEdgePath(nodes: NodeDef[], from: string, to: string, nodeW: number, bend = 0) {
+  const a = nodeById(nodes, from);
+  const b = nodeById(nodes, to);
   const dx = b.x - a.x;
-  const startX = a.x + NODE_W / 2 - 4;
-  const endX = b.x - NODE_W / 2 + 4;
+  const startX = a.x + nodeW / 2 - 4;
+  const endX = b.x - nodeW / 2 + 4;
   const c1x = startX + dx * 0.35;
   const c2x = endX - dx * 0.35;
   return `M ${startX} ${a.y} C ${c1x} ${a.y + bend}, ${c2x} ${b.y + bend}, ${endX} ${b.y}`;
 }
 
+/** Point-to-point connectors for the stacked mobile map. */
+function stackedEdgePath(nodes: NodeDef[], from: string, to: string, nodeW: number, nodeH: number, bend = 0) {
+  const a = nodeById(nodes, from);
+  const b = nodeById(nodes, to);
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const dist = Math.hypot(dx, dy) || 1;
+  const ux = dx / dist;
+  const uy = dy / dist;
+  const startX = a.x + ux * (nodeW / 2 - 8);
+  const startY = a.y + uy * (nodeH / 2 - 4);
+  const endX = b.x - ux * (nodeW / 2 - 8);
+  const endY = b.y - uy * (nodeH / 2 - 4);
+  const px = -uy;
+  const py = ux;
+  const offset = bend * 0.22;
+  const c1x = startX + dx * 0.35 + px * offset;
+  const c1y = startY + dy * 0.35 + py * offset;
+  const c2x = endX - dx * 0.35 + px * offset;
+  const c2y = endY - dy * 0.35 + py * offset;
+  return `M ${startX} ${startY} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${endX} ${endY}`;
+}
+
 function FlowSvg({
+  nodes,
+  viewBox,
+  nodeW,
+  nodeH,
+  layout,
+  className,
   gradId,
   glowId,
   reduceMotion,
 }: {
+  nodes: NodeDef[];
+  viewBox: string;
+  nodeW: number;
+  nodeH: number;
+  layout: "desktop" | "mobile";
+  className?: string;
   gradId: string;
   glowId: string;
   reduceMotion: boolean;
 }) {
+  const pathFor = (from: string, to: string, bend = 0) =>
+    layout === "desktop"
+      ? desktopEdgePath(nodes, from, to, nodeW, bend)
+      : stackedEdgePath(nodes, from, to, nodeW, nodeH, bend);
+
   return (
     <svg
-      viewBox="0 0 980 420"
-      className="relative z-[1] hidden h-auto w-full md:block"
+      viewBox={viewBox}
+      className={className}
       role="img"
       aria-label="Flow diagram of Invoice Desk: clients, estimates, projects, forms, time, expenses, and recurring all feed invoices, then get paid"
     >
       <defs>
-        <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="0%">
+        <linearGradient
+          id={gradId}
+          x1="0%"
+          y1="0%"
+          x2={layout === "desktop" ? "100%" : "0%"}
+          y2={layout === "desktop" ? "0%" : "100%"}
+        >
           <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.15" />
           <stop offset="55%" stopColor="var(--primary)" stopOpacity="0.55" />
           <stop offset="100%" stopColor="var(--primary)" stopOpacity="0.9" />
@@ -123,7 +168,7 @@ function FlowSvg({
       {EDGES.map((edge) => (
         <path
           key={`rail-${edge.from}-${edge.to}`}
-          d={edgePath(edge.from, edge.to, edge.bend)}
+          d={pathFor(edge.from, edge.to, edge.bend)}
           className="money-flow-rail"
           fill="none"
         />
@@ -133,7 +178,7 @@ function FlowSvg({
         ? EDGES.map((edge) => (
             <path
               key={`current-${edge.from}-${edge.to}`}
-              d={edgePath(edge.from, edge.to, edge.bend)}
+              d={pathFor(edge.from, edge.to, edge.bend)}
               className="money-flow-current"
               fill="none"
               stroke={`url(#${gradId})`}
@@ -146,24 +191,24 @@ function FlowSvg({
           ))
         : null}
 
-      {NODES.map((node) => {
-        const x = node.x - NODE_W / 2;
-        const y = node.y - NODE_H / 2;
+      {nodes.map((node) => {
+        const x = node.x - nodeW / 2;
+        const y = node.y - nodeH / 2;
         return (
           <g key={node.id} transform={`translate(${x} ${y})`}>
             {node.end && !reduceMotion ? (
               <rect
                 x={-4}
                 y={-4}
-                width={NODE_W + 8}
-                height={NODE_H + 8}
+                width={nodeW + 8}
+                height={nodeH + 8}
                 rx={12}
                 className="money-flow-pulse fill-primary/15"
               />
             ) : null}
             <rect
-              width={NODE_W}
-              height={NODE_H}
+              width={nodeW}
+              height={nodeH}
               rx={10}
               className={cn(
                 "stroke-[1.25]",
@@ -177,8 +222,8 @@ function FlowSvg({
               )}
             />
             <text
-              x={NODE_W / 2}
-              y={NODE_H / 2 + 4}
+              x={nodeW / 2}
+              y={nodeH / 2 + 4}
               textAnchor="middle"
               className={cn(
                 "select-none font-medium tracking-tight",
@@ -186,7 +231,7 @@ function FlowSvg({
               )}
               style={{
                 fontFamily: "var(--font-heading), var(--font-sans), system-ui",
-                fontSize: 12,
+                fontSize: layout === "mobile" ? 11 : 12,
               }}
             >
               {node.label}
@@ -198,64 +243,12 @@ function FlowSvg({
   );
 }
 
-function MobileFlow({ reduceMotion }: { reduceMotion: boolean }) {
-  const reactId = useId();
-  const gradId = `mf-m-grad-${reactId.replace(/:/g, "")}`;
-
-  return (
-    <div className="relative z-[1] px-5 py-8 md:hidden">
-      <svg
-        viewBox="0 0 40 320"
-        className="pointer-events-none absolute left-1/2 top-8 h-[calc(100%-4rem)] w-10 -translate-x-1/2"
-        aria-hidden
-      >
-        <defs>
-          <linearGradient id={gradId} x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.2" />
-            <stop offset="100%" stopColor="var(--primary)" stopOpacity="0.85" />
-          </linearGradient>
-        </defs>
-        <path d="M 20 8 V 312" className="money-flow-rail" fill="none" />
-        {!reduceMotion ? (
-          <path
-            d="M 20 8 V 312"
-            className="money-flow-current"
-            fill="none"
-            stroke={`url(#${gradId})`}
-            style={{ animationDuration: "2.6s" }}
-          />
-        ) : null}
-      </svg>
-
-      <ol className="relative space-y-3">
-        {MOBILE_STEPS.map((step) => (
-          <li key={step.label} className="flex justify-center">
-            <span
-              className={cn(
-                "relative z-[1] border px-4 py-2.5 text-center text-sm font-medium tracking-tight",
-                step.kind === "end"
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : step.kind === "hub"
-                    ? "border-primary/45 bg-card text-foreground"
-                    : "border-border bg-card text-foreground",
-              )}
-            >
-              {step.label}
-            </span>
-          </li>
-        ))}
-      </ol>
-    </div>
-  );
-}
-
 /**
  * Automation-style path map of real Invoice Desk routes to payment.
  */
 export function MoneyFlowIllustration({ className }: { className?: string }) {
   const reactId = useId();
-  const gradId = `mf-grad-${reactId.replace(/:/g, "")}`;
-  const glowId = `mf-glow-${reactId.replace(/:/g, "")}`;
+  const id = reactId.replace(/:/g, "");
   const [reduceMotion, setReduceMotion] = useState(false);
 
   useEffect(() => {
@@ -275,11 +268,31 @@ export function MoneyFlowIllustration({ className }: { className?: string }) {
     >
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 hidden opacity-[0.22] md:block [background-image:linear-gradient(color-mix(in_oklch,var(--border)_70%,transparent)_1px,transparent_1px),linear-gradient(90deg,color-mix(in_oklch,var(--border)_70%,transparent)_1px,transparent_1px)] [background-size:28px_28px] [mask-image:radial-gradient(ellipse_70%_65%_at_50%_50%,#000_20%,transparent_75%)]"
+        className="pointer-events-none absolute inset-0 opacity-[0.22] [background-image:linear-gradient(color-mix(in_oklch,var(--border)_70%,transparent)_1px,transparent_1px),linear-gradient(90deg,color-mix(in_oklch,var(--border)_70%,transparent)_1px,transparent_1px)] [background-size:28px_28px] [mask-image:radial-gradient(ellipse_70%_65%_at_50%_50%,#000_20%,transparent_75%)]"
       />
 
-      <FlowSvg gradId={gradId} glowId={glowId} reduceMotion={reduceMotion} />
-      <MobileFlow reduceMotion={reduceMotion} />
+      <FlowSvg
+        nodes={DESKTOP_NODES}
+        viewBox="0 0 980 420"
+        nodeW={104}
+        nodeH={40}
+        layout="desktop"
+        className="relative z-[1] hidden h-auto w-full md:block"
+        gradId={`mf-grad-${id}`}
+        glowId={`mf-glow-${id}`}
+        reduceMotion={reduceMotion}
+      />
+      <FlowSvg
+        nodes={MOBILE_NODES}
+        viewBox="0 0 360 468"
+        nodeW={96}
+        nodeH={36}
+        layout="mobile"
+        className="relative z-[1] h-auto w-full md:hidden"
+        gradId={`mf-m-grad-${id}`}
+        glowId={`mf-m-glow-${id}`}
+        reduceMotion={reduceMotion}
+      />
 
       <p className="relative z-[1] border-t border-border/60 px-5 py-3 text-center text-xs text-muted-foreground sm:px-6">
         Quote it, track it, or schedule it — every path lands on the same invoice and pay
