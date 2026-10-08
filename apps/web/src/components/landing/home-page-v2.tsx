@@ -51,7 +51,7 @@ export function HomePageV2() {
       <LandingParallax>
         {/* Hero */}
         <section className="landing-section relative">
-          <div className="relative mx-auto max-w-5xl px-6 pb-12 pt-16 text-center md:pb-14 md:pt-24">
+          <div className="relative mx-auto max-w-5xl px-6 pb-20 pt-16 text-center md:pb-24 md:pt-24 lg:pb-14">
             <h1 className="landing-hero-in landing-display text-4xl sm:text-6xl lg:text-7xl">
               Describe the job in a sentence.
               <br />
@@ -81,7 +81,7 @@ export function HomePageV2() {
             </SignedOut>
           </div>
 
-          <div className="relative mx-auto max-w-6xl px-4 pb-20 md:px-6 md:pb-28">
+          <div className="relative mx-auto hidden max-w-6xl px-4 pb-20 md:px-6 md:pb-28 lg:block">
             <div className="landing-hero-in" style={{ animationDelay: "280ms" }}>
               <HeroDepth>
                 <ProductCanvas />
