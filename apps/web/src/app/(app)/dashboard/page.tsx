@@ -14,6 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { PageScroll } from "@/components/app-shell/app-shell";
 import { EmptyState, PageHeader, pageHeaderActionClass } from "@/components/app-shell/page-header";
 import { DashboardAttention } from "@/features/dashboard/components/dashboard-attention";
+import { DashboardFirstInvoice } from "@/features/dashboard/components/dashboard-first-invoice";
 import { requireMember } from "@/lib/auth";
 import { getDashboardStats } from "@/lib/dashboard";
 import {
@@ -36,17 +37,25 @@ export default async function DashboardPage() {
   const canWrite = canWriteDocuments(member.role);
   const stats = await getDashboardStats(member.companyId);
   const { company } = member;
+  const isFirstInvoice = stats.totalInvoices === 0;
 
   return (
     <PageScroll maxWidth="85rem" className="space-y-8">
       <PageHeader
         eyebrow={getGreeting()}
         title={company.name}
-        description="A clear view of your billing — create, send, and get paid faster."
+        description={
+          isFirstInvoice
+            ? "Describe the job, send it, get paid."
+            : "A clear view of your billing — create, send, and get paid faster."
+        }
         actions={
           canWrite ? (
             <>
-              <Button className={pageHeaderActionClass} render={<Link href="/invoices/new" />}>
+              <Button
+                className={pageHeaderActionClass}
+                render={<Link href={isFirstInvoice ? "/invoices/new?tab=ai" : "/invoices/new"} />}
+              >
                 <PlusIcon className="size-4" />
                 New invoice
               </Button>
@@ -63,6 +72,16 @@ export default async function DashboardPage() {
         }
       />
 
+      {isFirstInvoice && canWrite ? <DashboardFirstInvoice /> : null}
+
+      <DashboardAttention
+        followUps={stats.followUps}
+        unbilledTime={stats.unbilledTime}
+        currency={company.currency}
+      />
+
+      {!isFirstInvoice ? (
+      <>
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           title="Total invoices"
@@ -95,12 +114,6 @@ export default async function DashboardPage() {
           icon={UsersRoundIcon}
         />
       </section>
-
-      <DashboardAttention
-        followUps={stats.followUps}
-        unbilledTime={stats.unbilledTime}
-        currency={company.currency}
-      />
 
       <section className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
@@ -204,6 +217,14 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       </section>
+      </>
+      ) : !canWrite ? (
+        <EmptyState
+          icon={FileTextIcon}
+          title="No invoices yet"
+          description="Invoices will show up here once your team sends the first one."
+        />
+      ) : null}
     </PageScroll>
   );
 }

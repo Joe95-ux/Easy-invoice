@@ -126,6 +126,89 @@ function canRecordPayment(row: InvoiceRow): boolean {
   );
 }
 
+function InvoiceRowMenu({
+  invoice,
+  canWrite,
+  canDelete,
+  disabled,
+  onDownload,
+  onDuplicate,
+  onRecordPayment,
+  onMakeRecurring,
+  onDelete,
+}: {
+  invoice: InvoiceRow;
+  canWrite: boolean;
+  canDelete: boolean;
+  disabled: boolean;
+  onDownload: (invoice: InvoiceRow) => void;
+  onDuplicate: (invoice: InvoiceRow) => void;
+  onRecordPayment: (invoice: InvoiceRow) => void;
+  onMakeRecurring: (invoice: InvoiceRow) => void;
+  onDelete: (invoice: InvoiceRow) => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        className="inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-transparent text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+        disabled={disabled}
+        aria-label="Invoice actions"
+      >
+        <MoreHorizontalIcon className="size-4" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-44 w-48">
+        <DropdownMenuItem render={<Link href={`/invoices/${invoice.id}`} />}>
+          <EyeIcon className="size-4" />
+          View
+        </DropdownMenuItem>
+        {canWrite ? (
+          <DropdownMenuItem render={<Link href={`/invoices/${invoice.id}/edit`} />}>
+            <PencilIcon className="size-4" />
+            Edit
+          </DropdownMenuItem>
+        ) : null}
+        <DropdownMenuItem onClick={() => onDownload(invoice)}>
+          <DownloadIcon className="size-4" />
+          Download PDF
+        </DropdownMenuItem>
+        {canWrite && canRecordPayment(invoice) ? (
+          <DropdownMenuItem onClick={() => onRecordPayment(invoice)}>
+            <BanknoteIcon className="size-4" />
+            Record payment
+          </DropdownMenuItem>
+        ) : null}
+        {canWrite ? (
+          <DropdownMenuItem render={<Link href={`/invoices/${invoice.id}`} />}>
+            <SendIcon className="size-4" />
+            Send invoice
+          </DropdownMenuItem>
+        ) : null}
+        {canWrite ? (
+          <DropdownMenuItem onClick={() => onDuplicate(invoice)}>
+            <CopyIcon className="size-4" />
+            Duplicate
+          </DropdownMenuItem>
+        ) : null}
+        {canWrite && invoice.clientId && invoice.status !== "CANCELLED" ? (
+          <DropdownMenuItem onClick={() => onMakeRecurring(invoice)}>
+            <RefreshCwIcon className="size-4" />
+            Make recurring
+          </DropdownMenuItem>
+        ) : null}
+        {canDelete ? (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem variant="destructive" onClick={() => onDelete(invoice)}>
+              <Trash2Icon className="size-4" />
+              Delete
+            </DropdownMenuItem>
+          </>
+        ) : null}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 export function InvoicesTable({
   initialRows,
   initialTotalCount,
@@ -566,6 +649,72 @@ export function InvoicesTable({
           </div>
         ) : null}
 
+        <div className="divide-y divide-border md:hidden">
+          {rows.length === 0 ? (
+            <p className="px-4 py-10 text-center text-sm text-muted-foreground">
+              {debouncedSearch || filter !== "all"
+                ? "No invoices match your filters."
+                : "No invoices."}
+            </p>
+          ) : (
+            rows.map((invoice) => (
+              <div
+                key={invoice.id}
+                className="flex items-start gap-3 px-4 py-3"
+                data-state={selectedIds.has(invoice.id) ? "selected" : undefined}
+              >
+                {showSelection ? (
+                  <Checkbox
+                    className="mt-1"
+                    checked={selectedIds.has(invoice.id)}
+                    onCheckedChange={(checked) => toggleRow(invoice, checked === true)}
+                    aria-label={`Select ${invoice.number}`}
+                    disabled={bulkBusy !== null}
+                  />
+                ) : null}
+                <Link href={`/invoices/${invoice.id}`} className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{invoice.number}</p>
+                      <p className="truncate text-sm text-muted-foreground">
+                        {invoice.clientName ?? "No client"}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-sm font-semibold tabular-nums">
+                      {formatMoney(invoice.total, invoice.currency)}
+                    </span>
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <Badge variant={invoiceStatusVariant(invoice.status)}>
+                      {invoiceStatusLabel(invoice.status)}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">
+                      {invoice.dueDate ? `Due ${formatDate(invoice.dueDate)}` : "No due date"}
+                    </span>
+                    {Number(invoice.balanceDue) < Number(invoice.total) - 0.001 ? (
+                      <span className="text-xs text-muted-foreground">
+                        {formatMoney(invoice.balanceDue, invoice.currency)} due
+                      </span>
+                    ) : null}
+                  </div>
+                </Link>
+                <InvoiceRowMenu
+                  invoice={invoice}
+                  canWrite={canWrite}
+                  canDelete={canDelete}
+                  disabled={loadingId === invoice.id || bulkBusy !== null}
+                  onDownload={handleDownload}
+                  onDuplicate={handleDuplicate}
+                  onRecordPayment={setPaymentInvoice}
+                  onMakeRecurring={setMakeRecurringInvoice}
+                  onDelete={setPendingDelete}
+                />
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="hidden md:block">
         <Table
           stickyColumns={showSelection ? 2 : 1}
           stickyColumnWidths={showSelection ? ["3rem", "5.5rem"] : ["5.5rem"]}
@@ -674,73 +823,24 @@ export function InvoicesTable({
                     {invoice.dueDate ? formatDate(invoice.dueDate) : "—"}
                   </TableCell>
                   <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger
-                        className="inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border border-transparent text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
-                        disabled={loadingId === invoice.id || bulkBusy !== null}
-                        aria-label="Invoice actions"
-                      >
-                        <MoreHorizontalIcon className="size-4" />
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="min-w-44 w-48">
-                        <DropdownMenuItem render={<Link href={`/invoices/${invoice.id}`} />}>
-                          <EyeIcon className="size-4" />
-                          View
-                        </DropdownMenuItem>
-                        {canWrite ? (
-                          <DropdownMenuItem render={<Link href={`/invoices/${invoice.id}/edit`} />}>
-                            <PencilIcon className="size-4" />
-                            Edit
-                          </DropdownMenuItem>
-                        ) : null}
-                        <DropdownMenuItem onClick={() => handleDownload(invoice)}>
-                          <DownloadIcon className="size-4" />
-                          Download PDF
-                        </DropdownMenuItem>
-                        {canWrite && canRecordPayment(invoice) ? (
-                          <DropdownMenuItem onClick={() => setPaymentInvoice(invoice)}>
-                            <BanknoteIcon className="size-4" />
-                            Record payment
-                          </DropdownMenuItem>
-                        ) : null}
-                        {canWrite ? (
-                          <DropdownMenuItem render={<Link href={`/invoices/${invoice.id}`} />}>
-                            <SendIcon className="size-4" />
-                            Send invoice
-                          </DropdownMenuItem>
-                        ) : null}
-                        {canWrite ? (
-                          <DropdownMenuItem onClick={() => handleDuplicate(invoice)}>
-                            <CopyIcon className="size-4" />
-                            Duplicate
-                          </DropdownMenuItem>
-                        ) : null}
-                        {canWrite && invoice.clientId && invoice.status !== "CANCELLED" ? (
-                          <DropdownMenuItem onClick={() => setMakeRecurringInvoice(invoice)}>
-                            <RefreshCwIcon className="size-4" />
-                            Make recurring
-                          </DropdownMenuItem>
-                        ) : null}
-                        {canDelete ? (
-                          <>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              variant="destructive"
-                              onClick={() => setPendingDelete(invoice)}
-                            >
-                              <Trash2Icon className="size-4" />
-                              Delete
-                            </DropdownMenuItem>
-                          </>
-                        ) : null}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <InvoiceRowMenu
+                      invoice={invoice}
+                      canWrite={canWrite}
+                      canDelete={canDelete}
+                      disabled={loadingId === invoice.id || bulkBusy !== null}
+                      onDownload={handleDownload}
+                      onDuplicate={handleDuplicate}
+                      onRecordPayment={setPaymentInvoice}
+                      onMakeRecurring={setMakeRecurringInvoice}
+                      onDelete={setPendingDelete}
+                    />
                   </TableCell>
                 </TableRow>
               ))
             )}
           </TableBody>
         </Table>
+        </div>
       </div>
 
       <TablePagination

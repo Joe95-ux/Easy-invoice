@@ -1,10 +1,12 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { SparklesIcon } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CompanyCreateForm } from "@/features/companies/components/company-create-form";
 
 export default function OnboardingPage() {
+  const router = useRouter();
   return (
     <div className="min-h-screen bg-background px-4 py-10">
       <div className="mx-auto grid max-w-6xl items-start gap-8 lg:grid-cols-5">
@@ -39,8 +41,12 @@ export default function OnboardingPage() {
           </CardHeader>
           <CardContent className="min-h-0 flex-1 overflow-y-auto overscroll-contain pt-6">
             <CompanyCreateForm
-              submitLabel="Continue to dashboard"
+              submitLabel="Create your first invoice"
               submittingLabel="Creating your workspace..."
+              onSuccess={() => {
+                router.push("/invoices/new?tab=ai");
+                router.refresh();
+              }}
             />
           </CardContent>
         </Card>

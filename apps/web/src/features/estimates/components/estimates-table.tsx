@@ -65,6 +65,73 @@ const STATUS_FILTER_OPTIONS = [
   })),
 ];
 
+function EstimateRowMenu({
+  estimate,
+  canWrite,
+  canDelete,
+  disabled,
+  onDownload,
+  onDuplicate,
+  onDelete,
+}: {
+  estimate: EstimateRow;
+  canWrite: boolean;
+  canDelete: boolean;
+  disabled: boolean;
+  onDownload: (estimate: EstimateRow) => void;
+  onDuplicate: (estimate: EstimateRow) => void;
+  onDelete: (estimate: EstimateRow) => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        className="inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-transparent text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+        disabled={disabled}
+        aria-label="Estimate actions"
+      >
+        <MoreHorizontalIcon className="size-4" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-44 w-48">
+        <DropdownMenuItem render={<Link href={`/estimates/${estimate.id}`} />}>
+          <EyeIcon className="size-4" />
+          View
+        </DropdownMenuItem>
+        {canWrite ? (
+          <DropdownMenuItem render={<Link href={`/estimates/${estimate.id}/edit`} />}>
+            <PencilIcon className="size-4" />
+            Edit
+          </DropdownMenuItem>
+        ) : null}
+        <DropdownMenuItem onClick={() => onDownload(estimate)}>
+          <DownloadIcon className="size-4" />
+          Download PDF
+        </DropdownMenuItem>
+        {canWrite ? (
+          <DropdownMenuItem render={<Link href={`/estimates/${estimate.id}`} />}>
+            <SendIcon className="size-4" />
+            Send estimate
+          </DropdownMenuItem>
+        ) : null}
+        {canWrite ? (
+          <DropdownMenuItem onClick={() => onDuplicate(estimate)}>
+            <CopyIcon className="size-4" />
+            Duplicate
+          </DropdownMenuItem>
+        ) : null}
+        {canDelete ? (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem variant="destructive" onClick={() => onDelete(estimate)}>
+              <Trash2Icon className="size-4" />
+              Delete
+            </DropdownMenuItem>
+          </>
+        ) : null}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 type EstimatesTableProps = {
   estimates: EstimateRow[];
   companyName: string;
@@ -165,6 +232,52 @@ export function EstimatesTable({
         filterLabel="Status"
       />
 
+      <div className="divide-y divide-border md:hidden">
+        {table.pageRows.length === 0 ? (
+          <p className="px-4 py-10 text-center text-sm text-muted-foreground">
+            {table.hasActiveFilters ? "No estimates match your filters." : "No estimates."}
+          </p>
+        ) : (
+          table.pageRows.map((estimate) => (
+            <div key={estimate.id} className="flex items-start gap-3 px-4 py-3">
+              <Link href={`/estimates/${estimate.id}`} className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{estimate.number}</p>
+                    <p className="truncate text-sm text-muted-foreground">
+                      {estimate.clientName ?? "No client"}
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-sm font-semibold tabular-nums">
+                    {formatMoney(estimate.total, estimate.currency)}
+                  </span>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <Badge variant={estimateStatusVariant(estimate.status)}>
+                    {estimateStatusLabel(estimate.status)}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">
+                    {estimate.validUntil
+                      ? `Valid until ${formatDate(estimate.validUntil)}`
+                      : "No expiry"}
+                  </span>
+                </div>
+              </Link>
+              <EstimateRowMenu
+                estimate={estimate}
+                canWrite={canWrite}
+                canDelete={canDelete}
+                disabled={loadingId === estimate.id}
+                onDownload={handleDownload}
+                onDuplicate={handleDuplicate}
+                onDelete={setPendingDelete}
+              />
+            </div>
+          ))
+        )}
+      </div>
+
+      <div className="hidden md:block">
       <Table stickyColumnWidths={["5.5rem", "10rem"]}>
         <TableHeader>
           <TableRow>
@@ -236,61 +349,22 @@ export function EstimatesTable({
                   {estimate.validUntil ? formatDate(estimate.validUntil) : "—"}
                 </TableCell>
                 <TableCell className="text-right">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      className="inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border border-transparent text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
-                      disabled={loadingId === estimate.id}
-                      aria-label="Estimate actions"
-                    >
-                      <MoreHorizontalIcon className="size-4" />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="min-w-44 w-48">
-                      <DropdownMenuItem render={<Link href={`/estimates/${estimate.id}`} />}>
-                        <EyeIcon className="size-4" />
-                        View
-                      </DropdownMenuItem>
-                      {canWrite ? (
-                        <DropdownMenuItem render={<Link href={`/estimates/${estimate.id}/edit`} />}>
-                          <PencilIcon className="size-4" />
-                          Edit
-                        </DropdownMenuItem>
-                      ) : null}
-                      <DropdownMenuItem onClick={() => handleDownload(estimate)}>
-                        <DownloadIcon className="size-4" />
-                        Download PDF
-                      </DropdownMenuItem>
-                      {canWrite ? (
-                        <DropdownMenuItem render={<Link href={`/estimates/${estimate.id}`} />}>
-                          <SendIcon className="size-4" />
-                          Send estimate
-                        </DropdownMenuItem>
-                      ) : null}
-                      {canWrite ? (
-                        <DropdownMenuItem onClick={() => handleDuplicate(estimate)}>
-                          <CopyIcon className="size-4" />
-                          Duplicate
-                        </DropdownMenuItem>
-                      ) : null}
-                      {canDelete ? (
-                        <>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            variant="destructive"
-                            onClick={() => setPendingDelete(estimate)}
-                          >
-                            <Trash2Icon className="size-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        </>
-                      ) : null}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <EstimateRowMenu
+                    estimate={estimate}
+                    canWrite={canWrite}
+                    canDelete={canDelete}
+                    disabled={loadingId === estimate.id}
+                    onDownload={handleDownload}
+                    onDuplicate={handleDuplicate}
+                    onDelete={setPendingDelete}
+                  />
                 </TableCell>
               </TableRow>
             ))
           )}
         </TableBody>
       </Table>
+      </div>
 
       <TablePagination
         page={table.page}

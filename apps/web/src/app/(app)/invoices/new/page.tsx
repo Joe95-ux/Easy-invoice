@@ -16,13 +16,14 @@ type PageProps = {
     addTime?: string;
     timeEntryIds?: string;
     expenseIds?: string;
+    tab?: string;
   }>;
 };
 
 export default async function NewInvoicePage({ searchParams }: PageProps) {
   const member = await requireWriter();
 
-  const { clientId, projectId, addTime, timeEntryIds, expenseIds } = await searchParams;
+  const { clientId, projectId, addTime, timeEntryIds, expenseIds, tab } = await searchParams;
   const preselectedTimeEntryIds = timeEntryIds
     ? timeEntryIds.split(",").filter(Boolean)
     : [];
@@ -86,6 +87,7 @@ export default async function NewInvoicePage({ searchParams }: PageProps) {
         autoOpenTimeDialog={addTime === "1"}
         preselectedTimeEntryIds={preselectedTimeEntryIds}
         preselectedExpenseIds={preselectedExpenseIds}
+        initialTab={tab === "ai" || tab === "form" ? tab : undefined}
       />
     </PageScroll>
   );

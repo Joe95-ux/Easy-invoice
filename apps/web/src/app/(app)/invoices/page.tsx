@@ -3,7 +3,7 @@ import { listInvoicesForMember } from "@/lib/invoice-service";
 import { canDeleteDocuments, canWriteDocuments } from "@/lib/team";
 import { InvoicesTable } from "@/features/invoices/components/invoices-table";
 import Link from "next/link";
-import { FileTextIcon, PlusIcon } from "lucide-react";
+import { FileTextIcon, PlusIcon, SparklesIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { PageScroll } from "@/components/app-shell/app-shell";
@@ -28,7 +28,10 @@ export default async function InvoicesPage() {
         description="Track, send, and manage every invoice in one place."
         actions={
           canWrite ? (
-            <Button className={pageHeaderActionClass} render={<Link href="/invoices/new" />}>
+            <Button
+              className={pageHeaderActionClass}
+              render={<Link href={list.totalCount === 0 ? "/invoices/new?tab=ai" : "/invoices/new"} />}
+            >
               <PlusIcon className="size-4" />
               New invoice
             </Button>
@@ -40,13 +43,19 @@ export default async function InvoicesPage() {
         <EmptyState
           icon={FileTextIcon}
           title="No invoices yet"
-          description="Create your first invoice in under a minute — by form or with AI."
+          description="Describe the job in your own words, or fill in the form — either way takes about a minute."
           action={
             canWrite ? (
-              <Button render={<Link href="/invoices/new" />}>
-                <PlusIcon className="size-4" />
-                Create your first invoice
-              </Button>
+              <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
+                <Button render={<Link href="/invoices/new?tab=ai" />}>
+                  <SparklesIcon className="size-4" />
+                  Describe with AI
+                </Button>
+                <Button variant="outline" render={<Link href="/invoices/new?tab=form" />}>
+                  <PlusIcon className="size-4" />
+                  Use the form
+                </Button>
+              </div>
             ) : undefined
           }
         />

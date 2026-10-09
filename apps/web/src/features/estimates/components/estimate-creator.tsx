@@ -784,12 +784,13 @@ export function EstimateCreator({
   );
 
   const formFooter = (
-    <div className="flex w-full flex-wrap items-center justify-between gap-2">
+    <div className="flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
       <div className="flex gap-2">
         {step > 0 && (
           <Button
             type="button"
             variant="outline"
+            className="flex-1 sm:flex-none"
             disabled={saving}
             onClick={() => setStep((value) => value - 1)}
           >
@@ -797,51 +798,62 @@ export function EstimateCreator({
           </Button>
         )}
         {!isLastStep && (
-          <Button type="button" disabled={saving} onClick={() => setStep((value) => value + 1)}>
+          <Button
+            type="button"
+            className="flex-1 sm:flex-none"
+            disabled={saving}
+            onClick={() => setStep((value) => value + 1)}
+          >
             Continue
           </Button>
         )}
       </div>
-      <div className="flex flex-wrap gap-2">
-        {isLastStep && (
-          <>
-            <Button type="button" variant="outline" onClick={openOwnPreview}>
-              <EyeIcon className="size-4" />
-              Preview
-            </Button>
+      {isLastStep ? (
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full sm:w-auto"
+            onClick={openOwnPreview}
+          >
+            <EyeIcon className="size-4" />
+            Preview
+          </Button>
+          {!estimateId && !activeEstimateId ? (
             <Button
-              onClick={() => handleSave(false)}
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={() => handleSave(true)}
               disabled={saving || !clientName.trim()}
             >
-              {saving
-                ? isEditing
-                  ? "Saving..."
-                  : "Creating..."
-                : isEditing
-                  ? "Save changes"
-                  : "Create estimate"}
+              {saving ? "Creating..." : "Create & download PDF"}
             </Button>
-            {!estimateId && !activeEstimateId && (
-              <Button
-                variant="outline"
-                onClick={() => handleSave(true)}
-                disabled={saving || !clientName.trim()}
-              >
-                {saving ? "Creating..." : "Create & download PDF"}
-              </Button>
-            )}
-            {!estimateId && activeEstimateId && (
-              <Button
-                variant="outline"
-                onClick={handleDownloadOnly}
-                disabled={saving}
-              >
-                Download PDF
-              </Button>
-            )}
-          </>
-        )}
-      </div>
+          ) : null}
+          {!estimateId && activeEstimateId ? (
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={handleDownloadOnly}
+              disabled={saving}
+            >
+              Download PDF
+            </Button>
+          ) : null}
+          <Button
+            className="w-full sm:w-auto"
+            onClick={() => handleSave(false)}
+            disabled={saving || !clientName.trim()}
+          >
+            {saving
+              ? isEditing
+                ? "Saving..."
+                : "Creating..."
+              : isEditing
+                ? "Save changes"
+                : "Create estimate"}
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 

@@ -46,43 +46,78 @@ export default async function PublicInvoicePage({ params }: PageProps) {
     summary.installments.length === 0 &&
     summary.balanceDue >= MIN_PLAN_BALANCE;
 
+  const alreadyPaid = invoice.status === "PAID" || summary.balanceDue <= 0.001;
+  const isOverdue = invoice.status === "OVERDUE";
+  const dueLabel = invoice.dueDate ? formatDate(invoice.dueDate) : null;
+
+  const stickyPay = canPayOnline && !alreadyPaid;
+
   return (
-    <div className="space-y-6">
+    <div className={stickyPay ? "space-y-6 max-sm:pb-28" : "space-y-6"}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-1">
+        <div className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Invoice</p>
           <h1 className="font-heading text-2xl font-semibold tracking-tight">{invoice.number}</h1>
           <p className="text-sm text-muted-foreground">
             From {invoice.company.name}
             {invoice.issueDate && ` · Issued ${formatDate(invoice.issueDate)}`}
-            {invoice.dueDate && ` · Due ${formatDate(invoice.dueDate)}`}
           </p>
+          {dueLabel && !alreadyPaid ? (
+            <p
+              className={
+                isOverdue
+                  ? "text-sm font-medium text-destructive"
+                  : "text-sm font-medium text-foreground"
+              }
+            >
+              {isOverdue ? `Overdue · was due ${dueLabel}` : `Due ${dueLabel}`}
+            </p>
+          ) : null}
           <p className="text-lg font-semibold tabular-nums">
-            {formatMoney(invoice.total, invoice.currency)}
+            {alreadyPaid
+              ? formatMoney(invoice.total, invoice.currency)
+              : formatMoney(
+                  summary.installments.length > 0 &&
+                    summary.nextDueAmount != null &&
+                    summary.nextDueAmount < summary.balanceDue - 0.001
+                    ? summary.nextDueAmount
+                    : summary.balanceDue > 0.001
+                      ? summary.balanceDue
+                      : invoice.total,
+                  invoice.currency,
+                )}
             {invoice.status !== "PAID" && summary.balanceDue > 0.001 ? (
               <span className="ml-2 text-sm font-normal text-muted-foreground">
                 {summary.installments.length > 0 &&
                 summary.nextDueAmount != null &&
                 summary.nextDueAmount < summary.balanceDue - 0.001
-                  ? `· ${formatMoney(summary.nextDueAmount, invoice.currency)} due now · ${formatMoney(summary.balanceDue, invoice.currency)} remaining`
+                  ? `due now · ${formatMoney(summary.balanceDue, invoice.currency)} remaining`
                   : summary.amountPaid > 0
-                    ? `· ${formatMoney(summary.balanceDue, invoice.currency)} due`
-                    : null}
+                    ? `remaining of ${formatMoney(invoice.total, invoice.currency)}`
+                    : `due`}
               </span>
             ) : null}
           </p>
         </div>
         <div className="flex w-full flex-col gap-3 sm:w-auto sm:items-end">
-          <InvoicePayButton
-            token={token}
-            balanceDue={summary.balanceDue}
-            currency={invoice.currency}
-            canPayOnline={canPayOnline}
-            alreadyPaid={invoice.status === "PAID" || summary.balanceDue <= 0.001}
-            nextDueAmount={summary.nextDueAmount}
-            canOfferPlan={canOfferPlan}
-            returnToPortal={Boolean(portalSession)}
-          />
+          <div
+            className={
+              stickyPay
+                ? "max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:z-20 max-sm:border-t max-sm:border-border max-sm:bg-background/95 max-sm:px-4 max-sm:py-3 max-sm:pb-[max(0.75rem,env(safe-area-inset-bottom))] max-sm:backdrop-blur-sm"
+                : undefined
+            }
+          >
+            <InvoicePayButton
+              token={token}
+              balanceDue={summary.balanceDue}
+              currency={invoice.currency}
+              canPayOnline={canPayOnline}
+              alreadyPaid={alreadyPaid}
+              nextDueAmount={summary.nextDueAmount}
+              canOfferPlan={canOfferPlan}
+              returnToPortal={Boolean(portalSession)}
+            />
+          </div>
           <Button
             variant="outline"
             className="w-full sm:w-auto"
@@ -94,7 +129,7 @@ export default async function PublicInvoicePage({ params }: PageProps) {
         </div>
       </div>
 
-      <div className="flex justify-center">
+      <div className="flex justify-center overflow-x-auto">
         <PublicDocumentFrame html={html} title={`Invoice ${invoice.number}`} />
       </div>
     </div>

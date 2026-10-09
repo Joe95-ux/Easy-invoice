@@ -33,7 +33,7 @@ export function FormStepProgress({ steps, step, onStepChange }: FormStepProgress
         </span>
       </div>
       <Progress value={progress} aria-label="Form progress" />
-      <div className="flex flex-wrap gap-2">
+      <div className="hidden flex-wrap gap-2 sm:flex">
         {steps.map((item, index) => (
           <button
             key={item.id}

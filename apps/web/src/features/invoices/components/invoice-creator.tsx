@@ -142,11 +142,12 @@ type InvoiceCreatorProps = {
   autoOpenTimeDialog?: boolean;
   preselectedTimeEntryIds?: string[];
   preselectedExpenseIds?: string[];
+  initialTab?: "form" | "ai";
 };
 
 export function InvoiceCreator({
   title = "New invoice",
-  description = "Use the form or describe the job in your own words.",
+  description: descriptionProp,
   currency: defaultCurrency,
   homeCurrency,
   companyTaxRates = [],
@@ -167,6 +168,7 @@ export function InvoiceCreator({
   autoOpenTimeDialog = false,
   preselectedTimeEntryIds = [],
   preselectedExpenseIds = [],
+  initialTab,
 }: InvoiceCreatorProps) {
   const router = useRouter();
   const resolvedHomeCurrency = homeCurrency ?? defaultCurrency;
@@ -245,7 +247,19 @@ export function InvoiceCreator({
   const [installments, setInstallments] = useState<InstallmentRow[]>(
     initialValues?.installments ?? [],
   );
-  const [activeTab, setActiveTab] = useState("form");
+  const preferAi =
+    initialTab === "ai" ||
+    (!initialTab &&
+      !invoiceId &&
+      !initialValues &&
+      !initialClientId &&
+      clients.length === 0);
+  const description =
+    descriptionProp ??
+    (preferAi
+      ? "Describe the job in your own words — or fill in the form."
+      : "Use the form or describe the job in your own words.");
+  const [activeTab, setActiveTab] = useState(preferAi ? "ai" : "form");
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [timeDialogOpen, setTimeDialogOpen] = useState(false);
@@ -713,6 +727,11 @@ export function InvoiceCreator({
 
       {currentStepId === "client" && (
         <div className="space-y-4">
+          {clients.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Type a name — we&apos;ll save them as a client when you create the invoice.
+            </p>
+          ) : null}
           {clients.length > 0 && (
             <SearchableSelect
               id="existing-client"
@@ -901,12 +920,13 @@ export function InvoiceCreator({
   );
 
   const formFooter = (
-    <div className="flex w-full flex-wrap items-center justify-between gap-2">
+    <div className="flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
       <div className="flex gap-2">
         {step > 0 && (
           <Button
             type="button"
             variant="outline"
+            className="flex-1 sm:flex-none"
             disabled={saving}
             onClick={() => setStep((value) => value - 1)}
           >
@@ -914,48 +934,62 @@ export function InvoiceCreator({
           </Button>
         )}
         {!isLastStep && (
-          <Button type="button" disabled={saving} onClick={() => setStep((value) => value + 1)}>
+          <Button
+            type="button"
+            className="flex-1 sm:flex-none"
+            disabled={saving}
+            onClick={() => setStep((value) => value + 1)}
+          >
             Continue
           </Button>
         )}
       </div>
-      <div className="flex flex-wrap gap-2">
-        {isLastStep && (
-          <>
-            <Button type="button" variant="outline" onClick={openOwnPreview}>
-              <EyeIcon className="size-4" />
-              Preview
+      {isLastStep ? (
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full sm:w-auto"
+            onClick={openOwnPreview}
+          >
+            <EyeIcon className="size-4" />
+            Preview
+          </Button>
+          {!invoiceId && !activeInvoiceId ? (
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={() => handleSave(true)}
+              disabled={saving || !clientName.trim()}
+            >
+              {saving ? "Creating..." : "Create & download PDF"}
             </Button>
-            <Button onClick={() => handleSave(false)} disabled={saving || !clientName.trim()}>
-              {saving
-                ? isEditing
-                  ? "Saving..."
-                  : "Creating..."
-                : isEditing
-                  ? "Save changes"
-                  : "Create invoice"}
+          ) : null}
+          {!invoiceId && activeInvoiceId ? (
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={handleDownloadOnly}
+              disabled={saving}
+            >
+              Download PDF
             </Button>
-            {!invoiceId && !activeInvoiceId && (
-              <Button
-                variant="outline"
-                onClick={() => handleSave(true)}
-                disabled={saving || !clientName.trim()}
-              >
-                {saving ? "Creating..." : "Create & download PDF"}
-              </Button>
-            )}
-            {!invoiceId && activeInvoiceId && (
-              <Button
-                variant="outline"
-                onClick={handleDownloadOnly}
-                disabled={saving}
-              >
-                Download PDF
-              </Button>
-            )}
-          </>
-        )}
-      </div>
+          ) : null}
+          <Button
+            className="w-full sm:w-auto"
+            onClick={() => handleSave(false)}
+            disabled={saving || !clientName.trim()}
+          >
+            {saving
+              ? isEditing
+                ? "Saving..."
+                : "Creating..."
+              : isEditing
+                ? "Save changes"
+                : "Create invoice"}
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 
@@ -1054,8 +1088,17 @@ export function InvoiceCreator({
         description={description}
         actions={
           <TabsList variant="segment" className="w-full sm:w-auto">
-            <TabsTrigger value="form">Form</TabsTrigger>
-            <TabsTrigger value="ai">Describe with AI</TabsTrigger>
+            {preferAi ? (
+              <>
+                <TabsTrigger value="ai">Describe with AI</TabsTrigger>
+                <TabsTrigger value="form">Form</TabsTrigger>
+              </>
+            ) : (
+              <>
+                <TabsTrigger value="form">Form</TabsTrigger>
+                <TabsTrigger value="ai">Describe with AI</TabsTrigger>
+              </>
+            )}
           </TabsList>
         }
       />

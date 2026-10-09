@@ -620,11 +620,8 @@ export function FollowUpsPageContent({
         onValueChange={setActiveTab}
         className="gap-4"
       >
-        <div className="flex items-center gap-3">
-          <TabsList
-            variant="segment"
-            className={cn("shrink-0", isMobile && filtersOpen && "hidden")}
-          >
+        <div className="flex flex-wrap items-center gap-3">
+          <TabsList variant="segment" className="shrink-0">
             <TabsTrigger value="list">Checklist</TabsTrigger>
             <TabsTrigger value="calendar">Calendar</TabsTrigger>
           </TabsList>
@@ -632,7 +629,7 @@ export function FollowUpsPageContent({
           <div
             className={cn(
               "flex min-w-0 items-center overflow-hidden",
-              isMobile && filtersOpen ? "w-full flex-1" : "flex-1 justify-end",
+              filtersOpen ? "w-full flex-1 sm:w-auto" : "ml-auto",
             )}
           >
             {!filtersOpen ? (

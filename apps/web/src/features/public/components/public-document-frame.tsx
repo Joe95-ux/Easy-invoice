@@ -25,7 +25,7 @@ export function PublicDocumentFrame({ html, title }: PublicDocumentFrameProps) {
       onLoad={syncHeight}
       title={title}
       sandbox="allow-same-origin"
-      className="w-full max-w-4xl rounded-xl bg-white shadow-lg ring-1 ring-black/5"
+      className="w-full max-w-4xl min-w-0 rounded-xl bg-white shadow-lg ring-1 ring-black/5"
       style={{ height }}
     />
   );

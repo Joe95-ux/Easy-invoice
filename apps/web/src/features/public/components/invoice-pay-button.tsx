@@ -40,6 +40,7 @@ export function InvoicePayButton({
   const [loading, setLoading] = useState<string | null>(null);
   const [planOffered, setPlanOffered] = useState(false);
   const [localNextDue, setLocalNextDue] = useState<number | null>(null);
+  const [showExtras, setShowExtras] = useState(false);
 
   const effectiveNextDue = localNextDue ?? nextDueAmount;
   const offerPlan = canOfferPlan && !planOffered;
@@ -168,6 +169,7 @@ export function InvoicePayButton({
   const primaryLoadingKey = hasInstallmentDue
     ? `amount-${effectiveNextDue}`
     : "full";
+  const hasExtras = Boolean(halfAmount != null || offerPlan);
 
   return (
     <div className="flex w-full flex-col gap-2 sm:w-auto sm:items-end">
@@ -205,7 +207,17 @@ export function InvoicePayButton({
         </Button>
       ) : null}
 
-      {halfAmount != null ? (
+      {hasExtras ? (
+        <button
+          type="button"
+          className="cursor-pointer text-center text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline sm:text-right"
+          onClick={() => setShowExtras((open) => !open)}
+        >
+          {showExtras ? "Hide other options" : "Can't pay in full?"}
+        </button>
+      ) : null}
+
+      {showExtras && halfAmount != null ? (
         <Button
           type="button"
           variant="outline"
@@ -220,35 +232,32 @@ export function InvoicePayButton({
         </Button>
       ) : null}
 
-      {offerPlan ? (
-        <div className="flex w-full flex-col gap-1.5 sm:items-end">
-          <p className="text-xs text-muted-foreground">Can&apos;t pay in full?</p>
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-            <Button
-              type="button"
-              variant="secondary"
-              className="w-full cursor-pointer sm:w-auto"
-              disabled={busy}
-              onClick={() => void startPaymentPlan(2)}
-            >
-              {loading === "plan-2" ? (
-                <Loader2Icon className="size-4 animate-spin" />
-              ) : null}
-              Split into 2
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              className="w-full cursor-pointer sm:w-auto"
-              disabled={busy}
-              onClick={() => void startPaymentPlan(3)}
-            >
-              {loading === "plan-3" ? (
-                <Loader2Icon className="size-4 animate-spin" />
-              ) : null}
-              Split into 3
-            </Button>
-          </div>
+      {showExtras && offerPlan ? (
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:justify-end">
+          <Button
+            type="button"
+            variant="secondary"
+            className="w-full cursor-pointer sm:w-auto"
+            disabled={busy}
+            onClick={() => void startPaymentPlan(2)}
+          >
+            {loading === "plan-2" ? (
+              <Loader2Icon className="size-4 animate-spin" />
+            ) : null}
+            Split into 2
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            className="w-full cursor-pointer sm:w-auto"
+            disabled={busy}
+            onClick={() => void startPaymentPlan(3)}
+          >
+            {loading === "plan-3" ? (
+              <Loader2Icon className="size-4 animate-spin" />
+            ) : null}
+            Split into 3
+          </Button>
         </div>
       ) : null}
 
