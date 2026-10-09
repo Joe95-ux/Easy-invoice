@@ -660,8 +660,9 @@ export function InvoicesTable({
             rows.map((invoice) => (
               <div
                 key={invoice.id}
-                className="flex items-start gap-3 px-4 py-3"
-                data-state={selectedIds.has(invoice.id) ? "selected" : undefined}
+                className={`flex items-start gap-3 px-4 py-3 ${
+                  selectedIds.has(invoice.id) ? "bg-muted" : ""
+                }`}
               >
                 {showSelection ? (
                   <Checkbox

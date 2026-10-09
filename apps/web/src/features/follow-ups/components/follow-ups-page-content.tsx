@@ -629,7 +629,7 @@ export function FollowUpsPageContent({
           <div
             className={cn(
               "flex min-w-0 items-center overflow-hidden",
-              filtersOpen ? "w-full flex-1 sm:w-auto" : "ml-auto",
+              filtersOpen ? "w-full min-w-0 flex-1 sm:ml-auto sm:w-auto" : "ml-auto",
             )}
           >
             {!filtersOpen ? (

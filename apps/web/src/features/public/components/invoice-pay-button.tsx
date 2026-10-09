@@ -24,6 +24,8 @@ type InvoicePayButtonProps = {
   canOfferPlan?: boolean;
   /** When true (portal session), return to /portal after pay/cancel. */
   returnToPortal?: boolean;
+  /** Pin the primary Pay button to the bottom on small screens. */
+  stickyOnMobile?: boolean;
 };
 
 export function InvoicePayButton({
@@ -35,6 +37,7 @@ export function InvoicePayButton({
   nextDueAmount = null,
   canOfferPlan = false,
   returnToPortal = false,
+  stickyOnMobile = false,
 }: InvoicePayButtonProps) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
@@ -169,10 +172,10 @@ export function InvoicePayButton({
   const primaryLoadingKey = hasInstallmentDue
     ? `amount-${effectiveNextDue}`
     : "full";
-  const hasExtras = Boolean(halfAmount != null || offerPlan);
+  const hasExtras = halfAmount != null || offerPlan;
 
-  return (
-    <div className="flex w-full flex-col gap-2 sm:w-auto sm:items-end">
+  const primary = (
+    <>
       <Button
         type="button"
         size="lg"
@@ -206,7 +209,11 @@ export function InvoicePayButton({
           Pay remaining balance ({formatMoney(balanceDue, currency)})
         </Button>
       ) : null}
+    </>
+  );
 
+  const extras = (
+    <>
       {hasExtras ? (
         <button
           type="button"
@@ -272,6 +279,21 @@ export function InvoicePayButton({
           ? "Pays this installment · you can still clear the full balance"
           : "Secure card payment · paid to the business via Stripe"}
       </p>
+    </>
+  );
+
+  return (
+    <div className="flex w-full flex-col gap-2 sm:w-auto sm:items-end">
+      <div
+        className={
+          stickyOnMobile
+            ? "flex w-full flex-col gap-2 max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:z-20 max-sm:border-t max-sm:border-border max-sm:bg-background/95 max-sm:px-4 max-sm:py-3 max-sm:pb-[max(0.75rem,env(safe-area-inset-bottom))] max-sm:backdrop-blur-sm sm:contents"
+            : "contents"
+        }
+      >
+        {primary}
+      </div>
+      {extras}
     </div>
   );
 }

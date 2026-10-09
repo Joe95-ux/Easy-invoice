@@ -49,11 +49,26 @@ export default async function PublicInvoicePage({ params }: PageProps) {
   const alreadyPaid = invoice.status === "PAID" || summary.balanceDue <= 0.001;
   const isOverdue = invoice.status === "OVERDUE";
   const dueLabel = invoice.dueDate ? formatDate(invoice.dueDate) : null;
-
+  const hasInstallmentDue =
+    summary.installments.length > 0 &&
+    summary.nextDueAmount != null &&
+    summary.nextDueAmount < summary.balanceDue - 0.001;
+  const displayAmount = alreadyPaid
+    ? invoice.total
+    : hasInstallmentDue
+      ? summary.nextDueAmount!
+      : summary.balanceDue;
+  const amountHint = alreadyPaid
+    ? null
+    : hasInstallmentDue
+      ? `due now · ${formatMoney(summary.balanceDue, invoice.currency)} remaining`
+      : summary.amountPaid > 0
+        ? `remaining of ${formatMoney(invoice.total, invoice.currency)}`
+        : "due";
   const stickyPay = canPayOnline && !alreadyPaid;
 
   return (
-    <div className={stickyPay ? "space-y-6 max-sm:pb-28" : "space-y-6"}>
+    <div className={stickyPay ? "space-y-6 max-sm:pb-36" : "space-y-6"}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Invoice</p>
@@ -74,50 +89,26 @@ export default async function PublicInvoicePage({ params }: PageProps) {
             </p>
           ) : null}
           <p className="text-lg font-semibold tabular-nums">
-            {alreadyPaid
-              ? formatMoney(invoice.total, invoice.currency)
-              : formatMoney(
-                  summary.installments.length > 0 &&
-                    summary.nextDueAmount != null &&
-                    summary.nextDueAmount < summary.balanceDue - 0.001
-                    ? summary.nextDueAmount
-                    : summary.balanceDue > 0.001
-                      ? summary.balanceDue
-                      : invoice.total,
-                  invoice.currency,
-                )}
-            {invoice.status !== "PAID" && summary.balanceDue > 0.001 ? (
+            {formatMoney(displayAmount, invoice.currency)}
+            {amountHint ? (
               <span className="ml-2 text-sm font-normal text-muted-foreground">
-                {summary.installments.length > 0 &&
-                summary.nextDueAmount != null &&
-                summary.nextDueAmount < summary.balanceDue - 0.001
-                  ? `due now · ${formatMoney(summary.balanceDue, invoice.currency)} remaining`
-                  : summary.amountPaid > 0
-                    ? `remaining of ${formatMoney(invoice.total, invoice.currency)}`
-                    : `due`}
+                {amountHint}
               </span>
             ) : null}
           </p>
         </div>
         <div className="flex w-full flex-col gap-3 sm:w-auto sm:items-end">
-          <div
-            className={
-              stickyPay
-                ? "max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:z-20 max-sm:border-t max-sm:border-border max-sm:bg-background/95 max-sm:px-4 max-sm:py-3 max-sm:pb-[max(0.75rem,env(safe-area-inset-bottom))] max-sm:backdrop-blur-sm"
-                : undefined
-            }
-          >
-            <InvoicePayButton
-              token={token}
-              balanceDue={summary.balanceDue}
-              currency={invoice.currency}
-              canPayOnline={canPayOnline}
-              alreadyPaid={alreadyPaid}
-              nextDueAmount={summary.nextDueAmount}
-              canOfferPlan={canOfferPlan}
-              returnToPortal={Boolean(portalSession)}
-            />
-          </div>
+          <InvoicePayButton
+            token={token}
+            balanceDue={summary.balanceDue}
+            currency={invoice.currency}
+            canPayOnline={canPayOnline}
+            alreadyPaid={alreadyPaid}
+            nextDueAmount={summary.nextDueAmount}
+            canOfferPlan={canOfferPlan}
+            returnToPortal={Boolean(portalSession)}
+            stickyOnMobile={stickyPay}
+          />
           <Button
             variant="outline"
             className="w-full sm:w-auto"

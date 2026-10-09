@@ -128,55 +128,39 @@ export default async function DashboardPage() {
             </Button>
           </CardHeader>
           <CardContent className="pt-0">
-            {stats.recentInvoices.length === 0 ? (
-              <EmptyState
-                icon={FileTextIcon}
-                title="No invoices yet"
-                description="Create your first invoice in under a minute — by form or with AI."
-                action={
-                  canWrite ? (
-                    <Button render={<Link href="/invoices/new" />}>
-                      <PlusIcon className="size-4" />
-                      Create first invoice
-                    </Button>
-                  ) : undefined
-                }
-              />
-            ) : (
-              <div className="-mx-2 divide-y divide-border/70">
-                {stats.recentInvoices.map((invoice) => (
-                  <div
-                    key={invoice.id}
-                    className="flex min-w-0 items-center gap-2 px-3 py-3 transition-colors hover:bg-muted/50"
+            <div className="-mx-2 divide-y divide-border/70">
+              {stats.recentInvoices.map((invoice) => (
+                <div
+                  key={invoice.id}
+                  className="flex min-w-0 items-center gap-2 px-3 py-3 transition-colors hover:bg-muted/50"
+                >
+                  <Link
+                    href={`/invoices/${invoice.id}`}
+                    className="flex min-w-0 flex-1 items-center gap-3"
                   >
-                    <Link
-                      href={`/invoices/${invoice.id}`}
-                      className="flex min-w-0 flex-1 items-center gap-3"
-                    >
-                      <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                        <FileTextIcon className="size-4" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="truncate font-medium">{invoice.number}</p>
-                        <p className="truncate text-sm text-muted-foreground">
-                          {invoice.client?.name ?? "No client"} · {formatDate(invoice.createdAt)}
-                        </p>
-                      </div>
-                    </Link>
-                    <div className="no-scrollbar max-w-[48%] shrink-0 overflow-x-auto sm:max-w-none">
-                      <div className="flex w-max items-center gap-3 pl-1">
-                        <Badge variant={invoiceStatusVariant(invoice.status)}>
-                          {invoiceStatusLabel(invoice.status)}
-                        </Badge>
-                        <span className="min-w-20 text-right text-sm font-semibold tabular-nums">
-                          {formatMoney(invoice.total, invoice.currency)}
-                        </span>
-                      </div>
+                    <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                      <FileTextIcon className="size-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{invoice.number}</p>
+                      <p className="truncate text-sm text-muted-foreground">
+                        {invoice.client?.name ?? "No client"} · {formatDate(invoice.createdAt)}
+                      </p>
+                    </div>
+                  </Link>
+                  <div className="no-scrollbar max-w-[48%] shrink-0 overflow-x-auto sm:max-w-none">
+                    <div className="flex w-max items-center gap-3 pl-1">
+                      <Badge variant={invoiceStatusVariant(invoice.status)}>
+                        {invoiceStatusLabel(invoice.status)}
+                      </Badge>
+                      <span className="min-w-20 text-right text-sm font-semibold tabular-nums">
+                        {formatMoney(invoice.total, invoice.currency)}
+                      </span>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
 
