@@ -92,6 +92,15 @@ export function buildBrandColorCss(brandColor: string | null | undefined): strin
 
 .accent-bar { background: ${brandColor} !important; }
 
+.page-rail { border-left-color: ${brandColor} !important; }
+
+.meta-card {
+  background: ${light} !important;
+  border-color: ${border} !important;
+}
+
+.header-band { background: ${light} !important; }
+
 .header { border-top-color: ${brandColor} !important; }
 
 table.line-items th {

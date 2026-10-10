@@ -437,6 +437,180 @@ const telegraphBody = `
   </div>
 `;
 
+const ledgerBody = `
+  {{watermark}}
+  <div class="page-content">
+    <div class="header">
+      <div class="company-info">
+        {{company_logo}}
+        <div class="company-name">{{company_name}}</div>
+        {{company_details}}
+      </div>
+      <div class="meta-card">
+        <div class="doc-title">{{document_title}}</div>
+        <div class="doc-meta">{{invoice_meta}}</div>
+      </div>
+    </div>
+    <div class="parties">
+      <div class="party">
+        <div class="block-label">{{client_label}}</div>
+        {{client_section}}
+      </div>
+    </div>
+    {{project_scope}}
+    <table class="line-items">
+      <thead>
+        <tr>
+          <th>Description</th>
+          <th class="num">Qty</th>
+          <th class="num">Unit price</th>
+          <th class="num">Amount</th>
+        </tr>
+      </thead>
+      <tbody>{{line_items}}</tbody>
+    </table>
+    <div class="totals-wrap"><div class="totals {{totals_class}}">{{totals}}</div></div>
+    {{payment_schedule}}
+    {{payment_info}}
+    {{custom_fields}}
+    {{terms_notes}}
+    {{invoice_footer}}
+  </div>
+`;
+
+const fieldBody = `
+  {{watermark}}
+  <div class="page-content page-rail">
+    <div class="header">
+      <div class="brand">
+        {{company_logo}}
+        <div class="company-name">{{company_name}}</div>
+        <div class="company-meta">{{company_details}}</div>
+      </div>
+      <div class="doc">
+        <div class="doc-title">{{document_title}}</div>
+        <div class="doc-number">#{{invoice_number}}</div>
+        <div class="doc-meta">{{invoice_meta}}</div>
+      </div>
+    </div>
+    <div class="parties">
+      <div class="party">
+        <div class="block-label">{{client_label}}</div>
+        {{client_section}}
+      </div>
+      <div class="party">
+        <div class="block-label">From</div>
+        <div class="party-name">{{company_name}}</div>
+        {{company_details}}
+      </div>
+    </div>
+    {{project_scope}}
+    <table class="line-items">
+      <thead>
+        <tr>
+          <th>Description</th>
+          <th class="num">Qty</th>
+          <th class="num">Unit price</th>
+          <th class="num">Amount</th>
+        </tr>
+      </thead>
+      <tbody>{{line_items}}</tbody>
+    </table>
+    <div class="totals-wrap"><div class="totals {{totals_class}}">{{totals}}</div></div>
+    {{payment_schedule}}
+    {{payment_info}}
+    {{custom_fields}}
+    {{terms_notes}}
+    {{invoice_footer}}
+  </div>
+`;
+
+const studioBody = `
+  {{watermark}}
+  <div class="page-content">
+    <div class="header">
+      {{company_logo}}
+      <div class="company-name">{{company_name}}</div>
+      <div class="doc-title">{{document_title}}</div>
+    </div>
+    <div class="company-meta">{{company_details}}</div>
+    <div class="rule"></div>
+    <div class="meta-grid">
+      <div class="bill-to">
+        <div class="block-label">{{client_label}}</div>
+        {{client_section}}
+      </div>
+      <div class="doc-meta">{{invoice_meta}}</div>
+    </div>
+    {{project_scope}}
+    <table class="line-items">
+      <thead>
+        <tr>
+          <th>Description</th>
+          <th class="num">Qty</th>
+          <th class="num">Unit price</th>
+          <th class="num">Amount</th>
+        </tr>
+      </thead>
+      <tbody>{{line_items}}</tbody>
+    </table>
+    <div class="totals-wrap"><div class="totals {{totals_class}}">{{totals}}</div></div>
+    {{payment_schedule}}
+    {{payment_info}}
+    {{custom_fields}}
+    {{terms_notes}}
+    {{invoice_footer}}
+  </div>
+`;
+
+const harborBody = `
+  {{watermark}}
+  <div class="accent-bar"></div>
+  <div class="page-content">
+    <div class="header header-band">
+      <div class="brand">
+        {{company_logo}}
+        <div class="company-name">{{company_name}}</div>
+        <div class="company-meta">{{company_details}}</div>
+      </div>
+      <div class="doc">
+        <div class="doc-title">{{document_title}}</div>
+        <div class="doc-number">#{{invoice_number}}</div>
+      </div>
+    </div>
+    <div class="parties">
+      <div class="party">
+        <div class="block-label">From</div>
+        <div class="party-name">{{company_name}}</div>
+        {{company_details}}
+      </div>
+      <div class="party">
+        <div class="block-label">{{client_label}}</div>
+        {{client_section}}
+      </div>
+    </div>
+    <div class="doc-meta-inline">{{invoice_meta}}</div>
+    {{project_scope}}
+    <table class="line-items">
+      <thead>
+        <tr>
+          <th>Description</th>
+          <th class="num">Qty</th>
+          <th class="num">Unit price</th>
+          <th class="num">Amount</th>
+        </tr>
+      </thead>
+      <tbody>{{line_items}}</tbody>
+    </table>
+    <div class="totals-wrap"><div class="totals {{totals_class}}">{{totals}}</div></div>
+    {{payment_schedule}}
+    {{payment_info}}
+    {{custom_fields}}
+    {{terms_notes}}
+    {{invoice_footer}}
+  </div>
+`;
+
 export type SystemTemplateDefinition = {
   name: string;
   slug: string;
@@ -792,5 +966,164 @@ export const SYSTEM_TEMPLATES: SystemTemplateDefinition[] = [
       .invoice-footer { border-top-color: #e7e5e4; color: #a8a29e; font-style: italic; }
     `,
     html: `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8" /><title>{{page_title}} {{invoice_number}}</title><style>{{styles}}</style></head><body class="page">${onyxBody}</body></html>`,
+  },
+  {
+    name: "Ledger",
+    slug: "ledger",
+    isDefault: false,
+    css: `
+      ${watermarkStyles}
+      ${tableBandStyles}
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { font-family: Helvetica, Arial, sans-serif; font-size: 12px; color: #1e2937; }
+      .page-content { padding: 36px 40px 44px; }
+      .header { display: flex; justify-content: space-between; align-items: flex-start; gap: 28px; margin-bottom: 32px; }
+      .company-info { max-width: 54%; }
+      .company-name { font-size: 20px; font-weight: 700; color: #1e3a5f; margin-bottom: 8px; letter-spacing: -0.01em; }
+      .party-detail { color: #64748b; line-height: 1.6; font-size: 12px; }
+      .meta-card {
+        flex-shrink: 0;
+        min-width: 220px;
+        max-width: 46%;
+        border: 1px solid #cbd5e1;
+        background: #f8fafc;
+        padding: 16px 18px 18px;
+      }
+      .doc-title { font-size: 18px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: #1e3a5f; }
+      .doc-meta { margin-top: 12px; color: #475569; line-height: 1.75; font-size: 12px; }
+      .parties { margin-bottom: 26px; padding: 14px 16px; border: 1px solid #e2e8f0; }
+      .block-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #1e3a5f; margin-bottom: 8px; }
+      .party-name { font-weight: 700; font-size: 14px; margin-bottom: 4px; color: #0f172a; }
+      table.line-items { width: 100%; border-collapse: collapse; margin-bottom: 18px; }
+      th { text-align: left; padding: 9px 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #1e3a5f; background: #e8eef5; border-bottom: 1px solid #94a3b8; }
+      th.num { text-align: right; }
+      td { padding: 10px; border-bottom: 1px solid #e2e8f0; vertical-align: top; color: #334155; }
+      .num { text-align: right; white-space: nowrap; }
+      .totals-wrap { display: flex; justify-content: flex-end; }
+      .totals { width: 300px; }
+      .totals-row { display: flex; justify-content: space-between; padding: 5px 0; color: #475569; font-size: 13px; }
+      .totals-row.total { font-weight: 800; font-size: 15px; color: #1e3a5f; border-top: 2px solid #1e3a5f; margin-top: 8px; padding-top: 10px; }
+      .terms-notes { margin-top: 30px; }
+      .terms-notes-label { color: #1e3a5f; }
+      .invoice-footer { border-top-color: #e2e8f0; color: #94a3b8; }
+    `,
+    html: `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8" /><title>{{page_title}} {{invoice_number}}</title><style>{{styles}}</style></head><body class="page">${ledgerBody}</body></html>`,
+  },
+  {
+    name: "Field",
+    slug: "field",
+    isDefault: false,
+    css: `
+      ${watermarkStyles}
+      ${tableBandStyles}
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { font-family: Helvetica, Arial, sans-serif; font-size: 12px; color: #1c1917; }
+      .page-content { padding: 32px 36px 40px 40px; border-left: 8px solid #b45309; }
+      .header { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; margin-bottom: 26px; padding-bottom: 16px; border-bottom: 2px solid #1c1917; }
+      .brand { max-width: 58%; }
+      .company-name { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 8px; text-transform: uppercase; }
+      .company-meta .party-detail { color: #57534e; line-height: 1.55; font-size: 12px; }
+      .doc { text-align: right; flex-shrink: 0; }
+      .doc-title { font-size: 24px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #b45309; }
+      .doc-number { margin-top: 8px; font-size: 13px; font-weight: 700; color: #1c1917; }
+      .doc-meta { margin-top: 10px; color: #44403c; line-height: 1.7; font-size: 12px; }
+      .parties { display: flex; justify-content: space-between; gap: 28px; margin-bottom: 24px; }
+      .party { flex: 1; }
+      .block-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #b45309; margin-bottom: 8px; }
+      .party-name { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+      .party-detail { color: #57534e; line-height: 1.55; font-size: 12px; }
+      table.line-items { width: 100%; border-collapse: collapse; margin-bottom: 16px; border: 1px solid #d6d3d1; }
+      th { text-align: left; padding: 9px 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #fff; background: #44403c; }
+      th.num { text-align: right; }
+      td { padding: 10px; border-bottom: 1px solid #e7e5e4; border-right: 1px solid #f5f5f4; vertical-align: top; }
+      td.num { border-right: none; }
+      .num { text-align: right; white-space: nowrap; }
+      .totals-wrap { display: flex; justify-content: flex-end; }
+      .totals { width: 300px; }
+      .totals-row { display: flex; justify-content: space-between; padding: 6px 2px; color: #44403c; font-size: 13px; }
+      .totals-row.total { background: #1c1917; color: #fff; font-weight: 800; font-size: 15px; margin-top: 8px; padding: 12px 14px; }
+      .terms-notes { margin-top: 28px; }
+      .terms-notes-label { color: #1c1917; }
+      .invoice-footer { border-top-color: #d6d3d1; color: #78716c; }
+    `,
+    html: `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8" /><title>{{page_title}} {{invoice_number}}</title><style>{{styles}}</style></head><body class="page">${fieldBody}</body></html>`,
+  },
+  {
+    name: "Studio",
+    slug: "studio",
+    isDefault: false,
+    css: `
+      ${watermarkStyles}
+      ${tableBandStyles}
+      @page { background-color: #faf8f5; }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      html, body { margin: 0; padding: 0; min-height: 100%; background: transparent; }
+      body { font-family: Georgia, 'Times New Roman', serif; font-size: 12px; color: #3f3a36; }
+      .page-content { padding: 48px 52px 52px; }
+      .header { margin-bottom: 10px; }
+      .company-name { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; color: #2c2825; margin-bottom: 4px; }
+      .doc-title { font-family: Helvetica, Arial, sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: #8a8178; }
+      .company-meta { margin-top: 10px; }
+      .company-meta .party-detail { color: #6f675f; line-height: 1.65; font-size: 12px; }
+      .rule { height: 1px; background: #cfc6ba; margin: 22px 0 28px; }
+      .meta-grid { display: flex; justify-content: space-between; align-items: flex-start; gap: 36px; margin-bottom: 32px; }
+      .block-label { font-family: Helvetica, Arial, sans-serif; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.16em; color: #8a8178; margin-bottom: 8px; }
+      .party-name { font-size: 16px; font-weight: 700; margin-bottom: 4px; color: #2c2825; }
+      .party-detail { color: #6f675f; line-height: 1.65; font-size: 12px; }
+      .doc-meta { text-align: right; font-family: Helvetica, Arial, sans-serif; color: #5c564f; line-height: 1.85; font-size: 12px; }
+      table.line-items { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+      th { font-family: Helvetica, Arial, sans-serif; text-align: left; padding: 10px 8px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: #8a8178; border-bottom: 1px solid #cfc6ba; }
+      th.num { text-align: right; }
+      td { padding: 14px 8px; border-bottom: 1px solid #ebe6df; vertical-align: top; }
+      .num { text-align: right; white-space: nowrap; font-family: Helvetica, Arial, sans-serif; }
+      .totals-wrap { display: flex; justify-content: flex-end; }
+      .totals { width: 280px; }
+      .totals-row { display: flex; justify-content: space-between; padding: 6px 0; color: #6f675f; font-size: 13px; font-family: Helvetica, Arial, sans-serif; }
+      .totals-row.total { font-weight: 700; font-size: 16px; color: #2c2825; border-top: 1px solid #2c2825; margin-top: 8px; padding-top: 12px; }
+      .terms-notes { margin-top: 36px; }
+      .terms-notes-label { font-family: Helvetica, Arial, sans-serif; color: #8a8178; }
+      .invoice-footer { border-top-color: #ebe6df; color: #8a8178; font-style: italic; }
+    `,
+    html: `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8" /><title>{{page_title}} {{invoice_number}}</title><style>{{styles}}</style></head><body class="page">${studioBody}</body></html>`,
+  },
+  {
+    name: "Harbor",
+    slug: "harbor",
+    isDefault: false,
+    css: `
+      ${watermarkStyles}
+      ${tableBandStyles}
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { font-family: Helvetica, Arial, sans-serif; font-size: 12px; color: #134e4a; }
+      .accent-bar { height: 6px; background: #0f766e; }
+      .page-content { padding: 0 0 44px; }
+      .header { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; padding: 28px 40px 24px; background: #f0fdfa; }
+      .brand { max-width: 60%; }
+      .company-name { font-size: 21px; font-weight: 700; color: #0f766e; letter-spacing: -0.01em; margin-bottom: 8px; }
+      .company-meta .party-detail { color: #5b7874; line-height: 1.6; font-size: 12px; }
+      .doc { text-align: right; flex-shrink: 0; }
+      .doc-title { font-size: 26px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: #115e59; }
+      .doc-number { display: inline-block; margin-top: 8px; padding: 4px 12px; border-radius: 999px; background: #ccfbf1; color: #0f766e; font-weight: 700; font-size: 12px; }
+      .parties { display: flex; justify-content: space-between; gap: 28px; padding: 22px 40px 8px; }
+      .party { flex: 1; }
+      .block-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #0f766e; margin-bottom: 8px; }
+      .party-name { font-weight: 700; font-size: 14px; margin-bottom: 4px; color: #134e4a; }
+      .party-detail { color: #5b7874; line-height: 1.55; font-size: 12px; }
+      .doc-meta-inline { padding: 0 40px 22px; color: #5b7874; line-height: 1.7; font-size: 12px; }
+      table.line-items { width: calc(100% - 80px); margin: 0 40px 18px; border-collapse: collapse; }
+      th { text-align: left; padding: 10px 12px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #0f766e; background: #ccfbf1; }
+      th.num { text-align: right; }
+      td { padding: 11px 12px; border-bottom: 1px solid #ccfbf1; vertical-align: top; color: #134e4a; }
+      .num { text-align: right; white-space: nowrap; }
+      .totals-wrap { display: flex; justify-content: flex-end; padding: 0 40px; }
+      .totals { width: 300px; background: #f0fdfa; border: 1px solid #99f6e4; border-radius: 10px; padding: 14px 18px; }
+      .totals-row { display: flex; justify-content: space-between; padding: 5px 0; color: #5b7874; font-size: 13px; }
+      .totals-row.total { font-weight: 800; font-size: 16px; color: #0f766e; border-top: 1px solid #99f6e4; margin-top: 8px; padding-top: 12px; }
+      .payment-info, .custom-fields, .terms-notes, .payment-schedule-block, .project-scope { margin-left: 40px; margin-right: 40px; }
+      .terms-notes { margin-top: 28px; }
+      .terms-notes-label { color: #0f766e; }
+      .invoice-footer { margin: 28px 40px 0; border-top-color: #ccfbf1; color: #5b7874; }
+    `,
+    html: `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8" /><title>{{page_title}} {{invoice_number}}</title><style>{{styles}}</style></head><body class="page">${harborBody}</body></html>`,
   },
 ];
