@@ -2,8 +2,14 @@ import { SYSTEM_TEMPLATES } from "@/lib/invoice-templates/definitions";
 import { renderFromTemplate } from "@/lib/invoice-templates/render";
 import type { DocumentKind, InvoiceHtmlData } from "@/lib/invoice-templates/types";
 import type { CompanyPaymentMethod } from "@/lib/company-payment-methods";
-import { buildCustomFieldDisplayRows } from "@/lib/custom-fields";
-import type { CustomFieldDefinition } from "@/lib/schemas/custom-fields";
+import {
+  buildCustomFieldDisplayRows,
+  normalizeCustomFieldsPdfPlacement,
+} from "@/lib/custom-fields";
+import type {
+  CustomFieldDefinition,
+  CustomFieldsPdfPlacement,
+} from "@/lib/schemas/custom-fields";
 
 /** Sample terms shown in template previews (payment methods live separately). */
 export const SAMPLE_TERMS_NOTES = `Payment due within 14 days.
@@ -36,6 +42,7 @@ export type PreviewCompany = {
   zip?: string | null;
   country?: string | null;
   paymentMethods?: CompanyPaymentMethod[] | null;
+  customFieldsPdfPlacement?: CustomFieldsPdfPlacement | null;
 };
 
 /** Use sample payment methods when browsing templates so previews match carousel thumbs. */
@@ -92,6 +99,7 @@ export type BuildDocumentHtmlOptions = {
   scope?: string;
   customFields?: Record<string, string>;
   customFieldDefinitions?: CustomFieldDefinition[];
+  customFieldsPdfPlacement?: CustomFieldsPdfPlacement;
   items: PreviewLineItem[];
   totals: { subtotal: number; taxAmount: number; total: number };
   taxRate: number;
@@ -203,6 +211,9 @@ export function buildDocumentHtml(options: BuildDocumentHtmlOptions): string {
       value: row.value,
       multiline: row.multiline,
     })),
+    customFieldsPlacement: normalizeCustomFieldsPdfPlacement(
+      options.customFieldsPdfPlacement ?? options.company.customFieldsPdfPlacement,
+    ),
     items,
     ...(installments.length > 0 ? { installments } : {}),
     ...(options.acceptance

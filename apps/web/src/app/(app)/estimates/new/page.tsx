@@ -3,7 +3,10 @@ import { PageBackLink } from "@/components/app-shell/page-header";
 import { requireWriter } from "@/lib/auth";
 import { getClientsForMember } from "@/lib/clients";
 import { companyBrandingFields } from "@/lib/company-branding";
-import { normalizeCustomFieldDefinitions } from "@/lib/custom-fields";
+import {
+  normalizeCustomFieldDefinitions,
+  normalizeCustomFieldsPdfPlacement,
+} from "@/lib/custom-fields";
 import { normalizeCompanyTaxRates } from "@/lib/tax-rates";
 import { formatSubmissionAsScope } from "@/lib/form-submission-to-estimate";
 import { getFormSubmissionForEstimatePrefill } from "@/lib/project-forms";
@@ -80,6 +83,9 @@ export default async function NewEstimatePage({ searchParams }: PageProps) {
           state: member.company.state,
           zip: member.company.zip,
           country: member.company.country,
+          customFieldsPdfPlacement: normalizeCustomFieldsPdfPlacement(
+            member.company.customFieldsPdfPlacement,
+          ),
         }}
         customFieldDefinitions={normalizeCustomFieldDefinitions(
           member.company.customFieldDefinitions,

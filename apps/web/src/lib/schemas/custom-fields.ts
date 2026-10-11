@@ -75,8 +75,15 @@ export const customFieldDefinitionsSchema = z
     }
   });
 
+export const customFieldsPdfPlacementSchema = z.enum([
+  "details",
+  "after_totals",
+  "terms",
+]);
+
 export const updateCustomFieldDefinitionsSchema = z.object({
   definitions: customFieldDefinitionsSchema,
+  pdfPlacement: customFieldsPdfPlacementSchema.optional(),
 });
 
 /** Values keyed by definition id — always stored as strings. */
@@ -88,4 +95,5 @@ export const customFieldValuesSchema = z
 export type CustomFieldType = z.infer<typeof customFieldTypeSchema>;
 export type CustomFieldAppliesTo = z.infer<typeof customFieldAppliesToSchema>;
 export type CustomFieldDefinition = z.infer<typeof customFieldDefinitionSchema>;
+export type CustomFieldsPdfPlacement = z.infer<typeof customFieldsPdfPlacementSchema>;
 export type CustomFieldValues = Record<string, string>;

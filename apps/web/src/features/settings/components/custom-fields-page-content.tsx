@@ -13,19 +13,25 @@ import {
 } from "@/features/settings/components/custom-fields-docs";
 import { CustomFieldsInvoicePreview } from "@/features/settings/components/custom-fields-invoice-preview";
 import {
+  CUSTOM_FIELDS_PDF_PLACEMENT_OPTIONS,
   firstCustomFieldDefinitionsError,
   MAX_CUSTOM_FIELD_DEFINITIONS,
   normalizeCustomFieldDefinitions,
+  normalizeCustomFieldsPdfPlacement,
   customFieldMergeTagKey,
 } from "@/lib/custom-fields";
 import {
   updateCustomFieldDefinitionsSchema,
   type CustomFieldDefinition,
+  type CustomFieldsPdfPlacement,
 } from "@/lib/schemas/custom-fields";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
 
 export function CustomFieldsPageContent() {
   const [definitions, setDefinitions] = useState<CustomFieldDefinition[]>([]);
+  const [pdfPlacement, setPdfPlacement] = useState<CustomFieldsPdfPlacement>("terms");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -36,6 +42,8 @@ export function CustomFieldsPageContent() {
   const [mainTab, setMainTab] = useState<"fields" | "usage">("fields");
   const definitionsRef = useRef(definitions);
   definitionsRef.current = definitions;
+  const pdfPlacementRef = useRef(pdfPlacement);
+  pdfPlacementRef.current = pdfPlacement;
   const dirtyRef = useRef(dirty);
   dirtyRef.current = dirty;
   const dirtyGenerationRef = useRef(0);
@@ -52,6 +60,7 @@ export function CustomFieldsPageContent() {
       const body = await response.json();
       if (!response.ok) throw new Error(body.error ?? "Failed to load custom fields");
       setDefinitions(normalizeCustomFieldDefinitions(body.definitions));
+      setPdfPlacement(normalizeCustomFieldsPdfPlacement(body.pdfPlacement));
       setDirty(false);
       setSaveState("idle");
     } catch (error) {
@@ -76,8 +85,15 @@ export function CustomFieldsPageContent() {
   }, []);
 
   const persist = useCallback(
-    async (next: CustomFieldDefinition[], options?: { silent?: boolean }) => {
-      const parsed = updateCustomFieldDefinitionsSchema.safeParse({ definitions: next });
+    async (
+      next: CustomFieldDefinition[],
+      placement: CustomFieldsPdfPlacement,
+      options?: { silent?: boolean },
+    ) => {
+      const parsed = updateCustomFieldDefinitionsSchema.safeParse({
+        definitions: next,
+        pdfPlacement: placement,
+      });
       if (!parsed.success) {
         toast.error(firstCustomFieldDefinitionsError(parsed.error));
         setSaveState("error");
@@ -90,7 +106,10 @@ export function CustomFieldsPageContent() {
         const response = await fetch("/api/company/custom-fields", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ definitions: parsed.data.definitions }),
+          body: JSON.stringify({
+            definitions: parsed.data.definitions,
+            pdfPlacement: parsed.data.pdfPlacement ?? placement,
+          }),
         });
         const body = await response.json();
         if (!response.ok) {
@@ -104,6 +123,7 @@ export function CustomFieldsPageContent() {
         // Only apply server state if nothing newer was edited while saving.
         if (dirtyGenerationRef.current === generation) {
           setDefinitions(normalized);
+          setPdfPlacement(normalizeCustomFieldsPdfPlacement(body.pdfPlacement ?? placement));
           setDirty(false);
           setSaveState("saved");
         } else {
@@ -125,22 +145,27 @@ export function CustomFieldsPageContent() {
   useEffect(() => {
     if (!dirty || loading) return;
     const timer = window.setTimeout(() => {
-      void persist(definitionsRef.current, { silent: true });
+      void persist(definitionsRef.current, pdfPlacementRef.current, { silent: true });
     }, 900);
     return () => window.clearTimeout(timer);
-  }, [dirty, loading, persist, definitions]);
+  }, [dirty, loading, persist, definitions, pdfPlacement]);
 
   // Quiet retry after a failed autosave when the form is still dirty.
   useEffect(() => {
     if (saveState !== "error" || !dirty || loading || saving) return;
     const timer = window.setTimeout(() => {
-      void persist(definitionsRef.current, { silent: true });
+      void persist(definitionsRef.current, pdfPlacementRef.current, { silent: true });
     }, 2500);
     return () => window.clearTimeout(timer);
   }, [saveState, dirty, loading, saving, persist]);
 
   function applyLocal(next: CustomFieldDefinition[]) {
     setDefinitions(next);
+    bumpDirty();
+  }
+
+  function applyPlacement(next: CustomFieldsPdfPlacement) {
+    setPdfPlacement(next);
     bumpDirty();
   }
 
@@ -249,6 +274,8 @@ export function CustomFieldsPageContent() {
               ))}
             </div>
 
+            <PdfPlacementCard value={pdfPlacement} onChange={applyPlacement} />
+
             {mainTab === "fields" ? (
               <CustomFieldDefinitionsEditor
                 definitions={definitions}
@@ -259,13 +286,14 @@ export function CustomFieldsPageContent() {
                 }}
               />
             ) : (
-              <UsagePanel definitions={definitions} />
+              <UsagePanel definitions={definitions} pdfPlacement={pdfPlacement} />
             )}
           </div>
 
           <aside className="min-h-88 lg:sticky lg:top-4 lg:min-h-112 lg:self-start">
             <CustomFieldsInvoicePreview
               definitions={definitions}
+              pdfPlacement={pdfPlacement}
               className="min-h-88 lg:min-h-112"
             />
           </aside>
@@ -287,7 +315,51 @@ export function CustomFieldsPageContent() {
   );
 }
 
-function UsagePanel({ definitions }: { definitions: CustomFieldDefinition[] }) {
+function PdfPlacementCard({
+  value,
+  onChange,
+}: {
+  value: CustomFieldsPdfPlacement;
+  onChange: (value: CustomFieldsPdfPlacement) => void;
+}) {
+  return (
+    <div className="rounded-xl border border-border/80 bg-card px-4 py-4">
+      <p className="text-sm font-medium text-foreground">PDF placement</p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Where the custom fields block prints on invoices and estimates.
+      </p>
+      <RadioGroup
+        value={value}
+        onValueChange={(next) => {
+          if (next === "details" || next === "after_totals" || next === "terms") {
+            onChange(next);
+          }
+        }}
+        className="mt-3 gap-3"
+      >
+        {CUSTOM_FIELDS_PDF_PLACEMENT_OPTIONS.map((option) => (
+          <div key={option.value} className="flex items-start gap-3">
+            <RadioGroupItem value={option.value} id={`pdf-place-${option.value}`} />
+            <div className="grid gap-0.5">
+              <Label htmlFor={`pdf-place-${option.value}`} className="font-medium">
+                {option.label}
+              </Label>
+              <p className="text-xs text-muted-foreground">{option.description}</p>
+            </div>
+          </div>
+        ))}
+      </RadioGroup>
+    </div>
+  );
+}
+
+function UsagePanel({
+  definitions,
+  pdfPlacement = "terms",
+}: {
+  definitions: CustomFieldDefinition[];
+  pdfPlacement?: CustomFieldsPdfPlacement;
+}) {
   const enabled = definitions.filter((field) => field.enabled !== false);
   const invoices = enabled.filter((field) => field.appliesTo.includes("invoice"));
   const estimates = enabled.filter((field) => field.appliesTo.includes("estimate"));
@@ -299,7 +371,10 @@ function UsagePanel({ definitions }: { definitions: CustomFieldDefinition[] }) {
       <div className="rounded-xl border border-border/80 bg-card px-4 py-5 text-sm">
         <p className="font-medium text-foreground">Where fields appear</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Counts include enabled fields only.
+          Counts include enabled fields only. The PDF block currently prints{" "}
+          {CUSTOM_FIELDS_PDF_PLACEMENT_OPTIONS.find((option) => option.value === pdfPlacement)
+            ?.label.toLowerCase() ?? "with terms"}
+          .
         </p>
         <ul className="mt-3 grid gap-2 sm:grid-cols-2">
           <UsageStat label="Invoices" value={invoices.length} />

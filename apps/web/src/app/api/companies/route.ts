@@ -69,6 +69,7 @@ export async function POST(request: Request) {
       country: parsed.data.country,
       currency: parsed.data.currency,
       locale: parsed.data.locale,
+      customFieldsPdfPlacement: "details",
       members: {
         create: {
           clerkId: userId,

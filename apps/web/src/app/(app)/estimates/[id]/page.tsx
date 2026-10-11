@@ -34,6 +34,7 @@ import { getTemplatesForCompany } from "@/lib/templates";
 import {
   buildCustomFieldDisplayRows,
   normalizeCustomFieldDefinitions,
+  normalizeCustomFieldsPdfPlacement,
 } from "@/lib/custom-fields";
 import { buildTaxDisplayRows } from "@/lib/tax-rates";
 
@@ -143,6 +144,9 @@ export default async function EstimateDetailPage({ params }: PageProps) {
               state: estimate.company.state,
               zip: estimate.company.zip,
               country: estimate.company.country,
+              customFieldsPdfPlacement: normalizeCustomFieldsPdfPlacement(
+                estimate.company.customFieldsPdfPlacement,
+              ),
             }}
             preview={{
               number: estimate.number,
@@ -420,6 +424,9 @@ export default async function EstimateDetailPage({ params }: PageProps) {
           state: estimate.company.state,
           zip: estimate.company.zip,
           country: estimate.company.country,
+          customFieldsPdfPlacement: normalizeCustomFieldsPdfPlacement(
+            estimate.company.customFieldsPdfPlacement,
+          ),
         }}
         client={{
           name: estimate.client?.name ?? "",

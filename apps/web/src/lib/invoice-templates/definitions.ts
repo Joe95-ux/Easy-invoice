@@ -62,6 +62,9 @@ export const watermarkStyles = `
     white-space: pre-wrap;
   }
   .custom-fields { margin-top: 28px; }
+  .custom-fields--details { margin-top: 0; margin-bottom: 24px; }
+  .custom-fields--after_totals { margin-top: 22px; margin-bottom: 8px; }
+  .custom-fields--terms { margin-top: 28px; }
   .custom-fields-label {
     font-size: 11px;
     font-weight: 700;
@@ -234,6 +237,7 @@ const sharedBody = `
         {{client_section}}
       </div>
     </div>
+    {{custom_fields_details}}
     {{project_scope}}
     <table class="line-items">
       <thead>
@@ -247,9 +251,10 @@ const sharedBody = `
       <tbody>{{line_items}}</tbody>
     </table>
     <div class="totals {{totals_class}}">{{totals}}</div>
+    {{custom_fields_after_totals}}
     {{payment_schedule}}
     {{payment_info}}
-    {{custom_fields}}
+    {{custom_fields_terms}}
     {{terms_notes}}
     {{invoice_footer}}
   </div>
@@ -277,6 +282,7 @@ const modernBody = `
         </div>
         <div class="doc-meta">{{invoice_meta}}</div>
       </div>
+      {{custom_fields_details}}
       {{project_scope}}
       <table class="line-items">
         <thead>
@@ -290,9 +296,10 @@ const modernBody = `
         <tbody>{{line_items}}</tbody>
       </table>
       <div class="totals-wrap"><div class="totals {{totals_class}}">{{totals}}</div></div>
+      {{custom_fields_after_totals}}
       {{payment_schedule}}
       {{payment_info}}
-      {{custom_fields}}
+      {{custom_fields_terms}}
       {{terms_notes}}
       {{invoice_footer}}
     </div>
@@ -321,6 +328,7 @@ const auroraBody = `
       </div>
       <div class="doc-meta">{{invoice_meta}}</div>
     </div>
+    {{custom_fields_details}}
     {{project_scope}}
     <table class="line-items">
       <thead>
@@ -334,9 +342,10 @@ const auroraBody = `
       <tbody>{{line_items}}</tbody>
     </table>
     <div class="totals-wrap"><div class="totals {{totals_class}}">{{totals}}</div></div>
+    {{custom_fields_after_totals}}
     {{payment_schedule}}
     {{payment_info}}
-    {{custom_fields}}
+    {{custom_fields_terms}}
     {{terms_notes}}
     {{invoice_footer}}
   </div>
@@ -366,6 +375,7 @@ const onyxBody = `
         {{invoice_meta}}
       </div>
     </div>
+    {{custom_fields_details}}
     {{project_scope}}
     <table class="line-items">
       <thead>
@@ -379,9 +389,10 @@ const onyxBody = `
       <tbody>{{line_items}}</tbody>
     </table>
     <div class="totals-wrap"><div class="totals {{totals_class}}">{{totals}}</div></div>
+    {{custom_fields_after_totals}}
     {{payment_schedule}}
     {{payment_info}}
-    {{custom_fields}}
+    {{custom_fields_terms}}
     {{terms_notes}}
     {{invoice_footer}}
   </div>
@@ -414,6 +425,7 @@ const telegraphBody = `
       </div>
     </div>
     <div class="segment-rule short" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+    {{custom_fields_details}}
     {{project_scope}}
     <table class="line-items">
       <thead>
@@ -428,9 +440,10 @@ const telegraphBody = `
     </table>
     <div class="segment-rule" aria-hidden="true"><span></span><span></span></div>
     <div class="totals-wrap"><div class="totals {{totals_class}}">{{totals}}</div></div>
+    {{custom_fields_after_totals}}
     {{payment_schedule}}
     {{payment_info}}
-    {{custom_fields}}
+    {{custom_fields_terms}}
     {{terms_notes}}
     <div class="segment-rule footer-rule" aria-hidden="true"><span></span></div>
     {{invoice_footer}}
@@ -457,6 +470,7 @@ const ledgerBody = `
         {{client_section}}
       </div>
     </div>
+    {{custom_fields_details}}
     {{project_scope}}
     <table class="line-items">
       <thead>
@@ -470,9 +484,10 @@ const ledgerBody = `
       <tbody>{{line_items}}</tbody>
     </table>
     <div class="totals-wrap"><div class="totals {{totals_class}}">{{totals}}</div></div>
+    {{custom_fields_after_totals}}
     {{payment_schedule}}
     {{payment_info}}
-    {{custom_fields}}
+    {{custom_fields_terms}}
     {{terms_notes}}
     {{invoice_footer}}
   </div>
@@ -504,6 +519,7 @@ const fieldBody = `
         {{company_details}}
       </div>
     </div>
+    {{custom_fields_details}}
     {{project_scope}}
     <table class="line-items">
       <thead>
@@ -517,9 +533,10 @@ const fieldBody = `
       <tbody>{{line_items}}</tbody>
     </table>
     <div class="totals-wrap"><div class="totals {{totals_class}}">{{totals}}</div></div>
+    {{custom_fields_after_totals}}
     {{payment_schedule}}
     {{payment_info}}
-    {{custom_fields}}
+    {{custom_fields_terms}}
     {{terms_notes}}
     {{invoice_footer}}
   </div>
@@ -542,6 +559,7 @@ const studioBody = `
       </div>
       <div class="doc-meta">{{invoice_meta}}</div>
     </div>
+    {{custom_fields_details}}
     {{project_scope}}
     <table class="line-items">
       <thead>
@@ -555,9 +573,10 @@ const studioBody = `
       <tbody>{{line_items}}</tbody>
     </table>
     <div class="totals-wrap"><div class="totals {{totals_class}}">{{totals}}</div></div>
+    {{custom_fields_after_totals}}
     {{payment_schedule}}
     {{payment_info}}
-    {{custom_fields}}
+    {{custom_fields_terms}}
     {{terms_notes}}
     {{invoice_footer}}
   </div>
@@ -590,6 +609,7 @@ const harborBody = `
       </div>
     </div>
     <div class="doc-meta-inline">{{invoice_meta}}</div>
+    {{custom_fields_details}}
     {{project_scope}}
     <table class="line-items">
       <thead>
@@ -603,9 +623,10 @@ const harborBody = `
       <tbody>{{line_items}}</tbody>
     </table>
     <div class="totals-wrap"><div class="totals {{totals_class}}">{{totals}}</div></div>
+    {{custom_fields_after_totals}}
     {{payment_schedule}}
     {{payment_info}}
-    {{custom_fields}}
+    {{custom_fields_terms}}
     {{terms_notes}}
     {{invoice_footer}}
   </div>

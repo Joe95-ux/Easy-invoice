@@ -7,6 +7,7 @@ import { SettingsDefaultTemplateSection } from "@/features/settings/components/s
 import { requireCompanyAdmin } from "@/lib/auth";
 import { getDefaultTemplateId, getTemplatesForCompany } from "@/lib/templates";
 import { normalizeLogoBg, normalizeLogoPlacement } from "@/lib/company-branding";
+import { normalizeCustomFieldsPdfPlacement } from "@/lib/custom-fields";
 import { normalizePaymentMethods } from "@/lib/company-payment-methods";
 import { combinedReminderSettingsFromCompany } from "@/lib/reminders/estimate-settings";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -65,6 +66,9 @@ export default async function SettingsGeneralPage() {
     zip: company.zip,
     country: company.country,
     paymentMethods: normalizePaymentMethods(company.paymentMethods),
+    customFieldsPdfPlacement: normalizeCustomFieldsPdfPlacement(
+      company.customFieldsPdfPlacement,
+    ),
   };
 
   return (

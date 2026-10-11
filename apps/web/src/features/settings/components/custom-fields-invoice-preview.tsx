@@ -2,12 +2,16 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDownIcon } from "lucide-react";
-import type { CustomFieldDefinition } from "@/lib/schemas/custom-fields";
+import type {
+  CustomFieldDefinition,
+  CustomFieldsPdfPlacement,
+} from "@/lib/schemas/custom-fields";
 import { formatCustomFieldDisplayValue } from "@/lib/custom-fields";
 import { cn } from "@/lib/utils";
 
 type CustomFieldsInvoicePreviewProps = {
   definitions: CustomFieldDefinition[];
+  pdfPlacement?: CustomFieldsPdfPlacement;
   className?: string;
 };
 
@@ -27,6 +31,7 @@ const PREVIEW_OPTIONS = [
 /** Lightweight document mock showing where custom fields land on the PDF. */
 export function CustomFieldsInvoicePreview({
   definitions,
+  pdfPlacement = "terms",
   className,
 }: CustomFieldsInvoicePreviewProps) {
   const [tab, setTab] = useState<"preview" | "behavior">("preview");
@@ -208,30 +213,9 @@ export function CustomFieldsInvoicePreview({
               </div>
             </div>
 
-            {rows.length > 0 ? (
-              <div className="mt-5">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                  Custom fields
-                </p>
-                <dl className="mt-2 space-y-2 rounded-lg bg-muted/50 px-3 py-2.5">
-                  {rows.map((row) => (
-                    <div
-                      key={row.id}
-                      className="flex items-baseline justify-between gap-3 text-[12px]"
-                    >
-                      <dt className="text-muted-foreground">{row.label}</dt>
-                      <dd className="max-w-[58%] truncate text-right font-medium text-foreground">
-                        {row.value}
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
-              </div>
-            ) : (
-              <div className="mt-5 rounded-lg bg-muted/40 px-3 py-7 text-center text-[12px] text-muted-foreground">
-                {emptyHint}
-              </div>
-            )}
+            {pdfPlacement === "details" ? (
+              <PreviewFieldsBlock rows={rows} emptyHint={emptyHint} />
+            ) : null}
 
             <div className="mt-5">
               {SAMPLE_LINES.map((line) => (
@@ -248,6 +232,18 @@ export function CustomFieldsInvoicePreview({
                 <span className="tabular-nums">$3,000.00</span>
               </div>
             </div>
+
+            {pdfPlacement === "after_totals" ? (
+              <PreviewFieldsBlock rows={rows} emptyHint={emptyHint} />
+            ) : null}
+
+            {pdfPlacement === "terms" ? (
+              <PreviewFieldsBlock rows={rows} emptyHint={emptyHint} />
+            ) : null}
+
+            <p className="mt-5 text-[11px] leading-relaxed text-muted-foreground">
+              Payment due within 14 days.
+            </p>
           </div>
         ) : (
           <div className="space-y-3.5 text-sm leading-relaxed text-muted-foreground">
@@ -263,10 +259,51 @@ export function CustomFieldsInvoicePreview({
               <span className="font-medium text-foreground">Show on PDF</span> controls whether the
               value prints on the shared document.
             </p>
+            <p>
+              <span className="font-medium text-foreground">PDF placement</span> moves the whole
+              block: with bill-to details, after totals, or with terms.
+            </p>
             <p>Drag rows to change order — that order is used on forms and PDFs.</p>
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function PreviewFieldsBlock({
+  rows,
+  emptyHint,
+}: {
+  rows: Array<{ id: string; label: string; value: string }>;
+  emptyHint: string;
+}) {
+  if (rows.length === 0) {
+    return (
+      <div className="mt-5 rounded-lg bg-muted/40 px-3 py-7 text-center text-[12px] text-muted-foreground">
+        {emptyHint}
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-5">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+        Custom fields
+      </p>
+      <dl className="mt-2 space-y-2 rounded-lg bg-muted/50 px-3 py-2.5">
+        {rows.map((row) => (
+          <div
+            key={row.id}
+            className="flex items-baseline justify-between gap-3 text-[12px]"
+          >
+            <dt className="text-muted-foreground">{row.label}</dt>
+            <dd className="max-w-[58%] truncate text-right font-medium text-foreground">
+              {row.value}
+            </dd>
+          </div>
+        ))}
+      </dl>
     </div>
   );
 }

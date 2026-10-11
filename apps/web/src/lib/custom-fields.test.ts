@@ -8,6 +8,7 @@ import {
   buildCustomFieldDisplayRows,
   customFieldMergeTagKey,
   mergePreservedCustomFieldValues,
+  normalizeCustomFieldsPdfPlacement,
   prepareCustomFieldsForSave,
   sanitizeCustomFieldValuesForSave,
 } from "./custom-fields";
@@ -96,5 +97,14 @@ describe("custom fields", () => {
       contact: "a@b.co",
     });
     assert.equal(good.ok, true);
+  });
+
+  it("normalizes PDF placement and keeps unknown values on terms", () => {
+    assert.equal(normalizeCustomFieldsPdfPlacement("details"), "details");
+    assert.equal(normalizeCustomFieldsPdfPlacement("after_totals"), "after_totals");
+    assert.equal(normalizeCustomFieldsPdfPlacement("terms"), "terms");
+    assert.equal(normalizeCustomFieldsPdfPlacement("header"), "terms");
+    assert.equal(normalizeCustomFieldsPdfPlacement(undefined), "terms");
+    assert.equal(normalizeCustomFieldsPdfPlacement(null), "terms");
   });
 });

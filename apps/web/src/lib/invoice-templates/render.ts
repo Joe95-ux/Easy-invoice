@@ -9,6 +9,7 @@ import { normalizePaymentMethods, isPaymentLinkUrl } from "@/lib/company-payment
 import { formatPhoneForDisplay } from "@/lib/phone";
 import { formatTaxPercent } from "@/lib/tax-rates";
 import { formatFxSourceLabel } from "@/lib/schemas/fx-settings";
+import { normalizeCustomFieldsPdfPlacement } from "@/lib/custom-fields";
 
 function escapeHtml(value: string): string {
   return value
@@ -314,7 +315,10 @@ function buildLineItemsHtml(
   return rows.join("");
 }
 
-function buildSections(data: InvoiceHtmlData) {
+function buildSections(
+  data: InvoiceHtmlData,
+  options?: { usesPlacementSlots?: boolean },
+) {
   const { company, client, invoice, items } = data;
   const kind = data.documentKind ?? "invoice";
   const labels = documentLabels(kind);
@@ -479,9 +483,18 @@ function buildSections(data: InvoiceHtmlData) {
     })
     .join("");
 
-  const custom_fields = customFieldRows
-    ? `<div class="custom-fields"><div class="custom-fields-label">Details</div>${customFieldRows}</div>`
+  const fieldsPlacement = normalizeCustomFieldsPdfPlacement(data.customFieldsPlacement);
+  const customFieldsBlock = customFieldRows
+    ? `<div class="custom-fields custom-fields--${fieldsPlacement}"><div class="custom-fields-label">Details</div>${customFieldRows}</div>`
     : "";
+  const usesPlacementSlots = options?.usesPlacementSlots === true;
+  const custom_fields = usesPlacementSlots ? "" : customFieldsBlock;
+  const custom_fields_details =
+    usesPlacementSlots && fieldsPlacement === "details" ? customFieldsBlock : "";
+  const custom_fields_after_totals =
+    usesPlacementSlots && fieldsPlacement === "after_totals" ? customFieldsBlock : "";
+  const custom_fields_terms =
+    usesPlacementSlots && fieldsPlacement === "terms" ? customFieldsBlock : "";
 
   const customFieldMergeTags: Record<string, string> = {};
   for (const row of data.customFields ?? []) {
@@ -521,6 +534,9 @@ function buildSections(data: InvoiceHtmlData) {
     payment_schedule,
     payment_info,
     custom_fields,
+    custom_fields_details,
+    custom_fields_after_totals,
+    custom_fields_terms,
     ...customFieldMergeTags,
     terms_notes: termsNotes,
     watermark,
@@ -557,7 +573,9 @@ export function renderFromTemplate(
   templateCss: string | null,
   data: InvoiceHtmlData,
 ): string {
-  const sections = buildSections(data);
+  const sections = buildSections(data, {
+    usesPlacementSlots: templateHtml.includes("{{custom_fields_details}}"),
+  });
   let html = templateHtml;
 
   for (const [key, value] of Object.entries(sections)) {

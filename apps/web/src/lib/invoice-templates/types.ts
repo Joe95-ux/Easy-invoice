@@ -1,4 +1,5 @@
 import type { LogoBg, LogoPlacement } from "@/lib/company-branding";
+import type { CustomFieldsPdfPlacement } from "@/lib/schemas/custom-fields";
 
 export type DocumentKind = "invoice" | "estimate";
 
@@ -54,6 +55,8 @@ export type InvoiceHtmlData = {
   };
   /** Resolved custom field rows for PDF/preview (label + display value). */
   customFields?: Array<{ id?: string; label: string; value: string; multiline?: boolean }>;
+  /** Where {{custom_fields_*}} slots receive the block. Defaults to terms. */
+  customFieldsPlacement?: CustomFieldsPdfPlacement;
   items: Array<{
     description: string;
     quantity: number;

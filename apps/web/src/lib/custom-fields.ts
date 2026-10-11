@@ -7,9 +7,47 @@ import {
   type CustomFieldDefinition,
   type CustomFieldType,
   type CustomFieldValues,
+  type CustomFieldsPdfPlacement,
 } from "@/lib/schemas/custom-fields";
 
 export const MAX_CUSTOM_FIELD_DEFINITIONS = 40;
+
+export const CUSTOM_FIELDS_PDF_PLACEMENTS = [
+  "details",
+  "after_totals",
+  "terms",
+] as const;
+
+export const CUSTOM_FIELDS_PDF_PLACEMENT_OPTIONS: Array<{
+  value: CustomFieldsPdfPlacement;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: "details",
+    label: "With details",
+    description: "Under bill-to and the document dates.",
+  },
+  {
+    value: "after_totals",
+    label: "After totals",
+    description: "Below the amount due, before payment information.",
+  },
+  {
+    value: "terms",
+    label: "With terms",
+    description: "At the bottom, just before terms and notes.",
+  },
+];
+
+export function normalizeCustomFieldsPdfPlacement(
+  value: unknown,
+): CustomFieldsPdfPlacement {
+  if (value === "details" || value === "after_totals" || value === "terms") {
+    return value;
+  }
+  return "terms";
+}
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 

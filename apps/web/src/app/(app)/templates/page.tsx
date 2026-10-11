@@ -5,6 +5,7 @@ import { TemplatesExplorer } from "@/features/templates/components/templates-exp
 import { requireCompanyAdmin } from "@/lib/auth";
 import { getDefaultTemplateId, getTemplatesForCompany } from "@/lib/templates";
 import { normalizeLogoBg, normalizeLogoPlacement } from "@/lib/company-branding";
+import { normalizeCustomFieldsPdfPlacement } from "@/lib/custom-fields";
 
 export default async function TemplatesPage() {
   const member = await requireCompanyAdmin();
@@ -28,6 +29,9 @@ export default async function TemplatesPage() {
     state: company.state,
     zip: company.zip,
     country: company.country,
+    customFieldsPdfPlacement: normalizeCustomFieldsPdfPlacement(
+      company.customFieldsPdfPlacement,
+    ),
   };
 
   return (

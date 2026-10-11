@@ -243,6 +243,9 @@ model Company {
   paymentMethods       Json?
   /// Ordered custom field definitions for invoices/estimates (label, type, options, appliesTo).
   customFieldDefinitions Json?
+  /// Where the custom-fields block prints: details | after_totals | terms.
+  /// Existing companies stay on terms (current layout). New companies set details.
+  customFieldsPdfPlacement String @default("terms")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

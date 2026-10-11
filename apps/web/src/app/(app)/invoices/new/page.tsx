@@ -3,7 +3,10 @@ import { PageBackLink } from "@/components/app-shell/page-header";
 import { requireWriter } from "@/lib/auth";
 import { getClientsForMember } from "@/lib/clients";
 import { companyBrandingFields } from "@/lib/company-branding";
-import { normalizeCustomFieldDefinitions } from "@/lib/custom-fields";
+import {
+  normalizeCustomFieldDefinitions,
+  normalizeCustomFieldsPdfPlacement,
+} from "@/lib/custom-fields";
 import { normalizeCompanyTaxRates } from "@/lib/tax-rates";
 import { prisma } from "@/lib/db";
 import { getDefaultTemplateId, getTemplatesForCompany } from "@/lib/templates";
@@ -75,6 +78,9 @@ export default async function NewInvoicePage({ searchParams }: PageProps) {
           state: member.company.state,
           zip: member.company.zip,
           country: member.company.country,
+          customFieldsPdfPlacement: normalizeCustomFieldsPdfPlacement(
+            member.company.customFieldsPdfPlacement,
+          ),
         }}
         customFieldDefinitions={normalizeCustomFieldDefinitions(
           member.company.customFieldDefinitions,

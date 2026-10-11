@@ -20,7 +20,7 @@ const SECTIONS = [
   },
   {
     title: "Where they appear",
-    body: "Toggle Show on invoices / Show on estimates to control which documents include the field. Show on PDF prints the value on shared documents. Enabled (Visible in the list) hides a field from new documents without deleting it. Disabled fields still keep their labels and values on documents that already have them.",
+    body: "Toggle Show on invoices / Show on estimates to control which documents include the field. Show on PDF prints the value on shared documents. PDF placement moves the whole block: with bill-to details, after totals, or with terms. Existing companies stay on With terms so current PDFs do not jump; new companies default to With details. Enabled (Visible in the list) hides a field from new documents without deleting it. Disabled fields still keep their labels and values on documents that already have them.",
   },
   {
     title: "Field types",
@@ -32,7 +32,7 @@ const SECTIONS = [
   },
   {
     title: "Merge tags",
-    body: "PDF templates can use {{custom_fields}} for the full list, or a per-field tag like {{custom_field_po_number}} (slug from the field name). Check the Usage tab for each field’s exact tag.",
+    body: "System templates use {{custom_fields_details}}, {{custom_fields_after_totals}}, and {{custom_fields_terms}} — only the chosen slot is filled. Older templates can still use {{custom_fields}}. Per-field tags like {{custom_field_po_number}} (slug from the field name) work anywhere. Check the Usage tab for each field’s exact tag.",
   },
   {
     title: "Order, reuse, and recurring",

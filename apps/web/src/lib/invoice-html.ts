@@ -6,6 +6,7 @@ import { companyBrandingFields } from "@/lib/company-branding";
 import {
   buildCustomFieldDisplayRows,
   normalizeCustomFieldDefinitions,
+  normalizeCustomFieldsPdfPlacement,
 } from "@/lib/custom-fields";
 import { prisma } from "@/lib/db";
 import { getInvoiceForMember } from "@/lib/invoices";
@@ -134,6 +135,9 @@ export function invoiceToHtmlData(
       value: row.value,
       multiline: row.multiline,
     })),
+    customFieldsPlacement: normalizeCustomFieldsPdfPlacement(
+      invoice.company.customFieldsPdfPlacement,
+    ),
     items: invoice.items.map((item) => ({
       description: item.description,
       quantity: Number(item.quantity),

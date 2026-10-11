@@ -6,7 +6,11 @@ import { requireWriter } from "@/lib/auth";
 import { getClientsForMember } from "@/lib/clients";
 import { getInvoiceForMember, getInvoiceLineItemsWithTimeEntries } from "@/lib/invoices";
 import { companyBrandingFields } from "@/lib/company-branding";
-import { normalizeCustomFieldDefinitions, normalizeCustomFieldValues } from "@/lib/custom-fields";
+import {
+  normalizeCustomFieldDefinitions,
+  normalizeCustomFieldValues,
+  normalizeCustomFieldsPdfPlacement,
+} from "@/lib/custom-fields";
 import { normalizeAppliedTaxes, normalizeCompanyTaxRates } from "@/lib/tax-rates";
 import {
   attachExpenseIdsToLineItems,
@@ -77,6 +81,9 @@ export default async function EditInvoicePage({ params }: PageProps) {
           state: member.company.state,
           zip: member.company.zip,
           country: member.company.country,
+          customFieldsPdfPlacement: normalizeCustomFieldsPdfPlacement(
+            member.company.customFieldsPdfPlacement,
+          ),
         }}
         customFieldDefinitions={normalizeCustomFieldDefinitions(
           member.company.customFieldDefinitions,

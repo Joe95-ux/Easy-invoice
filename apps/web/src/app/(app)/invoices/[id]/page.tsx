@@ -37,7 +37,11 @@ import {
 import { getTemplatesForCompany } from "@/lib/templates";
 import { buildInvoicePaymentSummary } from "@/lib/invoice-payments";
 import { getPaymentConfirmationsByInvoice } from "@/lib/payment-confirmation";
-import { normalizeCustomFieldDefinitions, buildCustomFieldDisplayRows } from "@/lib/custom-fields";
+import {
+  normalizeCustomFieldDefinitions,
+  normalizeCustomFieldsPdfPlacement,
+  buildCustomFieldDisplayRows,
+} from "@/lib/custom-fields";
 import { buildTaxDisplayRows } from "@/lib/tax-rates";
 import {
   getCompanyPaymentLinkMethods,
@@ -193,6 +197,9 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
               state: invoice.company.state,
               zip: invoice.company.zip,
               country: invoice.company.country,
+              customFieldsPdfPlacement: normalizeCustomFieldsPdfPlacement(
+                invoice.company.customFieldsPdfPlacement,
+              ),
             }}
             preview={{
               number: invoice.number,
@@ -452,6 +459,9 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
           state: invoice.company.state,
           zip: invoice.company.zip,
           country: invoice.company.country,
+          customFieldsPdfPlacement: normalizeCustomFieldsPdfPlacement(
+            invoice.company.customFieldsPdfPlacement,
+          ),
         }}
         client={{
           name: invoice.client?.name ?? "",

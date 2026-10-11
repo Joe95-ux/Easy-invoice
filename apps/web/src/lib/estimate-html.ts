@@ -6,6 +6,7 @@ import { companyBrandingFields } from "@/lib/company-branding";
 import {
   buildCustomFieldDisplayRows,
   normalizeCustomFieldDefinitions,
+  normalizeCustomFieldsPdfPlacement,
 } from "@/lib/custom-fields";
 import { getEstimateForMember } from "@/lib/estimates";
 import { ensureSystemTemplates, getDefaultTemplateId, getTemplateById } from "@/lib/templates";
@@ -117,6 +118,9 @@ export function estimateToHtmlData(
       value: row.value,
       multiline: row.multiline,
     })),
+    customFieldsPlacement: normalizeCustomFieldsPdfPlacement(
+      estimate.company.customFieldsPdfPlacement,
+    ),
     items: estimate.items.map((item) => ({
       description: item.description,
       quantity: Number(item.quantity),
