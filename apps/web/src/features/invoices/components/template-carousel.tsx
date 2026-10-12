@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CheckIcon, EyeIcon } from "lucide-react";
 import {
   Carousel,
@@ -36,6 +36,8 @@ type TemplateCarouselProps = {
   /** Label for the select action button — use "Set" for default template settings. */
   selectLabel?: string;
   canWrite?: boolean;
+  layout?: "carousel" | "grid";
+  headerActions?: ReactNode;
 };
 
 function TemplateThumb({ html }: { html: string }) {
@@ -219,6 +221,8 @@ export function TemplateCarousel({
   label = "Template",
   selectLabel = "Select",
   canWrite = true,
+  layout = "carousel",
+  headerActions,
 }: TemplateCarouselProps) {
   const thumbs = useMemo(() => {
     const map = new Map<string, string>();
@@ -233,22 +237,56 @@ export function TemplateCarousel({
   const selectedName = templates.find((template) => template.id === value)?.name;
   const enableLoop = templates.length > 3;
 
+  const cards = templates.map((template) => (
+    <TemplateCard
+      key={template.id}
+      template={template}
+      html={thumbs.get(template.id) ?? ""}
+      selected={template.id === value}
+      selectLabel={selectLabel}
+      canWrite={canWrite}
+      onSelect={() => onChange(template.id)}
+      onPreview={() => onPreview(template.id)}
+    />
+  ));
+
+  const heading = (
+    <div>
+      <span className="text-sm font-medium text-foreground">{label}</span>
+      {selectedName && (
+        <span className="ml-2 text-sm text-muted-foreground">{selectedName}</span>
+      )}
+    </div>
+  );
+
+  if (layout === "grid") {
+    return (
+      <div>
+        <div className="mb-3 flex items-end justify-between gap-3">
+          {heading}
+          {headerActions ? (
+            <div className="flex items-center gap-1.5">{headerActions}</div>
+          ) : null}
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {cards}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Carousel opts={{ loop: enableLoop, align: "start", containScroll: "trimSnaps" }}>
       <div className="mb-3 flex items-end justify-between gap-3">
-        <div>
-          <span className="text-sm font-medium text-foreground">{label}</span>
-          {selectedName && (
-            <span className="ml-2 text-sm text-muted-foreground">{selectedName}</span>
-          )}
-        </div>
+        {heading}
         <div className="flex items-center gap-1.5">
+          {headerActions}
           <CarouselPrevious className="static size-7 translate-x-0 translate-y-0" />
           <CarouselNext className="static size-7 translate-x-0 translate-y-0" />
         </div>
       </div>
       <CarouselContent className="-ml-3">
-        {templates.map((template) => (
+        {templates.map((template, index) => (
           <CarouselItem
             key={template.id}
             className={cn(
@@ -256,15 +294,7 @@ export function TemplateCarousel({
               isMobile ? "basis-full" : "basis-1/3 lg:basis-1/4",
             )}
           >
-            <TemplateCard
-              template={template}
-              html={thumbs.get(template.id) ?? ""}
-              selected={template.id === value}
-              selectLabel={selectLabel}
-              canWrite={canWrite}
-              onSelect={() => onChange(template.id)}
-              onPreview={() => onPreview(template.id)}
-            />
+            {cards[index]}
           </CarouselItem>
         ))}
       </CarouselContent>

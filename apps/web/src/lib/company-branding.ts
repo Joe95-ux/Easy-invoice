@@ -82,10 +82,12 @@ export function buildBrandColorCss(brandColor: string | null | undefined): strin
 
 .company-info > .company-name,
 .header-main > .company-name,
+.masthead-brand > .company-name,
 .masthead > .company-name,
 .brand .company-name { color: ${brandColor} !important; }
 
-.header-dark .brand .company-name { color: #fff !important; }
+.header-dark .brand .company-name,
+.header-dark .doc-title { color: #fff !important; }
 
 .party-label,
 .block-label { color: ${brandColor} !important; }
@@ -103,10 +105,16 @@ export function buildBrandColorCss(brandColor: string | null | undefined): strin
 
 .header { border-top-color: ${brandColor} !important; }
 
-table.line-items th {
+table.line-items:not(.line-items--inverse) th {
   background: ${light} !important;
   color: ${brandColor} !important;
   border-bottom-color: ${border} !important;
+}
+
+table.line-items.line-items--inverse th {
+  background: ${brandColor} !important;
+  color: #ffffff !important;
+  border-bottom-color: ${brandColor} !important;
 }
 
 table.line-items tbody tr.band-even {
@@ -120,9 +128,15 @@ table.line-items tbody tr.band-even td {
 .payment-info-label { color: ${brandColor} !important; }
 .payment-info-method { color: ${brandColor} !important; }
 
-.totals-row.total {
+.totals:not(.totals--inverse) .totals-row.total {
   border-top-color: ${brandColor} !important;
   color: ${brandColor} !important;
+}
+
+.totals.totals--inverse .totals-row.total {
+  background: ${brandColor} !important;
+  color: #ffffff !important;
+  border-top-color: transparent !important;
 }
 
 .rule { background: ${brandColor} !important; }

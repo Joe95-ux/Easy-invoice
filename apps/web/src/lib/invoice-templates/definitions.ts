@@ -37,6 +37,17 @@ export const watermarkStyles = `
   .company-logo--none {
     display: inline-block;
   }
+  .header-dark .company-logo--dark {
+    background: #ffffff;
+  }
+  .header-dark,
+  .header-band,
+  .accent-bar,
+  .totals--inverse .totals-row.total,
+  table.line-items.line-items--inverse th {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
   .page-content { position: relative; z-index: 1; }
   .invoice-footer {
     margin-top: 40px;
@@ -355,8 +366,10 @@ const onyxBody = `
   {{watermark}}
   <div class="page-content">
     <div class="masthead">
-      {{company_logo}}
-      <div class="company-name">{{company_name}}</div>
+      <div class="masthead-brand">
+        {{company_logo}}
+        <div class="company-name">{{company_name}}</div>
+      </div>
       <div class="doc-title">{{document_title}}</div>
     </div>
     <div class="rule"></div>
@@ -388,7 +401,7 @@ const onyxBody = `
       </thead>
       <tbody>{{line_items}}</tbody>
     </table>
-    <div class="totals-wrap"><div class="totals {{totals_class}}">{{totals}}</div></div>
+    <div class="totals-wrap"><div class="totals totals--inverse {{totals_class}}">{{totals}}</div></div>
     {{custom_fields_after_totals}}
     {{payment_schedule}}
     {{payment_info}}
@@ -521,7 +534,7 @@ const fieldBody = `
     </div>
     {{custom_fields_details}}
     {{project_scope}}
-    <table class="line-items">
+    <table class="line-items line-items--inverse">
       <thead>
         <tr>
           <th>Description</th>
@@ -532,7 +545,7 @@ const fieldBody = `
       </thead>
       <tbody>{{line_items}}</tbody>
     </table>
-    <div class="totals-wrap"><div class="totals {{totals_class}}">{{totals}}</div></div>
+    <div class="totals-wrap"><div class="totals totals--inverse {{totals_class}}">{{totals}}</div></div>
     {{custom_fields_after_totals}}
     {{payment_schedule}}
     {{payment_info}}
@@ -611,17 +624,19 @@ const harborBody = `
     <div class="doc-meta-inline">{{invoice_meta}}</div>
     {{custom_fields_details}}
     {{project_scope}}
-    <table class="line-items">
-      <thead>
-        <tr>
-          <th>Description</th>
-          <th class="num">Qty</th>
-          <th class="num">Unit price</th>
-          <th class="num">Amount</th>
-        </tr>
-      </thead>
-      <tbody>{{line_items}}</tbody>
-    </table>
+    <div class="line-items-wrap">
+      <table class="line-items">
+        <thead>
+          <tr>
+            <th>Description</th>
+            <th class="num">Qty</th>
+            <th class="num">Unit price</th>
+            <th class="num">Amount</th>
+          </tr>
+        </thead>
+        <tbody>{{line_items}}</tbody>
+      </table>
+    </div>
     <div class="totals-wrap"><div class="totals {{totals_class}}">{{totals}}</div></div>
     {{custom_fields_after_totals}}
     {{payment_schedule}}
@@ -963,7 +978,8 @@ export const SYSTEM_TEMPLATES: SystemTemplateDefinition[] = [
       * { box-sizing: border-box; margin: 0; padding: 0; }
       body { font-family: Georgia, 'Times New Roman', serif; font-size: 12px; color: #1c1917; }
       .page-content { padding: 48px 52px; }
-      .masthead { display: flex; justify-content: space-between; align-items: baseline; gap: 24px; }
+      .masthead { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; }
+      .masthead-brand { min-width: 0; }
       .company-name { font-size: 25px; font-weight: 700; letter-spacing: -0.01em; }
       .doc-title { font-size: 20px; font-weight: 400; letter-spacing: 0.34em; text-transform: uppercase; color: #78716c; }
       .rule { height: 3px; background: #1c1917; margin: 14px 0 30px; }
@@ -1131,7 +1147,8 @@ export const SYSTEM_TEMPLATES: SystemTemplateDefinition[] = [
       .party-name { font-weight: 700; font-size: 14px; margin-bottom: 4px; color: #134e4a; }
       .party-detail { color: #5b7874; line-height: 1.55; font-size: 12px; }
       .doc-meta-inline { padding: 0 40px 22px; color: #5b7874; line-height: 1.7; font-size: 12px; }
-      table.line-items { width: calc(100% - 80px); margin: 0 40px 18px; border-collapse: collapse; }
+      .line-items-wrap { padding: 0 40px; margin-bottom: 18px; }
+      table.line-items { width: 100%; margin: 0; border-collapse: collapse; }
       th { text-align: left; padding: 10px 12px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #0f766e; background: #ccfbf1; }
       th.num { text-align: right; }
       td { padding: 11px 12px; border-bottom: 1px solid #ccfbf1; vertical-align: top; color: #134e4a; }

@@ -1,12 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { GalleryHorizontalIcon, LayoutGridIcon } from "lucide-react";
 import { toast } from "sonner";
 import { DocumentPreviewDrawer } from "@/components/document-preview-drawer";
 import { TemplateCarousel } from "@/features/invoices/components/template-carousel";
 import { SAMPLE_TERMS_NOTES, companyForTemplatePreview, type PreviewCompany } from "@/lib/invoice-templates/preview-html";
 import type { TemplateSummary } from "@/lib/templates";
+import { cn } from "@/lib/utils";
+
+const VIEW_STORAGE_KEY = "templates:browse-view";
+
+type TemplatesView = "carousel" | "grid";
 
 type TemplatesExplorerProps = {
   templates: TemplateSummary[];
@@ -25,6 +31,25 @@ export function TemplatesExplorer({
   const [selected, setSelected] = useState(defaultTemplateId);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewTemplateId, setPreviewTemplateId] = useState<string | null>(null);
+  const [view, setView] = useState<TemplatesView>("grid");
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(VIEW_STORAGE_KEY);
+      if (stored === "carousel" || stored === "grid") setView(stored);
+    } catch {
+      /* ignore quota / private mode */
+    }
+  }, []);
+
+  function changeView(next: TemplatesView) {
+    setView(next);
+    try {
+      window.localStorage.setItem(VIEW_STORAGE_KEY, next);
+    } catch {
+      /* ignore quota / private mode */
+    }
+  }
 
   const activePreviewTemplateId = previewTemplateId ?? selected;
   const previewTemplate = templates.find(
@@ -72,6 +97,39 @@ export function TemplatesExplorer({
         company={company}
         currency={currency}
         label="All templates"
+        layout={view}
+        headerActions={
+          <div
+            className="grid h-8 grid-cols-2 gap-0.5 rounded-lg border border-border p-0.5"
+            role="group"
+            aria-label="Template layout"
+          >
+            {(
+              [
+                { id: "grid" as const, label: "Grid", icon: LayoutGridIcon },
+                { id: "carousel" as const, label: "Carousel", icon: GalleryHorizontalIcon },
+              ] as const
+            ).map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => changeView(option.id)}
+                aria-label={option.label}
+                aria-pressed={view === option.id}
+                title={option.label}
+                className={cn(
+                  "inline-flex items-center justify-center rounded-md px-2 text-muted-foreground transition-colors",
+                  view === option.id
+                    ? "bg-muted text-foreground"
+                    : "hover:bg-muted/50 hover:text-foreground",
+                )}
+              >
+                <option.icon className="size-3.5" />
+                <span className="sr-only">{option.label}</span>
+              </button>
+            ))}
+          </div>
+        }
       />
 
       <DocumentPreviewDrawer
