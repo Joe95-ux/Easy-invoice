@@ -16,6 +16,7 @@ import {
   type PreviewCompany,
 } from "@/lib/invoice-templates/preview-html";
 import type { DocumentKind } from "@/lib/invoice-templates/types";
+import type { CustomFieldDefinition } from "@/lib/schemas/custom-fields";
 import type { TemplateSummary } from "@/lib/templates";
 
 const LOGICAL_WIDTH = 794; // A4 width @96dpi
@@ -38,6 +39,7 @@ type TemplateCarouselProps = {
   canWrite?: boolean;
   layout?: "carousel" | "grid";
   headerActions?: ReactNode;
+  customFieldDefinitions?: CustomFieldDefinition[];
 };
 
 function TemplateThumb({ html }: { html: string }) {
@@ -223,15 +225,25 @@ export function TemplateCarousel({
   canWrite = true,
   layout = "carousel",
   headerActions,
+  customFieldDefinitions,
 }: TemplateCarouselProps) {
   const thumbs = useMemo(() => {
     const map = new Map<string, string>();
     for (const template of templates) {
-      map.set(template.id, buildSampleDocumentHtml(kind, template.slug, company, currency));
+      map.set(
+        template.id,
+        buildSampleDocumentHtml(
+          kind,
+          template.slug,
+          company,
+          currency,
+          customFieldDefinitions,
+        ),
+      );
     }
     return map;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [templates, kind, currency, JSON.stringify(company)]);
+  }, [templates, kind, currency, JSON.stringify(company), JSON.stringify(customFieldDefinitions)]);
 
   const isMobile = useIsMobile();
   const selectedName = templates.find((template) => template.id === value)?.name;

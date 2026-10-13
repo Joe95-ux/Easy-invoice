@@ -28,6 +28,76 @@ export const SAMPLE_PAYMENT_METHODS: CompanyPaymentMethod[] = [
 /** @deprecated Prefer SAMPLE_TERMS_NOTES + SAMPLE_PAYMENT_METHODS */
 export const SAMPLE_PAYMENT_NOTES = SAMPLE_TERMS_NOTES;
 
+export const SAMPLE_CUSTOM_FIELD_DEFINITIONS: CustomFieldDefinition[] = [
+  {
+    id: "sample-po",
+    label: "PO Number",
+    description: null,
+    type: "text",
+    required: false,
+    enabled: true,
+    defaultValue: "PO-45678",
+    appliesTo: ["invoice", "estimate"],
+    showOnPdf: true,
+  },
+  {
+    id: "sample-site",
+    label: "Job site",
+    description: null,
+    type: "text",
+    required: false,
+    enabled: true,
+    defaultValue: "North warehouse",
+    appliesTo: ["invoice", "estimate"],
+    showOnPdf: true,
+  },
+];
+
+function sampleValueForField(field: CustomFieldDefinition): string {
+  const fromDefault = field.defaultValue?.trim();
+  if (fromDefault) return fromDefault;
+  switch (field.type) {
+    case "date":
+      return new Date().toISOString().slice(0, 10);
+    case "number":
+      return "12";
+    case "checkbox":
+      return "true";
+    case "select":
+      return field.options?.[0]?.value ?? "Option";
+    case "textarea":
+      return "Additional notes for this job.";
+    case "email":
+      return "billing@acme.co";
+    case "url":
+      return "https://acme.co/po/45678";
+    default:
+      return field.label.toLowerCase().includes("po") ? "PO-45678" : "Sample value";
+  }
+}
+
+/** Fill catalog / thumbnail previews so the custom-fields block is visible. */
+export function sampleCustomFieldPreview(
+  kind: DocumentKind,
+  definitions?: CustomFieldDefinition[] | null,
+): {
+  customFieldDefinitions: CustomFieldDefinition[];
+  customFields: Record<string, string>;
+} {
+  const source =
+    definitions && definitions.length > 0 ? definitions : SAMPLE_CUSTOM_FIELD_DEFINITIONS;
+  const appliesTo = kind === "estimate" ? "estimate" : "invoice";
+  const customFields: Record<string, string> = {};
+  for (const field of source) {
+    if (field.enabled === false) continue;
+    if (!field.appliesTo.includes(appliesTo)) continue;
+    if (field.showOnPdf === false) continue;
+    const value = sampleValueForField(field);
+    if (value) customFields[field.id] = value;
+  }
+  return { customFieldDefinitions: source, customFields };
+}
+
 export type PreviewCompany = {
   name: string;
   logoUrl?: string | null;
@@ -244,6 +314,7 @@ export function buildSampleDocumentHtml(
   templateSlug: string,
   company: PreviewCompany,
   currency: string,
+  customFieldDefinitions?: CustomFieldDefinition[] | null,
 ): string {
   const items: PreviewLineItem[] = [
     { description: "Design & discovery", quantity: 1, unitPrice: 1200 },
@@ -252,6 +323,7 @@ export function buildSampleDocumentHtml(
   ];
   const subtotal = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
   const taxAmount = subtotal * 0.075;
+  const customFieldPreview = sampleCustomFieldPreview(kind, customFieldDefinitions);
 
   return buildDocumentHtml({
     kind,
@@ -273,6 +345,7 @@ export function buildSampleDocumentHtml(
     currency,
     notes: SAMPLE_TERMS_NOTES,
     scope: kind === "estimate" ? SAMPLE_PROJECT_SCOPE : undefined,
+    ...customFieldPreview,
     items,
     totals: { subtotal, taxAmount, total: subtotal + taxAmount },
     taxRate: 7.5,

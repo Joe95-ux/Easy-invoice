@@ -5,7 +5,11 @@ import { TemplatesExplorer } from "@/features/templates/components/templates-exp
 import { requireCompanyAdmin } from "@/lib/auth";
 import { getDefaultTemplateId, getTemplatesForCompany } from "@/lib/templates";
 import { normalizeLogoBg, normalizeLogoPlacement } from "@/lib/company-branding";
-import { normalizeCustomFieldsPdfPlacement } from "@/lib/custom-fields";
+import { normalizePaymentMethods } from "@/lib/company-payment-methods";
+import {
+  normalizeCustomFieldDefinitions,
+  normalizeCustomFieldsPdfPlacement,
+} from "@/lib/custom-fields";
 
 export default async function TemplatesPage() {
   const member = await requireCompanyAdmin();
@@ -29,6 +33,7 @@ export default async function TemplatesPage() {
     state: company.state,
     zip: company.zip,
     country: company.country,
+    paymentMethods: normalizePaymentMethods(company.paymentMethods),
     customFieldsPdfPlacement: normalizeCustomFieldsPdfPlacement(
       company.customFieldsPdfPlacement,
     ),
@@ -47,6 +52,9 @@ export default async function TemplatesPage() {
         defaultTemplateId={defaultTemplateId ?? templates[0]?.id ?? ""}
         company={companyPreview}
         currency={company.currency}
+        customFieldDefinitions={normalizeCustomFieldDefinitions(
+          company.customFieldDefinitions,
+        )}
       />
     </PageScroll>
   );

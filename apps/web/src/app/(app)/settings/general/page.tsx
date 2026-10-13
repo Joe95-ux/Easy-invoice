@@ -7,7 +7,10 @@ import { SettingsDefaultTemplateSection } from "@/features/settings/components/s
 import { requireCompanyAdmin } from "@/lib/auth";
 import { getDefaultTemplateId, getTemplatesForCompany } from "@/lib/templates";
 import { normalizeLogoBg, normalizeLogoPlacement } from "@/lib/company-branding";
-import { normalizeCustomFieldsPdfPlacement } from "@/lib/custom-fields";
+import {
+  normalizeCustomFieldDefinitions,
+  normalizeCustomFieldsPdfPlacement,
+} from "@/lib/custom-fields";
 import { normalizePaymentMethods } from "@/lib/company-payment-methods";
 import { combinedReminderSettingsFromCompany } from "@/lib/reminders/estimate-settings";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -161,6 +164,9 @@ export default async function SettingsGeneralPage() {
                 defaultTemplateId={defaultTemplateId ?? templates[0]?.id ?? ""}
                 company={companyPreview}
                 currency={company.currency}
+                customFieldDefinitions={normalizeCustomFieldDefinitions(
+                  company.customFieldDefinitions,
+                )}
               />
             </CardContent>
           </Card>

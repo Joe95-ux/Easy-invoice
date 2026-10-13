@@ -588,6 +588,7 @@ export function EstimateCreator({
           kind="estimate"
           company={company}
           currency={currency}
+          customFieldDefinitions={fieldDefinitions}
         />
       )}
 

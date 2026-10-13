@@ -34,6 +34,7 @@ import { getTemplatesForCompany } from "@/lib/templates";
 import {
   buildCustomFieldDisplayRows,
   normalizeCustomFieldDefinitions,
+  normalizeCustomFieldValues,
   normalizeCustomFieldsPdfPlacement,
 } from "@/lib/custom-fields";
 import { buildTaxDisplayRows } from "@/lib/tax-rates";
@@ -161,6 +162,8 @@ export default async function EstimateDetailPage({ params }: PageProps) {
               currency: estimate.currency,
               notes: estimate.notes ?? undefined,
               scope: estimate.scope ?? undefined,
+              customFieldDefinitions,
+              customFields: normalizeCustomFieldValues(estimate.customFields),
               items: estimate.items.map((item) => ({
                 description: item.description,
                 quantity: Number(item.quantity),

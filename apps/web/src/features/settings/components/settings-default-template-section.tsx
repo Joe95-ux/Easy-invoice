@@ -5,7 +5,13 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { DocumentPreviewDrawer } from "@/components/document-preview-drawer";
 import { TemplateCarousel } from "@/features/invoices/components/template-carousel";
-import { SAMPLE_TERMS_NOTES, companyForTemplatePreview, type PreviewCompany } from "@/lib/invoice-templates/preview-html";
+import {
+  SAMPLE_TERMS_NOTES,
+  companyForTemplatePreview,
+  sampleCustomFieldPreview,
+  type PreviewCompany,
+} from "@/lib/invoice-templates/preview-html";
+import type { CustomFieldDefinition } from "@/lib/schemas/custom-fields";
 import type { TemplateSummary } from "@/lib/templates";
 
 type SettingsDefaultTemplateSectionProps = {
@@ -13,6 +19,7 @@ type SettingsDefaultTemplateSectionProps = {
   defaultTemplateId: string;
   company: PreviewCompany;
   currency: string;
+  customFieldDefinitions?: CustomFieldDefinition[];
 };
 
 export function SettingsDefaultTemplateSection({
@@ -20,6 +27,7 @@ export function SettingsDefaultTemplateSection({
   defaultTemplateId,
   company,
   currency,
+  customFieldDefinitions = [],
 }: SettingsDefaultTemplateSectionProps) {
   const router = useRouter();
   const [selected, setSelected] = useState(defaultTemplateId);
@@ -65,6 +73,7 @@ export function SettingsDefaultTemplateSection({
         kind="invoice"
         company={company}
         currency={currency}
+        customFieldDefinitions={customFieldDefinitions}
         label="Default template"
         selectLabel="Set"
       />
@@ -94,6 +103,7 @@ export function SettingsDefaultTemplateSection({
         expiryDate={new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10)}
         currency={currency}
         notes={SAMPLE_TERMS_NOTES}
+        {...sampleCustomFieldPreview("invoice", customFieldDefinitions)}
         items={[
           { description: "Design & discovery", quantity: 1, unitPrice: 1200 },
           { description: "Development", quantity: 12, unitPrice: 90 },

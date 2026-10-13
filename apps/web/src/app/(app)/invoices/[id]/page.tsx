@@ -39,6 +39,7 @@ import { buildInvoicePaymentSummary } from "@/lib/invoice-payments";
 import { getPaymentConfirmationsByInvoice } from "@/lib/payment-confirmation";
 import {
   normalizeCustomFieldDefinitions,
+  normalizeCustomFieldValues,
   normalizeCustomFieldsPdfPlacement,
   buildCustomFieldDisplayRows,
 } from "@/lib/custom-fields";
@@ -213,6 +214,8 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
               expiryDate: invoice.dueDate?.toISOString(),
               currency: invoice.currency,
               notes: invoice.notes ?? undefined,
+              customFieldDefinitions,
+              customFields: normalizeCustomFieldValues(invoice.customFields),
               items: invoice.items.map((item) => ({
                 description: item.description,
                 quantity: Number(item.quantity),

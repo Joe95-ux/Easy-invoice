@@ -722,6 +722,7 @@ export function InvoiceCreator({
           kind="invoice"
           company={company}
           currency={currency}
+          customFieldDefinitions={fieldDefinitions}
         />
       )}
 
