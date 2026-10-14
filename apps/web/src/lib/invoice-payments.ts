@@ -55,7 +55,11 @@ export async function refreshInvoicePaymentStatus(invoiceId: string, companyId: 
   const invoice = await prisma.invoice.findFirst({
     where: { id: invoiceId, companyId },
     include: {
-      payments: { select: { amount: true } },
+      payments: { select: { amount: true, kind: true } },
+      creditNotes: {
+        where: { status: "ISSUED" },
+        select: { id: true, total: true, status: true },
+      },
       installments: { orderBy: { sortOrder: "asc" } },
     },
   });
@@ -77,7 +81,9 @@ export async function refreshInvoicePaymentStatus(invoiceId: string, companyId: 
 
   if (nextStatus === "PAID") {
     data.paidAt = invoice.paidAt ?? new Date();
-  } else if (summary.amountPaid > 0) {
+  } else if (nextStatus === "CREDITED") {
+    data.paidAt = null;
+  } else if (summary.amountPaid <= 0.001) {
     data.paidAt = null;
   }
 
@@ -95,6 +101,10 @@ export async function refreshInvoicePaymentStatus(invoiceId: string, companyId: 
       template: true,
       items: { orderBy: { sortOrder: "asc" } },
       payments: { orderBy: { paidAt: "desc" } },
+      creditNotes: {
+        where: { status: "ISSUED" },
+        select: { id: true, total: true, status: true, number: true },
+      },
       installments: { orderBy: { sortOrder: "asc" } },
     },
   });
@@ -142,7 +152,11 @@ export async function recordInvoicePayment(input: {
   const invoice = await prisma.invoice.findFirst({
     where: { id: input.invoiceId, companyId: input.companyId },
     include: {
-      payments: { select: { amount: true } },
+      payments: { select: { amount: true, kind: true } },
+      creditNotes: {
+        where: { status: "ISSUED" },
+        select: { id: true, total: true, status: true },
+      },
       installments: { orderBy: { sortOrder: "asc" } },
     },
   });
@@ -153,6 +167,9 @@ export async function recordInvoicePayment(input: {
   }
   if (invoice.status === "CANCELLED") {
     throw new Error("Cancelled invoices cannot accept payments");
+  }
+  if (invoice.status === "CREDITED") {
+    throw new Error("Credited invoices cannot accept payments");
   }
   if (invoice.status === "PAID") {
     throw new Error("Invoice is already fully paid");
@@ -323,7 +340,11 @@ export async function deleteInvoicePayment(input: {
   const invoice = await prisma.invoice.findFirst({
     where: { id: input.invoiceId, companyId: input.companyId },
     include: {
-      payments: { select: { amount: true } },
+      payments: { select: { amount: true, kind: true } },
+      creditNotes: {
+        where: { status: "ISSUED" },
+        select: { id: true, total: true, status: true },
+      },
       installments: { orderBy: { sortOrder: "asc" } },
     },
   });

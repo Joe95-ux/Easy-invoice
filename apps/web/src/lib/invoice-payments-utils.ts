@@ -30,18 +30,70 @@ export type InstallmentAllocation = {
   isOverdue: boolean;
 };
 
+export type PaymentLike = {
+  amount: MoneyInput;
+  kind?: string | null;
+};
+
+export type CreditNoteLike = {
+  total: MoneyInput;
+  status?: string | null;
+};
+
 export type InvoicePaymentSummary = {
+  /** Gross card/cash in (excludes refunds). */
+  grossPaid: number;
+  /** Money returned to the client. */
+  amountRefunded: number;
+  /** Net collected = grossPaid − amountRefunded. */
   amountPaid: number;
+  /** Issued credit notes against this invoice. */
+  amountCredited: number;
+  /** Original total minus issued credits. */
+  remainingInvoice: number;
+  /** What the client still owes. */
   balanceDue: number;
+  /** What we still owe the client after credits. */
+  refundDue: number;
   installments: InstallmentAllocation[];
   nextDueDate: Date | null;
   nextDueAmount: number | null;
 };
 
-export function sumPaymentAmounts(
-  payments: Array<{ amount: MoneyInput }>,
-): number {
-  return roundMoney(payments.reduce((sum, payment) => sum + toNumber(payment.amount), 0));
+export function isRefundPayment(payment: PaymentLike): boolean {
+  return payment.kind === "REFUND";
+}
+
+export function computePaymentSplits(payments: PaymentLike[]): {
+  grossPaid: number;
+  amountRefunded: number;
+  netCollected: number;
+} {
+  let grossPaid = 0;
+  let amountRefunded = 0;
+  for (const payment of payments) {
+    const amount = toNumber(payment.amount);
+    if (isRefundPayment(payment)) amountRefunded += amount;
+    else grossPaid += amount;
+  }
+  return {
+    grossPaid: roundMoney(grossPaid),
+    amountRefunded: roundMoney(amountRefunded),
+    netCollected: roundMoney(Math.max(0, grossPaid - amountRefunded)),
+  };
+}
+
+/** Net collected (payments minus refunds). Existing callers treat this as amount paid. */
+export function sumPaymentAmounts(payments: Array<PaymentLike>): number {
+  return computePaymentSplits(payments).netCollected;
+}
+
+export function sumIssuedCredits(creditNotes: CreditNoteLike[] | undefined): number {
+  return roundMoney(
+    (creditNotes ?? [])
+      .filter((note) => !note.status || note.status === "ISSUED")
+      .reduce((sum, note) => sum + toNumber(note.total), 0),
+  );
 }
 
 export function computeBalanceDue(total: MoneyInput, amountPaid: number): number {
@@ -99,12 +151,17 @@ export function buildInvoicePaymentSummary(
       label: string | null;
       sortOrder: number;
     }>;
-    payments?: Array<{ amount: MoneyInput }>;
+    payments?: PaymentLike[];
+    creditNotes?: CreditNoteLike[];
   },
   today = new Date(),
 ): InvoicePaymentSummary {
-  const amountPaid = sumPaymentAmounts(invoice.payments ?? []);
-  const balanceDue = computeBalanceDue(invoice.total, amountPaid);
+  const splits = computePaymentSplits(invoice.payments ?? []);
+  const amountCredited = sumIssuedCredits(invoice.creditNotes);
+  const remainingInvoice = roundMoney(Math.max(0, toNumber(invoice.total) - amountCredited));
+  const amountPaid = splits.netCollected;
+  const balanceDue = roundMoney(Math.max(0, remainingInvoice - amountPaid));
+  const refundDue = roundMoney(Math.max(0, amountPaid - remainingInvoice));
   const installments = allocatePaymentsToInstallments(
     invoice.installments ?? [],
     amountPaid,
@@ -114,11 +171,16 @@ export function buildInvoicePaymentSummary(
   const nextUnpaid = installments.find((row) => !row.isPaid);
   if (nextUnpaid) {
     return {
+      grossPaid: splits.grossPaid,
+      amountRefunded: splits.amountRefunded,
       amountPaid,
+      amountCredited,
+      remainingInvoice,
       balanceDue,
+      refundDue,
       installments,
       nextDueDate: nextUnpaid.dueDate,
-      nextDueAmount: nextUnpaid.balanceDue,
+      nextDueAmount: roundMoney(Math.min(nextUnpaid.balanceDue, balanceDue)),
     };
   }
 
@@ -129,8 +191,13 @@ export function buildInvoicePaymentSummary(
     todayStart.setHours(0, 0, 0, 0);
 
     return {
+      grossPaid: splits.grossPaid,
+      amountRefunded: splits.amountRefunded,
       amountPaid,
+      amountCredited,
+      remainingInvoice,
       balanceDue,
+      refundDue,
       installments,
       nextDueDate: invoice.dueDate,
       nextDueAmount: balanceDue,
@@ -138,12 +205,26 @@ export function buildInvoicePaymentSummary(
   }
 
   return {
+    grossPaid: splits.grossPaid,
+    amountRefunded: splits.amountRefunded,
     amountPaid,
+    amountCredited,
+    remainingInvoice,
     balanceDue,
+    refundDue,
     installments,
     nextDueDate: null,
     nextDueAmount: null,
   };
+}
+
+function isPastDue(date: Date | null, today: Date): boolean {
+  if (!date) return false;
+  const dueStart = new Date(date);
+  dueStart.setHours(0, 0, 0, 0);
+  const todayStart = new Date(today);
+  todayStart.setHours(0, 0, 0, 0);
+  return dueStart < todayStart;
 }
 
 export function deriveInvoiceStatusAfterPayment(
@@ -156,26 +237,34 @@ export function deriveInvoiceStatusAfterPayment(
     return currentStatus;
   }
 
-  const balanceDue = computeBalanceDue(total, amountPaid);
+  const remainingInvoice =
+    summary.remainingInvoice ?? computeBalanceDue(total, summary.amountCredited ?? 0);
+  const netCollected = amountPaid;
+  const today = new Date();
+  const hasOverdue =
+    summary.installments.some((row) => row.isOverdue) ||
+    (summary.installments.length === 0 && isPastDue(summary.nextDueDate, today));
+
+  if (remainingInvoice <= 0.001) {
+    return netCollected <= 0.001 ? "CREDITED" : "PAID";
+  }
+
+  const balanceDue = roundMoney(Math.max(0, remainingInvoice - netCollected));
   if (balanceDue <= 0.001) return "PAID";
-  if (amountPaid > 0) {
-    const hasOverdue =
-      summary.installments.some((row) => row.isOverdue) ||
-      (summary.installments.length === 0 &&
-        summary.nextDueDate !== null &&
-        summary.nextDueDate < new Date(new Date().setHours(0, 0, 0, 0)));
+
+  if (netCollected > 0.001) {
     return hasOverdue ? "OVERDUE" : "PARTIALLY_PAID";
   }
 
-  if (currentStatus === "PARTIALLY_PAID") {
-    return summary.installments.some((row) => row.isOverdue) ||
-      (summary.nextDueDate &&
-        summary.nextDueDate < new Date(new Date().setHours(0, 0, 0, 0)))
-      ? "OVERDUE"
-      : "SENT";
+  if (currentStatus === "PARTIALLY_PAID" || currentStatus === "PAID" || currentStatus === "CREDITED") {
+    return hasOverdue ? "OVERDUE" : "SENT";
   }
 
-  return currentStatus;
+  if (hasOverdue && (currentStatus === "SENT" || currentStatus === "VIEWED" || currentStatus === "OVERDUE")) {
+    return "OVERDUE";
+  }
+
+  return currentStatus === "OVERDUE" && !hasOverdue ? "SENT" : currentStatus;
 }
 
 export function validateInstallments(
@@ -208,3 +297,12 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   CARD: "Card",
   OTHER: "Other",
 };
+
+/** Prisma include fragment so balance math always sees credits and refunds. */
+export const invoiceSettlementInclude = {
+  payments: { select: { amount: true, kind: true } },
+  creditNotes: {
+    where: { status: "ISSUED" as const },
+    select: { id: true, total: true, status: true },
+  },
+} as const;

@@ -175,6 +175,21 @@ function documentLabels(kind: DocumentKind) {
     };
   }
 
+  if (kind === "credit_note") {
+    return {
+      title: "CREDIT NOTE",
+      pageTitle: "Credit note",
+      dateLabel: "Credit Date",
+      numberLabel: "Credit #",
+      expiryLabel: "Applies to",
+      totalLabel: "Credit total",
+      footerPrefix: "Thank you for choosing",
+      clientLabel: "Credit to",
+      clientLabelSlug: "credit_to",
+      acceptanceLabel: "Authorized signature",
+    };
+  }
+
   return {
     title: "INVOICE",
     pageTitle: "Invoice",
@@ -348,7 +363,11 @@ function buildSections(
   const invoiceMeta = [
     `<div>${labels.dateLabel}: ${formatDate(invoice.issueDate)}</div>`,
     `<div>${labels.numberLabel}: ${escapeHtml(invoice.number)}</div>`,
-    invoice.dueDate ? `<div>${labels.expiryLabel}: ${formatDate(invoice.dueDate)}</div>` : "",
+    kind === "credit_note" && invoice.relatedInvoiceNumber
+      ? `<div>${labels.expiryLabel}: Invoice ${escapeHtml(invoice.relatedInvoiceNumber)}</div>`
+      : invoice.dueDate
+        ? `<div>${labels.expiryLabel}: ${formatDate(invoice.dueDate)}</div>`
+        : "",
   ]
     .filter(Boolean)
     .join("");
@@ -373,8 +392,9 @@ function buildSections(
   const lineItems = buildLineItemsHtml(items, invoice.currency);
 
   const amountPaid = invoice.amountPaid ?? 0;
+  const amountCredited = invoice.amountCredited ?? 0;
   const balanceDue = invoice.balanceDue ?? invoice.total;
-  const hasPartialPayment = amountPaid > 0.001;
+  const hasPartialPayment = amountPaid > 0.001 || amountCredited > 0.001;
   const hasSchedule = (data.installments?.length ?? 0) > 0;
 
   const taxRows = (() => {
@@ -434,7 +454,10 @@ function buildSections(
       ? `<div class="totals-row"><span>Invoice total</span><span>${formatMoney(invoice.total, invoice.currency)}</span></div>`
       : `<div class="totals-row total"><span>${labels.totalLabel}</span><span>${formatMoney(invoice.total, invoice.currency)}</span></div>`,
     fxRow,
-    hasPartialPayment
+    hasPartialPayment && amountCredited > 0.001
+      ? `<div class="totals-row"><span>Credits</span><span>-${formatMoney(amountCredited, invoice.currency)}</span></div>`
+      : "",
+    hasPartialPayment && amountPaid > 0.001
       ? `<div class="totals-row"><span>Amount paid</span><span>-${formatMoney(amountPaid, invoice.currency)}</span></div>`
       : "",
     hasPartialPayment
@@ -458,14 +481,18 @@ function buildSections(
     .join("");
 
   const paymentQrBlock =
-    data.documentKind !== "estimate" && data.paymentQr?.imageDataUrl
+    data.documentKind !== "estimate" &&
+    data.documentKind !== "credit_note" &&
+    data.paymentQr?.imageDataUrl
       ? `<div class="payment-qr"><img src="${escapeHtml(data.paymentQr.imageDataUrl)}" alt="Scan to pay" /><div class="payment-qr-caption"><strong>Scan to pay</strong>${data.paymentQr.label ? escapeHtml(data.paymentQr.label) : "Open the payment link with your phone camera"}</div></div>`
       : "";
 
   const payment_info =
-    paymentMethods.length || paymentQrBlock
-      ? `<div class="payment-info"><div class="payment-info-label">Payment information</div>${paymentRows}${paymentQrBlock}</div>`
-      : "";
+    kind === "credit_note"
+      ? ""
+      : paymentMethods.length || paymentQrBlock
+        ? `<div class="payment-info"><div class="payment-info-label">Payment information</div>${paymentRows}${paymentQrBlock}</div>`
+        : "";
 
   const projectScope =
     kind === "estimate" && invoice.scope?.trim()

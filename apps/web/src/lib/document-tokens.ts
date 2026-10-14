@@ -12,7 +12,20 @@ export function estimatePublicPath(token: string): string {
   return `/view/estimates/${token}`;
 }
 
-export function publicDocumentUrl(origin: string, kind: "invoice" | "estimate", token: string): string {
-  const path = kind === "invoice" ? invoicePublicPath(token) : estimatePublicPath(token);
+export function creditNotePublicPath(token: string): string {
+  return `/view/credit-notes/${token}`;
+}
+
+export function publicDocumentUrl(
+  origin: string,
+  kind: "invoice" | "estimate" | "credit_note",
+  token: string,
+): string {
+  const path =
+    kind === "invoice"
+      ? invoicePublicPath(token)
+      : kind === "estimate"
+        ? estimatePublicPath(token)
+        : creditNotePublicPath(token);
   return `${origin.replace(/\/$/, "")}${path}`;
 }

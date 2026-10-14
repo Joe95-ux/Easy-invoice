@@ -22,6 +22,8 @@ enum InvoiceStatus {
   PAID
   OVERDUE
   CANCELLED
+  /// Unpaid invoice fully reversed by issued credit notes (not a payment).
+  CREDITED
 }
 
 enum PaymentMethod {
@@ -30,6 +32,22 @@ enum PaymentMethod {
   BANK_TRANSFER
   CARD
   OTHER
+}
+
+enum InvoicePaymentKind {
+  PAYMENT
+  REFUND
+}
+
+enum CreditNoteStatus {
+  DRAFT
+  ISSUED
+  CANCELLED
+}
+
+enum CreditNoteKind {
+  CREDIT
+  VOID
 }
 
 enum EstimateStatus {
@@ -96,6 +114,7 @@ enum ReminderDeliveryStatus {
 enum DocumentType {
   INVOICE
   ESTIMATE
+  CREDIT_NOTE
 }
 
 enum DocumentRevisionSource {
@@ -170,6 +189,11 @@ enum AuditAction {
   DEFAULT_TEMPLATE_CHANGED
   INVOICE_DELETED
   ESTIMATE_DELETED
+  CREDIT_NOTE_ISSUED
+  CREDIT_NOTE_VOIDED
+  CREDIT_NOTE_CANCELLED
+  INVOICE_VOIDED
+  REFUND_RECORDED
   CLIENT_DELETED
   PAYMENT_CONFIRMATION_SENT
   PAYMENT_CONFIRMATION_RESENT
@@ -237,6 +261,7 @@ model Company {
   invoiceSequence      Int      @default(0)
   estimateSequence     Int      @default(0)
   receiptSequence      Int      @default(0)
+  creditNoteSequence   Int      @default(0)
   defaultHourlyRate    Decimal? @db.Decimal(12, 2)
   timerRoundToMinutes  Int      @default(1)
   /// Ordered payment options shown on invoices/estimates, e.g. [{ "label": "PayPal", "value": "pay@co.com" }]
@@ -254,6 +279,7 @@ model Company {
   clients   Client[]
   invoices  Invoice[]
   estimates Estimate[]
+  creditNotes CreditNote[]
   projects  Project[]
   templates InvoiceTemplate[]
   defaultTemplate InvoiceTemplate? @relation("CompanyDefaultTemplate", fields: [defaultTemplateId], references: [id], onDelete: SetNull)
@@ -298,6 +324,7 @@ model CompanyMember {
   activeTimeTimer ActiveTimeTimer?
   documentRevisions DocumentRevision[]
   invoicePayments InvoicePayment[]
+  creditNotes CreditNote[]
   paymentConfirmationEmails PaymentConfirmationEmail[]
   auditEvents       AuditEvent[]
   notifications     Notification[]
@@ -375,6 +402,7 @@ model Client {
   company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   invoices Invoice[]
   estimates Estimate[]
+  creditNotes CreditNote[]
   projects Project[]
   timeEntries TimeEntry[]
   activeTimeTimers ActiveTimeTimer[]
@@ -604,6 +632,7 @@ model Invoice {
   reminders InvoiceReminder[]
   installments InvoiceInstallment[]
   payments  InvoicePayment[]
+  creditNotes CreditNote[]
   timeEntries TimeEntry[]
   projectExpenses ProjectExpense[]
   /// Scan-to-pay QRs linked to this invoice (typically one LINK to a payment URL).
@@ -656,6 +685,7 @@ model InvoicePayment {
   receiptNumber String?       @unique
   publicToken   String?       @unique
   amount        Decimal       @db.Decimal(12, 2)
+  kind          InvoicePaymentKind @default(PAYMENT)
   /// Snapshot of invoice→home rate at payment time (home units per 1 invoice unit).
   exchangeRate  Decimal?      @db.Decimal(18, 8)
   /// amount converted to company (home) currency.
@@ -668,13 +698,16 @@ model InvoicePayment {
   stripeCheckoutSessionId String? @unique
   /// Stripe PaymentIntent id on the connected/platform charge.
   stripePaymentIntentId   String? @unique
+  creditNoteId  String?
   createdAt     DateTime      @default(now())
 
   invoice             Invoice                    @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   member              CompanyMember?             @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  creditNote          CreditNote?                @relation(fields: [creditNoteId], references: [id], onDelete: SetNull)
   confirmationEmails  PaymentConfirmationEmail[]
 
   @@index([invoiceId])
+  @@index([creditNoteId])
 }
 
 model PaymentConfirmationEmail {
@@ -712,6 +745,71 @@ model InvoiceLineItem {
   timeEntries TimeEntry[]
 
   @@index([invoiceId])
+}
+
+model CreditNote {
+  id            String           @id @default(cuid())
+  companyId     String
+  invoiceId     String
+  clientId      String?
+  memberId      String?
+  number        String
+  status        CreditNoteStatus @default(DRAFT)
+  kind          CreditNoteKind   @default(CREDIT)
+  issueDate     DateTime         @default(now())
+  currency      String           @default("USD")
+  subtotal      Decimal          @default(0) @db.Decimal(12, 2)
+  taxRate       Decimal          @default(0) @db.Decimal(5, 4)
+  taxAmount     Decimal          @default(0) @db.Decimal(12, 2)
+  taxInclusive  Boolean          @default(false)
+  taxCompound   Boolean          @default(false)
+  taxes         Json?
+  discount      Decimal          @default(0) @db.Decimal(12, 2)
+  total         Decimal          @default(0) @db.Decimal(12, 2)
+  exchangeRate       Decimal?    @db.Decimal(18, 8)
+  homeCurrencyTotal  Decimal?    @db.Decimal(12, 2)
+  exchangeRateDate   DateTime?   @db.Date
+  exchangeRateSource String?
+  exchangeRateLocked Boolean     @default(false)
+  reason        String?
+  notes         String?
+  customFields  Json?
+  templateId    String?
+  sentAt        DateTime?
+  publicToken   String?          @unique
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  company   Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invoice   Invoice              @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  client    Client?              @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  member    CompanyMember?       @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  template  InvoiceTemplate?     @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  items     CreditNoteLineItem[]
+  refunds   InvoicePayment[]
+
+  @@unique([companyId, number])
+  @@index([companyId, status])
+  @@index([companyId, createdAt])
+  @@index([invoiceId])
+  @@index([clientId])
+}
+
+model CreditNoteLineItem {
+  id               String   @id @default(cuid())
+  creditNoteId     String
+  description      String
+  quantity         Decimal  @default(1) @db.Decimal(12, 4)
+  unitPrice        Decimal  @default(0) @db.Decimal(12, 2)
+  amount           Decimal  @default(0) @db.Decimal(12, 2)
+  taxable          Boolean  @default(true)
+  sortOrder        Int      @default(0)
+  sectionTitle     String?
+  sectionSortOrder Int      @default(0)
+
+  creditNote CreditNote @relation(fields: [creditNoteId], references: [id], onDelete: Cascade)
+
+  @@index([creditNoteId])
 }
 
 model TimeEntry {
@@ -919,6 +1017,7 @@ model InvoiceTemplate {
   defaultForCompanies Company[] @relation("CompanyDefaultTemplate")
   invoices Invoice[]
   estimates Estimate[]
+  creditNotes CreditNote[]
   recurringInvoices RecurringInvoice[]
 
   @@unique([companyId, slug])

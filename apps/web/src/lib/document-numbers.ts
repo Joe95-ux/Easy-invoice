@@ -23,6 +23,10 @@ function formatEstimateNumber(prefix: string, sequence: number): string {
   return `${prefix}-E${String(sequence).padStart(SEQUENCE_PAD, "0")}`;
 }
 
+function formatCreditNoteNumber(prefix: string, sequence: number): string {
+  return `${prefix}-C${String(sequence).padStart(SEQUENCE_PAD, "0")}`;
+}
+
 export function previewInvoiceNumber(company: {
   id: string;
   documentPrefix?: string | null;
@@ -51,6 +55,16 @@ export function previewEstimateNumber(company: {
   const prefix = getCompanyDocumentPrefix(company);
   const sequence = Math.max(company.estimateSequence ?? 0, 0) + 1;
   return formatEstimateNumber(prefix, sequence);
+}
+
+export function previewCreditNoteNumber(company: {
+  id: string;
+  documentPrefix?: string | null;
+  creditNoteSequence?: number;
+}): string {
+  const prefix = getCompanyDocumentPrefix(company);
+  const sequence = Math.max(company.creditNoteSequence ?? 0, 0) + 1;
+  return formatCreditNoteNumber(prefix, sequence);
 }
 
 export async function allocateInvoiceNumber(companyId: string): Promise<string> {
@@ -126,4 +140,29 @@ export async function allocateEstimateNumber(companyId: string): Promise<string>
   }
 
   throw new Error("Could not generate unique estimate number");
+}
+
+export async function allocateCreditNoteNumber(companyId: string): Promise<string> {
+  const maxAttempts = 5;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const company = await prisma.$transaction(async (tx) => {
+      return tx.company.update({
+        where: { id: companyId },
+        data: { creditNoteSequence: { increment: 1 } },
+        select: { id: true, documentPrefix: true, creditNoteSequence: true },
+      });
+    });
+
+    const prefix = getCompanyDocumentPrefix(company);
+    const number = formatCreditNoteNumber(prefix, company.creditNoteSequence);
+
+    const exists = await prisma.creditNote.findFirst({
+      where: { companyId, number },
+      select: { id: true },
+    });
+    if (!exists) return number;
+  }
+
+  throw new Error("Could not generate unique credit note number");
 }

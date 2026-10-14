@@ -1,7 +1,7 @@
 import type { LogoBg, LogoPlacement } from "@/lib/company-branding";
 import type { CustomFieldsPdfPlacement } from "@/lib/schemas/custom-fields";
 
-export type DocumentKind = "invoice" | "estimate";
+export type DocumentKind = "invoice" | "estimate" | "credit_note";
 
 export type InvoiceHtmlData = {
   documentKind?: DocumentKind;
@@ -44,7 +44,10 @@ export type InvoiceHtmlData = {
     /** Estimate-only: project scope shown before line items. */
     scope?: string | null;
     amountPaid?: number;
+    amountCredited?: number;
+    refundDue?: number;
     balanceDue?: number;
+    relatedInvoiceNumber?: string | null;
     /** FX metadata for PDF when currencies differ. */
     exchangeRate?: number | null;
     exchangeRateDate?: string | null;
