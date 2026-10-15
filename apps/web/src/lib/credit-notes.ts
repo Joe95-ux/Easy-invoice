@@ -100,7 +100,11 @@ function creditCapacity(
   invoice: {
     total: { toString(): string } | number;
     payments?: Array<{ amount: { toString(): string } | number; kind?: string | null }>;
-    creditNotes?: Array<{ total: { toString(): string } | number; status?: string | null }>;
+    creditNotes?: Array<{
+      id?: string;
+      total: { toString(): string } | number;
+      status?: string | null;
+    }>;
     dueDate?: Date | null;
     installments?: Array<{
       id: string;
@@ -116,7 +120,7 @@ function creditCapacity(
     ...invoice,
     creditNotes: (invoice.creditNotes ?? []).filter((note) => {
       if (!excludeCreditNoteId) return true;
-      return (note as { id?: string }).id !== excludeCreditNoteId;
+      return note.id !== excludeCreditNoteId;
     }),
   });
   return summary.remainingInvoice;
@@ -222,7 +226,15 @@ export async function createCreditNote(input: {
   });
 
   if (issueNow) {
-    await refreshInvoicePaymentStatus(invoice.id, input.companyId);
+    try {
+      await refreshInvoicePaymentStatus(invoice.id, input.companyId);
+    } catch (error) {
+      await prisma.creditNote.update({
+        where: { id: created.id },
+        data: { status: "CANCELLED" },
+      });
+      throw error;
+    }
     await recordAuditEvent({
       companyId: input.companyId,
       memberId: input.memberId,
@@ -240,6 +252,15 @@ export async function createCreditNote(input: {
       memberId: input.memberId,
       source: "CREATE",
       summary: `Issued ${created.number}`,
+    }).catch(() => undefined);
+  } else {
+    await recordDocumentRevision({
+      companyId: input.companyId,
+      documentType: "CREDIT_NOTE",
+      documentId: created.id,
+      memberId: input.memberId,
+      source: "CREATE",
+      summary: `Created ${created.number}`,
     }).catch(() => undefined);
   }
 
@@ -306,6 +327,15 @@ export async function updateCreditNote(input: {
     });
   });
 
+  await recordDocumentRevision({
+    companyId: input.companyId,
+    documentType: "CREDIT_NOTE",
+    documentId: existing.id,
+    memberId: input.memberId,
+    source: "EDIT",
+    summary: `Updated ${existing.number}`,
+  }).catch(() => undefined);
+
   return getCreditNoteForMember(existing.id, input.companyId);
 }
 
@@ -342,7 +372,15 @@ export async function issueCreditNote(input: {
     },
   });
 
-  await refreshInvoicePaymentStatus(existing.invoiceId, input.companyId);
+  try {
+    await refreshInvoicePaymentStatus(existing.invoiceId, input.companyId);
+  } catch (error) {
+    await prisma.creditNote.update({
+      where: { id: existing.id },
+      data: { status: "DRAFT" },
+    });
+    throw error;
+  }
   await recordAuditEvent({
     companyId: input.companyId,
     memberId: input.memberId,
@@ -353,6 +391,14 @@ export async function issueCreditNote(input: {
     entityId: existing.id,
     metadata: { invoiceId: existing.invoiceId, total },
   });
+  await recordDocumentRevision({
+    companyId: input.companyId,
+    documentType: "CREDIT_NOTE",
+    documentId: existing.id,
+    memberId: input.memberId,
+    source: "STATUS",
+    summary: `Issued ${existing.number}`,
+  }).catch(() => undefined);
 
   return getCreditNoteForMember(existing.id, input.companyId);
 }
@@ -514,10 +560,11 @@ export async function recordInvoiceRefund(input: {
     );
   }
 
-  if (input.creditNoteId) {
+  let linkedCreditNoteId = input.creditNoteId ?? null;
+  if (linkedCreditNoteId) {
     const note = await prisma.creditNote.findFirst({
       where: {
-        id: input.creditNoteId,
+        id: linkedCreditNoteId,
         invoiceId: invoice.id,
         companyId: input.companyId,
         status: "ISSUED",
@@ -525,6 +572,17 @@ export async function recordInvoiceRefund(input: {
       select: { id: true },
     });
     if (!note) throw new Error("Credit note not found for this invoice");
+  } else {
+    const latest = await prisma.creditNote.findFirst({
+      where: {
+        invoiceId: invoice.id,
+        companyId: input.companyId,
+        status: "ISSUED",
+      },
+      orderBy: { createdAt: "desc" },
+      select: { id: true },
+    });
+    linkedCreditNoteId = latest?.id ?? null;
   }
 
   let stripePaymentIntentId: string | null = null;
@@ -549,6 +607,7 @@ export async function recordInvoiceRefund(input: {
           payment_intent: cardPayment.stripePaymentIntentId,
           amount: Math.round(amount * 100),
           reason: "requested_by_customer",
+          reverse_transfer: true,
         });
         stripePaymentIntentId = cardPayment.stripePaymentIntentId;
         if (refund.status === "failed") {
@@ -575,7 +634,7 @@ export async function recordInvoiceRefund(input: {
       method: input.method ?? "OTHER",
       reference: input.reference ?? null,
       note: input.note ?? null,
-      creditNoteId: input.creditNoteId ?? null,
+      creditNoteId: linkedCreditNoteId,
       stripePaymentIntentId,
     },
   });
@@ -591,7 +650,7 @@ export async function recordInvoiceRefund(input: {
     entityId: invoice.id,
     metadata: {
       amount,
-      creditNoteId: input.creditNoteId ?? null,
+      creditNoteId: linkedCreditNoteId,
       stripe: Boolean(stripePaymentIntentId),
     },
   });

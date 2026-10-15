@@ -82,6 +82,7 @@ type ConfirmationEmailRow = {
 type PaymentRow = {
   id: string;
   amount: number;
+  kind?: "PAYMENT" | "REFUND";
   paidAt: string;
   method: PaymentMethod;
   reference: string | null;
@@ -153,6 +154,7 @@ export function InvoicePaymentsSection({
     status !== "DRAFT" &&
     status !== "CANCELLED" &&
     status !== "PAID" &&
+    status !== "CREDITED" &&
     balanceDue > 0.001;
   const canSendUpdate =
     canWrite &&
@@ -164,7 +166,8 @@ export function InvoicePaymentsSection({
     installments.length > 0 &&
     amountPaid <= 0.001 &&
     status !== "CANCELLED" &&
-    status !== "PAID";
+    status !== "PAID" &&
+    status !== "CREDITED";
 
   function openRecordDialog(presetAmount?: number) {
     setRecordInitialAmount(presetAmount);
@@ -427,7 +430,13 @@ export function InvoicePaymentsSection({
                       <TableCell>{PAYMENT_METHOD_LABELS[payment.method]}</TableCell>
                       <TableCell>{payment.reference ?? payment.note ?? "—"}</TableCell>
                       <TableCell className="text-right">
+                        {payment.kind === "REFUND" ? "−" : ""}
                         {formatMoney(payment.amount, currency)}
+                        {payment.kind === "REFUND" ? (
+                          <Badge variant="outline" className="ml-2 text-[10px]">
+                            Refund
+                          </Badge>
+                        ) : null}
                       </TableCell>
                       <TableCell>
                         {lastConfirmation ? (
@@ -484,7 +493,7 @@ export function InvoicePaymentsSection({
                                 Download receipt
                               </DropdownMenuItem>
                             )}
-                            {canDeletePayments ? (
+                            {canDeletePayments && payment.kind !== "REFUND" ? (
                               <>
                                 {payment.receiptNumber && <DropdownMenuSeparator />}
                                 <DropdownMenuItem

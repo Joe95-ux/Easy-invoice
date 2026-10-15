@@ -49,7 +49,11 @@ export async function getDashboardStats(companyId: string) {
         total: true,
         currency: true,
         exchangeRate: true,
-        payments: { select: { amount: true } },
+        payments: { select: { amount: true, kind: true } },
+        creditNotes: {
+          where: { status: "ISSUED" },
+          select: { total: true, status: true },
+        },
       },
     }),
     getCompanyUnbilledTimeStats(companyId),
@@ -68,6 +72,7 @@ export async function getDashboardStats(companyId: string) {
     const balanceDueDoc = buildInvoicePaymentSummary({
       total: invoice.total,
       payments: invoice.payments,
+      creditNotes: invoice.creditNotes,
     }).balanceDue;
     if (balanceDueDoc <= 0) return sum;
     const balanceDue = paymentAmountInHomeCurrency({

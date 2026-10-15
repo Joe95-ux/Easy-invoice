@@ -57,7 +57,11 @@ export async function markOverdueInvoices(now = new Date()) {
       status: { in: ["SENT", "VIEWED", "PARTIALLY_PAID"] },
     },
     include: {
-      payments: { select: { amount: true } },
+      payments: { select: { amount: true, kind: true } },
+      creditNotes: {
+        where: { status: "ISSUED" },
+        select: { total: true, status: true },
+      },
       installments: { orderBy: { sortOrder: "asc" } },
     },
   });
@@ -294,7 +298,11 @@ export async function runInvoiceReminderJob(now = new Date()) {
         client: { email: { not: null } },
       },
       include: {
-        payments: { select: { amount: true } },
+        payments: { select: { amount: true, kind: true } },
+        creditNotes: {
+          where: { status: "ISSUED" },
+          select: { total: true, status: true },
+        },
         installments: { orderBy: { sortOrder: "asc" } },
       },
     });

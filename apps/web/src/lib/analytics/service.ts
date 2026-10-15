@@ -76,6 +76,7 @@ async function sumPaymentsInRange(
     },
     select: {
       amount: true,
+      kind: true,
       exchangeRate: true,
       homeCurrencyAmount: true,
       invoice: { select: { currency: true, exchangeRate: true } },
@@ -83,7 +84,7 @@ async function sumPaymentsInRange(
   });
   return payments.reduce((sum, payment) => {
     const converted = paymentAmountInHomeCurrency({
-      amount: payment.amount,
+      amount: payment.kind === "REFUND" ? -Number(payment.amount) : payment.amount,
       invoiceCurrency: payment.invoice.currency,
       homeCurrency,
       homeCurrencyAmount: payment.homeCurrencyAmount,
@@ -173,7 +174,11 @@ export async function getAnalyticsData(
         dueDate: true,
         issueDate: true,
         client: { select: { name: true } },
-        payments: { select: { amount: true } },
+        payments: { select: { amount: true, kind: true } },
+        creditNotes: {
+          where: { status: "ISSUED" },
+          select: { total: true, status: true },
+        },
       },
     }),
     prisma.invoicePayment.findMany({
@@ -183,6 +188,7 @@ export async function getAnalyticsData(
       },
       select: {
         amount: true,
+        kind: true,
         paidAt: true,
         exchangeRate: true,
         homeCurrencyAmount: true,
@@ -247,8 +253,9 @@ export async function getAnalyticsData(
 
   let revenueCollected = 0;
   for (const payment of periodPayments) {
+    const signed = payment.kind === "REFUND" ? -Number(payment.amount) : payment.amount;
     const amount = paymentAmountInHomeCurrency({
-      amount: payment.amount,
+      amount: signed,
       invoiceCurrency: payment.invoice.currency,
       homeCurrency,
       homeCurrencyAmount: payment.homeCurrencyAmount,
@@ -295,6 +302,7 @@ export async function getAnalyticsData(
     const balanceDueDoc = buildInvoicePaymentSummary({
       total: invoice.total,
       payments: invoice.payments,
+      creditNotes: invoice.creditNotes,
     }).balanceDue;
     if (balanceDueDoc <= 0) continue;
 
@@ -404,7 +412,7 @@ export async function getAnalyticsData(
       invoiceIds: new Set<string>(),
     };
     const revenue = paymentAmountInHomeCurrency({
-      amount: payment.amount,
+      amount: payment.kind === "REFUND" ? -Number(payment.amount) : payment.amount,
       invoiceCurrency: payment.invoice.currency,
       homeCurrency,
       homeCurrencyAmount: payment.homeCurrencyAmount,

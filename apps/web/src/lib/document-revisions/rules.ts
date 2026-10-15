@@ -1,18 +1,22 @@
-import type { EstimateStatus, InvoiceStatus } from "@easy-invoice/db";
+import type { CreditNoteStatus, EstimateStatus, InvoiceStatus } from "@easy-invoice/db";
 import type { DocumentType, RevisionPermissions } from "@/lib/document-revisions/types";
+
+type RevisionStatus = InvoiceStatus | EstimateStatus | CreditNoteStatus;
 
 export function canRestoreInPlace(
   documentType: DocumentType,
-  status: InvoiceStatus | EstimateStatus,
+  status: RevisionStatus,
 ): boolean {
+  if (documentType === "CREDIT_NOTE") return false;
   return status === "DRAFT";
 }
 
 export function canDuplicateFromVersion(
   documentType: DocumentType,
-  status: InvoiceStatus | EstimateStatus,
+  status: RevisionStatus,
   options?: { hasConvertedInvoice?: boolean },
 ): boolean {
+  if (documentType === "CREDIT_NOTE") return false;
   if (documentType === "INVOICE") {
     return status === "SENT" || status === "VIEWED" || status === "OVERDUE" || status === "PARTIALLY_PAID";
   }
@@ -29,7 +33,7 @@ export function canDuplicateFromVersion(
 
 export function getRevisionPermissions(
   documentType: DocumentType,
-  status: InvoiceStatus | EstimateStatus,
+  status: RevisionStatus,
   options?: { hasConvertedInvoice?: boolean },
 ): RevisionPermissions {
   return {

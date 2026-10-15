@@ -109,7 +109,10 @@ export async function refreshInvoicePaymentStatus(invoiceId: string, companyId: 
     },
   });
 
-  if (nextStatus === "PAID" && !wasPaid) {
+  if (
+    (nextStatus === "PAID" && !wasPaid) ||
+    (nextStatus === "CREDITED" && invoice.status !== "CREDITED")
+  ) {
     const { resolveFollowUpsForInvoice } = await import("@/lib/follow-ups/service");
     await resolveFollowUpsForInvoice(companyId, invoiceId).catch(() => undefined);
   }
@@ -239,6 +242,7 @@ export async function recordInvoicePayment(input: {
       method: input.method ?? "OTHER",
       reference: input.reference ?? null,
       note: input.note ?? null,
+      kind: "PAYMENT",
       stripeCheckoutSessionId: input.stripeCheckoutSessionId ?? null,
       stripePaymentIntentId: input.stripePaymentIntentId ?? null,
     },
@@ -328,6 +332,9 @@ export async function deleteInvoicePayment(input: {
     include: { invoice: { select: { number: true, currency: true, status: true } } },
   });
   if (!payment) throw new Error("Payment not found");
+  if (payment.kind === "REFUND") {
+    throw new Error("Refunds cannot be deleted. Cancel the related credit note instead if it was a mistake.");
+  }
   if (payment.invoice.status === "CANCELLED") {
     throw new Error("Cancelled invoices cannot be modified");
   }

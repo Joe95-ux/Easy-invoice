@@ -1,6 +1,6 @@
 import type { PaymentMethod } from "@easy-invoice/db";
 import { companyBrandingFields } from "@/lib/company-branding";
-import { PAYMENT_METHOD_LABELS } from "@/lib/invoice-payments-utils";
+import { buildInvoicePaymentSummary, PAYMENT_METHOD_LABELS } from "@/lib/invoice-payments-utils";
 import { prisma } from "@/lib/db";
 import { formatPhoneForDisplay } from "@/lib/phone";
 
@@ -295,7 +295,11 @@ export async function renderReceiptHtmlForPayment(
         include: {
           client: true,
           company: true,
-          payments: { select: { amount: true } },
+          payments: { select: { amount: true, kind: true } },
+          creditNotes: {
+            where: { status: "ISSUED" },
+            select: { total: true, status: true },
+          },
         },
       },
     },
@@ -304,12 +308,9 @@ export async function renderReceiptHtmlForPayment(
   if (!payment || !payment.receiptNumber) return null;
 
   const invoice = payment.invoice;
-  const amountPaid = invoice.payments.reduce(
-    (sum, row) => sum + Number(row.amount),
-    0,
-  );
-  const total = Number(invoice.total);
-  const balanceDue = Math.max(0, Math.round((total - amountPaid) * 100) / 100);
+  const summary = buildInvoicePaymentSummary(invoice);
+  const amountPaid = summary.amountPaid;
+  const balanceDue = summary.balanceDue;
 
   const data: ReceiptHtmlData = {
     company: {

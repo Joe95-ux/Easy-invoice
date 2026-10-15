@@ -15,7 +15,7 @@ import {
 
 type RouteContext = { params: Promise<{ token: string }> };
 
-const BLOCKED_STATUSES = new Set(["DRAFT", "CANCELLED", "PAID"]);
+const BLOCKED_STATUSES = new Set(["DRAFT", "CANCELLED", "PAID", "CREDITED"]);
 
 const checkoutSchema = z.object({
   /** Optional partial amount (major units). Defaults to full balance due. */
@@ -57,7 +57,11 @@ export async function POST(request: Request, context: RouteContext) {
           stripeConnectDetailsSubmitted: true,
         },
       },
-      payments: { select: { amount: true } },
+      payments: { select: { amount: true, kind: true } },
+      creditNotes: {
+        where: { status: "ISSUED" },
+        select: { total: true, status: true },
+      },
       installments: { orderBy: { sortOrder: "asc" } },
     },
   });

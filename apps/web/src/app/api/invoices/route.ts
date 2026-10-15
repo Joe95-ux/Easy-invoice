@@ -52,6 +52,7 @@ const INVOICE_STATUSES = [
   "PAID",
   "OVERDUE",
   "CANCELLED",
+  "CREDITED",
 ] as const;
 
 const listQuerySchema = z.object({

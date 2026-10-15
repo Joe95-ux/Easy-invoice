@@ -1,8 +1,8 @@
 import { Prisma } from "@easy-invoice/db";
 import { prisma, type ProjectStatus } from "@/lib/db";
 import {
+  buildInvoicePaymentSummary,
   computeBalanceDue,
-  sumPaymentAmounts,
 } from "@/lib/invoice-payments-utils";
 import type { CreateProjectInput, UpdateProjectInput } from "@/lib/schemas/project";
 
@@ -58,7 +58,11 @@ export const projectDetailInclude = {
       total: true,
       currency: true,
       dueDate: true,
-      payments: { select: { amount: true } },
+      payments: { select: { amount: true, kind: true } },
+      creditNotes: {
+        where: { status: "ISSUED" },
+        select: { total: true, status: true },
+      },
     },
   },
   timeEntries: {
@@ -118,7 +122,11 @@ export async function loadProjectFinancialInputs(projectId: string, companyId: s
       select: {
         total: true,
         status: true,
-        payments: { select: { amount: true } },
+        payments: { select: { amount: true, kind: true } },
+      creditNotes: {
+        where: { status: "ISSUED" },
+        select: { total: true, status: true },
+      },
       },
     }),
     prisma.timeEntry.findMany({
@@ -185,7 +193,8 @@ export function summarizeProjectFinancials(
     invoices: Array<{
       total: { toString(): string } | number;
       status: string;
-      payments: Array<{ amount: { toString(): string } | number }>;
+      payments: Array<{ amount: { toString(): string } | number; kind?: string | null }>;
+      creditNotes?: Array<{ total: { toString(): string } | number; status?: string | null }>;
     }>;
     timeEntries: Array<{
       durationMinutes: number;
@@ -209,10 +218,9 @@ export function summarizeProjectFinancials(
   let paid = 0;
   for (const invoice of project.invoices) {
     if (invoice.status === "CANCELLED" || invoice.status === "DRAFT") continue;
-    invoiced += toNumber(invoice.total);
-    paid += sumPaymentAmounts(
-      invoice.payments.map((payment) => ({ amount: toNumber(payment.amount) })),
-    );
+    const summary = buildInvoicePaymentSummary(invoice);
+    invoiced += summary.remainingInvoice;
+    paid += summary.amountPaid;
   }
   const remaining = computeBalanceDue(invoiced, paid);
 
@@ -553,9 +561,7 @@ export async function serializeProjectDetail(project: ProjectDetail) {
       validUntil: row.validUntil?.toISOString() ?? null,
     })),
     invoices: project.invoices.map((row) => {
-      const amountPaid = sumPaymentAmounts(
-        row.payments.map((payment) => ({ amount: toNumber(payment.amount) })),
-      );
+      const summary = buildInvoicePaymentSummary(row);
       return {
         id: row.id,
         number: row.number,
@@ -563,8 +569,8 @@ export async function serializeProjectDetail(project: ProjectDetail) {
         total: toNumber(row.total),
         currency: row.currency,
         dueDate: row.dueDate?.toISOString() ?? null,
-        amountPaid,
-        balanceDue: computeBalanceDue(row.total, amountPaid),
+        amountPaid: summary.amountPaid,
+        balanceDue: summary.balanceDue,
       };
     }),
     timeEntries: project.timeEntries.map((row) => ({

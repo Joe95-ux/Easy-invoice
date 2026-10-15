@@ -4,7 +4,7 @@ import { useCallback, useState } from "react";
 import { PdfDownloadDialog } from "@/components/pdf-download-dialog";
 
 export type PdfDownloadTarget = {
-  kind: "invoice" | "estimate";
+  kind: "invoice" | "estimate" | "credit_note";
   documentId: string;
   documentNumber: string;
   companyName: string;

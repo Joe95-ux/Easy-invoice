@@ -130,6 +130,10 @@ export async function getClientFinancialProfile(
               confirmationEmails: { orderBy: { createdAt: "desc" } },
             },
           },
+          creditNotes: {
+            where: { status: "ISSUED" },
+            select: { total: true, status: true },
+          },
           reminders: { orderBy: { createdAt: "desc" } },
           installments: { orderBy: { sortOrder: "asc" } },
         },
@@ -174,7 +178,7 @@ export async function getClientFinancialProfile(
         exchangeRate: invoice.exchangeRate,
       }) ?? (invoice.currency === currency ? balanceDueDoc : 0);
 
-    if (invoice.status !== "CANCELLED") {
+    if (invoice.status !== "CANCELLED" && invoice.status !== "CREDITED") {
       totalBilled += total;
     }
 
@@ -183,21 +187,22 @@ export async function getClientFinancialProfile(
     }
 
     for (const payment of invoice.payments) {
+      const isRefund = payment.kind === "REFUND";
       const amountDoc = toNumber(payment.amount);
       const amount =
         paymentAmountInHomeCurrency({
-          amount: payment.amount,
+          amount: isRefund ? -amountDoc : payment.amount,
           invoiceCurrency: invoice.currency,
           homeCurrency: currency,
-          homeCurrencyAmount: payment.homeCurrencyAmount,
+          homeCurrencyAmount: isRefund ? null : payment.homeCurrencyAmount,
           exchangeRate: payment.exchangeRate ?? invoice.exchangeRate,
-        }) ?? (invoice.currency === currency ? amountDoc : 0);
+        }) ?? (invoice.currency === currency ? (isRefund ? -amountDoc : amountDoc) : 0);
       totalCollected += amount;
       activity.push({
         id: `payment-${payment.id}`,
         kind: "payment",
         occurredAt: payment.paidAt.toISOString(),
-        title: "Payment received",
+        title: isRefund ? "Refund recorded" : "Payment received",
         description: payment.receiptNumber
           ? `Receipt ${payment.receiptNumber} · Invoice ${invoice.number}`
           : `Invoice ${invoice.number}`,
@@ -206,7 +211,7 @@ export async function getClientFinancialProfile(
         href: `/invoices/${invoice.id}`,
       });
 
-      if (payment.receiptNumber) {
+      if (payment.receiptNumber && !isRefund) {
         receipts.push({
           id: payment.id,
           receiptNumber: payment.receiptNumber,

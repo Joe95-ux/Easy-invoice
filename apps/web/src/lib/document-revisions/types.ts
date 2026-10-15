@@ -1,4 +1,10 @@
-import type { DocumentRevisionSource, DocumentType, EstimateStatus, InvoiceStatus } from "@easy-invoice/db";
+import type {
+  CreditNoteStatus,
+  DocumentRevisionSource,
+  DocumentType,
+  EstimateStatus,
+  InvoiceStatus,
+} from "@easy-invoice/db";
 
 export type { DocumentRevisionSource, DocumentType };
 
@@ -34,7 +40,7 @@ export type DocumentSnapshotInstallment = {
 };
 
 export type DocumentSnapshot = {
-  status: InvoiceStatus | EstimateStatus;
+  status: InvoiceStatus | EstimateStatus | CreditNoteStatus;
   clientId: string | null;
   number: string;
   issueDate: string;

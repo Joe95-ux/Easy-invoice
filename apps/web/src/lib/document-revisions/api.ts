@@ -7,6 +7,7 @@ import {
   listDocumentRevisions,
 } from "@/lib/document-revisions/service";
 import { formatRevisionActor } from "@/lib/member-email";
+import { getCreditNoteForMember } from "@/lib/credit-notes";
 import { getEstimateForMember } from "@/lib/estimates";
 import { getInvoiceForMember } from "@/lib/invoices";
 
@@ -22,6 +23,15 @@ async function getDocumentStatus(
     if (!invoice) return null;
     return {
       status: invoice.status,
+      hasConvertedInvoice: false,
+    };
+  }
+
+  if (documentType === "CREDIT_NOTE") {
+    const creditNote = await getCreditNoteForMember(documentId, companyId);
+    if (!creditNote) return null;
+    return {
+      status: creditNote.status,
       hasConvertedInvoice: false,
     };
   }

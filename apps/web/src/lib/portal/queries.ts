@@ -29,6 +29,7 @@ const PORTAL_INVOICE_STATUSES: InvoiceStatus[] = [
   "PARTIALLY_PAID",
   "PAID",
   "OVERDUE",
+  "CREDITED",
 ];
 
 const PORTAL_ESTIMATE_STATUSES: EstimateStatus[] = [
@@ -64,7 +65,11 @@ export async function getPortalDashboard(input: {
         status: { in: PORTAL_INVOICE_STATUSES },
       },
       include: {
-        payments: { select: { amount: true } },
+        payments: { select: { amount: true, kind: true } },
+        creditNotes: {
+          where: { status: "ISSUED" },
+          select: { total: true, status: true },
+        },
         installments: {
           select: {
             id: true,

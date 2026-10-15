@@ -12,6 +12,10 @@ export async function getInvoiceForMember(invoiceId: string, companyId: string) 
       project: { select: { id: true, name: true } },
       items: { orderBy: { sortOrder: "asc" } },
       payments: { orderBy: { paidAt: "desc" } },
+      creditNotes: {
+        orderBy: { createdAt: "desc" },
+        include: { items: { orderBy: { sortOrder: "asc" } } },
+      },
       installments: { orderBy: { sortOrder: "asc" } },
     },
   });
@@ -91,6 +95,7 @@ export function formatDateTime(date: Date | string | null | undefined): string {
 
 export function invoiceStatusLabel(status: InvoiceStatus): string {
   if (status === "PARTIALLY_PAID") return "Partially paid";
+  if (status === "CREDITED") return "Credited";
   return status.charAt(0) + status.slice(1).toLowerCase();
 }
 
@@ -100,6 +105,8 @@ export function invoiceStatusVariant(
   switch (status) {
     case "PAID":
       return "success";
+    case "CREDITED":
+      return "info";
     case "PARTIALLY_PAID":
       return "warning";
     case "SENT":

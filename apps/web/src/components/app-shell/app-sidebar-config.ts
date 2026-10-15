@@ -5,6 +5,7 @@ import {
   CheckSquareIcon,
   ClipboardListIcon,
   ClockIcon,
+  FileMinusIcon,
   FileTextIcon,
   LayoutDashboardIcon,
   LayoutTemplateIcon,
@@ -45,6 +46,7 @@ export const APP_QUICK_ACTIONS: AppNavItem[] = [
 export const APP_WORKSPACE_ITEMS: AppNavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboardIcon, motion: "tiles" },
   { href: "/invoices", label: "Invoices", icon: FileTextIcon, motion: "lines" },
+  { href: "/credit-notes", label: "Credit notes", icon: FileMinusIcon, motion: "lines" },
   { href: "/recurring-invoices", label: "Recurring", icon: RefreshCwIcon, motion: "spin" },
   { href: "/estimates", label: "Estimates", icon: ClipboardListIcon, motion: "lines" },
   { href: "/projects", label: "Projects", icon: BriefcaseIcon, motion: "flip" },

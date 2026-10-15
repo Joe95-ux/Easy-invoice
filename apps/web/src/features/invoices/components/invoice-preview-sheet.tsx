@@ -115,7 +115,10 @@ export function InvoicePreviewSheet({
 
   const resolvedEmail = invoice?.clientEmail ?? clientEmail ?? null;
   const canSend =
-    invoice && invoice.status !== "CANCELLED" && invoice.status !== "PAID";
+    invoice &&
+    invoice.status !== "CANCELLED" &&
+    invoice.status !== "PAID" &&
+    invoice.status !== "CREDITED";
 
   return (
     <>

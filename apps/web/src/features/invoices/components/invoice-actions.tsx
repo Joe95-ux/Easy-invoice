@@ -62,6 +62,8 @@ import { FollowUpDialog } from "@/features/follow-ups/components/follow-up-dialo
 import { FollowUpQuickAddMenuItem } from "@/features/follow-ups/components/follow-up-quick-add";
 import { InvoiceSendDialog } from "@/features/invoices/components/invoice-send-dialog";
 import { RecordPaymentDialog } from "@/features/invoices/components/record-payment-dialog";
+import { RecordRefundDialog } from "@/features/credit-notes/components/record-refund-dialog";
+import { VoidInvoiceDialog } from "@/features/credit-notes/components/void-invoice-dialog";
 import { MakeRecurringDialog } from "@/features/recurring-invoices/components/make-recurring-dialog";
 import { usePdfDownload } from "@/hooks/use-pdf-download";
 import { cn } from "@/lib/utils";
@@ -74,6 +76,9 @@ type InvoiceActionsProps = {
   status: InvoiceStatus;
   currency: string;
   balanceDue: number;
+  remainingInvoice?: number;
+  refundDue?: number;
+  amountPaid?: number;
   clientEmail?: string | null;
   clientName?: string | null;
   clientId?: string | null;
@@ -82,6 +87,7 @@ type InvoiceActionsProps = {
   celebrateInvoicePaid?: boolean;
   canWrite?: boolean;
   canDelete?: boolean;
+  creditNoteId?: string | null;
 };
 
 export function InvoiceActions({
@@ -91,6 +97,9 @@ export function InvoiceActions({
   status,
   currency,
   balanceDue,
+  remainingInvoice,
+  refundDue = 0,
+  amountPaid = 0,
   clientEmail,
   clientName,
   clientId,
@@ -99,6 +108,7 @@ export function InvoiceActions({
   celebrateInvoicePaid = false,
   canWrite = true,
   canDelete = true,
+  creditNoteId,
 }: InvoiceActionsProps) {
   const router = useRouter();
   const { openPdfDownload, pdfDownloadDialog } = usePdfDownload();
@@ -110,13 +120,30 @@ export function InvoiceActions({
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [followUpOpen, setFollowUpOpen] = useState(false);
   const [makeRecurringOpen, setMakeRecurringOpen] = useState(false);
+  const [voidOpen, setVoidOpen] = useState(false);
+  const [refundOpen, setRefundOpen] = useState(false);
   const [reminderEmail, setReminderEmail] = useState(clientEmail ?? "");
 
-  const canSend = status !== "CANCELLED" && status !== "PAID";
-  const canMakeRecurring = Boolean(clientId) && status !== "CANCELLED";
+  const leftover = remainingInvoice ?? balanceDue;
+  const canSend = status !== "CANCELLED" && status !== "PAID" && status !== "CREDITED";
+  const canMakeRecurring = Boolean(clientId) && status !== "CANCELLED" && status !== "CREDITED";
   const canMarkAsSent = status === "DRAFT";
   const canRecordPayment =
-    status !== "DRAFT" && status !== "CANCELLED" && status !== "PAID" && balanceDue > 0.001;
+    status !== "DRAFT" &&
+    status !== "CANCELLED" &&
+    status !== "PAID" &&
+    status !== "CREDITED" &&
+    balanceDue > 0.001;
+  const canIssueCredit =
+    status !== "DRAFT" && status !== "CANCELLED" && leftover > 0.001;
+  const canVoid =
+    canIssueCredit &&
+    amountPaid <= 0.001 &&
+    (status === "SENT" ||
+      status === "VIEWED" ||
+      status === "OVERDUE" ||
+      status === "PARTIALLY_PAID");
+  const canRefund = refundDue > 0.001;
   const canRemind =
     Boolean(sentAt && dueDate) &&
     (status === "SENT" ||
@@ -311,6 +338,21 @@ export function InvoiceActions({
                   Record payment
                 </DropdownMenuItem>
               )}
+              {canWrite && canIssueCredit && (
+                <DropdownMenuItem onClick={() => router.push(`/credit-notes/new?invoiceId=${invoiceId}`)}>
+                  Issue credit note
+                </DropdownMenuItem>
+              )}
+              {canWrite && canVoid && (
+                <DropdownMenuItem onClick={() => setVoidOpen(true)}>
+                  Void invoice
+                </DropdownMenuItem>
+              )}
+              {canWrite && canRefund && (
+                <DropdownMenuItem onClick={() => setRefundOpen(true)}>
+                  Record refund
+                </DropdownMenuItem>
+              )}
               {canWrite && canRemind && (
                 <DropdownMenuItem
                   onClick={() => {
@@ -481,6 +523,23 @@ export function InvoiceActions({
         currency={currency}
         balanceDue={balanceDue}
         celebrateInvoicePaid={celebrateInvoicePaid}
+      />
+
+      <VoidInvoiceDialog
+        open={voidOpen}
+        onOpenChange={setVoidOpen}
+        invoiceId={invoiceId}
+        invoiceNumber={invoiceNumber}
+      />
+
+      <RecordRefundDialog
+        open={refundOpen}
+        onOpenChange={setRefundOpen}
+        invoiceId={invoiceId}
+        invoiceNumber={invoiceNumber}
+        currency={currency}
+        refundDue={refundDue}
+        creditNoteId={creditNoteId}
       />
 
       {pdfDownloadDialog}

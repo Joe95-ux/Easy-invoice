@@ -188,7 +188,9 @@ export function ClientInvoicesTable({
                       <DownloadIcon className="size-4" />
                       Download PDF
                     </DropdownMenuItem>
-                    {invoice.status !== "CANCELLED" && invoice.status !== "PAID" && (
+                    {invoice.status !== "CANCELLED" &&
+                      invoice.status !== "PAID" &&
+                      invoice.status !== "CREDITED" && (
                       <DropdownMenuItem
                         onClick={(event) => {
                           event.stopPropagation();

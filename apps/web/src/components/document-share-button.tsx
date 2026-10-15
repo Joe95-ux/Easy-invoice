@@ -16,7 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 
 type DocumentShareButtonProps = {
-  kind: "invoice" | "estimate";
+  kind: "invoice" | "estimate" | "credit_note";
   documentId: string;
   showTrigger?: boolean;
   open?: boolean;
@@ -40,7 +40,9 @@ export function DocumentShareButton({
   const apiPath =
     kind === "invoice"
       ? `/api/invoices/${documentId}/share-link`
-      : `/api/estimates/${documentId}/share-link`;
+      : kind === "estimate"
+        ? `/api/estimates/${documentId}/share-link`
+        : `/api/credit-notes/${documentId}/share-link`;
 
   useEffect(() => {
     if (!open || url) return;

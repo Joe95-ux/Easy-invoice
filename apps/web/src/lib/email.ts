@@ -124,6 +124,62 @@ export async function sendInvoiceEmail(input: SendInvoiceEmailInput) {
   return data;
 }
 
+type SendCreditNoteEmailInput = {
+  to: string;
+  companyName: string;
+  creditNoteNumber: string;
+  invoiceNumber: string;
+  total: string;
+  pdfBuffer: Buffer;
+  viewUrl?: string;
+  portalUrl?: string;
+  message?: string;
+  subject?: string;
+  replyTo?: string | null;
+};
+
+export async function sendCreditNoteEmail(input: SendCreditNoteEmailInput) {
+  const from = getEmailFromAddress();
+  const resend = getResend();
+
+  const viewLink = input.viewUrl
+    ? `<p><a href="${input.viewUrl}">View credit note online</a></p>`
+    : "";
+  const portalLink = formatPortalLink(input.portalUrl);
+  const personalMessage = formatPersonalMessage(input.message);
+  const subject =
+    input.subject?.trim() ||
+    `Credit note ${input.creditNoteNumber} from ${input.companyName}`;
+
+  const { data, error } = await resend.emails.send({
+    from,
+    to: input.to,
+    ...(sanitizeReplyTo(input.replyTo) ? { replyTo: sanitizeReplyTo(input.replyTo) } : {}),
+    subject,
+    html: `
+      <p>Hello,</p>
+      ${personalMessage}
+      <p>Please find attached credit note <strong>${input.creditNoteNumber}</strong> from <strong>${input.companyName}</strong>, applied to invoice <strong>${input.invoiceNumber}</strong>.</p>
+      <p>Credit total: <strong>${input.total}</strong></p>
+      ${viewLink}
+      ${portalLink}
+      <p>Thank you for your business.</p>
+    `,
+    attachments: [
+      {
+        filename: `${input.creditNoteNumber}.pdf`,
+        content: input.pdfBuffer,
+      },
+    ],
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
 type SendEstimateEmailInput = {
   to: string;
   companyName: string;

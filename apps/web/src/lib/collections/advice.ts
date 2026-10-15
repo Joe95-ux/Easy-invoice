@@ -63,17 +63,18 @@ export function getCollectionsAdvice(input: AdviceInput): CollectionsAdvice {
     input.balanceDue >= MIN_PLAN_BALANCE &&
     input.amountPaid <= 0.001 &&
     input.installmentCount === 0 &&
-    !["DRAFT", "CANCELLED", "PAID"].includes(input.status);
+    !["DRAFT", "CANCELLED", "PAID", "CREDITED"].includes(input.status);
 
   const canOfferPartialPay =
     input.balanceDue >= MIN_PARTIAL_BALANCE &&
     input.installmentCount === 0 &&
-    !["DRAFT", "CANCELLED", "PAID"].includes(input.status);
+    !["DRAFT", "CANCELLED", "PAID", "CREDITED"].includes(input.status);
 
   if (
     input.status === "DRAFT" ||
     input.status === "CANCELLED" ||
     input.status === "PAID" ||
+    input.status === "CREDITED" ||
     input.balanceDue <= 0.001
   ) {
     return {

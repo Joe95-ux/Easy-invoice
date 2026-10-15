@@ -35,7 +35,7 @@ export default async function PublicInvoicePage({ params }: PageProps) {
     Boolean(invoice.company.stripeConnectedAccountId) &&
     invoice.company.stripeConnectChargesEnabled &&
     invoice.company.stripeConnectDetailsSubmitted &&
-    !["DRAFT", "CANCELLED", "PAID"].includes(invoice.status) &&
+    !["DRAFT", "CANCELLED", "PAID", "CREDITED"].includes(invoice.status) &&
     summary.balanceDue > 0.001;
 
   // Self-serve split only when the company turned on the policy.
@@ -46,7 +46,10 @@ export default async function PublicInvoicePage({ params }: PageProps) {
     summary.installments.length === 0 &&
     summary.balanceDue >= MIN_PLAN_BALANCE;
 
-  const alreadyPaid = invoice.status === "PAID" || summary.balanceDue <= 0.001;
+  const alreadyPaid =
+    invoice.status === "PAID" ||
+    invoice.status === "CREDITED" ||
+    summary.balanceDue <= 0.001;
   const isOverdue = invoice.status === "OVERDUE";
   const dueLabel = invoice.dueDate ? formatDate(invoice.dueDate) : null;
   const hasInstallmentDue =
@@ -58,7 +61,10 @@ export default async function PublicInvoicePage({ params }: PageProps) {
     : hasInstallmentDue
       ? summary.nextDueAmount!
       : summary.balanceDue;
-  const amountHint = alreadyPaid
+  const amountHint =
+    invoice.status === "CREDITED"
+      ? "credited"
+      : alreadyPaid
     ? null
     : hasInstallmentDue
       ? `due now · ${formatMoney(summary.balanceDue, invoice.currency)} remaining`

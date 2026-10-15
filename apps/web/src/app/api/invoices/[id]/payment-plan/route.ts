@@ -9,6 +9,7 @@ import {
   syncInvoiceInstallments,
   validateInstallments,
 } from "@/lib/invoice-payments";
+import { invoiceSettlementInclude } from "@/lib/invoice-payments-utils";
 import {
   assertProFeature,
   isPlanLimitError,
@@ -43,7 +44,7 @@ export async function POST(request: Request, context: RouteContext) {
   const invoice = await prisma.invoice.findFirst({
     where: { id, companyId: member.companyId },
     include: {
-      payments: { select: { amount: true } },
+      ...invoiceSettlementInclude,
       installments: { orderBy: { sortOrder: "asc" } },
     },
   });
@@ -51,7 +52,7 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  if (["DRAFT", "CANCELLED", "PAID"].includes(invoice.status)) {
+  if (["DRAFT", "CANCELLED", "PAID", "CREDITED"].includes(invoice.status)) {
     return NextResponse.json(
       { error: "This invoice cannot use a payment plan" },
       { status: 400 },
@@ -93,7 +94,7 @@ export async function POST(request: Request, context: RouteContext) {
   const updated = await prisma.invoice.findFirst({
     where: { id: invoice.id },
     include: {
-      payments: { select: { amount: true } },
+      ...invoiceSettlementInclude,
       installments: { orderBy: { sortOrder: "asc" } },
     },
   });
@@ -122,7 +123,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
   const invoice = await prisma.invoice.findFirst({
     where: { id, companyId: member.companyId },
     include: {
-      payments: { select: { amount: true } },
+      ...invoiceSettlementInclude,
       installments: { orderBy: { sortOrder: "asc" } },
     },
   });

@@ -12,6 +12,7 @@ import { InvoiceActions } from "@/features/invoices/components/invoice-actions";
 import { InvoiceAutoDownload } from "@/features/invoices/components/invoice-auto-download";
 import { InvoiceGetPaidSection } from "@/features/invoices/components/invoice-get-paid-section";
 import { InvoiceRemindersSection } from "@/features/invoices/components/invoice-reminders-section";
+import { InvoiceCreditNotesSection } from "@/features/credit-notes/components/invoice-credit-notes-section";
 import { InvoicePaymentsSection } from "@/features/invoices/components/invoice-payments-section";
 import { InvoicePaymentQrSection } from "@/features/invoices/components/invoice-payment-qr-section";
 import { DocumentHistorySection } from "@/components/document-history-section";
@@ -78,6 +79,8 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
       });
 
   const paymentSummary = buildInvoicePaymentSummary(invoice);
+  const latestIssuedCreditNoteId =
+    invoice.creditNotes.find((note) => note.status === "ISSUED")?.id ?? null;
   const customFieldDefinitions = normalizeCustomFieldDefinitions(
     invoice.company.customFieldDefinitions,
   );
@@ -144,6 +147,9 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
             status={invoice.status}
             currency={invoice.currency}
             balanceDue={paymentSummary.balanceDue}
+            remainingInvoice={paymentSummary.remainingInvoice}
+            refundDue={paymentSummary.refundDue}
+            amountPaid={paymentSummary.amountPaid}
             clientEmail={invoice.client?.email}
             clientName={invoice.client?.name}
             clientId={invoice.clientId}
@@ -152,6 +158,7 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
             celebrateInvoicePaid={member.celebrateInvoicePaid}
             canWrite={canWriteDocuments(member.role)}
             canDelete={canDeleteDocuments(member.role)}
+            creditNoteId={latestIssuedCreditNoteId}
           />
         }
       />
@@ -344,6 +351,30 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
               <span>Total</span>
               <span>{formatMoney(invoice.total, invoice.currency)}</span>
             </div>
+            {paymentSummary.amountCredited > 0.001 ? (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Credits</span>
+                <span>-{formatMoney(paymentSummary.amountCredited, invoice.currency)}</span>
+              </div>
+            ) : null}
+            {paymentSummary.amountPaid > 0.001 ? (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Amount paid</span>
+                <span>-{formatMoney(paymentSummary.amountPaid, invoice.currency)}</span>
+              </div>
+            ) : null}
+            {paymentSummary.amountCredited > 0.001 || paymentSummary.amountPaid > 0.001 ? (
+              <div className="flex justify-between font-semibold">
+                <span>Balance due</span>
+                <span>{formatMoney(paymentSummary.balanceDue, invoice.currency)}</span>
+              </div>
+            ) : null}
+            {paymentSummary.refundDue > 0.001 ? (
+              <div className="flex justify-between text-destructive">
+                <span>Refund due</span>
+                <span>{formatMoney(paymentSummary.refundDue, invoice.currency)}</span>
+              </div>
+            ) : null}
           </div>
         </CardContent>
       </Card>
@@ -398,6 +429,7 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
         payments={invoice.payments.map((payment) => ({
           id: payment.id,
           amount: Number(payment.amount),
+          kind: payment.kind,
           paidAt: payment.paidAt.toISOString(),
           method: payment.method,
           reference: payment.reference,
@@ -408,6 +440,26 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
         celebrateInvoicePaid={member.celebrateInvoicePaid}
         canWrite={canWriteDocuments(member.role)}
         canDeletePayments={canDeletePayments(member.role)}
+      />
+
+      <InvoiceCreditNotesSection
+        invoiceId={invoice.id}
+        invoiceNumber={invoice.number}
+        invoiceStatus={invoice.status}
+        currency={invoice.currency}
+        amountCredited={paymentSummary.amountCredited}
+        refundDue={paymentSummary.refundDue}
+        remainingInvoice={paymentSummary.remainingInvoice}
+        creditNotes={invoice.creditNotes.map((note) => ({
+          id: note.id,
+          number: note.number,
+          status: note.status,
+          kind: note.kind,
+          total: Number(note.total),
+          issueDate: note.issueDate.toISOString(),
+          reason: note.reason,
+        }))}
+        canWrite={canWriteDocuments(member.role)}
       />
 
       <InvoicePaymentQrSection

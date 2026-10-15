@@ -64,7 +64,7 @@ export type InvoiceRow = InvoiceListRow;
 const STATUS_FILTER_OPTIONS = [
   { value: "all", label: "All statuses" },
   ...(
-    ["DRAFT", "SENT", "VIEWED", "PARTIALLY_PAID", "PAID", "OVERDUE", "CANCELLED"] as InvoiceStatus[]
+    ["DRAFT", "SENT", "VIEWED", "PARTIALLY_PAID", "PAID", "OVERDUE", "CANCELLED", "CREDITED"] as InvoiceStatus[]
   ).map((status) => ({
     value: status,
     label: invoiceStatusLabel(status),
@@ -113,7 +113,8 @@ function canSendRow(row: InvoiceRow): boolean {
   return (
     Boolean(row.clientEmail?.trim()) &&
     row.status !== "CANCELLED" &&
-    row.status !== "PAID"
+    row.status !== "PAID" &&
+    row.status !== "CREDITED"
   );
 }
 
@@ -122,6 +123,7 @@ function canRecordPayment(row: InvoiceRow): boolean {
     row.status !== "DRAFT" &&
     row.status !== "CANCELLED" &&
     row.status !== "PAID" &&
+    row.status !== "CREDITED" &&
     Number(row.balanceDue) > 0.001
   );
 }

@@ -1,7 +1,7 @@
 import type { InvoiceStatus, PaymentMethod } from "@easy-invoice/db";
 import type { Decimal } from "@prisma/client/runtime/library";
 
-type MoneyInput = number | string | Decimal;
+type MoneyInput = number | string | Decimal | { toString(): string };
 
 function toNumber(value: MoneyInput): number {
   return typeof value === "number" ? value : parseFloat(value.toString());
@@ -36,6 +36,7 @@ export type PaymentLike = {
 };
 
 export type CreditNoteLike = {
+  id?: string;
   total: MoneyInput;
   status?: string | null;
 };
@@ -62,6 +63,12 @@ export type InvoicePaymentSummary = {
 
 export function isRefundPayment(payment: PaymentLike): boolean {
   return payment.kind === "REFUND";
+}
+
+/** Positive for collections, negative for refunds. */
+export function signedPaymentAmount(payment: PaymentLike): number {
+  const amount = toNumber(payment.amount);
+  return isRefundPayment(payment) ? -amount : amount;
 }
 
 export function computePaymentSplits(payments: PaymentLike[]): {

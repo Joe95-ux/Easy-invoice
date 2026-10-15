@@ -148,7 +148,7 @@ export type CreateInvoiceInput = z.infer<typeof createInvoiceSchema>;
 
 export const updateInvoiceSchema = createInvoiceSchema.partial().extend({
   status: z
-    .enum(["DRAFT", "SENT", "VIEWED", "PARTIALLY_PAID", "PAID", "OVERDUE", "CANCELLED"])
+    .enum(["DRAFT", "SENT", "VIEWED", "PARTIALLY_PAID", "PAID", "OVERDUE", "CANCELLED", "CREDITED"])
     .optional(),
   templateId: z.string().optional().nullable(),
   clientEmail: z.string().email().optional(),

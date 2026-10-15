@@ -37,7 +37,11 @@ export async function getInvoicesForMember(companyId: string, limit = 50) {
     where: { companyId },
     include: {
       client: true,
-      payments: { select: { amount: true } },
+      payments: { select: { amount: true, kind: true } },
+      creditNotes: {
+        where: { status: "ISSUED" },
+        select: { total: true, status: true },
+      },
     },
     orderBy: { createdAt: "desc" },
     take: limit,
@@ -108,7 +112,11 @@ export async function listInvoicesForMember(input: {
         sentAt: true,
         clientId: true,
         client: { select: { name: true, email: true } },
-        payments: { select: { amount: true } },
+        payments: { select: { amount: true, kind: true } },
+        creditNotes: {
+          where: { status: "ISSUED" },
+          select: { total: true, status: true },
+        },
       },
       orderBy,
       skip: (page - 1) * pageSize,
@@ -254,7 +262,7 @@ export function documentTotalsPersistFields(built: BuiltDocumentTotals) {
   };
 }
 
-const TERMINAL_STATUSES: InvoiceStatus[] = ["PAID", "CANCELLED"];
+const TERMINAL_STATUSES: InvoiceStatus[] = ["PAID", "CANCELLED", "CREDITED"];
 
 export function canTransitionInvoiceStatus(from: InvoiceStatus, to: InvoiceStatus): boolean {
   if (from === to) return true;

@@ -50,7 +50,11 @@ export async function applyPaidInvoiceCheckoutSession(
   const invoice = await prisma.invoice.findFirst({
     where: { id: invoiceId, companyId },
     include: {
-      payments: { select: { amount: true, stripeCheckoutSessionId: true } },
+      payments: { select: { amount: true, kind: true, stripeCheckoutSessionId: true } },
+      creditNotes: {
+        where: { status: "ISSUED" },
+        select: { total: true, status: true },
+      },
       installments: { orderBy: { sortOrder: "asc" } },
     },
   });

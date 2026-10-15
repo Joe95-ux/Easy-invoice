@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { downloadCreditNotePdf } from "@/lib/credit-note-pdf-client";
 import { downloadEstimatePdf } from "@/lib/estimate-pdf-client";
 import { downloadInvoicePdf } from "@/lib/invoice-pdf-client";
 import { sanitizePdfFilename, suggestPdfFilename } from "@/lib/pdf-filename";
@@ -42,8 +43,10 @@ export function PdfDownloadDialog({ target, onClose }: PdfDownloadDialogProps) {
     try {
       if (target.kind === "invoice") {
         await downloadInvoicePdf(target.documentId, safeName);
-      } else {
+      } else if (target.kind === "estimate") {
         await downloadEstimatePdf(target.documentId, safeName);
+      } else {
+        await downloadCreditNotePdf(target.documentId, safeName);
       }
       onClose();
     } catch {
@@ -53,7 +56,8 @@ export function PdfDownloadDialog({ target, onClose }: PdfDownloadDialogProps) {
     }
   }
 
-  const label = target?.kind === "estimate" ? "Estimate" : "Invoice";
+  const label =
+    target?.kind === "estimate" ? "Estimate" : target?.kind === "credit_note" ? "Credit note" : "Invoice";
 
   return (
     <Dialog open={target !== null} onOpenChange={(open) => !open && onClose()}>

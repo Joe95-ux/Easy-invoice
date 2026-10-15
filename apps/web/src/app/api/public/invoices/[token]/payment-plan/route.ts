@@ -8,6 +8,7 @@ import {
   syncInvoiceInstallments,
   validateInstallments,
 } from "@/lib/invoice-payments";
+import { invoiceSettlementInclude } from "@/lib/invoice-payments-utils";
 import {
   assertProFeature,
   isPlanLimitError,
@@ -35,7 +36,7 @@ export async function POST(request: Request, context: RouteContext) {
   const invoice = await prisma.invoice.findUnique({
     where: { publicToken: token },
     include: {
-      payments: { select: { amount: true } },
+      ...invoiceSettlementInclude,
       installments: { orderBy: { sortOrder: "asc" } },
       company: {
         select: {
@@ -67,7 +68,7 @@ export async function POST(request: Request, context: RouteContext) {
     );
   }
 
-  if (["DRAFT", "CANCELLED", "PAID"].includes(invoice.status)) {
+  if (["DRAFT", "CANCELLED", "PAID", "CREDITED"].includes(invoice.status)) {
     return NextResponse.json(
       { error: "This invoice cannot use a payment plan" },
       { status: 400 },
@@ -121,7 +122,7 @@ export async function POST(request: Request, context: RouteContext) {
   const updated = await prisma.invoice.findUnique({
     where: { id: invoice.id },
     include: {
-      payments: { select: { amount: true } },
+      ...invoiceSettlementInclude,
       installments: { orderBy: { sortOrder: "asc" } },
     },
   });

@@ -54,6 +54,9 @@ function taxesWithAmounts(
 }
 
 type InvoiceWithRelations = NonNullable<Awaited<ReturnType<typeof getInvoiceForMember>>>;
+type InvoiceForHtml = Omit<InvoiceWithRelations, "creditNotes"> & {
+  creditNotes?: Array<{ total: number | string | { toString(): string }; status?: string | null }>;
+};
 
 export type RenderInvoiceHtmlOptions = {
   /** Embed logo as data URL (required for PDF). Browser previews can load remote URLs. */
@@ -65,7 +68,7 @@ export type RenderInvoiceHtmlOptions = {
 };
 
 export function invoiceToHtmlData(
-  invoice: InvoiceWithRelations,
+  invoice: InvoiceForHtml,
 ): InvoiceHtmlData {
   const paymentSummary = buildInvoicePaymentSummary(invoice);
   const definitions = normalizeCustomFieldDefinitions(
@@ -115,6 +118,8 @@ export function invoiceToHtmlData(
       total: Number(invoice.total),
       notes: invoice.notes,
       amountPaid: paymentSummary.amountPaid,
+      amountCredited: paymentSummary.amountCredited,
+      refundDue: paymentSummary.refundDue,
       balanceDue: paymentSummary.balanceDue,
       exchangeRate:
         invoice.exchangeRate != null ? Number(invoice.exchangeRate) : null,
@@ -155,18 +160,20 @@ export function invoiceToHtmlData(
       balanceDue: row.balanceDue,
       isPaid: row.isPaid,
     })),
-    payments: invoice.payments.map((payment) => ({
-      paidAt: payment.paidAt,
-      amount: Number(payment.amount),
-      method: PAYMENT_METHOD_LABELS[payment.method],
-      reference: payment.reference,
-      receiptNumber: payment.receiptNumber,
-    })),
+    payments: invoice.payments
+      .filter((payment) => ("kind" in payment ? payment.kind !== "REFUND" : true))
+      .map((payment) => ({
+        paidAt: payment.paidAt,
+        amount: Number(payment.amount),
+        method: PAYMENT_METHOD_LABELS[payment.method],
+        reference: payment.reference,
+        receiptNumber: payment.receiptNumber,
+      })),
   };
 }
 
 async function resolveInvoiceTemplate(
-  invoice: InvoiceWithRelations,
+  invoice: InvoiceForHtml,
   ensureTemplates: boolean,
 ): Promise<{ html: string; css: string | null }> {
   if (invoice.template) {
@@ -204,7 +211,7 @@ async function resolveInvoiceTemplate(
 }
 
 export async function renderInvoiceHtmlForInvoice(
-  invoice: InvoiceWithRelations,
+  invoice: InvoiceForHtml,
   options: RenderInvoiceHtmlOptions = {},
 ): Promise<string> {
   const { inlineLogo = true, ensureTemplates = true, includePaymentQr = true } = options;

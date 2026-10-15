@@ -1,5 +1,6 @@
 import type { EstimateStatus, InvoiceStatus } from "@easy-invoice/db";
 import { prisma } from "@/lib/db";
+import { CREDIT_NOTE_INCLUDE } from "@/lib/credit-notes";
 import { generatePublicToken } from "@/lib/document-tokens";
 import { recordDocumentRevision } from "@/lib/document-revisions/service";
 import { isEmailConfigured, sendEstimateAcceptedEmail } from "@/lib/email";
@@ -13,6 +14,10 @@ const INVOICE_INCLUDE = {
   project: { select: { id: true, name: true } },
   items: { orderBy: { sortOrder: "asc" as const } },
   payments: { orderBy: { paidAt: "desc" as const } },
+  creditNotes: {
+    where: { status: "ISSUED" as const },
+    select: { id: true, total: true, status: true, number: true },
+  },
   installments: { orderBy: { sortOrder: "asc" as const } },
 } as const;
 
@@ -81,6 +86,37 @@ export async function getInvoiceByPublicToken(token: string) {
   return prisma.invoice.findUnique({
     where: { publicToken: token },
     include: INVOICE_INCLUDE,
+  });
+}
+
+export async function ensureCreditNotePublicToken(creditNoteId: string, companyId: string) {
+  const note = await prisma.creditNote.findFirst({
+    where: { id: creditNoteId, companyId },
+    select: { id: true, publicToken: true },
+  });
+  if (!note) return null;
+  if (note.publicToken) return note.publicToken;
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const token = generatePublicToken();
+    try {
+      const updated = await prisma.creditNote.update({
+        where: { id: creditNoteId },
+        data: { publicToken: token },
+        select: { publicToken: true },
+      });
+      return updated.publicToken;
+    } catch {
+      // Unique collision — retry
+    }
+  }
+  return null;
+}
+
+export async function getCreditNoteByPublicToken(token: string) {
+  return prisma.creditNote.findUnique({
+    where: { publicToken: token },
+    include: CREDIT_NOTE_INCLUDE,
   });
 }
 

@@ -93,9 +93,9 @@ function buildMobilePageRange(current: number, total: number): (number | "ellips
 }
 
 function apiBase(kind: DocumentKind, documentId: string) {
-  return kind === "estimate"
-    ? `/api/estimates/${documentId}/revisions`
-    : `/api/invoices/${documentId}/revisions`;
+  if (kind === "estimate") return `/api/estimates/${documentId}/revisions`;
+  if (kind === "credit_note") return `/api/credit-notes/${documentId}/revisions`;
+  return `/api/invoices/${documentId}/revisions`;
 }
 
 function snapshotToPreview(
@@ -265,7 +265,8 @@ export function DocumentHistorySection({
     previewRevision &&
     snapshotToPreview(previewRevision.snapshot, kind, company, client, templates);
 
-  const label = kind === "estimate" ? "estimate" : "invoice";
+  const label =
+    kind === "estimate" ? "estimate" : kind === "credit_note" ? "credit note" : "invoice";
 
   const desktopPages = useMemo(() => buildPageRange(page, pageCount), [page, pageCount]);
   const mobilePages = useMemo(() => buildMobilePageRange(page, pageCount), [page, pageCount]);

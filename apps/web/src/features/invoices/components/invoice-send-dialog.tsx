@@ -75,7 +75,7 @@ export function InvoiceSendDialog({
   const messageRef = useRef<HTMLTextAreaElement>(null);
   const autoDraftedForOpen = useRef(false);
 
-  const canSend = status !== "CANCELLED" && status !== "PAID";
+  const canSend = status !== "CANCELLED" && status !== "PAID" && status !== "CREDITED";
   const emailUnlocked = isPro;
   const canCompose = canSend && emailUnlocked;
   const attachmentName = `${invoiceNumber}.pdf`;
