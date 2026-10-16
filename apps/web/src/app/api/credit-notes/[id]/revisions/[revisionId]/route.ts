@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { requireApiMember } from "@/lib/api/validation";
 import { handleGetRevision } from "@/lib/document-revisions/api";
 

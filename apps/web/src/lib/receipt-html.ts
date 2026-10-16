@@ -337,7 +337,7 @@ export async function renderReceiptHtmlForPayment(
     invoice: {
       number: invoice.number,
       currency: invoice.currency,
-      total,
+      total: Number(invoice.total),
       amountPaid,
       balanceDue,
     },
