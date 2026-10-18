@@ -253,7 +253,7 @@ function isPastDue(date: Date | null, today: Date): boolean {
 
 export function deriveInvoiceStatusAfterPayment(
   currentStatus: InvoiceStatus,
-  total: MoneyInput,
+  _total: MoneyInput,
   amountPaid: number,
   summary: InvoicePaymentSummary,
 ): InvoiceStatus {
@@ -261,8 +261,7 @@ export function deriveInvoiceStatusAfterPayment(
     return currentStatus;
   }
 
-  const remainingInvoice =
-    summary.remainingInvoice ?? computeBalanceDue(total, summary.amountCredited ?? 0);
+  const remainingInvoice = summary.remainingInvoice;
   const netCollected = amountPaid;
   const today = new Date();
   const hasOverdue =

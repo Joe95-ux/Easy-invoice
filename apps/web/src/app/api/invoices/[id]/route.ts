@@ -78,6 +78,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       dueDate: existing.dueDate,
       payments: existing.payments ?? [],
       creditNotes: existing.creditNotes ?? [],
+      lateFees: existing.lateFees ?? [],
       installments: existing.installments ?? [],
     });
     if (paymentSummary.balanceDue > 0.001) {

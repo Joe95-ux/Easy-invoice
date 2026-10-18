@@ -130,18 +130,12 @@ export async function getPortalDashboard(input: {
     if (!token) continue;
     const href = invoicePublicPath(token);
     const summary = buildInvoicePaymentSummary({
-      total: toNumber(invoice.total),
+      total: invoice.total,
       dueDate: invoice.dueDate,
-      payments: invoice.payments.map((payment) => ({
-        amount: toNumber(payment.amount),
-      })),
-      installments: invoice.installments.map((row) => ({
-        id: row.id,
-        amount: toNumber(row.amount),
-        dueDate: row.dueDate,
-        label: row.label,
-        sortOrder: row.sortOrder,
-      })),
+      payments: invoice.payments,
+      creditNotes: invoice.creditNotes,
+      lateFees: invoice.lateFees,
+      installments: invoice.installments,
     });
     openBalance += summary.balanceDue;
     invoiceItems.push({

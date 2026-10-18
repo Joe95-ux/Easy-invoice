@@ -42,6 +42,9 @@ export function ReminderSettingsSection({
   const [estimateDaysBeforeInput, setEstimateDaysBeforeInput] = useState(
     formatDaysInput(initialSettings.estimateReminderDaysBefore),
   );
+  const [collectionsDaysInput, setCollectionsDaysInput] = useState(
+    formatDaysInput(initialSettings.collectionsDaysAfter),
+  );
   const [saving, setSaving] = useState(false);
   const [savingSwitch, setSavingSwitch] = useState<keyof ReminderSettingsInput | null>(null);
 

@@ -7,6 +7,7 @@ import {
 } from "@/lib/api/validation";
 import { recordAuditEvent } from "@/lib/audit/service";
 import { summarizeReminderSettingsChange } from "@/lib/audit/summaries";
+import { isProPlan } from "@/lib/billing/entitlements";
 import { AuditAction, AuditCategory, prisma } from "@/lib/db";
 import { combinedReminderSettingsFromCompany } from "@/lib/reminders/estimate-settings";
 import { reminderSettingsSchema } from "@/lib/schemas/reminders";
@@ -67,9 +68,22 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Company not found" }, { status: 404 });
   }
 
+  const data = { ...parsed.data };
+  if (!isProPlan(authResult.member.company.plan)) {
+    data.collectionsEnabled = before.collectionsEnabled;
+    data.collectionsDaysAfter = before.collectionsDaysAfter;
+    data.collectionsIncludePdf = before.collectionsIncludePdf;
+    data.collectionsAttachStatement = before.collectionsAttachStatement;
+    data.lateFeesEnabled = before.lateFeesEnabled;
+    data.lateFeeType = before.lateFeeType === "flat" ? "flat" : "percent";
+    data.lateFeePercent = Number(before.lateFeePercent);
+    data.lateFeeFlat = Number(before.lateFeeFlat);
+    data.lateFeeGraceDays = before.lateFeeGraceDays;
+  }
+
   const company = await prisma.company.update({
     where: { id: authResult.member.companyId },
-    data: parsed.data,
+    data,
     select: SETTINGS_SELECT,
   });
 

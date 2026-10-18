@@ -24,7 +24,6 @@ export async function applyInvoiceLateFee(input: {
     where: { id: input.invoiceId, companyId: input.companyId },
     include: {
       company: true,
-      lateFees: { select: { id: true, amount: true } },
       ...invoiceSettlementInclude,
     },
   });
@@ -51,7 +50,10 @@ export async function applyInvoiceLateFee(input: {
 
   const today = startOfUtcDay(input.today ?? new Date());
   const summary = buildInvoicePaymentSummary(invoice, today);
-  if (summary.balanceDue <= 0.001) return null;
+  if (summary.balanceDue <= 0.001) {
+    if (input.source === "MANUAL") throw new Error("There is no outstanding balance to apply a late fee to");
+    return null;
+  }
 
   const due = summary.nextDueDate ?? invoice.dueDate;
   if (!due) {
@@ -70,7 +72,7 @@ export async function applyInvoiceLateFee(input: {
     return null;
   }
 
-  const amount = computeLateFeeAmount(summary.remainingInvoice, settings);
+  const amount = computeLateFeeAmount(summary.balanceDue, settings);
   if (amount <= 0.001) {
     if (input.source === "MANUAL") throw new Error("Late fee amount must be greater than zero");
     return null;

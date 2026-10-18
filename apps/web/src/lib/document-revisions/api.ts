@@ -36,6 +36,8 @@ async function getDocumentStatus(
     };
   }
 
+  if (documentType === "STATEMENT") return null;
+
   const estimate = await getEstimateForMember(documentId, companyId);
   if (!estimate) return null;
   return {

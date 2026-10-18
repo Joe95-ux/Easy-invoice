@@ -9,9 +9,11 @@ import { formatDueDateLabel, sendPaymentReminderEmail } from "@/lib/reminder-ema
 import { generateInvoicePdfBuffer } from "@/lib/invoice-service";
 import { formatMoney } from "@/lib/invoices";
 import { buildInvoicePaymentSummary } from "@/lib/invoice-payments";
+import { invoiceSettlementInclude } from "@/lib/invoice-payments-utils";
 import { buildReminderRevisionSummary } from "@/lib/document-revisions/snapshot";
 import { recordDocumentRevision } from "@/lib/document-revisions/service";
 import { createNotification } from "@/lib/notifications/service";
+import { sanitizePdfFilename } from "@/lib/pdf-filename";
 import { ensureInvoicePublicToken } from "@/lib/public-documents";
 import { portalLoginUrl } from "@/lib/portal/urls";
 import { daysUntilDue, startOfUtcDay } from "@/lib/reminders/dates";
@@ -142,14 +144,28 @@ export async function sendInvoiceReminder(options: {
     return { ok: false, error: "Reminder already sent for this schedule", skipped: true };
   }
 
-  const pdfResult = await generateInvoicePdfBuffer(options.invoiceId, options.companyId);
-  if (!pdfResult) {
+  const invoice = await prisma.invoice.findFirst({
+    where: { id: options.invoiceId, companyId: options.companyId },
+    include: {
+      client: { select: { id: true, email: true, name: true } },
+      company: {
+        select: {
+          name: true,
+          email: true,
+          reminderIncludePdf: true,
+          collectionsIncludePdf: true,
+          collectionsAttachStatement: true,
+        },
+      },
+      installments: { orderBy: { sortOrder: "asc" } },
+      ...invoiceSettlementInclude,
+    },
+  });
+  if (!invoice) {
     return { ok: false, error: "Invoice not found" };
   }
 
-  const { invoice, pdfBuffer } = pdfResult;
   const paymentSummary = buildInvoicePaymentSummary(invoice);
-  const settings = reminderSettingsFromCompany(invoice.company);
 
   if (invoice.remindersPaused && options.kind !== ReminderKind.MANUAL) {
     return { ok: false, error: "Reminders paused for this invoice", skipped: true };
@@ -177,6 +193,18 @@ export async function sendInvoiceReminder(options: {
     return { ok: false, error: "Client email is required" };
   }
 
+  const includePdf =
+    options.kind === ReminderKind.COLLECTIONS
+      ? invoice.company.collectionsIncludePdf
+      : invoice.company.reminderIncludePdf;
+
+  const pdfResult = includePdf
+    ? await generateInvoicePdfBuffer(options.invoiceId, options.companyId)
+    : null;
+  if (includePdf && !pdfResult) {
+    return { ok: false, error: "Invoice not found" };
+  }
+
   const origin = await getAppOrigin();
   const token = await ensureInvoicePublicToken(options.invoiceId, options.companyId);
   const viewUrl = token
@@ -184,6 +212,24 @@ export async function sendInvoiceReminder(options: {
     : `${origin}/invoices/${options.invoiceId}`;
 
   try {
+    const statementAttachment =
+      options.kind === ReminderKind.COLLECTIONS &&
+      invoice.company.collectionsAttachStatement &&
+      invoice.clientId
+        ? await generateClientStatementPdfBuffer(invoice.clientId, options.companyId)
+            .then((result) =>
+              result
+                ? [
+                    {
+                      filename: `${sanitizePdfFilename(`statement-${result.client.name}`)}.pdf`,
+                      content: result.pdfBuffer,
+                    },
+                  ]
+                : undefined,
+            )
+            .catch(() => undefined)
+        : undefined;
+
     await sendPaymentReminderEmail({
       to: toEmail,
       companyName: invoice.company.name,
@@ -196,25 +242,8 @@ export async function sendInvoiceReminder(options: {
       viewUrl,
       portalUrl: portalLoginUrl(origin, toEmail),
       kind: options.kind,
-      pdfBuffer: (
-        options.kind === ReminderKind.COLLECTIONS
-          ? invoice.company.collectionsIncludePdf
-          : settings.reminderIncludePdf
-      )
-        ? pdfBuffer
-        : undefined,
-      extraAttachments:
-        options.kind === ReminderKind.COLLECTIONS &&
-        invoice.company.collectionsAttachStatement &&
-        invoice.clientId
-          ? await generateClientStatementPdfBuffer(invoice.clientId, options.companyId)
-              .then((result) =>
-                result
-                  ? [{ filename: `statement-${result.client.name}.pdf`, content: result.pdfBuffer }]
-                  : undefined,
-              )
-              .catch(() => undefined)
-          : undefined,
+      pdfBuffer: pdfResult?.pdfBuffer,
+      extraAttachments: statementAttachment,
       replyTo: invoice.company.email,
     });
 
@@ -294,7 +323,11 @@ export async function runInvoiceReminderJob(now = new Date()) {
 
   const companies = await prisma.company.findMany({
     where: {
-      OR: [{ remindersEnabled: true }, { collectionsEnabled: true, plan: { in: ["PRO", "BUSINESS", "SCALE"] } }],
+      OR: [
+        { remindersEnabled: true },
+        { collectionsEnabled: true, plan: { in: ["PRO", "BUSINESS", "SCALE"] } },
+        { lateFeesEnabled: true, plan: { in: ["PRO", "BUSINESS", "SCALE"] } },
+      ],
     },
     select: {
       id: true,

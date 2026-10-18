@@ -74,6 +74,7 @@ export async function getDashboardStats(companyId: string) {
       total: invoice.total,
       payments: invoice.payments,
       creditNotes: invoice.creditNotes,
+      lateFees: invoice.lateFees,
     }).balanceDue;
     if (balanceDueDoc <= 0) return sum;
     const balanceDue = paymentAmountInHomeCurrency({

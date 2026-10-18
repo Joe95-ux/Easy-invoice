@@ -105,6 +105,7 @@ function creditCapacity(
       total: { toString(): string } | number;
       status?: string | null;
     }>;
+    lateFees?: Array<{ amount: { toString(): string } | number }>;
     dueDate?: Date | null;
     installments?: Array<{
       id: string;

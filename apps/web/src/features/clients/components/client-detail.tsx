@@ -52,6 +52,7 @@ type ClientDetailProps = {
   companyName: string;
   canWrite?: boolean;
   canDelete?: boolean;
+  isPro?: boolean;
 };
 
 export function ClientDetail({
@@ -59,6 +60,7 @@ export function ClientDetail({
   companyName,
   canWrite = true,
   canDelete = true,
+  isPro = false,
 }: ClientDetailProps) {
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
@@ -101,6 +103,10 @@ export function ClientDetail({
   }
 
   async function handleSendStatement() {
+    if (!client.email) {
+      toast.error("Add a client email before sending a statement");
+      return;
+    }
     setSendingStatement(true);
     try {
       const response = await fetch(`/api/clients/${client.id}/statements`, {
@@ -188,9 +194,9 @@ export function ClientDetail({
                       New estimate
                     </DropdownMenuItem>
                   ) : null}
-                  {canWrite && summary.outstanding > 0.001 ? (
+                  {canWrite && isPro && summary.outstanding > 0.001 ? (
                     <DropdownMenuItem
-                      disabled={sendingStatement}
+                      disabled={sendingStatement || !client.email}
                       onClick={() => void handleSendStatement()}
                     >
                       Send statement

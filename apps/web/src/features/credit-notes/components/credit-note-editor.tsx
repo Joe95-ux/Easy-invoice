@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { DatePicker } from "@/components/forms/date-picker";
 import { formatMoney } from "@/lib/invoices";
+import { buildInvoicePaymentSummary } from "@/lib/invoice-payments-utils";
 
 type LineDraft = {
   key: string;
@@ -126,25 +127,29 @@ export function CreditNoteEditor({ invoiceId, creditNoteId, initial }: CreditNot
             total: { toString(): string } | number;
             status?: string | null;
           }>;
+          lateFees?: Array<{ amount: { toString(): string } | number }>;
           items: Array<{
             description: string;
             quantity: { toString(): string } | number;
             unitPrice: { toString(): string } | number;
           }>;
         };
-        const issuedCredits = (next.creditNotes ?? []).reduce((sum, note) => {
-          if (note.status !== "ISSUED") return sum;
-          if (creditNoteId && note.id === creditNoteId) return sum;
-          return sum + Number(note.total);
-        }, 0);
         const invoiceTotal = Number(next.total);
+        const remainingInvoice = buildInvoicePaymentSummary({
+          total: next.total,
+          creditNotes: (next.creditNotes ?? []).filter((note) => {
+            if (!creditNoteId) return true;
+            return note.id !== creditNoteId;
+          }),
+          lateFees: next.lateFees,
+        }).remainingInvoice;
         setInvoice({
           id: next.id,
           number: next.number,
           currency: next.currency,
           status: next.status,
           total: invoiceTotal,
-          remainingInvoice: Math.max(0, Math.round((invoiceTotal - issuedCredits) * 100) / 100),
+          remainingInvoice,
           clientName: next.client?.name ?? null,
           items: next.items.map((item) => ({
             description: item.description,

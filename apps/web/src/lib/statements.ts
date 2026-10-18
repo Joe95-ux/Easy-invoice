@@ -5,7 +5,7 @@ import { getAppOrigin } from "@/lib/app-url";
 import { assertProFeature } from "@/lib/billing/entitlements";
 import { allocateStatementNumber } from "@/lib/document-numbers";
 import { generatePublicToken, publicDocumentUrl } from "@/lib/document-tokens";
-import { getEmailFromAddress } from "@/lib/email";
+import { getEmailFromAddress, isEmailConfigured } from "@/lib/email";
 import { formatMoney } from "@/lib/invoices";
 import {
   buildInvoicePaymentSummary,
@@ -92,7 +92,47 @@ export async function buildClientStatementSnapshot(
   };
 }
 
-async function statementHtmlData(
+function companyHtmlFields(company: {
+  name: string;
+  logoUrl?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zip?: string | null;
+  country?: string | null;
+}): StatementHtmlData["company"] {
+  return {
+    name: company.name,
+    logoUrl: company.logoUrl,
+    email: company.email,
+    phone: company.phone,
+    address: company.address,
+    city: company.city,
+    state: company.state,
+    zip: company.zip,
+    country: company.country,
+  };
+}
+
+function clientHtmlFields(client: {
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  country?: string | null;
+}): StatementHtmlData["client"] {
+  return {
+    name: client.name,
+    email: client.email,
+    phone: client.phone,
+    address: client.address,
+    country: client.country,
+  };
+}
+
+function statementHtmlData(
   statement: {
     number: string;
     issuedAt: Date;
@@ -103,7 +143,7 @@ async function statementHtmlData(
   company: StatementHtmlData["company"],
   client: StatementHtmlData["client"],
   viewUrl?: string,
-): Promise<StatementHtmlData> {
+): StatementHtmlData {
   const snapshot = statement.snapshot as StatementSnapshot;
   return {
     company,
@@ -142,8 +182,11 @@ export async function createAndSendClientStatement(input: {
     throw new Error("This client has no open invoices to include on a statement");
   }
 
-  const number = await allocateStatementNumber(input.companyId);
   const toEmail = input.toEmail?.trim() || client.email;
+  if (!toEmail) throw new Error("Client email is required to send a statement");
+  if (!isEmailConfigured()) throw new Error("Email is not configured");
+
+  const number = await allocateStatementNumber(input.companyId);
   const created = await prisma.clientStatement.create({
     data: {
       companyId: input.companyId,
@@ -153,40 +196,23 @@ export async function createAndSendClientStatement(input: {
       currency: snapshot.currency,
       totalDue: snapshot.totalDue,
       publicToken: generatePublicToken(),
-      toEmail: toEmail ?? null,
+      toEmail,
       snapshot,
     },
   });
 
-  const origin = await getAppOrigin();
-  const viewUrl = publicDocumentUrl(origin, "statement", created.publicToken!);
-  const html = renderStatementHtml(
-    await statementHtmlData(
-      created,
-      {
-        name: client.company.name,
-        logoUrl: client.company.logoUrl,
-        email: client.company.email,
-        phone: client.company.phone,
-        address: client.company.address,
-        city: client.company.city,
-        state: client.company.state,
-        zip: client.company.zip,
-        country: client.company.country,
-      },
-      {
-        name: client.name,
-        email: client.email,
-        phone: client.phone,
-        address: client.address,
-        country: client.country,
-      },
-      viewUrl,
-    ),
-  );
-  const pdfBuffer = await renderInvoicePdf(html);
-
-  if (toEmail) {
+  try {
+    const origin = await getAppOrigin();
+    const viewUrl = publicDocumentUrl(origin, "statement", created.publicToken!);
+    const html = renderStatementHtml(
+      statementHtmlData(
+        created,
+        companyHtmlFields(client.company),
+        clientHtmlFields(client),
+        viewUrl,
+      ),
+    );
+    const pdfBuffer = await renderInvoicePdf(html);
     const resend = new Resend(process.env.RESEND_API_KEY);
     const { error } = await resend.emails.send({
       from: getEmailFromAddress(),
@@ -204,20 +230,23 @@ export async function createAndSendClientStatement(input: {
       attachments: [{ filename: `${created.number}.pdf`, content: pdfBuffer }],
     });
     if (error) throw new Error(error.message);
+
+    await recordAuditEvent({
+      companyId: input.companyId,
+      memberId: input.memberId ?? null,
+      category: AuditCategory.DOCUMENT,
+      action: AuditAction.STATEMENT_SENT,
+      summary: `Sent statement ${created.number} to ${toEmail}`,
+      entityType: "ClientStatement",
+      entityId: created.id,
+      metadata: { clientId: client.id, totalDue: snapshot.totalDue },
+    });
+
+    return { statement: created, pdfBuffer, viewUrl };
+  } catch (error) {
+    await prisma.clientStatement.delete({ where: { id: created.id } }).catch(() => undefined);
+    throw error;
   }
-
-  await recordAuditEvent({
-    companyId: input.companyId,
-    memberId: input.memberId ?? null,
-    category: AuditCategory.DOCUMENT,
-    action: AuditAction.STATEMENT_SENT,
-    summary: `Sent statement ${created.number} to ${toEmail ?? client.name}`,
-    entityType: "ClientStatement",
-    entityId: created.id,
-    metadata: { clientId: client.id, totalDue: snapshot.totalDue },
-  });
-
-  return { statement: created, pdfBuffer, viewUrl };
 }
 
 export async function getStatementForMember(id: string, companyId: string) {
@@ -242,7 +271,12 @@ export async function renderStatementPdfForRecord(statement: NonNullable<
     ? publicDocumentUrl(origin, "statement", statement.publicToken)
     : undefined;
   const html = renderStatementHtml(
-    await statementHtmlData(statement, statement.company, statement.client, viewUrl),
+    statementHtmlData(
+      statement,
+      companyHtmlFields(statement.company),
+      clientHtmlFields(statement.client),
+      viewUrl,
+    ),
   );
   return renderInvoicePdf(html);
 }
@@ -254,26 +288,10 @@ export async function generateClientStatementPdfBuffer(clientId: string, company
   });
   if (!client) return null;
   const snapshot = await buildClientStatementSnapshot(clientId, companyId);
-  if (!snapshot) return null;
+  if (!snapshot || snapshot.invoices.length === 0) return null;
   const html = renderStatementHtml({
-    company: {
-      name: client.company.name,
-      logoUrl: client.company.logoUrl,
-      email: client.company.email,
-      phone: client.company.phone,
-      address: client.company.address,
-      city: client.company.city,
-      state: client.company.state,
-      zip: client.company.zip,
-      country: client.company.country,
-    },
-    client: {
-      name: client.name,
-      email: client.email,
-      phone: client.phone,
-      address: client.address,
-      country: client.country,
-    },
+    company: companyHtmlFields(client.company),
+    client: clientHtmlFields(client),
     statement: {
       number: "Current",
       issuedAt: new Date(),

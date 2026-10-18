@@ -7,7 +7,7 @@ export function canRestoreInPlace(
   documentType: DocumentType,
   status: RevisionStatus,
 ): boolean {
-  if (documentType === "CREDIT_NOTE") return false;
+  if (documentType === "CREDIT_NOTE" || documentType === "STATEMENT") return false;
   return status === "DRAFT";
 }
 
@@ -16,7 +16,7 @@ export function canDuplicateFromVersion(
   status: RevisionStatus,
   options?: { hasConvertedInvoice?: boolean },
 ): boolean {
-  if (documentType === "CREDIT_NOTE") return false;
+  if (documentType === "CREDIT_NOTE" || documentType === "STATEMENT") return false;
   if (documentType === "INVOICE") {
     return status === "SENT" || status === "VIEWED" || status === "OVERDUE" || status === "PARTIALLY_PAID";
   }

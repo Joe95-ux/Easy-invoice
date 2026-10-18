@@ -78,9 +78,12 @@ export async function sendPaymentReminderEmail(input: SendPaymentReminderEmailIn
     input.dueDateLabel,
   );
 
-  const attachments = input.pdfBuffer
-    ? [{ filename: `${input.invoiceNumber}.pdf`, content: input.pdfBuffer }]
-    : undefined;
+  const attachments = [
+    ...(input.pdfBuffer
+      ? [{ filename: `${input.invoiceNumber}.pdf`, content: input.pdfBuffer }]
+      : []),
+    ...(input.extraAttachments ?? []),
+  ];
 
   const { data, error } = await resend.emails.send({
     from,
@@ -100,7 +103,7 @@ export async function sendPaymentReminderEmail(input: SendPaymentReminderEmailIn
       <p>If you've already sent payment, please disregard this message.</p>
       <p>— ${input.companyName}</p>
     `,
-    attachments: attachments.length > 0 ? attachments : undefined,
+    ...(attachments.length > 0 ? { attachments } : {}),
   });
 
   if (error) throw new Error(error.message);
