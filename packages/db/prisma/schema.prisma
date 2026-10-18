@@ -104,6 +104,7 @@ enum ReminderKind {
   ON_DUE
   OVERDUE
   MANUAL
+  COLLECTIONS
 }
 
 enum ReminderDeliveryStatus {
@@ -115,6 +116,7 @@ enum DocumentType {
   INVOICE
   ESTIMATE
   CREDIT_NOTE
+  STATEMENT
 }
 
 enum DocumentRevisionSource {
@@ -194,6 +196,8 @@ enum AuditAction {
   CREDIT_NOTE_CANCELLED
   INVOICE_VOIDED
   REFUND_RECORDED
+  LATE_FEE_APPLIED
+  STATEMENT_SENT
   CLIENT_DELETED
   PAYMENT_CONFIRMATION_SENT
   PAYMENT_CONFIRMATION_RESENT
@@ -249,6 +253,18 @@ model Company {
   reminderOnDueDate    Boolean  @default(true)
   reminderDaysAfter    Int[]    @default([1, 7, 14])
   reminderIncludePdf   Boolean  @default(true)
+  /// Pro: send firmer chase emails after overdue reminder days.
+  collectionsEnabled   Boolean  @default(true)
+  collectionsDaysAfter Int[]    @default([7, 14, 30])
+  collectionsIncludePdf Boolean @default(true)
+  collectionsAttachStatement Boolean @default(false)
+  /// Pro: add a late fee after the grace period without rewriting sent lines.
+  lateFeesEnabled      Boolean  @default(false)
+  /// percent | flat
+  lateFeeType          String   @default("percent")
+  lateFeePercent       Decimal  @default(1.50) @db.Decimal(5, 2)
+  lateFeeFlat          Decimal  @default(0) @db.Decimal(12, 2)
+  lateFeeGraceDays     Int      @default(0)
   paymentReceiptEmailsEnabled Boolean @default(true)
   /// Follow-up emails for open estimates before validUntil.
   estimateRemindersEnabled     Boolean @default(true)
@@ -262,6 +278,7 @@ model Company {
   estimateSequence     Int      @default(0)
   receiptSequence      Int      @default(0)
   creditNoteSequence   Int      @default(0)
+  statementSequence    Int      @default(0)
   defaultHourlyRate    Decimal? @db.Decimal(12, 2)
   timerRoundToMinutes  Int      @default(1)
   /// Ordered payment options shown on invoices/estimates, e.g. [{ "label": "PayPal", "value": "pay@co.com" }]
@@ -280,6 +297,8 @@ model Company {
   invoices  Invoice[]
   estimates Estimate[]
   creditNotes CreditNote[]
+  statements ClientStatement[]
+  lateFees  InvoiceLateFee[]
   projects  Project[]
   templates InvoiceTemplate[]
   defaultTemplate InvoiceTemplate? @relation("CompanyDefaultTemplate", fields: [defaultTemplateId], references: [id], onDelete: SetNull)
@@ -325,6 +344,8 @@ model CompanyMember {
   documentRevisions DocumentRevision[]
   invoicePayments InvoicePayment[]
   creditNotes CreditNote[]
+  lateFees InvoiceLateFee[]
+  statements ClientStatement[]
   paymentConfirmationEmails PaymentConfirmationEmail[]
   auditEvents       AuditEvent[]
   notifications     Notification[]
@@ -403,6 +424,7 @@ model Client {
   invoices Invoice[]
   estimates Estimate[]
   creditNotes CreditNote[]
+  statements ClientStatement[]
   projects Project[]
   timeEntries TimeEntry[]
   activeTimeTimers ActiveTimeTimer[]
@@ -633,6 +655,7 @@ model Invoice {
   installments InvoiceInstallment[]
   payments  InvoicePayment[]
   creditNotes CreditNote[]
+  lateFees InvoiceLateFee[]
   timeEntries TimeEntry[]
   projectExpenses ProjectExpense[]
   /// Scan-to-pay QRs linked to this invoice (typically one LINK to a payment URL).
@@ -662,6 +685,49 @@ model InvoiceReminder {
 
   @@unique([invoiceId, kind, offsetDays, scheduleDate])
   @@index([invoiceId])
+}
+
+model InvoiceLateFee {
+  id        String   @id @default(cuid())
+  invoiceId String
+  companyId String
+  memberId  String?
+  amount    Decimal  @db.Decimal(12, 2)
+  /// AUTO | MANUAL
+  source    String   @default("AUTO")
+  reason    String?
+  appliedAt DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  member  CompanyMember? @relation(fields: [memberId], references: [id], onDelete: SetNull)
+
+  @@index([invoiceId])
+  @@index([companyId])
+}
+
+model ClientStatement {
+  id          String   @id @default(cuid())
+  companyId   String
+  clientId    String
+  memberId    String?
+  number      String
+  issuedAt    DateTime @default(now())
+  currency    String   @default("USD")
+  totalDue    Decimal  @db.Decimal(12, 2)
+  publicToken String?  @unique
+  toEmail     String?
+  snapshot    Json
+  createdAt   DateTime @default(now())
+
+  company Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  client  Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  member  CompanyMember? @relation(fields: [memberId], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, number])
+  @@index([companyId, createdAt])
+  @@index([clientId, createdAt])
 }
 
 model InvoiceInstallment {

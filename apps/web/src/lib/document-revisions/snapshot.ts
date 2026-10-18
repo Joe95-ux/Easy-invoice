@@ -309,6 +309,8 @@ export function buildReminderRevisionSummary(
       return `Automatic due-date reminder sent to ${email}`;
     case "OVERDUE":
       return `Automatic overdue reminder sent to ${email}`;
+    case "COLLECTIONS":
+      return `Collections follow-up sent to ${email}`;
     case "MANUAL":
       return `Payment reminder sent to ${email}`;
     default:

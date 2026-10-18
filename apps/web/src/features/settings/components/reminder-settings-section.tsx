@@ -12,9 +12,12 @@ import { Switch } from "@/components/ui/switch";
 import { describeReminderSchedule } from "@/lib/reminders/settings";
 import { describeEstimateReminderSchedule } from "@/lib/reminders/estimate-settings";
 import type { ReminderSettingsInput } from "@/lib/schemas/reminders";
+import { describeCollectionsSchedule } from "@/lib/collections/settings";
+import { ProFeatureGate } from "@/components/billing/pro-feature-gate";
 
 type ReminderSettingsSectionProps = {
   initialSettings: ReminderSettingsInput;
+  isPro?: boolean;
 };
 
 function formatDaysInput(days: number[]): string {
@@ -28,7 +31,10 @@ function parseDaysInput(value: string): number[] {
     .filter((day) => Number.isInteger(day) && day >= 1 && day <= 90);
 }
 
-export function ReminderSettingsSection({ initialSettings }: ReminderSettingsSectionProps) {
+export function ReminderSettingsSection({
+  initialSettings,
+  isPro = false,
+}: ReminderSettingsSectionProps) {
   const router = useRouter();
   const [settings, setSettings] = useState(initialSettings);
   const [daysBeforeInput, setDaysBeforeInput] = useState(formatDaysInput(initialSettings.reminderDaysBefore));
@@ -45,6 +51,7 @@ export function ReminderSettingsSection({ initialSettings }: ReminderSettingsSec
       reminderDaysBefore: parseDaysInput(daysBeforeInput),
       reminderDaysAfter: parseDaysInput(daysAfterInput),
       estimateReminderDaysBefore: parseDaysInput(estimateDaysBeforeInput),
+      collectionsDaysAfter: parseDaysInput(collectionsDaysInput),
       ...overrides,
     };
   }
@@ -72,6 +79,7 @@ export function ReminderSettingsSection({ initialSettings }: ReminderSettingsSec
       setDaysBeforeInput(formatDaysInput(body.settings.reminderDaysBefore));
       setDaysAfterInput(formatDaysInput(body.settings.reminderDaysAfter));
       setEstimateDaysBeforeInput(formatDaysInput(body.settings.estimateReminderDaysBefore));
+      setCollectionsDaysInput(formatDaysInput(body.settings.collectionsDaysAfter));
       router.refresh();
     } catch (error) {
       setSettings(previous);
@@ -98,6 +106,7 @@ export function ReminderSettingsSection({ initialSettings }: ReminderSettingsSec
       setDaysBeforeInput(formatDaysInput(body.settings.reminderDaysBefore));
       setDaysAfterInput(formatDaysInput(body.settings.reminderDaysAfter));
       setEstimateDaysBeforeInput(formatDaysInput(body.settings.estimateReminderDaysBefore));
+      setCollectionsDaysInput(formatDaysInput(body.settings.collectionsDaysAfter));
       toast.success("Reminder settings saved");
       router.refresh();
     } catch (error) {
@@ -109,6 +118,7 @@ export function ReminderSettingsSection({ initialSettings }: ReminderSettingsSec
 
   const schedulePreview = describeReminderSchedule(buildPayload());
   const estimateSchedulePreview = describeEstimateReminderSchedule(buildPayload());
+  const collectionsPreview = describeCollectionsSchedule(buildPayload());
 
   return (
     <Card>
@@ -295,6 +305,175 @@ export function ReminderSettingsSection({ initialSettings }: ReminderSettingsSec
               </ul>
             </div>
           </div>
+        </div>
+
+        <div className="border-t pt-6">
+          <div className="mb-4">
+            <h3 className="font-heading text-base font-semibold">Collections & late fees</h3>
+            <p className="text-sm text-muted-foreground">
+              Pro sends firmer chase emails on a schedule and can add a late fee without rewriting the sent invoice.
+            </p>
+          </div>
+          {!isPro ? (
+            <ProFeatureGate
+              variant="banner"
+              title="Automated collections is on Pro"
+              description="Escalate overdue invoices, apply late fees, and attach client statements."
+            />
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
+                <div className="space-y-1">
+                  <Label htmlFor="collections-enabled">Automatic collections</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Send a firm follow-up on selected days past due. Replaces the gentle reminder on those days.
+                  </p>
+                </div>
+                <Switch
+                  id="collections-enabled"
+                  checked={settings.collectionsEnabled}
+                  onCheckedChange={(checked) => void toggleSetting("collectionsEnabled", checked)}
+                  disabled={savingSwitch !== null}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="collections-days">Days after due date</Label>
+                <Input
+                  id="collections-days"
+                  value={collectionsDaysInput}
+                  onChange={(event) => setCollectionsDaysInput(event.target.value)}
+                  placeholder="7, 14, 30"
+                  disabled={!settings.collectionsEnabled}
+                />
+                <p className="text-xs text-muted-foreground">Comma-separated, e.g. 7, 14, 30</p>
+              </div>
+              <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
+                <div className="space-y-1">
+                  <Label htmlFor="collections-pdf">Attach invoice PDF</Label>
+                  <p className="text-sm text-muted-foreground">Include the invoice PDF on collections emails.</p>
+                </div>
+                <Switch
+                  id="collections-pdf"
+                  checked={settings.collectionsIncludePdf}
+                  onCheckedChange={(checked) => void toggleSetting("collectionsIncludePdf", checked)}
+                  disabled={savingSwitch !== null}
+                />
+              </div>
+              <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
+                <div className="space-y-1">
+                  <Label htmlFor="collections-statement">Attach account statement</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Include a current statement of everything this client still owes.
+                  </p>
+                </div>
+                <Switch
+                  id="collections-statement"
+                  checked={settings.collectionsAttachStatement}
+                  onCheckedChange={(checked) =>
+                    void toggleSetting("collectionsAttachStatement", checked)
+                  }
+                  disabled={savingSwitch !== null}
+                />
+              </div>
+              <div className="rounded-lg bg-muted/50 p-4 text-sm">
+                <p className="font-medium">Collections schedule preview</p>
+                <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
+                  {collectionsPreview.map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ul>
+              </div>
+              <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
+                <div className="space-y-1">
+                  <Label htmlFor="late-fees-enabled">Automatic late fees</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Add one late fee after the grace period. Original line items stay as sent.
+                  </p>
+                </div>
+                <Switch
+                  id="late-fees-enabled"
+                  checked={settings.lateFeesEnabled}
+                  onCheckedChange={(checked) => void toggleSetting("lateFeesEnabled", checked)}
+                  disabled={savingSwitch !== null}
+                />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="space-y-2">
+                  <Label htmlFor="late-fee-type">Type</Label>
+                  <select
+                    id="late-fee-type"
+                    className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    value={settings.lateFeeType}
+                    disabled={!settings.lateFeesEnabled}
+                    onChange={(event) =>
+                      setSettings((prev) => ({
+                        ...prev,
+                        lateFeeType: event.target.value === "flat" ? "flat" : "percent",
+                      }))
+                    }
+                  >
+                    <option value="percent">Percent of remaining</option>
+                    <option value="flat">Flat amount</option>
+                  </select>
+                </div>
+                {settings.lateFeeType === "flat" ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="late-fee-flat">Amount</Label>
+                    <Input
+                      id="late-fee-flat"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={settings.lateFeeFlat}
+                      disabled={!settings.lateFeesEnabled}
+                      onChange={(event) =>
+                        setSettings((prev) => ({
+                          ...prev,
+                          lateFeeFlat: Number(event.target.value),
+                        }))
+                      }
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Label htmlFor="late-fee-percent">Percent</Label>
+                    <Input
+                      id="late-fee-percent"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.1"
+                      value={settings.lateFeePercent}
+                      disabled={!settings.lateFeesEnabled}
+                      onChange={(event) =>
+                        setSettings((prev) => ({
+                          ...prev,
+                          lateFeePercent: Number(event.target.value),
+                        }))
+                      }
+                    />
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <Label htmlFor="late-fee-grace">Grace days</Label>
+                  <Input
+                    id="late-fee-grace"
+                    type="number"
+                    min="0"
+                    max="90"
+                    value={settings.lateFeeGraceDays}
+                    disabled={!settings.lateFeesEnabled}
+                    onChange={(event) =>
+                      setSettings((prev) => ({
+                        ...prev,
+                        lateFeeGraceDays: Number(event.target.value),
+                      }))
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <Button onClick={handleSave} disabled={saving}>

@@ -393,8 +393,10 @@ function buildSections(
 
   const amountPaid = invoice.amountPaid ?? 0;
   const amountCredited = invoice.amountCredited ?? 0;
+  const amountLateFees = invoice.amountLateFees ?? 0;
   const balanceDue = invoice.balanceDue ?? invoice.total;
-  const hasPartialPayment = amountPaid > 0.001 || amountCredited > 0.001;
+  const hasPartialPayment =
+    amountPaid > 0.001 || amountCredited > 0.001 || amountLateFees > 0.001;
   const hasSchedule = (data.installments?.length ?? 0) > 0;
 
   const taxRows = (() => {
@@ -456,6 +458,9 @@ function buildSections(
     fxRow,
     hasPartialPayment && amountCredited > 0.001
       ? `<div class="totals-row"><span>Credits</span><span>-${formatMoney(amountCredited, invoice.currency)}</span></div>`
+      : "",
+    hasPartialPayment && amountLateFees > 0.001
+      ? `<div class="totals-row"><span>Late fee</span><span>${formatMoney(amountLateFees, invoice.currency)}</span></div>`
       : "",
     hasPartialPayment && amountPaid > 0.001
       ? `<div class="totals-row"><span>Amount paid</span><span>-${formatMoney(amountPaid, invoice.currency)}</span></div>`

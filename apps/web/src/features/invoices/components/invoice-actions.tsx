@@ -88,6 +88,8 @@ type InvoiceActionsProps = {
   canWrite?: boolean;
   canDelete?: boolean;
   creditNoteId?: string | null;
+  hasLateFee?: boolean;
+  isPro?: boolean;
 };
 
 export function InvoiceActions({
@@ -109,6 +111,8 @@ export function InvoiceActions({
   canWrite = true,
   canDelete = true,
   creditNoteId,
+  hasLateFee = false,
+  isPro = false,
 }: InvoiceActionsProps) {
   const router = useRouter();
   const { openPdfDownload, pdfDownloadDialog } = usePdfDownload();
@@ -144,6 +148,15 @@ export function InvoiceActions({
       status === "OVERDUE" ||
       status === "PARTIALLY_PAID");
   const canRefund = refundDue > 0.001;
+  const canApplyLateFee =
+    isPro &&
+    !hasLateFee &&
+    balanceDue > 0.001 &&
+    Boolean(sentAt && dueDate) &&
+    status !== "DRAFT" &&
+    status !== "CANCELLED" &&
+    status !== "PAID" &&
+    status !== "CREDITED";
   const canRemind =
     Boolean(sentAt && dueDate) &&
     (status === "SENT" ||
@@ -178,6 +191,21 @@ export function InvoiceActions({
       router.refresh();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not mark invoice as sent");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function handleApplyLateFee() {
+    setLoading("late-fee");
+    try {
+      const response = await fetch(`/api/invoices/${invoiceId}/late-fees`, { method: "POST" });
+      const data = await response.json().catch(() => ({}));
+      throwIfApiError(response, data, "Could not apply late fee");
+      toast.success("Late fee applied");
+      router.refresh();
+    } catch (error) {
+      toastApiError(error, "Could not apply late fee");
     } finally {
       setLoading(null);
     }
@@ -351,6 +379,11 @@ export function InvoiceActions({
               {canWrite && canRefund && (
                 <DropdownMenuItem onClick={() => setRefundOpen(true)}>
                   Record refund
+                </DropdownMenuItem>
+              )}
+              {canWrite && canApplyLateFee && (
+                <DropdownMenuItem onClick={() => void handleApplyLateFee()} disabled={isBusy}>
+                  {loading === "late-fee" ? "Applying…" : "Apply late fee"}
                 </DropdownMenuItem>
               )}
               {canWrite && canRemind && (

@@ -27,6 +27,10 @@ function formatCreditNoteNumber(prefix: string, sequence: number): string {
   return `${prefix}-C${String(sequence).padStart(SEQUENCE_PAD, "0")}`;
 }
 
+function formatStatementNumber(prefix: string, sequence: number): string {
+  return `${prefix}-S${String(sequence).padStart(SEQUENCE_PAD, "0")}`;
+}
+
 export function previewInvoiceNumber(company: {
   id: string;
   documentPrefix?: string | null;
@@ -165,4 +169,29 @@ export async function allocateCreditNoteNumber(companyId: string): Promise<strin
   }
 
   throw new Error("Could not generate unique credit note number");
+}
+
+export async function allocateStatementNumber(companyId: string): Promise<string> {
+  const maxAttempts = 5;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const company = await prisma.$transaction(async (tx) => {
+      return tx.company.update({
+        where: { id: companyId },
+        data: { statementSequence: { increment: 1 } },
+        select: { id: true, documentPrefix: true, statementSequence: true },
+      });
+    });
+
+    const prefix = getCompanyDocumentPrefix(company);
+    const number = formatStatementNumber(prefix, company.statementSequence);
+
+    const exists = await prisma.clientStatement.findFirst({
+      where: { companyId, number },
+      select: { id: true },
+    });
+    if (!exists) return number;
+  }
+
+  throw new Error("Could not generate unique statement number");
 }

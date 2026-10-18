@@ -30,6 +30,15 @@ const REMINDER_FIELD_LABELS: Record<string, string> = {
   estimateReminderDaysBefore: "days before estimate expiry",
   estimateReminderOnExpiryDay: "remind on estimate expiry day",
   estimateReminderIncludePdf: "attach PDF to estimate follow-ups",
+  collectionsEnabled: "automatic collections",
+  collectionsDaysAfter: "collections days after due",
+  collectionsIncludePdf: "attach PDF to collections emails",
+  collectionsAttachStatement: "attach statement to collections emails",
+  lateFeesEnabled: "automatic late fees",
+  lateFeeType: "late fee type",
+  lateFeePercent: "late fee percent",
+  lateFeeFlat: "late fee amount",
+  lateFeeGraceDays: "late fee grace days",
 };
 
 function formatValue(value: unknown): string {

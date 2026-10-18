@@ -55,6 +55,7 @@ export async function applyPaidInvoiceCheckoutSession(
         where: { status: "ISSUED" },
         select: { total: true, status: true },
       },
+      lateFees: { select: { amount: true } },
       installments: { orderBy: { sortOrder: "asc" } },
     },
   });

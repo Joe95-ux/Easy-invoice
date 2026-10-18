@@ -54,6 +54,7 @@ export async function getDashboardStats(companyId: string) {
           where: { status: "ISSUED" },
           select: { total: true, status: true },
         },
+        lateFees: { select: { amount: true } },
       },
     }),
     getCompanyUnbilledTimeStats(companyId),

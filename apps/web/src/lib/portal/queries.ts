@@ -70,6 +70,7 @@ export async function getPortalDashboard(input: {
           where: { status: "ISSUED" },
           select: { total: true, status: true },
         },
+        lateFees: { select: { amount: true } },
         installments: {
           select: {
             id: true,

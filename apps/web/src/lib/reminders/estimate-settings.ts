@@ -11,7 +11,18 @@ export type EstimateReminderSettings = {
   estimateReminderIncludePdf: boolean;
 };
 
-export type CombinedReminderSettings = ReminderSettings & EstimateReminderSettings;
+export type CombinedReminderSettings = ReminderSettings &
+  EstimateReminderSettings & {
+    collectionsEnabled: boolean;
+    collectionsDaysAfter: number[];
+    collectionsIncludePdf: boolean;
+    collectionsAttachStatement: boolean;
+    lateFeesEnabled: boolean;
+    lateFeeType: "percent" | "flat";
+    lateFeePercent: number;
+    lateFeeFlat: number;
+    lateFeeGraceDays: number;
+  };
 
 export function estimateReminderSettingsFromCompany(
   company: Pick<
@@ -32,11 +43,30 @@ export function estimateReminderSettingsFromCompany(
 
 export function combinedReminderSettingsFromCompany(
   company: Parameters<typeof reminderSettingsFromCompany>[0] &
-    Parameters<typeof estimateReminderSettingsFromCompany>[0],
+    Parameters<typeof estimateReminderSettingsFromCompany>[0] & {
+      collectionsEnabled: boolean;
+      collectionsDaysAfter: number[];
+      collectionsIncludePdf: boolean;
+      collectionsAttachStatement: boolean;
+      lateFeesEnabled: boolean;
+      lateFeeType: string;
+      lateFeePercent: { toString(): string } | number;
+      lateFeeFlat: { toString(): string } | number;
+      lateFeeGraceDays: number;
+    },
 ): CombinedReminderSettings {
   return {
     ...reminderSettingsFromCompany(company),
     ...estimateReminderSettingsFromCompany(company),
+    collectionsEnabled: company.collectionsEnabled,
+    collectionsDaysAfter: company.collectionsDaysAfter,
+    collectionsIncludePdf: company.collectionsIncludePdf,
+    collectionsAttachStatement: company.collectionsAttachStatement,
+    lateFeesEnabled: company.lateFeesEnabled,
+    lateFeeType: company.lateFeeType === "flat" ? "flat" : "percent",
+    lateFeePercent: Number(company.lateFeePercent),
+    lateFeeFlat: Number(company.lateFeeFlat),
+    lateFeeGraceDays: company.lateFeeGraceDays,
   };
 }
 

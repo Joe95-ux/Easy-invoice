@@ -13,6 +13,7 @@ import {
 } from "@/lib/custom-fields";
 import { normalizePaymentMethods } from "@/lib/company-payment-methods";
 import { combinedReminderSettingsFromCompany } from "@/lib/reminders/estimate-settings";
+import { isProPlan } from "@/lib/billing/entitlements";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -181,6 +182,7 @@ export default async function SettingsGeneralPage() {
         <section id="settings-reminders" className="scroll-mt-20">
           <ReminderSettingsSection
             initialSettings={combinedReminderSettingsFromCompany(company)}
+            isPro={isProPlan(company.plan)}
           />
         </section>
       </div>

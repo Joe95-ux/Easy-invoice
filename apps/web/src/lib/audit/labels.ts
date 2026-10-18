@@ -26,6 +26,8 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   CREDIT_NOTE_CANCELLED: "Credit note cancelled",
   INVOICE_VOIDED: "Invoice voided",
   REFUND_RECORDED: "Refund recorded",
+  LATE_FEE_APPLIED: "Late fee applied",
+  STATEMENT_SENT: "Statement sent",
   CLIENT_DELETED: "Client deleted",
   PAYMENT_CONFIRMATION_SENT: "Payment confirmation sent",
   PAYMENT_CONFIRMATION_RESENT: "Payment confirmation resent",

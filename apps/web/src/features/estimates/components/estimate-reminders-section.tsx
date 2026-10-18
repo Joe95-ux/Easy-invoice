@@ -54,6 +54,7 @@ const KIND_LABELS: Record<ReminderKind, string> = {
   ON_DUE: "Expires today",
   OVERDUE: "After expiry",
   MANUAL: "Manual",
+  COLLECTIONS: "Collections",
 };
 
 function canSendFollowUp(

@@ -16,6 +16,7 @@ export async function getInvoiceForMember(invoiceId: string, companyId: string) 
         orderBy: { createdAt: "desc" },
         include: { items: { orderBy: { sortOrder: "asc" } } },
       },
+      lateFees: { orderBy: { appliedAt: "desc" } },
       installments: { orderBy: { sortOrder: "asc" } },
     },
   });

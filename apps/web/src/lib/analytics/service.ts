@@ -179,6 +179,7 @@ export async function getAnalyticsData(
           where: { status: "ISSUED" },
           select: { total: true, status: true },
         },
+        lateFees: { select: { amount: true } },
       },
     }),
     prisma.invoicePayment.findMany({
@@ -303,6 +304,7 @@ export async function getAnalyticsData(
       total: invoice.total,
       payments: invoice.payments,
       creditNotes: invoice.creditNotes,
+      lateFees: invoice.lateFees,
     }).balanceDue;
     if (balanceDueDoc <= 0) continue;
 

@@ -9,6 +9,7 @@ import { sendPaymentConfirmationWithLogging } from "@/lib/payment-confirmation";
 import {
   buildInvoicePaymentSummary,
   deriveInvoiceStatusAfterPayment,
+  invoiceSettlementInclude,
   type InstallmentInput,
 } from "@/lib/invoice-payments-utils";
 
@@ -55,11 +56,7 @@ export async function refreshInvoicePaymentStatus(invoiceId: string, companyId: 
   const invoice = await prisma.invoice.findFirst({
     where: { id: invoiceId, companyId },
     include: {
-      payments: { select: { amount: true, kind: true } },
-      creditNotes: {
-        where: { status: "ISSUED" },
-        select: { id: true, total: true, status: true },
-      },
+      ...invoiceSettlementInclude,
       installments: { orderBy: { sortOrder: "asc" } },
     },
   });
@@ -105,6 +102,7 @@ export async function refreshInvoicePaymentStatus(invoiceId: string, companyId: 
         where: { status: "ISSUED" },
         select: { id: true, total: true, status: true, number: true },
       },
+      lateFees: { select: { amount: true, appliedAt: true, reason: true } },
       installments: { orderBy: { sortOrder: "asc" } },
     },
   });
@@ -155,11 +153,7 @@ export async function recordInvoicePayment(input: {
   const invoice = await prisma.invoice.findFirst({
     where: { id: input.invoiceId, companyId: input.companyId },
     include: {
-      payments: { select: { amount: true, kind: true } },
-      creditNotes: {
-        where: { status: "ISSUED" },
-        select: { id: true, total: true, status: true },
-      },
+      ...invoiceSettlementInclude,
       installments: { orderBy: { sortOrder: "asc" } },
     },
   });
@@ -347,11 +341,7 @@ export async function deleteInvoicePayment(input: {
   const invoice = await prisma.invoice.findFirst({
     where: { id: input.invoiceId, companyId: input.companyId },
     include: {
-      payments: { select: { amount: true, kind: true } },
-      creditNotes: {
-        where: { status: "ISSUED" },
-        select: { id: true, total: true, status: true },
-      },
+      ...invoiceSettlementInclude,
       installments: { orderBy: { sortOrder: "asc" } },
     },
   });

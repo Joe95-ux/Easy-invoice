@@ -21,6 +21,7 @@ type SendPaymentReminderEmailInput = {
   portalUrl?: string;
   kind: ReminderKind;
   pdfBuffer?: Buffer;
+  extraAttachments?: Array<{ filename: string; content: Buffer }>;
   /** When set, client replies go to the company instead of the platform From. */
   replyTo?: string | null;
 };
@@ -52,6 +53,11 @@ function reminderCopy(
       return {
         subject: `Overdue: Invoice ${invoiceNumber} from ${companyName}`,
         lead: `Invoice <strong>${invoiceNumber}</strong> from <strong>${companyName}</strong> is past due (was due <strong>${dueDateLabel}</strong>).`,
+      };
+    case "COLLECTIONS":
+      return {
+        subject: `Payment required: Invoice ${invoiceNumber} from ${companyName}`,
+        lead: `Invoice <strong>${invoiceNumber}</strong> from <strong>${companyName}</strong> remains unpaid past its due date (<strong>${dueDateLabel}</strong>). Please arrange payment now so we can close this out.`,
       };
     case "MANUAL":
     default:
@@ -94,7 +100,7 @@ export async function sendPaymentReminderEmail(input: SendPaymentReminderEmailIn
       <p>If you've already sent payment, please disregard this message.</p>
       <p>— ${input.companyName}</p>
     `,
-    attachments,
+    attachments: attachments.length > 0 ? attachments : undefined,
   });
 
   if (error) throw new Error(error.message);

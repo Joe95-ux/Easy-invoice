@@ -40,6 +40,7 @@ import { ClientReceiptsTab } from "@/features/clients/components/client-receipts
 import { InviteClientPortalButton } from "@/features/clients/components/invite-client-portal-button";
 import type { ClientFinancialProfile } from "@/lib/clients/financial-profile";
 import { formatMoney } from "@/lib/invoices";
+import { throwIfApiError, toastApiError } from "@/lib/billing/plan-api-error";
 import type { ClientInput } from "@/lib/schemas/client";
 import { invoiceFromTimeUrl } from "@/lib/time-tracking/invoice-from-time";
 
@@ -63,6 +64,7 @@ export function ClientDetail({
   const [deleting, setDeleting] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [sendingStatement, setSendingStatement] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
   const tabTriggerRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
@@ -96,6 +98,25 @@ export function ClientDetail({
 
     toast.success("Client updated");
     router.refresh();
+  }
+
+  async function handleSendStatement() {
+    setSendingStatement(true);
+    try {
+      const response = await fetch(`/api/clients/${client.id}/statements`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const data = await response.json().catch(() => ({}));
+      throwIfApiError(response, data, "Could not send statement");
+      toast.success("Statement sent");
+      router.refresh();
+    } catch (error) {
+      toastApiError(error, "Could not send statement");
+    } finally {
+      setSendingStatement(false);
+    }
   }
 
   async function handleDelete() {
@@ -165,6 +186,14 @@ export function ClientDetail({
                     >
                       <ClipboardListIcon className="size-4" />
                       New estimate
+                    </DropdownMenuItem>
+                  ) : null}
+                  {canWrite && summary.outstanding > 0.001 ? (
+                    <DropdownMenuItem
+                      disabled={sendingStatement}
+                      onClick={() => void handleSendStatement()}
+                    >
+                      Send statement
                     </DropdownMenuItem>
                   ) : null}
                   {canWrite && summary.unbilledEntryCount > 0 ? (

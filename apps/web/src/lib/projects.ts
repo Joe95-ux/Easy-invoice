@@ -63,6 +63,7 @@ export const projectDetailInclude = {
         where: { status: "ISSUED" },
         select: { total: true, status: true },
       },
+      lateFees: { select: { amount: true } },
     },
   },
   timeEntries: {
@@ -127,6 +128,7 @@ export async function loadProjectFinancialInputs(projectId: string, companyId: s
         where: { status: "ISSUED" },
         select: { total: true, status: true },
       },
+      lateFees: { select: { amount: true } },
       },
     }),
     prisma.timeEntry.findMany({

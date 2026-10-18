@@ -16,6 +16,15 @@ export const reminderSettingsSchema = z.object({
   estimateReminderDaysBefore: daysArraySchema,
   estimateReminderOnExpiryDay: z.boolean(),
   estimateReminderIncludePdf: z.boolean(),
+  collectionsEnabled: z.boolean(),
+  collectionsDaysAfter: daysArraySchema,
+  collectionsIncludePdf: z.boolean(),
+  collectionsAttachStatement: z.boolean(),
+  lateFeesEnabled: z.boolean(),
+  lateFeeType: z.enum(["percent", "flat"]),
+  lateFeePercent: z.number().min(0).max(100),
+  lateFeeFlat: z.number().min(0),
+  lateFeeGraceDays: z.number().int().min(0).max(90),
 });
 
 export type ReminderSettingsInput = z.infer<typeof reminderSettingsSchema>;

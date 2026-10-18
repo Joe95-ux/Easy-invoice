@@ -119,6 +119,7 @@ export function invoiceToHtmlData(
       notes: invoice.notes,
       amountPaid: paymentSummary.amountPaid,
       amountCredited: paymentSummary.amountCredited,
+      amountLateFees: paymentSummary.amountLateFees,
       refundDue: paymentSummary.refundDue,
       balanceDue: paymentSummary.balanceDue,
       exchangeRate:

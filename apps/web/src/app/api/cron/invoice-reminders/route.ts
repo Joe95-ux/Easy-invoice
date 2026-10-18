@@ -21,7 +21,7 @@ function isAuthorized(request: Request): boolean {
   }
 }
 
-/** Daily job: overdue invoices, payment reminders, expire estimates, recurring invoices. */
+/** Daily job: overdue invoices, reminders, Pro collections/late fees, estimates, recurring. */
 export async function GET(request: Request) {
   if (!isAuthorized(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

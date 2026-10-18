@@ -134,6 +134,7 @@ export async function getClientFinancialProfile(
             where: { status: "ISSUED" },
             select: { total: true, status: true },
           },
+          lateFees: { select: { amount: true } },
           reminders: { orderBy: { createdAt: "desc" } },
           installments: { orderBy: { sortOrder: "asc" } },
         },

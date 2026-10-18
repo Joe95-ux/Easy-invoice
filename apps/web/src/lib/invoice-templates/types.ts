@@ -45,6 +45,7 @@ export type InvoiceHtmlData = {
     scope?: string | null;
     amountPaid?: number;
     amountCredited?: number;
+    amountLateFees?: number;
     refundDue?: number;
     balanceDue?: number;
     relatedInvoiceNumber?: string | null;

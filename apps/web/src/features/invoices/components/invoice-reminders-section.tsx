@@ -54,6 +54,7 @@ const KIND_LABELS: Record<ReminderKind, string> = {
   ON_DUE: "Due today",
   OVERDUE: "Overdue",
   MANUAL: "Manual",
+  COLLECTIONS: "Collections",
 };
 
 function canSendReminder(status: InvoiceStatus, sentAt?: string | null, dueDate?: string | null) {

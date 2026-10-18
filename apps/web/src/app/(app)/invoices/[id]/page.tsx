@@ -37,6 +37,7 @@ import {
 } from "@/lib/invoices";
 import { getTemplatesForCompany } from "@/lib/templates";
 import { buildInvoicePaymentSummary } from "@/lib/invoice-payments";
+import { isProPlan } from "@/lib/billing/entitlements";
 import { getPaymentConfirmationsByInvoice } from "@/lib/payment-confirmation";
 import {
   normalizeCustomFieldDefinitions,
@@ -159,6 +160,8 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
             canWrite={canWriteDocuments(member.role)}
             canDelete={canDeleteDocuments(member.role)}
             creditNoteId={latestIssuedCreditNoteId}
+            hasLateFee={paymentSummary.amountLateFees > 0.001}
+            isPro={isProPlan(member.company.plan)}
           />
         }
       />
@@ -357,13 +360,21 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
                 <span>-{formatMoney(paymentSummary.amountCredited, invoice.currency)}</span>
               </div>
             ) : null}
+            {paymentSummary.amountLateFees > 0.001 ? (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Late fee</span>
+                <span>{formatMoney(paymentSummary.amountLateFees, invoice.currency)}</span>
+              </div>
+            ) : null}
             {paymentSummary.amountPaid > 0.001 ? (
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Amount paid</span>
                 <span>-{formatMoney(paymentSummary.amountPaid, invoice.currency)}</span>
               </div>
             ) : null}
-            {paymentSummary.amountCredited > 0.001 || paymentSummary.amountPaid > 0.001 ? (
+            {paymentSummary.amountCredited > 0.001 ||
+            paymentSummary.amountPaid > 0.001 ||
+            paymentSummary.amountLateFees > 0.001 ? (
               <div className="flex justify-between font-semibold">
                 <span>Balance due</span>
                 <span>{formatMoney(paymentSummary.balanceDue, invoice.currency)}</span>

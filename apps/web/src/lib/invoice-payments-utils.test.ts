@@ -87,4 +87,15 @@ describe("invoice settlement math", () => {
     assert.equal(summary.amountCredited, 0);
     assert.equal(summary.balanceDue, 100);
   });
+
+  it("adds late fees to the remaining balance", () => {
+    const summary = buildInvoicePaymentSummary({
+      total: 100,
+      creditNotes: [{ total: 20, status: "ISSUED" }],
+      lateFees: [{ amount: 15 }],
+    });
+    assert.equal(summary.amountLateFees, 15);
+    assert.equal(summary.remainingInvoice, 95);
+    assert.equal(summary.balanceDue, 95);
+  });
 });

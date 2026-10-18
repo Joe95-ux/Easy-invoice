@@ -41,6 +41,10 @@ export type CreditNoteLike = {
   status?: string | null;
 };
 
+export type LateFeeLike = {
+  amount: MoneyInput;
+};
+
 export type InvoicePaymentSummary = {
   /** Gross card/cash in (excludes refunds). */
   grossPaid: number;
@@ -50,7 +54,9 @@ export type InvoicePaymentSummary = {
   amountPaid: number;
   /** Issued credit notes against this invoice. */
   amountCredited: number;
-  /** Original total minus issued credits. */
+  /** Applied late fees (do not rewrite sent line items). */
+  amountLateFees: number;
+  /** Original total minus issued credits plus late fees. */
   remainingInvoice: number;
   /** What the client still owes. */
   balanceDue: number;
@@ -101,6 +107,10 @@ export function sumIssuedCredits(creditNotes: CreditNoteLike[] | undefined): num
       .filter((note) => !note.status || note.status === "ISSUED")
       .reduce((sum, note) => sum + toNumber(note.total), 0),
   );
+}
+
+export function sumLateFees(lateFees: LateFeeLike[] | undefined): number {
+  return roundMoney((lateFees ?? []).reduce((sum, fee) => sum + toNumber(fee.amount), 0));
 }
 
 export function computeBalanceDue(total: MoneyInput, amountPaid: number): number {
@@ -160,12 +170,16 @@ export function buildInvoicePaymentSummary(
     }>;
     payments?: PaymentLike[];
     creditNotes?: CreditNoteLike[];
+    lateFees?: LateFeeLike[];
   },
   today = new Date(),
 ): InvoicePaymentSummary {
   const splits = computePaymentSplits(invoice.payments ?? []);
   const amountCredited = sumIssuedCredits(invoice.creditNotes);
-  const remainingInvoice = roundMoney(Math.max(0, toNumber(invoice.total) - amountCredited));
+  const amountLateFees = sumLateFees(invoice.lateFees);
+  const remainingInvoice = roundMoney(
+    Math.max(0, toNumber(invoice.total) - amountCredited + amountLateFees),
+  );
   const amountPaid = splits.netCollected;
   const balanceDue = roundMoney(Math.max(0, remainingInvoice - amountPaid));
   const refundDue = roundMoney(Math.max(0, amountPaid - remainingInvoice));
@@ -182,6 +196,7 @@ export function buildInvoicePaymentSummary(
       amountRefunded: splits.amountRefunded,
       amountPaid,
       amountCredited,
+      amountLateFees,
       remainingInvoice,
       balanceDue,
       refundDue,
@@ -202,6 +217,7 @@ export function buildInvoicePaymentSummary(
       amountRefunded: splits.amountRefunded,
       amountPaid,
       amountCredited,
+      amountLateFees,
       remainingInvoice,
       balanceDue,
       refundDue,
@@ -216,6 +232,7 @@ export function buildInvoicePaymentSummary(
     amountRefunded: splits.amountRefunded,
     amountPaid,
     amountCredited,
+    amountLateFees,
     remainingInvoice,
     balanceDue,
     refundDue,
@@ -312,4 +329,5 @@ export const invoiceSettlementInclude = {
     where: { status: "ISSUED" as const },
     select: { id: true, total: true, status: true },
   },
+  lateFees: { select: { amount: true } },
 } as const;

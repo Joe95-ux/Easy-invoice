@@ -62,6 +62,7 @@ export async function POST(request: Request, context: RouteContext) {
         where: { status: "ISSUED" },
         select: { total: true, status: true },
       },
+      lateFees: { select: { amount: true } },
       installments: { orderBy: { sortOrder: "asc" } },
     },
   });

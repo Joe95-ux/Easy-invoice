@@ -22,6 +22,15 @@ const SETTINGS_SELECT = {
   estimateReminderDaysBefore: true,
   estimateReminderOnExpiryDay: true,
   estimateReminderIncludePdf: true,
+  collectionsEnabled: true,
+  collectionsDaysAfter: true,
+  collectionsIncludePdf: true,
+  collectionsAttachStatement: true,
+  lateFeesEnabled: true,
+  lateFeeType: true,
+  lateFeePercent: true,
+  lateFeeFlat: true,
+  lateFeeGraceDays: true,
 } as const;
 
 export async function GET() {

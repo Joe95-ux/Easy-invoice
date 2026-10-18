@@ -18,6 +18,7 @@ const INVOICE_INCLUDE = {
     where: { status: "ISSUED" as const },
     select: { id: true, total: true, status: true, number: true },
   },
+  lateFees: { select: { amount: true } },
   installments: { orderBy: { sortOrder: "asc" as const } },
 } as const;
 

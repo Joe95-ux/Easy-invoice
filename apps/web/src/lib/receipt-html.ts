@@ -300,6 +300,7 @@ export async function renderReceiptHtmlForPayment(
             where: { status: "ISSUED" },
             select: { total: true, status: true },
           },
+          lateFees: { select: { amount: true } },
         },
       },
     },

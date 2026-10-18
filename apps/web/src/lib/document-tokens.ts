@@ -16,9 +16,13 @@ export function creditNotePublicPath(token: string): string {
   return `/view/credit-notes/${token}`;
 }
 
+export function statementPublicPath(token: string): string {
+  return `/view/statements/${token}`;
+}
+
 export function publicDocumentUrl(
   origin: string,
-  kind: "invoice" | "estimate" | "credit_note",
+  kind: "invoice" | "estimate" | "credit_note" | "statement",
   token: string,
 ): string {
   const path =
@@ -26,6 +30,8 @@ export function publicDocumentUrl(
       ? invoicePublicPath(token)
       : kind === "estimate"
         ? estimatePublicPath(token)
-        : creditNotePublicPath(token);
+        : kind === "statement"
+          ? statementPublicPath(token)
+          : creditNotePublicPath(token);
   return `${origin.replace(/\/$/, "")}${path}`;
 }

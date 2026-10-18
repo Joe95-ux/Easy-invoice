@@ -18,6 +18,10 @@ import { daysUntilDue, startOfUtcDay } from "@/lib/reminders/dates";
 import type { ReminderSettings } from "@/lib/reminders/settings";
 import { reminderSettingsFromCompany } from "@/lib/reminders/settings";
 import { prisma } from "@/lib/db";
+import { isProPlan } from "@/lib/billing/entitlements";
+import { applyInvoiceLateFee } from "@/lib/late-fees";
+import { generateClientStatementPdfBuffer } from "@/lib/statements";
+import { collectionsSettingsFromCompany } from "@/lib/collections/settings";
 
 const REMINDABLE_STATUSES: InvoiceStatus[] = ["SENT", "VIEWED", "OVERDUE", "PARTIALLY_PAID"];
 
@@ -62,6 +66,7 @@ export async function markOverdueInvoices(now = new Date()) {
         where: { status: "ISSUED" },
         select: { total: true, status: true },
       },
+      lateFees: { select: { amount: true } },
       installments: { orderBy: { sortOrder: "asc" } },
     },
   });
@@ -191,7 +196,25 @@ export async function sendInvoiceReminder(options: {
       viewUrl,
       portalUrl: portalLoginUrl(origin, toEmail),
       kind: options.kind,
-      pdfBuffer: settings.reminderIncludePdf ? pdfBuffer : undefined,
+      pdfBuffer: (
+        options.kind === ReminderKind.COLLECTIONS
+          ? invoice.company.collectionsIncludePdf
+          : settings.reminderIncludePdf
+      )
+        ? pdfBuffer
+        : undefined,
+      extraAttachments:
+        options.kind === ReminderKind.COLLECTIONS &&
+        invoice.company.collectionsAttachStatement &&
+        invoice.clientId
+          ? await generateClientStatementPdfBuffer(invoice.clientId, options.companyId)
+              .then((result) =>
+                result
+                  ? [{ filename: `statement-${result.client.name}.pdf`, content: result.pdfBuffer }]
+                  : undefined,
+              )
+              .catch(() => undefined)
+          : undefined,
       replyTo: invoice.company.email,
     });
 
@@ -270,15 +293,23 @@ export async function runInvoiceReminderJob(now = new Date()) {
   const overdueUpdated = await markOverdueInvoices(now);
 
   const companies = await prisma.company.findMany({
-    where: { remindersEnabled: true },
+    where: {
+      OR: [{ remindersEnabled: true }, { collectionsEnabled: true, plan: { in: ["PRO", "BUSINESS", "SCALE"] } }],
+    },
     select: {
       id: true,
+      plan: true,
       remindersEnabled: true,
       reminderDaysBefore: true,
       reminderOnDueDate: true,
       reminderDaysAfter: true,
       reminderIncludePdf: true,
       paymentReceiptEmailsEnabled: true,
+      collectionsEnabled: true,
+      collectionsDaysAfter: true,
+      collectionsIncludePdf: true,
+      collectionsAttachStatement: true,
+      lateFeesEnabled: true,
     },
   });
 
@@ -303,19 +334,50 @@ export async function runInvoiceReminderJob(now = new Date()) {
           where: { status: "ISSUED" },
           select: { total: true, status: true },
         },
+        lateFees: { select: { amount: true } },
         installments: { orderBy: { sortOrder: "asc" } },
       },
     });
 
+    const collections = collectionsSettingsFromCompany(company);
+    const runCollections = isProPlan(company.plan) && collections.collectionsEnabled;
+
     for (const invoice of invoices) {
-      const summary = buildInvoicePaymentSummary(invoice, today);
+      let summary = buildInvoicePaymentSummary(invoice, today);
       if (summary.balanceDue <= 0.001) continue;
 
       const effectiveDueDate = summary.nextDueDate ?? invoice.dueDate;
       if (!effectiveDueDate) continue;
 
-      const slots = slotsForInvoiceToday(settings, effectiveDueDate, today);
+      if (isProPlan(company.plan) && company.lateFeesEnabled) {
+        const applied = await applyInvoiceLateFee({
+          invoiceId: invoice.id,
+          companyId: company.id,
+          source: "AUTO",
+          today,
+        }).catch(() => null);
+        if (applied) {
+          summary = buildInvoicePaymentSummary(
+            {
+              ...invoice,
+              lateFees: [...invoice.lateFees, { amount: applied.amount }],
+            },
+            today,
+          );
+        }
+      }
+
+      const slots = settings.remindersEnabled
+        ? slotsForInvoiceToday(settings, effectiveDueDate, today)
+        : [];
+      const daysPast = -daysUntilDue(today, effectiveDueDate);
+      const collectionsToday =
+        runCollections && daysPast > 0 && collections.collectionsDaysAfter.includes(daysPast);
+
       for (const slot of slots) {
+        if (collectionsToday && slot.kind === ReminderKind.OVERDUE && slot.offsetDays === daysPast) {
+          continue;
+        }
         const result = await sendInvoiceReminder({
           invoiceId: invoice.id,
           companyId: company.id,
@@ -324,6 +386,19 @@ export async function runInvoiceReminderJob(now = new Date()) {
           scheduleDate: today,
         });
 
+        if (result.ok) sent += 1;
+        else if (result.skipped) skipped += 1;
+        else failed += 1;
+      }
+
+      if (collectionsToday) {
+        const result = await sendInvoiceReminder({
+          invoiceId: invoice.id,
+          companyId: company.id,
+          kind: ReminderKind.COLLECTIONS,
+          offsetDays: daysPast,
+          scheduleDate: today,
+        });
         if (result.ok) sent += 1;
         else if (result.skipped) skipped += 1;
         else failed += 1;
