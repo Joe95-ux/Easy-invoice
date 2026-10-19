@@ -16,12 +16,12 @@ export default async function PublicStatementPage({ params }: PageProps) {
   const statement = await getStatementByToken(token);
   if (!statement) notFound();
 
-  const snapshot = statement.snapshot as {
-    current: number;
-    days1to30: number;
-    days31to60: number;
-    days61plus: number;
-    invoices: StatementInvoiceRow[];
+  const snapshot = (statement.snapshot ?? {}) as {
+    current?: number;
+    days1to30?: number;
+    days31to60?: number;
+    days61plus?: number;
+    invoices?: StatementInvoiceRow[];
   };
   const origin = await getAppOrigin();
   const html = renderStatementHtml({
@@ -32,12 +32,12 @@ export default async function PublicStatementPage({ params }: PageProps) {
       issuedAt: statement.issuedAt,
       currency: statement.currency,
       totalDue: Number(statement.totalDue),
-      current: snapshot.current,
-      days1to30: snapshot.days1to30,
-      days31to60: snapshot.days31to60,
-      days61plus: snapshot.days61plus,
+      current: snapshot.current ?? 0,
+      days1to30: snapshot.days1to30 ?? 0,
+      days31to60: snapshot.days31to60 ?? 0,
+      days61plus: snapshot.days61plus ?? 0,
     },
-    invoices: snapshot.invoices,
+    invoices: snapshot.invoices ?? [],
     viewUrl: publicDocumentUrl(origin, "statement", token),
   });
 

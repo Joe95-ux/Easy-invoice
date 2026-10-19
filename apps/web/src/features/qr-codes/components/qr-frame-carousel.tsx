@@ -9,7 +9,7 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel";
 import { QrCodePreview } from "@/features/qr-codes/components/qr-code-preview";
-import { QR_FRAMES, getFrameLayout } from "@/lib/qr-codes/frames";
+import { QR_FRAMES, getFrameLayout, type QrFrameDefinition } from "@/lib/qr-codes/frames";
 import type { QrDesign, QrFrameId } from "@/lib/qr-codes/types";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";

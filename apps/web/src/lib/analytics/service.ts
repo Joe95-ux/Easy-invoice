@@ -180,6 +180,10 @@ export async function getAnalyticsData(
           select: { total: true, status: true },
         },
         lateFees: { select: { amount: true } },
+        installments: {
+          select: { id: true, dueDate: true, amount: true, label: true, sortOrder: true },
+          orderBy: { sortOrder: "asc" },
+        },
       },
     }),
     prisma.invoicePayment.findMany({
@@ -300,12 +304,15 @@ export async function getAnalyticsData(
   let overdueCount = 0;
 
   for (const invoice of openInvoices) {
-    const balanceDueDoc = buildInvoicePaymentSummary({
+    const summary = buildInvoicePaymentSummary({
       total: invoice.total,
+      dueDate: invoice.dueDate,
       payments: invoice.payments,
       creditNotes: invoice.creditNotes,
       lateFees: invoice.lateFees,
-    }).balanceDue;
+      installments: invoice.installments,
+    });
+    const balanceDueDoc = summary.balanceDue;
     if (balanceDueDoc <= 0) continue;
 
     const balanceDue = paymentAmountInHomeCurrency({
@@ -318,7 +325,7 @@ export async function getAnalyticsData(
 
     outstandingAr += balanceDue;
 
-    const due = invoice.dueDate ?? invoice.issueDate;
+    const due = summary.nextDueDate ?? invoice.dueDate ?? invoice.issueDate;
     const daysPastDue = Math.max(0, differenceInCalendarDays(today, startOfDay(due)));
     const key = agingKeyForDaysPastDue(daysPastDue);
     agingTotals[key].amount += balanceDue;

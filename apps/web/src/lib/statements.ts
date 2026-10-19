@@ -42,7 +42,10 @@ export async function buildClientStatementSnapshot(
       company: { select: { currency: true, plan: true } },
       invoices: {
         where: { status: { in: [...OPEN_STATUSES] } },
-        include: invoiceSettlementInclude,
+        include: {
+          ...invoiceSettlementInclude,
+          installments: { orderBy: { sortOrder: "asc" } },
+        },
         orderBy: { dueDate: "asc" },
       },
     },
@@ -144,7 +147,7 @@ function statementHtmlData(
   client: StatementHtmlData["client"],
   viewUrl?: string,
 ): StatementHtmlData {
-  const snapshot = statement.snapshot as StatementSnapshot;
+  const snapshot = (statement.snapshot ?? {}) as Partial<StatementSnapshot>;
   return {
     company,
     client,
@@ -153,12 +156,12 @@ function statementHtmlData(
       issuedAt: statement.issuedAt,
       currency: statement.currency,
       totalDue: Number(statement.totalDue),
-      current: snapshot.current,
-      days1to30: snapshot.days1to30,
-      days31to60: snapshot.days31to60,
-      days61plus: snapshot.days61plus,
+      current: snapshot.current ?? 0,
+      days1to30: snapshot.days1to30 ?? 0,
+      days31to60: snapshot.days31to60 ?? 0,
+      days61plus: snapshot.days61plus ?? 0,
     },
-    invoices: snapshot.invoices,
+    invoices: snapshot.invoices ?? [],
     viewUrl,
   };
 }

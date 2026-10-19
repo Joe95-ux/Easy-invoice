@@ -54,8 +54,9 @@ function taxesWithAmounts(
 }
 
 type InvoiceWithRelations = NonNullable<Awaited<ReturnType<typeof getInvoiceForMember>>>;
-type InvoiceForHtml = Omit<InvoiceWithRelations, "creditNotes"> & {
+type InvoiceForHtml = Omit<InvoiceWithRelations, "creditNotes" | "lateFees"> & {
   creditNotes?: Array<{ total: number | string | { toString(): string }; status?: string | null }>;
+  lateFees?: Array<{ amount: number | string | { toString(): string } }>;
 };
 
 export type RenderInvoiceHtmlOptions = {

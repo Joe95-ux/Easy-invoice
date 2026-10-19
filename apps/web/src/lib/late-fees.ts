@@ -24,6 +24,7 @@ export async function applyInvoiceLateFee(input: {
     where: { id: input.invoiceId, companyId: input.companyId },
     include: {
       company: true,
+      installments: { orderBy: { sortOrder: "asc" } },
       ...invoiceSettlementInclude,
     },
   });
