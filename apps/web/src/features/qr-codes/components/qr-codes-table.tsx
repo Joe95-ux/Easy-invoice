@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   ArrowUpDownIcon,
@@ -66,7 +66,7 @@ import {
 } from "@/components/ui/table";
 import {
   QrCodePreview,
-  type QrCodePreviewHandle,
+  downloadQrPng,
 } from "@/features/qr-codes/components/qr-code-preview";
 import { QR_TYPE_ICON } from "@/features/qr-codes/components/qr-type-meta";
 import { useListTable } from "@/hooks/use-list-table";
@@ -76,6 +76,7 @@ import {
   QR_STATUS_LABEL,
   QR_TYPE_LABEL,
   qrDestinationSummary,
+  qrPrintValue,
 } from "@/lib/qr-codes/content";
 import { resolveQrCenterLogoUrl } from "@/lib/qr-codes/design";
 import { qrScanUrl } from "@/lib/qr-codes/url";
@@ -147,7 +148,6 @@ export function QrCodesTable({
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [sortValue, setSortValue] = useState<SortValue>("recent");
-  const previewRefs = useRef<Record<string, QrCodePreviewHandle | null>>({});
 
   const filtersActive = statusFilter !== "all" || typeFilter !== "all";
   const deleting =
@@ -190,8 +190,17 @@ export function QrCodesTable({
     setTypeFilter("all");
   }
 
-  function handleDownload(qr: SerializedQrCode) {
-    previewRefs.current[qr.id]?.download(slugForFile(qr.name));
+  async function handleDownload(qr: SerializedQrCode) {
+    try {
+      await downloadQrPng({
+        value: qrPrintValue(qr.type, qr.content, qrScanUrl(origin, qr.token)),
+        design: qr.design,
+        logoUrl: resolveQrCenterLogoUrl(qr.design, companyLogoUrl),
+        fileName: slugForFile(qr.name),
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not download QR code");
+    }
   }
 
   async function handleCopy(qr: SerializedQrCode) {
@@ -420,10 +429,7 @@ export function QrCodesTable({
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <QrCodePreview
-                        ref={(handle) => {
-                          previewRefs.current[qr.id] = handle;
-                        }}
-                        value={qrScanUrl(origin, qr.token)}
+                        value={qrPrintValue(qr.type, qr.content, qrScanUrl(origin, qr.token))}
                         design={qr.design}
                         logoUrl={resolveQrCenterLogoUrl(qr.design, companyLogoUrl)}
                         size={40}
@@ -526,7 +532,7 @@ export function QrCodesTable({
                                 Edit
                               </DropdownMenuItem>
                             ) : null}
-                            <DropdownMenuItem onClick={() => handleDownload(qr)}>
+                            <DropdownMenuItem onClick={() => void handleDownload(qr)}>
                               <DownloadIcon className="size-4" />
                               Download PNG
                             </DropdownMenuItem>

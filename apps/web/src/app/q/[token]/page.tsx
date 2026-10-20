@@ -35,6 +35,7 @@ import {
 import {
   SOCIAL_PLATFORM_LABEL,
   WIFI_ENCRYPTION_LABEL,
+  isCouponExpired,
   resolveRedirectUrl,
 } from "@/lib/qr-codes/content";
 import { normalizeQrDesign, resolveBusinessLandingColors } from "@/lib/qr-codes/design";
@@ -738,6 +739,7 @@ export default async function QrScanPage({ params }: PageProps) {
   if (qr.type === "COUPON") {
     const coupon = content as unknown as CouponContent;
     const expiresLabel = formatCouponExpiry(coupon.expiresAt);
+    const expired = isCouponExpired(coupon.expiresAt);
 
     return (
       <div className="space-y-3">
@@ -762,10 +764,16 @@ export default async function QrScanPage({ params }: PageProps) {
             </div>
           </CardHeader>
           <CardContent className="space-y-4 py-5">
-            <QrCouponCopy code={coupon.code} />
+            {expired ? (
+              <p className="rounded-lg bg-muted/60 px-3 py-3 text-center text-sm font-medium">
+                This offer has expired
+              </p>
+            ) : (
+              <QrCouponCopy code={coupon.code} />
+            )}
             {expiresLabel && (
               <p className="text-center text-sm text-muted-foreground">
-                Expires {expiresLabel}
+                {expired ? `Expired ${expiresLabel}` : `Expires ${expiresLabel}`}
               </p>
             )}
             {coupon.terms && (

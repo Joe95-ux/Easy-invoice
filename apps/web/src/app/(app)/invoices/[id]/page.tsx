@@ -477,6 +477,7 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
         invoiceId={invoice.id}
         invoiceNumber={invoice.number}
         paymentLinkMethods={paymentLinkMethods}
+        companyLogoUrl={invoice.company.logoUrl}
         initialPaymentQr={
           paymentQr
             ? {
@@ -485,6 +486,7 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
                   token: paymentQr.qrCode.token,
                   name: paymentQr.qrCode.name,
                   status: paymentQr.qrCode.status,
+                  design: paymentQr.qrCode.design,
                 },
                 paymentUrl: paymentQr.paymentUrl,
                 scanUrl: paymentQr.scanUrl,

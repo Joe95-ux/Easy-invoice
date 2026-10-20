@@ -45,6 +45,7 @@ import { QrPasswordField } from "@/features/qr-codes/components/qr-password-fiel
 import { QrDesignPanel } from "@/features/qr-codes/components/qr-design-panel";
 import {
   QrCodePreview,
+  downloadQrPng,
   type QrCodePreviewHandle,
 } from "@/features/qr-codes/components/qr-code-preview";
 import { QrPhonePreview } from "@/features/qr-codes/components/qr-phone-preview";
@@ -59,6 +60,7 @@ import {
 } from "@/features/qr-codes/components/qr-form";
 import { resolveQrCenterLogoUrl } from "@/lib/qr-codes/design";
 import { exportQrCanvas, type QrExportFormat } from "@/lib/qr-codes/export";
+import { qrPrintValue } from "@/lib/qr-codes/content";
 import { QR_ACCESS_PASSWORD_MIN_LENGTH } from "@/lib/qr-codes/password";
 import { qrScanUrl } from "@/lib/qr-codes/url";
 import type { QrCodeType, SerializedQrCode } from "@/lib/qr-codes/types";
@@ -139,7 +141,12 @@ export function QrCodeCreator({
   const isLastStep = step === steps.length - 1;
 
   const previewToken = created?.token ?? initial?.token ?? "preview";
-  const previewValue = qrScanUrl(origin, previewToken);
+  const scanUrl = qrScanUrl(origin, previewToken);
+  const printValue = qrPrintValue(
+    form.type,
+    buildQrContent(form) as Record<string, unknown>,
+    scanUrl,
+  );
   const isLiveCode = Boolean(created?.token ?? initial?.token);
   const centerLogoUrl = resolveQrCenterLogoUrl(form.design, companyLogoUrl);
   const qrPreviewEnabled =
@@ -247,13 +254,22 @@ export function QrCodeCreator({
     }
   }
 
-  function handleDownload() {
-    previewRef.current?.download(slugForFile(created?.name ?? form.name));
+  async function handleDownload() {
+    try {
+      await downloadQrPng({
+        value: printValue,
+        design: form.design,
+        logoUrl: centerLogoUrl,
+        fileName: slugForFile(created?.name ?? form.name),
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not download QR code");
+    }
   }
 
   async function handleCopyLink() {
     try {
-      await navigator.clipboard.writeText(previewValue);
+      await navigator.clipboard.writeText(scanUrl);
       toast.success("Link copied");
     } catch {
       toast.error("Could not copy link");
@@ -276,7 +292,7 @@ export function QrCodeCreator({
   async function handleShare() {
     if (typeof navigator.share === "function") {
       try {
-        await navigator.share({ title: created?.name ?? "QR code", url: previewValue });
+        await navigator.share({ title: created?.name ?? "QR code", url: scanUrl });
         return;
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;
@@ -306,7 +322,7 @@ export function QrCodeCreator({
         <div className="hidden" aria-hidden>
           <QrCodePreview
             ref={previewRef}
-            value={previewValue}
+            value={printValue}
             design={form.design}
             logoUrl={centerLogoUrl}
             size={exportPx}
@@ -317,7 +333,7 @@ export function QrCodeCreator({
         <div className="flex flex-col items-center gap-6 px-2 pb-6 pt-8 text-center sm:px-6">
           <div className="flex flex-col items-center gap-5">
             <QrCodePreview
-              value={previewValue}
+              value={printValue}
               design={form.design}
               logoUrl={centerLogoUrl}
               size={208}
@@ -331,7 +347,7 @@ export function QrCodeCreator({
                 Download Your QR Code
               </p>
               <p className="mx-auto mt-2 max-w-md truncate text-sm text-muted-foreground">
-                {created.name} · {previewValue}
+                {created.name} · {scanUrl}
               </p>
             </div>
           </div>
@@ -456,7 +472,7 @@ export function QrCodeCreator({
         qrElement={
           <QrCodePreview
             ref={previewRef}
-            value={previewValue}
+            value={printValue}
             design={form.design}
             logoUrl={centerLogoUrl}
             size={170}
@@ -469,7 +485,7 @@ export function QrCodeCreator({
           variant="outline"
           size="sm"
           className="w-full max-w-[250px]"
-          onClick={handleDownload}
+          onClick={() => void handleDownload()}
         >
           <DownloadIcon className="size-4" />
           Download PNG

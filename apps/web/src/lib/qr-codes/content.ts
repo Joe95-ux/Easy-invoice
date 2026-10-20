@@ -145,6 +145,50 @@ export function buildWifiUri(content: WifiContent): string {
   return `WIFI:T:${type};S:${escape(content.ssid)};${password}${hidden};`;
 }
 
+export function wifiContentFromUnknown(content: Record<string, unknown>): WifiContent | null {
+  const ssid = typeof content.ssid === "string" ? content.ssid.trim() : "";
+  if (!ssid) return null;
+  const encryption =
+    content.encryption === "WEP" || content.encryption === "nopass" ? content.encryption : "WPA";
+  return {
+    ssid,
+    encryption,
+    password: typeof content.password === "string" ? content.password : "",
+    hidden: content.hidden === true,
+  };
+}
+
+/**
+ * Payload encoded in the printed QR image.
+ * Wi‑Fi codes use a native WIFI: URI so camera apps can join in one tap.
+ * Other types keep the dynamic /q/{token} short link.
+ */
+export function qrPrintValue(
+  type: QrCodeType,
+  content: Record<string, unknown>,
+  scanUrl: string,
+): string {
+  if (type === "WIFI") {
+    const wifi = wifiContentFromUnknown(content);
+    if (wifi) return buildWifiUri(wifi);
+  }
+  return scanUrl;
+}
+
+function couponExpiryDate(expiresAt?: string): Date | null {
+  if (!expiresAt?.trim()) return null;
+  const raw = expiresAt.trim();
+  const date = new Date(raw.length <= 10 ? `${raw}T23:59:59` : raw);
+  if (Number.isNaN(date.getTime())) return null;
+  return date;
+}
+
+export function isCouponExpired(expiresAt?: string, now = new Date()): boolean {
+  const date = couponExpiryDate(expiresAt);
+  if (!date) return false;
+  return date.getTime() < now.getTime();
+}
+
 function escapeText(value: string): string {
   return value
     .replace(/\\/g, "\\\\")

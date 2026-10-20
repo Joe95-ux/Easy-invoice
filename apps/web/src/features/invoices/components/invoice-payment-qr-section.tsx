@@ -4,8 +4,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { ExternalLinkIcon, Loader2Icon, QrCodeIcon, Trash2Icon } from "lucide-react";
-import { QRCode } from "react-qrcode-logo";
 import { toast } from "sonner";
+import { QrCodePreview } from "@/features/qr-codes/components/qr-code-preview";
+import { DEFAULT_QR_DESIGN, resolveQrCenterLogoUrl } from "@/lib/qr-codes/design";
+import type { QrDesign } from "@/lib/qr-codes/types";
 import { throwIfApiError, toastApiError } from "@/lib/billing/plan-api-error";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,7 +24,7 @@ import type { CompanyPaymentMethod } from "@/lib/company-payment-methods";
 import { isPaymentLinkUrl } from "@/lib/company-payment-methods";
 
 type PaymentQrState = {
-  qrCode: { id: string; token: string; name: string; status: string };
+  qrCode: { id: string; token: string; name: string; status: string; design: QrDesign };
   paymentUrl: string;
   scanUrl: string;
   label: string;
@@ -33,6 +35,7 @@ type InvoicePaymentQrSectionProps = {
   invoiceNumber: string;
   initialPaymentQr: PaymentQrState;
   paymentLinkMethods: CompanyPaymentMethod[];
+  companyLogoUrl?: string | null;
 };
 
 export function InvoicePaymentQrSection({
@@ -40,6 +43,7 @@ export function InvoicePaymentQrSection({
   invoiceNumber,
   initialPaymentQr,
   paymentLinkMethods,
+  companyLogoUrl,
 }: InvoicePaymentQrSectionProps) {
   const router = useRouter();
   const [paymentQr, setPaymentQr] = useState(initialPaymentQr);
@@ -137,7 +141,16 @@ export function InvoicePaymentQrSection({
         {paymentQr ? (
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
             <div className="shrink-0 rounded-lg border bg-white p-2">
-              <QRCode value={paymentQr.scanUrl} size={128} quietZone={8} ecLevel="M" />
+              <QrCodePreview
+                value={paymentQr.scanUrl}
+                design={paymentQr.qrCode.design ?? DEFAULT_QR_DESIGN}
+                logoUrl={resolveQrCenterLogoUrl(
+                  paymentQr.qrCode.design ?? DEFAULT_QR_DESIGN,
+                  companyLogoUrl,
+                )}
+                size={128}
+                chrome={false}
+              />
             </div>
             <div className="min-w-0 flex-1 space-y-3">
               <div>

@@ -8,12 +8,12 @@ import {
   type CompanyPaymentMethod,
 } from "@/lib/company-payment-methods";
 import { prisma } from "@/lib/db";
-import { DEFAULT_QR_DESIGN } from "@/lib/qr-codes/design";
+import { DEFAULT_QR_DESIGN, normalizeQrDesign } from "@/lib/qr-codes/design";
 import {
   createQrCode,
   serializeQrCode,
 } from "@/lib/qr-codes/service";
-import type { SerializedQrCode } from "@/lib/qr-codes/types";
+import type { QrDesign, SerializedQrCode } from "@/lib/qr-codes/types";
 import { qrScanUrl } from "@/lib/qr-codes/url";
 
 export type InvoicePaymentQrSummary = {
@@ -159,11 +159,15 @@ export async function detachInvoicePaymentQr(
 }
 
 /** PNG data URL for embedding a scan-to-pay QR on invoice HTML/PDF. */
-export async function buildPaymentQrImageDataUrl(scanUrl: string): Promise<string> {
+export async function buildPaymentQrImageDataUrl(
+  scanUrl: string,
+  design?: QrDesign | null,
+): Promise<string> {
+  const colors = normalizeQrDesign(design);
   return QRCode.toDataURL(scanUrl, {
-    errorCorrectionLevel: "M",
+    errorCorrectionLevel: colors.logoEnabled ? "H" : "M",
     margin: 1,
-    width: 180,
-    color: { dark: "#1e3a5f", light: "#ffffff" },
+    width: 256,
+    color: { dark: colors.fgColor, light: colors.bgColor },
   });
 }

@@ -1,12 +1,16 @@
 "use client";
 
 import { forwardRef, useImperativeHandle, useRef } from "react";
+import { createRoot } from "react-dom/client";
 import { QRCode } from "react-qrcode-logo";
 import { QrFrameShell } from "@/features/qr-codes/components/qr-frame-shell";
 import { composeFramedQrCanvas } from "@/lib/qr-codes/frames";
 import { exportQrCanvas } from "@/lib/qr-codes/export";
 import type { QrDesign } from "@/lib/qr-codes/types";
 import { cn } from "@/lib/utils";
+
+/** Default PNG export size so list/edit downloads are print-ready, not thumbnail-sized. */
+export const QR_PRINT_SIZE = 1024;
 
 export type QrCodePreviewHandle = {
   download: (fileName: string) => void;
@@ -93,3 +97,62 @@ export const QrCodePreview = forwardRef<QrCodePreviewHandle, QrCodePreviewProps>
     );
   },
 );
+
+function waitForPaint(): Promise<void> {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  });
+}
+
+/** Render a full-size QR off-screen and download it, independent of the on-page thumbnail. */
+export async function downloadQrPng(options: {
+  value: string;
+  design: QrDesign;
+  logoUrl?: string | null;
+  fileName: string;
+  size?: number;
+}): Promise<void> {
+  if (typeof document === "undefined") return;
+
+  const size = options.size ?? QR_PRINT_SIZE;
+  const host = document.createElement("div");
+  host.setAttribute("aria-hidden", "true");
+  host.style.cssText = "position:fixed;left:-10000px;top:0;pointer-events:none";
+  document.body.appendChild(host);
+  const root = createRoot(host);
+
+  try {
+    const handle = await new Promise<QrCodePreviewHandle>((resolve, reject) => {
+      const timeout = window.setTimeout(() => reject(new Error("QR code is not ready yet")), 8000);
+      root.render(
+        <QrCodePreview
+          ref={(next) => {
+            if (!next) return;
+            const wait = () => {
+              if (next.getCanvas()) {
+                window.clearTimeout(timeout);
+                resolve(next);
+                return;
+              }
+              requestAnimationFrame(wait);
+            };
+            wait();
+          }}
+          value={options.value}
+          design={options.design}
+          logoUrl={options.logoUrl}
+          size={size}
+          chrome={false}
+        />,
+      );
+    });
+    await waitForPaint();
+    if (options.logoUrl) {
+      await new Promise((resolve) => window.setTimeout(resolve, 250));
+    }
+    handle.download(options.fileName);
+  } finally {
+    root.unmount();
+    host.remove();
+  }
+}
