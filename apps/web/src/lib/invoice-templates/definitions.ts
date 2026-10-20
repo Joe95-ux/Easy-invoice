@@ -153,8 +153,8 @@ export const watermarkStyles = `
     gap: 14px;
   }
   .payment-qr img {
-    width: 96px;
-    height: 96px;
+    width: 128px;
+    height: auto;
     display: block;
     border: 1px solid #e5e7eb;
     border-radius: 6px;

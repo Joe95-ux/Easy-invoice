@@ -399,9 +399,20 @@ model QrCode {
   company Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
   member  CompanyMember? @relation(fields: [memberId], references: [id], onDelete: SetNull)
   invoice Invoice?       @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  scans   QrScan[]
 
   @@index([companyId])
   @@index([invoiceId])
+}
+
+model QrScan {
+  id        String   @id @default(cuid())
+  qrCodeId  String
+  scannedAt DateTime @default(now())
+
+  qrCode QrCode @relation(fields: [qrCodeId], references: [id], onDelete: Cascade)
+
+  @@index([qrCodeId, scannedAt])
 }
 
 model Client {

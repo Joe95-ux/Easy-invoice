@@ -1,4 +1,3 @@
-import QRCode from "qrcode";
 import type { Prisma } from "@easy-invoice/db";
 import { getAppOrigin } from "@/lib/app-url";
 import {
@@ -8,7 +7,8 @@ import {
   type CompanyPaymentMethod,
 } from "@/lib/company-payment-methods";
 import { prisma } from "@/lib/db";
-import { DEFAULT_QR_DESIGN, normalizeQrDesign } from "@/lib/qr-codes/design";
+import { DEFAULT_QR_DESIGN } from "@/lib/qr-codes/design";
+import { renderQrDesignDataUrl } from "@/lib/qr-codes/render-svg";
 import {
   createQrCode,
   serializeQrCode,
@@ -50,6 +50,7 @@ export async function getInvoicePaymentQr(
     },
     include: {
       member: { select: { name: true, email: true } },
+      invoice: { select: { id: true, number: true } },
     },
     orderBy: { updatedAt: "desc" },
   });
@@ -115,6 +116,7 @@ export async function upsertInvoicePaymentQr(options: {
       },
       include: {
         member: { select: { name: true, email: true } },
+        invoice: { select: { id: true, number: true } },
       },
     });
     qrCode = serializeQrCode(updated);
@@ -158,16 +160,11 @@ export async function detachInvoicePaymentQr(
   return result.count > 0;
 }
 
-/** PNG data URL for embedding a scan-to-pay QR on invoice HTML/PDF. */
+/** Designed QR image (SVG data URL) for invoice HTML/PDF — matches the workspace QR look. */
 export async function buildPaymentQrImageDataUrl(
   scanUrl: string,
   design?: QrDesign | null,
+  companyLogoUrl?: string | null,
 ): Promise<string> {
-  const colors = normalizeQrDesign(design);
-  return QRCode.toDataURL(scanUrl, {
-    errorCorrectionLevel: colors.logoEnabled ? "H" : "M",
-    margin: 1,
-    width: 256,
-    color: { dark: colors.fgColor, light: colors.bgColor },
-  });
+  return renderQrDesignDataUrl(scanUrl, design, companyLogoUrl);
 }

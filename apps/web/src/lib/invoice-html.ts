@@ -233,6 +233,7 @@ export async function renderInvoiceHtmlForInvoice(
           imageDataUrl: await buildPaymentQrImageDataUrl(
             paymentQr.scanUrl,
             paymentQr.qrCode.design,
+            invoice.company.logoUrl,
           ),
           label: paymentQr.label,
         },

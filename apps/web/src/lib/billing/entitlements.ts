@@ -18,7 +18,8 @@ export type PlanFeature =
   | "payment_plans"
   | "collections"
   | "late_fees"
-  | "client_statements";
+  | "client_statements"
+  | "qr_scan_history";
 
 const PRO_FEATURE_LABEL: Record<PlanFeature, string> = {
   custom_branding: "Custom branding is available on Pro",
@@ -28,6 +29,7 @@ const PRO_FEATURE_LABEL: Record<PlanFeature, string> = {
   collections: "Collections chase tools are available on Pro",
   late_fees: "Late fees are available on Pro",
   client_statements: "Client statements are available on Pro",
+  qr_scan_history: "QR scan history is available on Pro",
 };
 
 export class PlanLimitError extends Error {
@@ -86,6 +88,7 @@ export async function countQrCodes(companyId: string): Promise<number> {
     where: {
       companyId,
       status: { not: "DELETED" },
+      invoiceId: null,
     },
   });
 }

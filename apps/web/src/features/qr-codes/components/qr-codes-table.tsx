@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   ArrowUpDownIcon,
+  BarChart3Icon,
   CopyIcon,
   DownloadIcon,
   ExternalLinkIcon,
@@ -90,7 +91,7 @@ import { cn } from "@/lib/utils";
 
 type StatusFilter = "all" | QrCodeStatus;
 type TypeFilter = "all" | QrCodeType;
-type SortValue = "recent" | "scans" | "modified" | "name";
+type SortValue = "recent" | "scans" | "lastScan" | "modified" | "name";
 type RowAction = "pause" | "activate" | "delete" | "restore" | "deleteForever";
 
 const STATUS_FILTER_OPTIONS: { value: StatusFilter; label: string }[] = [
@@ -113,6 +114,7 @@ const SORT_OPTIONS: {
 }[] = [
   { value: "recent", label: "Most recent", key: "createdAt", direction: "desc" },
   { value: "scans", label: "Most scanned", key: "scanCount", direction: "desc" },
+  { value: "lastScan", label: "Last scanned", key: "lastScannedAt", direction: "desc" },
   { value: "modified", label: "Last modified", key: "updatedAt", direction: "desc" },
   { value: "name", label: "Name (A–Z)", key: "name", direction: "asc" },
 ];
@@ -148,6 +150,7 @@ export function QrCodesTable({
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [sortValue, setSortValue] = useState<SortValue>("recent");
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const filtersActive = statusFilter !== "all" || typeFilter !== "all";
   const deleting =
@@ -173,6 +176,7 @@ export function QrCodesTable({
     getSortValue: (row, key) => {
       if (key === "name") return row.name;
       if (key === "scanCount") return row.scanCount;
+      if (key === "lastScannedAt") return row.lastScannedAt;
       if (key === "updatedAt") return row.updatedAt;
       if (key === "createdAt") return row.createdAt;
       return null;
@@ -190,16 +194,26 @@ export function QrCodesTable({
     setTypeFilter("all");
   }
 
+  function printValueFor(qr: SerializedQrCode) {
+    return qrPrintValue(qr.type, qr.content, qrScanUrl(origin, qr.token), {
+      gated: qr.passwordProtected || qr.status !== "ACTIVE",
+    });
+  }
+
   async function handleDownload(qr: SerializedQrCode) {
+    if (downloadingId) return;
+    setDownloadingId(qr.id);
     try {
       await downloadQrPng({
-        value: qrPrintValue(qr.type, qr.content, qrScanUrl(origin, qr.token)),
+        value: printValueFor(qr),
         design: qr.design,
         logoUrl: resolveQrCenterLogoUrl(qr.design, companyLogoUrl),
         fileName: slugForFile(qr.name),
       });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not download QR code");
+    } finally {
+      setDownloadingId(null);
     }
   }
 
@@ -398,7 +412,15 @@ export function QrCodesTable({
               sortKey={table.sortKey}
               sortDirection={table.sortDirection}
               onSort={table.toggleSort}
-              className="w-24 text-right [&_button]:ml-auto"
+              className="w-20 text-right [&_button]:ml-auto"
+            />
+            <SortableTableHead
+              label="Last scan"
+              column="lastScannedAt"
+              sortKey={table.sortKey}
+              sortDirection={table.sortDirection}
+              onSort={table.toggleSort}
+              className="w-32"
             />
             <SortableTableHead
               label="Created"
@@ -414,7 +436,7 @@ export function QrCodesTable({
         <TableBody>
           {table.pageRows.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+              <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
                 {table.searchQuery.trim() || filtersActive
                   ? "No QR codes match your filters."
                   : "No QR codes."}
@@ -429,7 +451,7 @@ export function QrCodesTable({
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <QrCodePreview
-                        value={qrPrintValue(qr.type, qr.content, qrScanUrl(origin, qr.token))}
+                        value={printValueFor(qr)}
                         design={qr.design}
                         logoUrl={resolveQrCenterLogoUrl(qr.design, companyLogoUrl)}
                         size={40}
@@ -457,6 +479,17 @@ export function QrCodesTable({
                             aria-label="Password protected"
                           />
                         )}
+                        {qr.invoice ? (
+                          <Link
+                            href={`/invoices/${qr.invoice.id}`}
+                            className="shrink-0"
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <Badge variant="outline" className="font-normal">
+                              Invoice {qr.invoice.number}
+                            </Badge>
+                          </Link>
+                        ) : null}
                       </span>
                     </div>
                   </TableCell>
@@ -475,6 +508,9 @@ export function QrCodesTable({
                     {qrDestinationSummary(qr.type, qr.content)}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">{qr.scanCount}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {qr.lastScannedAt ? formatDate(qr.lastScannedAt) : "—"}
+                  </TableCell>
                   <TableCell className="w-36 pl-6 text-muted-foreground">
                     {formatDate(qr.createdAt)}
                   </TableCell>
@@ -532,8 +568,23 @@ export function QrCodesTable({
                                 Edit
                               </DropdownMenuItem>
                             ) : null}
-                            <DropdownMenuItem onClick={() => void handleDownload(qr)}>
-                              <DownloadIcon className="size-4" />
+                            {canWrite ? (
+                              <DropdownMenuItem
+                                render={<Link href={`/qr-codes/${qr.id}/edit#scans`} />}
+                              >
+                                <BarChart3Icon className="size-4" />
+                                Scan history
+                              </DropdownMenuItem>
+                            ) : null}
+                            <DropdownMenuItem
+                              disabled={downloadingId === qr.id}
+                              onClick={() => void handleDownload(qr)}
+                            >
+                              {downloadingId === qr.id ? (
+                                <Loader2Icon className="size-4 animate-spin" />
+                              ) : (
+                                <DownloadIcon className="size-4" />
+                              )}
                               Download PNG
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleCopy(qr)}>

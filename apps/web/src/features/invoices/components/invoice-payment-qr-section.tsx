@@ -6,7 +6,7 @@ import { useMemo, useState } from "react";
 import { ExternalLinkIcon, Loader2Icon, QrCodeIcon, Trash2Icon } from "lucide-react";
 import { toast } from "sonner";
 import { QrCodePreview } from "@/features/qr-codes/components/qr-code-preview";
-import { DEFAULT_QR_DESIGN, resolveQrCenterLogoUrl } from "@/lib/qr-codes/design";
+import { DEFAULT_QR_DESIGN, normalizeQrDesign, resolveQrCenterLogoUrl } from "@/lib/qr-codes/design";
 import type { QrDesign } from "@/lib/qr-codes/types";
 import { throwIfApiError, toastApiError } from "@/lib/billing/plan-api-error";
 import { Button } from "@/components/ui/button";
@@ -72,6 +72,9 @@ export function InvoicePaymentQrSection({
   }, [paymentLinkMethods, selectedKey]);
 
   const draftUrl = selectedMethod?.value?.trim() || customUrl.trim();
+  const paymentQrDesign = paymentQr
+    ? normalizeQrDesign(paymentQr.qrCode.design)
+    : DEFAULT_QR_DESIGN;
 
   async function handleSave() {
     if (!isPaymentLinkUrl(draftUrl)) {
@@ -92,6 +95,9 @@ export function InvoicePaymentQrSection({
       const body = await response.json();
       throwIfApiError(response, body, "Could not create payment QR");
 
+      if (!body.paymentQr?.qrCode || !body.paymentQr.scanUrl) {
+        throw new Error("Could not create payment QR");
+      }
       setPaymentQr(body.paymentQr);
       toast.success(
         paymentQr
@@ -143,11 +149,8 @@ export function InvoicePaymentQrSection({
             <div className="shrink-0 rounded-lg border bg-white p-2">
               <QrCodePreview
                 value={paymentQr.scanUrl}
-                design={paymentQr.qrCode.design ?? DEFAULT_QR_DESIGN}
-                logoUrl={resolveQrCenterLogoUrl(
-                  paymentQr.qrCode.design ?? DEFAULT_QR_DESIGN,
-                  companyLogoUrl,
-                )}
+                design={paymentQrDesign}
+                logoUrl={resolveQrCenterLogoUrl(paymentQrDesign, companyLogoUrl)}
                 size={128}
                 chrome={false}
               />

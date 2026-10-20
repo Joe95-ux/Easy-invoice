@@ -84,6 +84,7 @@ export const PRO_UPGRADE_COLUMNS: { title: string; features: string[] }[] = [
       "Payment plans",
       "Collections chase drafts",
       "Unlimited QR codes",
+      "QR scan history",
     ],
   },
 ];
@@ -101,7 +102,9 @@ export const PLAN_COMPARISON_SECTIONS: ComparisonSection[] = [
       { label: "Invoices per month", free: "20", pro: "Unlimited" },
       { label: "Companies", free: "2", pro: "Unlimited" },
       { label: "Team members", free: "2", pro: "Unlimited" },
-      { label: "QR codes", free: "5", pro: "Unlimited" },
+      { label: "QR codes", free: "5 workspace", pro: "Unlimited" },
+      { label: "Invoice scan-to-pay QR", free: true, pro: true },
+      { label: "QR scan history", free: false, pro: true },
       { label: "Estimates", free: true, pro: true },
       { label: "Clients", free: true, pro: true },
       { label: "Products / services library", free: true, pro: true },
@@ -164,7 +167,7 @@ export const LANDING_PLANS = [
       "Email invoices & recurring auto-send",
       "Payment plans, collections, late fees & statements",
       "Custom branding & logo on PDFs",
-      "Unlimited QR codes",
+      "Unlimited QR codes + scan history",
       "Priority support",
     ],
     /** Prefer getLandingProCta(trialDays) at render time. */

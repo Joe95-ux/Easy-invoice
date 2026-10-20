@@ -25,6 +25,18 @@ describe("qrPrintValue", () => {
       "https://app.example/q/token",
     );
   });
+
+  it("keeps the short link when a Wi-Fi code is gated", () => {
+    assert.equal(
+      qrPrintValue(
+        "WIFI",
+        { ssid: "Cafe Guest", password: "secret", encryption: "WPA" },
+        "https://app.example/q/token",
+        { gated: true },
+      ),
+      "https://app.example/q/token",
+    );
+  });
 });
 
 describe("buildWifiUri", () => {

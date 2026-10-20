@@ -8,6 +8,7 @@ import { assertCanCreateQrCode } from "@/lib/billing/entitlements";
 
 const QR_INCLUDE = {
   member: { select: { name: true, email: true } },
+  invoice: { select: { id: true, number: true } },
 } satisfies Prisma.QrCodeInclude;
 
 type QrCodeWithMember = Prisma.QrCodeGetPayload<{ include: typeof QR_INCLUDE }>;
@@ -20,6 +21,7 @@ export function serializeQrCode(qr: QrCodeWithMember): SerializedQrCode {
     status: qr.status,
     token: qr.token,
     invoiceId: qr.invoiceId ?? null,
+    invoice: qr.invoice ? { id: qr.invoice.id, number: qr.invoice.number } : null,
     passwordProtected: Boolean(qr.passwordHash),
     content: (qr.content ?? {}) as Record<string, unknown>,
     design: normalizeQrDesign(qr.design),
@@ -60,12 +62,14 @@ export async function getQrCodeByToken(token: string) {
 }
 
 export async function recordQrScan(id: string): Promise<void> {
+  const now = new Date();
   await prisma.qrCode
     .update({
       where: { id },
-      data: { scanCount: { increment: 1 }, lastScannedAt: new Date() },
+      data: { scanCount: { increment: 1 }, lastScannedAt: now },
     })
     .catch(() => undefined);
+  await prisma.qrScan.create({ data: { qrCodeId: id, scannedAt: now } }).catch(() => undefined);
 }
 
 async function generateUniqueQrToken(): Promise<string> {
@@ -93,11 +97,13 @@ type CreateQrCodeInput = {
 };
 
 export async function createQrCode(input: CreateQrCodeInput): Promise<SerializedQrCode> {
-  const company = await prisma.company.findUniqueOrThrow({
-    where: { id: input.companyId },
-    select: { plan: true },
-  });
-  await assertCanCreateQrCode(input.companyId, company.plan);
+  if (!input.invoiceId) {
+    const company = await prisma.company.findUniqueOrThrow({
+      where: { id: input.companyId },
+      select: { plan: true },
+    });
+    await assertCanCreateQrCode(input.companyId, company.plan);
+  }
 
   const token = await generateUniqueQrToken();
   const passwordHash =

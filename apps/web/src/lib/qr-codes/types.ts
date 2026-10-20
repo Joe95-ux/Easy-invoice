@@ -222,6 +222,7 @@ export type SerializedQrCode = {
   status: QrCodeStatus;
   token: string;
   invoiceId: string | null;
+  invoice: { id: string; number: string } | null;
   passwordProtected: boolean;
   content: Record<string, unknown>;
   design: QrDesign;

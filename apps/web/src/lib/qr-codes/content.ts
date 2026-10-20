@@ -161,14 +161,16 @@ export function wifiContentFromUnknown(content: Record<string, unknown>): WifiCo
 /**
  * Payload encoded in the printed QR image.
  * Wi‑Fi codes use a native WIFI: URI so camera apps can join in one tap.
- * Other types keep the dynamic /q/{token} short link.
+ * Password-protected or inactive codes keep the /q/{token} short link so
+ * pause and the access gate still apply.
  */
 export function qrPrintValue(
   type: QrCodeType,
   content: Record<string, unknown>,
   scanUrl: string,
+  options?: { gated?: boolean },
 ): string {
-  if (type === "WIFI") {
+  if (!options?.gated && type === "WIFI") {
     const wifi = wifiContentFromUnknown(content);
     if (wifi) return buildWifiUri(wifi);
   }

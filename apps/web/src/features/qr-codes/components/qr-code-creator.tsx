@@ -146,6 +146,12 @@ export function QrCodeCreator({
     form.type,
     buildQrContent(form) as Record<string, unknown>,
     scanUrl,
+    {
+      gated:
+        form.passwordEnabled ||
+        Boolean(created?.passwordProtected) ||
+        Boolean(initial?.passwordProtected),
+    },
   );
   const isLiveCode = Boolean(created?.token ?? initial?.token);
   const centerLogoUrl = resolveQrCenterLogoUrl(form.design, companyLogoUrl);
@@ -318,8 +324,11 @@ export function QrCodeCreator({
           <XIcon className="size-5" />
         </Button>
 
-        {/* Hidden canvas rendered at the selected export resolution. */}
-        <div className="hidden" aria-hidden>
+        {/* Off-screen canvas at export size — display:none canvases often stay blank. */}
+        <div
+          className="pointer-events-none fixed left-[-10000px] top-0"
+          aria-hidden
+        >
           <QrCodePreview
             ref={previewRef}
             value={printValue}

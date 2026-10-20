@@ -75,7 +75,7 @@ Platform Stripe Checkout + Customer Portal for upgrading the company plan (separ
 | Helpers | `lib/stripe-billing.ts` |
 | API | `GET/POST /api/stripe/billing` (checkout + portal), `POST /api/stripe/billing/confirm` |
 | Webhook | `/api/webhooks/stripe` sets `Company.plan` from Price IDs / lookup keys |
-| Limits | `lib/billing/entitlements.ts` — Free: 20 invoices/mo, 2 companies, 2 members, 5 QR codes; manual payment ledger on Free. Pro-only: branding, email invoices, recurring, payment plans, collections |
+| Limits | `lib/billing/entitlements.ts` — Free: 20 invoices/mo, 2 companies, 2 members, 5 workspace QR codes (invoice scan-to-pay extra); manual payment ledger on Free. Pro-only: branding, email invoices, recurring, payment plans, collections, QR scan history |
 | UI | Settings → Billing; sidebar Upgrade / Manage billing |
 | Env | `STRIPE_PRICE_PRO_MONTHLY`, `STRIPE_PRICE_PRO_YEARLY`, `STRIPE_PRO_TRIAL_DAYS` |
 
@@ -202,8 +202,8 @@ Businesses attach **their own** payment URL (PayPal.me, Stripe Payment Link, Ven
 | Schema | `QrCode.invoiceId` |
 | Lib | `apps/web/src/lib/invoice-payment-qr.ts` |
 | API | `GET/POST/DELETE /api/invoices/[id]/payment-qr` |
-| UI | `InvoicePaymentQrSection` on invoice detail |
-| PDF | QR embedded in payment information via `renderInvoiceHtmlForInvoice` |
+| UI | `InvoicePaymentQrSection` on invoice detail; scan-to-pay card on the public invoice page |
+| PDF | Designed QR (colors, logo, frames) embedded in payment information via `renderInvoiceHtmlForInvoice` |
 
 ---
 
@@ -224,14 +224,14 @@ short-lived httpOnly cookie lets them through (passwords are scrypt-hashed, neve
 
 | Piece | Location |
 |-------|----------|
-| Schema | `QrCode` model + `QrCodeType` / `QrCodeStatus` enums |
-| Lib | `apps/web/src/lib/qr-codes/*` (service, design, content/vcard+ics, url) |
+| Schema | `QrCode` + `QrScan` models, `QrCodeType` / `QrCodeStatus` enums |
+| Lib | `apps/web/src/lib/qr-codes/*` (service, design, render-svg, scans, content/vcard+ics, url) |
 | API | `GET/POST /api/qr-codes`, `GET/PATCH/DELETE /api/qr-codes/[id]`, `PATCH /api/qr-codes/[id]/status`, `POST /api/qr-codes/upload` |
 | Public | `/q/[token]` resolver (redirect, paused notice, password gate, or vCard/event/menu/wifi landing), `/q/[token]/unlock`, `/q/[token]/file` (gated PDF proxy), `/q/[token]/vcf`, `/q/[token]/ics` |
-| UI | `features/qr-codes/*`, pages `/qr-codes`, `/qr-codes/new`, `/qr-codes/[id]/edit` |
+| UI | `features/qr-codes/*`, pages `/qr-codes`, `/qr-codes/new`, `/qr-codes/[id]/edit` (scan history on edit) |
 | Sidebar | Collapsible **QR codes** group (Create QR code / QR codes) |
 
-Later: scan analytics over time, more types (app store), frames/labels.
+Out of scope: App Store / SMS / mailto types, static (non-short-link) QRs, scan webhooks, geo analytics, custom `/q` domain.
 
 ---
 

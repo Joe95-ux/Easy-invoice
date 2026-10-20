@@ -16,6 +16,8 @@ export type QrCodePreviewHandle = {
   download: (fileName: string) => void;
   /** Framed canvas when a decorative frame is set; otherwise the raw QR canvas. */
   getCanvas: () => HTMLCanvasElement | null;
+  /** True once the source QR canvas has a non-zero size (does not compose frames). */
+  isReady: () => boolean;
 };
 
 type QrCodePreviewProps = {
@@ -58,6 +60,10 @@ export const QrCodePreview = forwardRef<QrCodePreviewHandle, QrCodePreviewProps>
         exportQrCanvas(canvas, "png", fileName.replace(/\.png$/i, ""));
       },
       getCanvas: () => getFramedCanvas(),
+      isReady: () => {
+        const source = getSourceCanvas();
+        return Boolean(source && source.width > 0 && source.height > 0);
+      },
     }));
 
     const useLogo = design.logoEnabled && Boolean(logoUrl);
@@ -104,6 +110,17 @@ function waitForPaint(): Promise<void> {
   });
 }
 
+function preloadImage(src: string): Promise<void> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    const done = () => resolve();
+    img.onload = done;
+    img.onerror = done;
+    img.src = src;
+  });
+}
+
 /** Render a full-size QR off-screen and download it, independent of the on-page thumbnail. */
 export async function downloadQrPng(options: {
   value: string;
@@ -118,18 +135,32 @@ export async function downloadQrPng(options: {
   const host = document.createElement("div");
   host.setAttribute("aria-hidden", "true");
   host.style.cssText = "position:fixed;left:-10000px;top:0;pointer-events:none";
-  document.body.appendChild(host);
-  const root = createRoot(host);
+
+  let root: ReturnType<typeof createRoot> | null = null;
+  let cancelled = false;
 
   try {
+    if (options.logoUrl) {
+      await preloadImage(options.logoUrl);
+    }
+
+    document.body.appendChild(host);
+    root = createRoot(host);
+
     const handle = await new Promise<QrCodePreviewHandle>((resolve, reject) => {
-      const timeout = window.setTimeout(() => reject(new Error("QR code is not ready yet")), 8000);
-      root.render(
+      const timeout = window.setTimeout(() => {
+        cancelled = true;
+        reject(new Error("QR code is not ready yet"));
+      }, 8000);
+
+      root!.render(
         <QrCodePreview
           ref={(next) => {
-            if (!next) return;
+            if (!next || cancelled) return;
             const wait = () => {
-              if (next.getCanvas()) {
+              if (cancelled) return;
+              if (next.isReady()) {
+                cancelled = true;
                 window.clearTimeout(timeout);
                 resolve(next);
                 return;
@@ -147,12 +178,10 @@ export async function downloadQrPng(options: {
       );
     });
     await waitForPaint();
-    if (options.logoUrl) {
-      await new Promise((resolve) => window.setTimeout(resolve, 250));
-    }
     handle.download(options.fileName);
   } finally {
-    root.unmount();
+    cancelled = true;
+    root?.unmount();
     host.remove();
   }
 }

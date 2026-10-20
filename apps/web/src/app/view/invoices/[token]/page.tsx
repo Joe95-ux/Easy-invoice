@@ -4,7 +4,12 @@ import { DownloadIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { InvoicePayButton } from "@/features/public/components/invoice-pay-button";
 import { PublicDocumentFrame } from "@/features/public/components/public-document-frame";
+import { PublicInvoicePaymentQr } from "@/features/public/components/public-invoice-payment-qr";
 import { renderInvoiceHtmlForInvoice } from "@/lib/invoice-html";
+import {
+  buildPaymentQrImageDataUrl,
+  getInvoicePaymentQr,
+} from "@/lib/invoice-payment-qr";
 import { buildInvoicePaymentSummary } from "@/lib/invoice-payments";
 import { MIN_PLAN_BALANCE } from "@/lib/collections/advice";
 import { formatDate, formatMoney } from "@/lib/invoices";
@@ -25,12 +30,30 @@ export default async function PublicInvoicePage({ params }: PageProps) {
     await markInvoiceViewed(invoice.id, invoice.status);
   }
 
-  const html = await renderInvoiceHtmlForInvoice(invoice, {
-    inlineLogo: false,
-    ensureTemplates: false,
-  });
-
   const summary = buildInvoicePaymentSummary(invoice);
+  const alreadyPaid =
+    invoice.status === "PAID" ||
+    invoice.status === "CREDITED" ||
+    summary.balanceDue <= 0.001;
+
+  const [html, paymentQr] = await Promise.all([
+    renderInvoiceHtmlForInvoice(invoice, {
+      inlineLogo: false,
+      ensureTemplates: false,
+    }),
+    alreadyPaid || invoice.status === "DRAFT" || invoice.status === "CANCELLED"
+      ? Promise.resolve(null)
+      : getInvoicePaymentQr(invoice.id, invoice.companyId),
+  ]);
+
+  const paymentQrImage =
+    paymentQr?.qrCode.status === "ACTIVE"
+      ? await buildPaymentQrImageDataUrl(
+          paymentQr.scanUrl,
+          paymentQr.qrCode.design,
+          invoice.company.logoUrl,
+        )
+      : null;
   const canPayOnline =
     Boolean(invoice.company.stripeConnectedAccountId) &&
     invoice.company.stripeConnectChargesEnabled &&
@@ -46,10 +69,6 @@ export default async function PublicInvoicePage({ params }: PageProps) {
     summary.installments.length === 0 &&
     summary.balanceDue >= MIN_PLAN_BALANCE;
 
-  const alreadyPaid =
-    invoice.status === "PAID" ||
-    invoice.status === "CREDITED" ||
-    summary.balanceDue <= 0.001;
   const isOverdue = invoice.status === "OVERDUE";
   const dueLabel = invoice.dueDate ? formatDate(invoice.dueDate) : null;
   const hasInstallmentDue =
@@ -125,6 +144,14 @@ export default async function PublicInvoicePage({ params }: PageProps) {
           </Button>
         </div>
       </div>
+
+      {paymentQrImage && paymentQr ? (
+        <PublicInvoicePaymentQr
+          imageDataUrl={paymentQrImage}
+          paymentUrl={paymentQr.paymentUrl}
+          label={paymentQr.label}
+        />
+      ) : null}
 
       <div className="flex justify-center overflow-x-auto">
         <PublicDocumentFrame html={html} title={`Invoice ${invoice.number}`} />

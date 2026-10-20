@@ -146,13 +146,17 @@ function buildEps(canvas: HTMLCanvasElement): Blob {
 
 function printCanvas(canvas: HTMLCanvasElement) {
   const dataUrl = canvas.toDataURL("image/png");
-  const win = window.open("", "_blank", "width=480,height=560");
+  const win = window.open("", "_blank", "width=640,height=720");
   if (!win) throw new Error("Pop-up blocked — allow pop-ups to print");
   win.document.write(
     `<!doctype html><html><head><title>Print QR code</title>` +
-      `<style>body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh}` +
-      `img{width:340px;height:340px}</style></head>` +
-      `<body><img src="${dataUrl}" onload="window.focus();window.print()"/></body></html>`,
+      `<style>` +
+      `@page{margin:12mm}` +
+      `html,body{margin:0;min-height:100%;background:#fff}` +
+      `body{display:flex;align-items:center;justify-content:center}` +
+      `img{width:70mm;height:auto;image-rendering:pixelated}` +
+      `</style></head>` +
+      `<body><img src="${dataUrl}" alt="QR code" onload="window.focus();window.print()"/></body></html>`,
   );
   win.document.close();
 }
@@ -167,13 +171,13 @@ export function exportQrCanvas(
       triggerDownload(`${baseName}.png`, canvas.toDataURL("image/png"));
       return;
     case "jpeg":
-      triggerDownload(`${baseName}.jpg`, canvas.toDataURL("image/jpeg", 0.92));
+      triggerDownload(`${baseName}.jpg`, canvas.toDataURL("image/jpeg", 0.95));
       return;
     case "svg":
       downloadBlob(`${baseName}.svg`, buildSvg(canvas.toDataURL("image/png"), canvas.width));
       return;
     case "pdf": {
-      const jpeg = dataUrlToBytes(canvas.toDataURL("image/jpeg", 0.92));
+      const jpeg = dataUrlToBytes(canvas.toDataURL("image/jpeg", 0.95));
       downloadBlob(`${baseName}.pdf`, buildPdf(jpeg, canvas.width, canvas.height));
       return;
     }
