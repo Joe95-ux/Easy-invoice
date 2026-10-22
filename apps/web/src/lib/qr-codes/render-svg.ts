@@ -334,8 +334,9 @@ function buildQrModulesSvg(value: string, design: QrDesign, logoDataUrl: string 
     const x = (size - box) / 2;
     const y = (size - box) / 2;
     parts.push(`<rect x="${x}" y="${y}" width="${box}" height="${box}" fill="${bg}"/>`);
+    const href = escapeXml(logoDataUrl);
     parts.push(
-      `<image href="${escapeXml(logoDataUrl)}" x="${x + pad}" y="${y + pad}" width="${logo}" height="${logo}" preserveAspectRatio="xMidYMid meet"/>`,
+      `<image href="${href}" xlink:href="${href}" x="${x + pad}" y="${y + pad}" width="${logo}" height="${logo}" preserveAspectRatio="xMidYMid meet"/>`,
     );
   }
 
@@ -357,7 +358,7 @@ export async function renderQrDesignSvg(
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" ` +
     `width="${frame.width}" height="${frame.height}" viewBox="0 0 ${frame.width} ${frame.height}" ` +
-    `shape-rendering="geometricPrecision">` +
+    `shape-rendering="crispEdges" role="img" aria-label="QR code">` +
     `${frame.extras}` +
     `<g transform="translate(${frame.qrX} ${frame.qrY})">${qr.markup}</g>` +
     `</svg>`

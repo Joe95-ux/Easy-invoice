@@ -12,7 +12,7 @@ import { prisma } from "@/lib/db";
 import { getInvoiceForMember } from "@/lib/invoices";
 import { buildInvoicePaymentSummary, PAYMENT_METHOD_LABELS } from "@/lib/invoice-payments";
 import {
-  buildPaymentQrImageDataUrl,
+  buildPaymentQrImage,
   getInvoicePaymentQr,
 } from "@/lib/invoice-payment-qr";
 import { ensureSystemTemplates, getDefaultTemplateId, getTemplateById } from "@/lib/templates";
@@ -230,11 +230,11 @@ export async function renderInvoiceHtmlForInvoice(
       data = {
         ...data,
         paymentQr: {
-          imageDataUrl: await buildPaymentQrImageDataUrl(
+          ...(await buildPaymentQrImage(
             paymentQr.scanUrl,
             paymentQr.qrCode.design,
             invoice.company.logoUrl,
-          ),
+          )),
           label: paymentQr.label,
         },
       };

@@ -152,8 +152,9 @@ export const watermarkStyles = `
     align-items: center;
     gap: 14px;
   }
-  .payment-qr img {
-    width: 128px;
+  .payment-qr img,
+  .payment-qr svg {
+    width: 148px;
     height: auto;
     display: block;
     border: 1px solid #e5e7eb;

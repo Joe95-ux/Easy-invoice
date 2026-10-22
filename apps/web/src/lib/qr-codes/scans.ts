@@ -47,35 +47,44 @@ export async function getQrScanHistory(
   since.setUTCDate(since.getUTCDate() - (HISTORY_DAYS - 1));
   since.setUTCHours(0, 0, 0, 0);
 
-  const [bucketRows, recent] = await Promise.all([
-    prisma.qrScan.findMany({
-      where: { qrCodeId, scannedAt: { gte: since } },
-      select: { scannedAt: true },
-    }),
-    prisma.qrScan.findMany({
-      where: { qrCodeId },
-      orderBy: { scannedAt: "desc" },
-      take: RECENT_LIMIT,
-      select: { id: true, scannedAt: true },
-    }),
-  ]);
+  try {
+    const [bucketRows, recent] = await Promise.all([
+      prisma.qrScan.findMany({
+        where: { qrCodeId, scannedAt: { gte: since } },
+        select: { scannedAt: true },
+      }),
+      prisma.qrScan.findMany({
+        where: { qrCodeId },
+        orderBy: { scannedAt: "desc" },
+        take: RECENT_LIMIT,
+        select: { id: true, scannedAt: true },
+      }),
+    ]);
 
-  const counts = new Map<string, number>();
-  for (const row of bucketRows) {
-    const key = utcDateKey(row.scannedAt);
-    counts.set(key, (counts.get(key) ?? 0) + 1);
+    const counts = new Map<string, number>();
+    for (const row of bucketRows) {
+      const key = utcDateKey(row.scannedAt);
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+
+    return {
+      total: qr.scanCount,
+      lastScannedAt: qr.lastScannedAt?.toISOString() ?? null,
+      days: lastUtcDays(HISTORY_DAYS).map((date) => ({
+        date,
+        count: counts.get(date) ?? 0,
+      })),
+      recent: recent.map((row) => ({
+        id: row.id,
+        scannedAt: row.scannedAt.toISOString(),
+      })),
+    };
+  } catch {
+    return {
+      total: qr.scanCount,
+      lastScannedAt: qr.lastScannedAt?.toISOString() ?? null,
+      days: lastUtcDays(HISTORY_DAYS).map((date) => ({ date, count: 0 })),
+      recent: [],
+    };
   }
-
-  return {
-    total: qr.scanCount,
-    lastScannedAt: qr.lastScannedAt?.toISOString() ?? null,
-    days: lastUtcDays(HISTORY_DAYS).map((date) => ({
-      date,
-      count: counts.get(date) ?? 0,
-    })),
-    recent: recent.map((row) => ({
-      id: row.id,
-      scannedAt: row.scannedAt.toISOString(),
-    })),
-  };
 }

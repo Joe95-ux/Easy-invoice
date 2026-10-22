@@ -95,6 +95,8 @@ export type InvoiceHtmlData = {
   /** Scan-to-pay QR (business's own payment link) shown on the invoice. */
   paymentQr?: {
     imageDataUrl: string;
+    /** Inline SVG for PDF/HTML — more reliable than a data-URL <img>. */
+    svgMarkup?: string;
     label?: string | null;
   } | null;
 };

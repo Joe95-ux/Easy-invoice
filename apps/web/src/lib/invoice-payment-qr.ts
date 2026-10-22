@@ -8,7 +8,7 @@ import {
 } from "@/lib/company-payment-methods";
 import { prisma } from "@/lib/db";
 import { DEFAULT_QR_DESIGN } from "@/lib/qr-codes/design";
-import { renderQrDesignDataUrl } from "@/lib/qr-codes/render-svg";
+import { renderQrDesignDataUrl, renderQrDesignSvg } from "@/lib/qr-codes/render-svg";
 import {
   createQrCode,
   serializeQrCode,
@@ -160,7 +160,19 @@ export async function detachInvoicePaymentQr(
   return result.count > 0;
 }
 
-/** Designed QR image (SVG data URL) for invoice HTML/PDF — matches the workspace QR look. */
+/** Designed QR for invoice HTML/PDF — matches the workspace QR look. */
+export async function buildPaymentQrImage(
+  scanUrl: string,
+  design?: QrDesign | null,
+  companyLogoUrl?: string | null,
+): Promise<{ imageDataUrl: string; svgMarkup: string }> {
+  const svgMarkup = await renderQrDesignSvg(scanUrl, design, companyLogoUrl);
+  return {
+    svgMarkup,
+    imageDataUrl: `data:image/svg+xml;base64,${Buffer.from(svgMarkup).toString("base64")}`,
+  };
+}
+
 export async function buildPaymentQrImageDataUrl(
   scanUrl: string,
   design?: QrDesign | null,

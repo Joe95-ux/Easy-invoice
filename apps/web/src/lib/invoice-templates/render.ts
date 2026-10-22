@@ -485,11 +485,16 @@ function buildSections(
     })
     .join("");
 
+  const paymentQrVisual = data.paymentQr?.svgMarkup
+    ? data.paymentQr.svgMarkup
+    : data.paymentQr?.imageDataUrl
+      ? `<img src="${escapeHtml(data.paymentQr.imageDataUrl)}" alt="Scan to pay" />`
+      : "";
   const paymentQrBlock =
     data.documentKind !== "estimate" &&
     data.documentKind !== "credit_note" &&
-    data.paymentQr?.imageDataUrl
-      ? `<div class="payment-qr"><img src="${escapeHtml(data.paymentQr.imageDataUrl)}" alt="Scan to pay" /><div class="payment-qr-caption"><strong>Scan to pay</strong>${data.paymentQr.label ? escapeHtml(data.paymentQr.label) : "Open the payment link with your phone camera"}</div></div>`
+    paymentQrVisual
+      ? `<div class="payment-qr">${paymentQrVisual}<div class="payment-qr-caption"><strong>Scan to pay</strong>${data.paymentQr?.label ? escapeHtml(data.paymentQr.label) : "Open the payment link with your phone camera"}</div></div>`
       : "";
 
   const payment_info =
