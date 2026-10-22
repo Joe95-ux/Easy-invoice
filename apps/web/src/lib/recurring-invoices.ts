@@ -24,6 +24,10 @@ import { generateInvoicePdfBuffer } from "@/lib/invoice-service";
 import { formatMoney } from "@/lib/invoices";
 import { portalLoginUrl } from "@/lib/portal/urls";
 import { ensureInvoicePublicToken } from "@/lib/public-documents";
+import {
+  copyRecurringInvoicePaymentQr,
+  getInvoicePaymentQr,
+} from "@/lib/invoice-payment-qr";
 import type {
   CreateRecurringFromInvoiceInput,
   CreateRecurringInvoiceInput,
@@ -735,6 +739,7 @@ async function sendGeneratedInvoice(
   }
 
   const origin = await getAppOrigin();
+  const paymentQr = await getInvoicePaymentQr(invoiceId, companyId);
   await sendInvoiceEmail({
     to: recipientEmail,
     companyName: invoice.company.name,
@@ -746,6 +751,7 @@ async function sendGeneratedInvoice(
       "invoice",
       (await ensureInvoicePublicToken(invoiceId, companyId))!,
     ),
+    payUrl: paymentQr?.qrCode.status === "ACTIVE" ? paymentQr.paymentUrl : undefined,
     portalUrl: portalLoginUrl(origin, recipientEmail),
     replyTo: invoice.company.email,
   });
@@ -1090,6 +1096,14 @@ export async function issueRecurringInvoiceOccurrence(
     createdNumber = created.invoice.number;
 
     if (!created.duplicate) {
+      await copyRecurringInvoicePaymentQr({
+        scheduleId: schedule.id,
+        sourceInvoiceId: schedule.sourceInvoiceId,
+        toInvoiceId: created.invoice.id,
+        companyId,
+        memberId: options?.memberId ?? schedule.memberId,
+      }).catch(() => null);
+
       const snapshot = await loadInvoiceSnapshot(companyId, created.invoice.id);
       if (snapshot) {
         await recordDocumentRevision({

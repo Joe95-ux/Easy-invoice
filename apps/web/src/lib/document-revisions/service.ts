@@ -36,6 +36,7 @@ import {
 } from "@/lib/time-tracking/service";
 import { releaseProjectExpensesForInvoice } from "@/lib/project-expenses";
 import { syncInvoiceInstallments, validateInstallments } from "@/lib/invoice-payments";
+import { copyInvoicePaymentQr } from "@/lib/invoice-payment-qr";
 import { formatRevisionActor } from "@/lib/member-email";
 import { normalizeAppliedTaxes } from "@/lib/tax-rates";
 
@@ -713,6 +714,13 @@ export async function duplicateInvoice(
   if (installments.length > 0) {
     await syncInvoiceInstallments(created.id, installments);
   }
+
+  await copyInvoicePaymentQr({
+    fromInvoiceId: invoiceId,
+    toInvoiceId: created.id,
+    companyId,
+    memberId,
+  }).catch(() => null);
 
   const createdSnapshot = await loadInvoiceSnapshot(companyId, created.id);
   if (createdSnapshot) {

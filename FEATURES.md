@@ -195,7 +195,7 @@ Structured payment methods (PayPal, Zelle, bank, etc.) in company settings; rend
 
 **Status:** Done
 
-Businesses attach **their own** payment URL (PayPal.me, Stripe Payment Link, Venmo, Square, etc.) to an invoice as a LINK QR. The printed code uses a stable `/q/[token]` short link that redirects to that URL. Easy-invoice does not process the payment.
+Businesses attach **their own** payment URL (PayPal.me, Stripe Payment Link, Venmo, Square, etc.) to an invoice as a LINK QR. The printed code uses a stable `/q/[token]` short link that redirects to that URL. Easy-invoice does not process the payment. Duplicate and recurring invoices copy the QR (new token, same destination and design). Deleting an invoice soft-deletes the linked code so it does not linger in the workspace or count toward Free limits. Invoice emails include the payment URL when a QR exists.
 
 | Piece | Location |
 |-------|----------|

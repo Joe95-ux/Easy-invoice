@@ -7,7 +7,7 @@ import {
   type CompanyPaymentMethod,
 } from "@/lib/company-payment-methods";
 import { prisma } from "@/lib/db";
-import { DEFAULT_QR_DESIGN } from "@/lib/qr-codes/design";
+import { DEFAULT_QR_DESIGN, normalizeQrDesign } from "@/lib/qr-codes/design";
 import { renderQrDesignDataUrl, renderQrDesignSvg } from "@/lib/qr-codes/render-svg";
 import {
   createQrCode,
@@ -25,6 +25,17 @@ export type InvoicePaymentQrSummary = {
 
 function paymentUrlFromContent(content: Record<string, unknown>): string | null {
   return typeof content.url === "string" ? normalizePaymentLinkUrl(content.url) : null;
+}
+
+export function paymentQrMethodLabel(name: string): string {
+  const sep = " · ";
+  const index = name.indexOf(sep);
+  if (index === -1) return "Payment link";
+  return name.slice(index + sep.length).trim() || "Payment link";
+}
+
+export function paymentQrName(invoiceNumber: string, methodLabel: string): string {
+  return `Pay ${invoiceNumber} · ${methodLabel}`.slice(0, 80);
 }
 
 export async function getCompanyPaymentLinkMethods(
@@ -89,7 +100,7 @@ export async function upsertInvoicePaymentQr(options: {
   }
 
   const label = options.methodLabel?.trim() || "Payment link";
-  const name = `Pay ${invoice.number} · ${label}`.slice(0, 80);
+  const name = paymentQrName(invoice.number, label);
   const content = { url: paymentUrl };
 
   const existing = await prisma.qrCode.findFirst({
@@ -158,6 +169,97 @@ export async function detachInvoicePaymentQr(
     },
   });
   return result.count > 0;
+}
+
+const PAYMENT_QR_INCLUDE = {
+  member: { select: { name: true, email: true } },
+  invoice: { select: { id: true, number: true } },
+} satisfies Prisma.QrCodeInclude;
+
+/**
+ * Copy a scan-to-pay QR onto another invoice (duplicate / recurring).
+ * Creates a new short link so the destination can still be edited independently.
+ */
+export async function copyInvoicePaymentQr(options: {
+  fromInvoiceId: string;
+  toInvoiceId: string;
+  companyId: string;
+  memberId?: string | null;
+}): Promise<InvoicePaymentQrSummary | null> {
+  if (options.fromInvoiceId === options.toInvoiceId) return null;
+
+  const existing = await getInvoicePaymentQr(options.toInvoiceId, options.companyId);
+  if (existing) return existing;
+
+  const source = await prisma.qrCode.findFirst({
+    where: {
+      invoiceId: options.fromInvoiceId,
+      companyId: options.companyId,
+      type: "LINK",
+      status: { not: "DELETED" },
+    },
+    include: PAYMENT_QR_INCLUDE,
+    orderBy: { updatedAt: "desc" },
+  });
+  if (!source) return null;
+
+  const paymentUrl = paymentUrlFromContent((source.content ?? {}) as Record<string, unknown>);
+  if (!paymentUrl) return null;
+
+  const target = await prisma.invoice.findFirst({
+    where: { id: options.toInvoiceId, companyId: options.companyId },
+    select: { id: true, number: true },
+  });
+  if (!target) return null;
+
+  const qrCode = await createQrCode({
+    companyId: options.companyId,
+    memberId: options.memberId ?? source.memberId,
+    name: paymentQrName(target.number, paymentQrMethodLabel(source.name)),
+    type: "LINK",
+    content: { url: paymentUrl },
+    design: normalizeQrDesign(source.design),
+    invoiceId: options.toInvoiceId,
+  });
+
+  const origin = await getAppOrigin();
+  return {
+    qrCode,
+    paymentUrl,
+    scanUrl: qrScanUrl(origin, qrCode.token),
+    label: qrCode.name,
+  };
+}
+
+/** Latest payment QR on a recurring schedule, else the schedule's source invoice. */
+export async function copyRecurringInvoicePaymentQr(options: {
+  scheduleId: string;
+  sourceInvoiceId: string | null;
+  toInvoiceId: string;
+  companyId: string;
+  memberId?: string | null;
+}): Promise<InvoicePaymentQrSummary | null> {
+  const latest = await prisma.qrCode.findFirst({
+    where: {
+      companyId: options.companyId,
+      type: "LINK",
+      status: { not: "DELETED" },
+      invoiceId: { not: options.toInvoiceId },
+      invoice: { recurringInvoiceId: options.scheduleId },
+    },
+    orderBy: { updatedAt: "desc" },
+    select: { invoiceId: true },
+  });
+
+  const fromInvoiceId = latest?.invoiceId ?? options.sourceInvoiceId;
+  if (!fromInvoiceId) return null;
+
+  return copyInvoicePaymentQr({
+    fromInvoiceId,
+    toInvoiceId: options.toInvoiceId,
+    companyId: options.companyId,
+    memberId: options.memberId,
+  });
 }
 
 /** Designed QR for invoice HTML/PDF — matches the workspace QR look. */

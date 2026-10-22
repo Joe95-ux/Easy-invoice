@@ -37,6 +37,7 @@ import {
   syncInvoiceInstallments,
   validateInstallments,
 } from "@/lib/invoice-payments";
+import { detachInvoicePaymentQr } from "@/lib/invoice-payment-qr";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -375,6 +376,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
 
   await releaseTimeEntriesForInvoice(id);
   await releaseProjectExpensesForInvoice(id);
+  await detachInvoicePaymentQr(id, member.companyId);
   await prisma.invoice.delete({ where: { id } });
 
   await recordAuditEvent({

@@ -8,6 +8,7 @@ import {
   normalizeCustomFieldDefinitions,
 } from "@/lib/custom-fields";
 import { generateInvoicePdfBuffer } from "@/lib/invoice-service";
+import { getInvoicePaymentQr } from "@/lib/invoice-payment-qr";
 import { formatMoney } from "@/lib/invoices";
 import { portalLoginUrl } from "@/lib/portal/urls";
 import { ensureInvoicePublicToken } from "@/lib/public-documents";
@@ -62,6 +63,7 @@ export async function POST(request: Request, context: RouteContext) {
     }
 
     const origin = await getAppOrigin();
+    const paymentQr = await getInvoicePaymentQr(id, member.companyId);
     const customFieldRows = buildCustomFieldDisplayRows(
       normalizeCustomFieldDefinitions(invoice.company.customFieldDefinitions),
       "invoice",
@@ -78,6 +80,7 @@ export async function POST(request: Request, context: RouteContext) {
         "invoice",
         (await ensureInvoicePublicToken(id, member.companyId))!,
       ),
+      payUrl: paymentQr?.qrCode.status === "ACTIVE" ? paymentQr.paymentUrl : undefined,
       portalUrl: portalLoginUrl(origin, recipientEmail),
       message: parsed.data.message,
       subject: parsed.data.subject,

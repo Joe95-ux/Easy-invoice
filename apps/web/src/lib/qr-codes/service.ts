@@ -86,7 +86,7 @@ async function generateUniqueQrToken(): Promise<string> {
 
 type CreateQrCodeInput = {
   companyId: string;
-  memberId: string;
+  memberId?: string | null;
   name: string;
   type: QrCodeType;
   content: Record<string, unknown>;
@@ -113,7 +113,7 @@ export async function createQrCode(input: CreateQrCodeInput): Promise<Serialized
   const qr = await prisma.qrCode.create({
     data: {
       companyId: input.companyId,
-      memberId: input.memberId,
+      memberId: input.memberId || null,
       name: input.name,
       type: input.type,
       token,

@@ -48,6 +48,8 @@ type SendInvoiceEmailInput = {
   total: string;
   pdfBuffer: Buffer;
   viewUrl?: string;
+  /** Direct payment URL from the invoice scan-to-pay QR. */
+  payUrl?: string;
   /** Link to the client portal login (optionally prefilled). */
   portalUrl?: string;
   message?: string;
@@ -86,7 +88,10 @@ export async function sendInvoiceEmail(input: SendInvoiceEmailInput) {
   const resend = getResend();
 
   const viewLink = input.viewUrl
-    ? `<p><a href="${input.viewUrl}">View invoice online</a></p>`
+    ? `<p><a href="${escapeHtml(input.viewUrl)}">View invoice online</a></p>`
+    : "";
+  const payLink = input.payUrl
+    ? `<p>Pay this invoice: <a href="${escapeHtml(input.payUrl)}">${escapeHtml(input.payUrl)}</a></p>`
     : "";
   const portalLink = formatPortalLink(input.portalUrl);
   const personalMessage = formatPersonalMessage(input.message);
@@ -106,6 +111,7 @@ export async function sendInvoiceEmail(input: SendInvoiceEmailInput) {
       <p>Total due: <strong>${input.total}</strong></p>
       ${formatCustomFieldsHtml(input.customFieldRows)}
       ${viewLink}
+      ${payLink}
       ${portalLink}
       <p>Thank you for your business.</p>
     `,
