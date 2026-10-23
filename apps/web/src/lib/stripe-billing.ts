@@ -3,6 +3,7 @@ import type Stripe from "stripe";
 import { prisma } from "@/lib/db";
 import { getAppOrigin } from "@/lib/app-url";
 import { isStripeConfigured, stripe } from "@/lib/stripe";
+import { ensureStripePortalBranding } from "@/lib/stripe-portal-branding";
 
 export const SAAS_SUBSCRIPTION_META_TYPE = "saas_subscription";
 
@@ -402,12 +403,17 @@ export async function createBillingPortalSession(input: {
 
   let configuration: string | undefined;
   try {
-    configuration = await ensureBillingPortalConfiguration({
-      requireSubscriptionUpdate: input.flow === "subscription_update",
-    });
+    const [configId] = await Promise.all([
+      ensureBillingPortalConfiguration({
+        requireSubscriptionUpdate: input.flow === "subscription_update",
+      }),
+      ensureStripePortalBranding(),
+    ]);
+    configuration = configId;
   } catch (error) {
     // Fall back to the account default portal configuration in Stripe.
     console.warn("[stripe-billing] Could not ensure portal configuration", error);
+    await ensureStripePortalBranding();
   }
 
   const sessionParams: Stripe.BillingPortal.SessionCreateParams = {
