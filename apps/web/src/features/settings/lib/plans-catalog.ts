@@ -102,7 +102,7 @@ export const PLAN_COMPARISON_SECTIONS: ComparisonSection[] = [
       { label: "Invoices per month", free: "20", pro: "Unlimited" },
       { label: "Companies", free: "2", pro: "Unlimited" },
       { label: "Team members", free: "2", pro: "Unlimited" },
-      { label: "QR codes", free: "5 workspace", pro: "Unlimited" },
+      { label: "QR codes", free: "5 workspace codes", pro: "Unlimited" },
       { label: "Invoice scan-to-pay QR", free: true, pro: true },
       { label: "QR scan history", free: false, pro: true },
       { label: "Estimates", free: true, pro: true },
