@@ -6,8 +6,10 @@ import { toast } from "sonner";
 import { DocumentShareButton } from "@/components/document-share-button";
 import { FollowUpDialog } from "@/features/follow-ups/components/follow-up-dialog";
 import { InvoiceCollectionsCard } from "@/features/invoices/components/invoice-collections-card";
+import { InvoiceCollectionsTimeline } from "@/features/invoices/components/invoice-collections-timeline";
 import { InvoiceSendDialog } from "@/features/invoices/components/invoice-send-dialog";
 import { getCollectionsAdvice } from "@/lib/collections/advice";
+import type { CollectionsTimelineStep } from "@/lib/collections/timeline";
 import type { InvoiceStatus } from "@easy-invoice/db";
 
 type InvoiceGetPaidSectionProps = {
@@ -46,6 +48,8 @@ export function InvoiceGetPaidSection({
   unpaidInstallmentCount,
   canPayOnline,
   canWrite = true,
+  timeline = [],
+  remindersPaused = false,
 }: InvoiceGetPaidSectionProps) {
   const router = useRouter();
   const [sendOpen, setSendOpen] = useState(false);
@@ -80,75 +84,84 @@ export function InvoiceGetPaidSection({
     setSendOpen(true);
   }
 
-  if (!canWrite || advice.action === "none") {
+  const showActions = canWrite && advice.action !== "none";
+  if (!showActions && timeline.length === 0) {
     return null;
   }
 
   return (
     <>
-      <InvoiceCollectionsCard
-        invoiceId={invoiceId}
-        advice={advice}
-        clientEmail={clientEmail}
-        canPayOnline={canPayOnline}
-        canRemind={canRemind}
-        onDraftChase={() => openSend("collections")}
-        onSendInvoice={() => openSend("professional")}
-        onAddFollowUp={() => setFollowUpOpen(true)}
-        onShareLink={() => setShareOpen(true)}
-      />
+      {showActions ? (
+        <InvoiceCollectionsCard
+          invoiceId={invoiceId}
+          advice={advice}
+          clientEmail={clientEmail}
+          canPayOnline={canPayOnline}
+          canRemind={canRemind}
+          onDraftChase={() => openSend("collections")}
+          onSendInvoice={() => openSend("professional")}
+          onAddFollowUp={() => setFollowUpOpen(true)}
+          onShareLink={() => setShareOpen(true)}
+        />
+      ) : null}
 
-      <DocumentShareButton
-        kind="invoice"
-        documentId={invoiceId}
-        showTrigger={false}
-        open={shareOpen}
-        onOpenChange={setShareOpen}
-      />
+      <InvoiceCollectionsTimeline steps={timeline} paused={remindersPaused} />
 
-      <InvoiceSendDialog
-        open={sendOpen}
-        onOpenChange={setSendOpen}
-        invoiceId={invoiceId}
-        invoiceNumber={invoiceNumber}
-        status={status}
-        clientEmail={clientEmail}
-        companyName={companyName}
-        clientName={clientName}
-        draftTone={draftTone}
-      />
+      {showActions ? (
+        <>
+          <DocumentShareButton
+            kind="invoice"
+            documentId={invoiceId}
+            showTrigger={false}
+            open={shareOpen}
+            onOpenChange={setShareOpen}
+          />
 
-      <FollowUpDialog
-        open={followUpOpen}
-        onOpenChange={setFollowUpOpen}
-        clients={
-          clientId ? [{ id: clientId, label: clientName ?? "Client" }] : []
-        }
-        invoices={[
-          {
-            id: invoiceId,
-            label: clientName ? `${invoiceNumber} · ${clientName}` : invoiceNumber,
-            clientId,
-          },
-        ]}
-        estimates={[]}
-        lockLink="invoice"
-        showSuccessToast={false}
-        defaults={{
-          title: `Follow up on invoice ${invoiceNumber}`,
-          dueDate,
-          clientId,
-          invoiceId,
-        }}
-        onCreated={() => {
-          toast.success("Follow-up added", {
-            action: {
-              label: "View",
-              onClick: () => router.push("/follow-ups"),
-            },
-          });
-        }}
-      />
+          <InvoiceSendDialog
+            open={sendOpen}
+            onOpenChange={setSendOpen}
+            invoiceId={invoiceId}
+            invoiceNumber={invoiceNumber}
+            status={status}
+            clientEmail={clientEmail}
+            companyName={companyName}
+            clientName={clientName}
+            draftTone={draftTone}
+          />
+
+          <FollowUpDialog
+            open={followUpOpen}
+            onOpenChange={setFollowUpOpen}
+            clients={
+              clientId ? [{ id: clientId, label: clientName ?? "Client" }] : []
+            }
+            invoices={[
+              {
+                id: invoiceId,
+                label: clientName ? `${invoiceNumber} · ${clientName}` : invoiceNumber,
+                clientId,
+              },
+            ]}
+            estimates={[]}
+            lockLink="invoice"
+            showSuccessToast={false}
+            defaults={{
+              title: `Follow up on invoice ${invoiceNumber}`,
+              dueDate,
+              clientId,
+              invoiceId,
+            }}
+            onCreated={() => {
+              toast.success("Follow-up added", {
+                action: {
+                  label: "View",
+                  onClick: () => router.push("/follow-ups"),
+                },
+              });
+            }}
+          />
+        </>
+      ) : null}
     </>
   );
 }

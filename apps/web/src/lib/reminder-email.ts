@@ -1,6 +1,7 @@
 import { getEmailFromAddress } from "@/lib/email";
 import { Resend } from "resend";
 import type { ReminderKind } from "@/lib/db";
+import type { CollectionsEmailTone } from "@/lib/collections/timeline";
 import { formatDate } from "@/lib/invoices";
 
 function getResend() {
@@ -20,6 +21,7 @@ type SendPaymentReminderEmailInput = {
   viewUrl: string;
   portalUrl?: string;
   kind: ReminderKind;
+  collectionsTone?: CollectionsEmailTone;
   pdfBuffer?: Buffer;
   extraAttachments?: Array<{ filename: string; content: Buffer }>;
   /** When set, client replies go to the company instead of the platform From. */
@@ -32,11 +34,36 @@ function sanitizeReplyTo(email?: string | null): string | undefined {
   return trimmed;
 }
 
+function collectionsCopy(
+  companyName: string,
+  invoiceNumber: string,
+  dueDateLabel: string,
+  tone: CollectionsEmailTone = "firm",
+) {
+  if (tone === "notice") {
+    return {
+      subject: `Overdue notice: Invoice ${invoiceNumber} from ${companyName}`,
+      lead: `Invoice <strong>${invoiceNumber}</strong> from <strong>${companyName}</strong> is past due (was due <strong>${dueDateLabel}</strong>). Please send payment when you can so we can keep this on track.`,
+    };
+  }
+  if (tone === "final") {
+    return {
+      subject: `Final notice: Invoice ${invoiceNumber} from ${companyName}`,
+      lead: `This is a final notice for invoice <strong>${invoiceNumber}</strong> from <strong>${companyName}</strong>, due <strong>${dueDateLabel}</strong>. The balance is still unpaid. Please arrange payment now to close this account.`,
+    };
+  }
+  return {
+    subject: `Payment required: Invoice ${invoiceNumber} from ${companyName}`,
+    lead: `Invoice <strong>${invoiceNumber}</strong> from <strong>${companyName}</strong> remains unpaid past its due date (<strong>${dueDateLabel}</strong>). Please arrange payment now so we can close this out.`,
+  };
+}
+
 function reminderCopy(
   kind: ReminderKind,
   companyName: string,
   invoiceNumber: string,
   dueDateLabel: string,
+  collectionsTone?: CollectionsEmailTone,
 ) {
   switch (kind) {
     case "BEFORE_DUE":
@@ -55,10 +82,7 @@ function reminderCopy(
         lead: `Invoice <strong>${invoiceNumber}</strong> from <strong>${companyName}</strong> is past due (was due <strong>${dueDateLabel}</strong>).`,
       };
     case "COLLECTIONS":
-      return {
-        subject: `Payment required: Invoice ${invoiceNumber} from ${companyName}`,
-        lead: `Invoice <strong>${invoiceNumber}</strong> from <strong>${companyName}</strong> remains unpaid past its due date (<strong>${dueDateLabel}</strong>). Please arrange payment now so we can close this out.`,
-      };
+      return collectionsCopy(companyName, invoiceNumber, dueDateLabel, collectionsTone);
     case "MANUAL":
     default:
       return {
@@ -76,6 +100,7 @@ export async function sendPaymentReminderEmail(input: SendPaymentReminderEmailIn
     input.companyName,
     input.invoiceNumber,
     input.dueDateLabel,
+    input.collectionsTone,
   );
 
   const attachments = [

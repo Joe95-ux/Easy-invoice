@@ -24,6 +24,7 @@ import { isProPlan } from "@/lib/billing/entitlements";
 import { applyInvoiceLateFee } from "@/lib/late-fees";
 import { generateClientStatementPdfBuffer } from "@/lib/statements";
 import { collectionsSettingsFromCompany } from "@/lib/collections/settings";
+import { collectionsToneForOffset } from "@/lib/collections/timeline";
 
 const REMINDABLE_STATUSES: InvoiceStatus[] = ["SENT", "VIEWED", "OVERDUE", "PARTIALLY_PAID"];
 
@@ -242,6 +243,10 @@ export async function sendInvoiceReminder(options: {
       viewUrl,
       portalUrl: portalLoginUrl(origin, toEmail),
       kind: options.kind,
+      collectionsTone:
+        options.kind === ReminderKind.COLLECTIONS
+          ? collectionsToneForOffset(options.offsetDays, invoice.company.collectionsDaysAfter)
+          : undefined,
       pdfBuffer: pdfResult?.pdfBuffer,
       extraAttachments: statementAttachment,
       replyTo: invoice.company.email,

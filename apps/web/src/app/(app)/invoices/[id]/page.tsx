@@ -38,6 +38,11 @@ import {
 import { getTemplatesForCompany } from "@/lib/templates";
 import { buildInvoicePaymentSummary } from "@/lib/invoice-payments";
 import { isProPlan } from "@/lib/billing/entitlements";
+import {
+  collectionsSettingsFromCompany,
+  lateFeeSettingsFromCompany,
+} from "@/lib/collections/settings";
+import { buildCollectionsTimeline } from "@/lib/collections/timeline";
 import { getPaymentConfirmationsByInvoice } from "@/lib/payment-confirmation";
 import {
   normalizeCustomFieldDefinitions,
@@ -181,13 +186,39 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
         viewedAt={invoice.viewedAt?.toISOString() ?? null}
         installmentCount={paymentSummary.installments.length}
         unpaidInstallmentCount={paymentSummary.installments.filter((row) => !row.isPaid).length}
-            canPayOnline={
-              Boolean(invoice.company.stripeConnectedAccountId) &&
-              invoice.company.stripeConnectChargesEnabled &&
-              invoice.company.stripeConnectDetailsSubmitted
-            }
-            canWrite={canWriteDocuments(member.role)}
-          />
+        canPayOnline={
+          Boolean(invoice.company.stripeConnectedAccountId) &&
+          invoice.company.stripeConnectChargesEnabled &&
+          invoice.company.stripeConnectDetailsSubmitted
+        }
+        canWrite={canWriteDocuments(member.role)}
+        remindersPaused={invoice.remindersPaused}
+        timeline={
+          isProPlan(member.company.plan)
+            ? buildCollectionsTimeline({
+                dueDate: paymentSummary.nextDueDate ?? invoice.dueDate,
+                settled:
+                  paymentSummary.balanceDue <= 0.001 ||
+                  invoice.status === "PAID" ||
+                  invoice.status === "CREDITED" ||
+                  invoice.status === "CANCELLED",
+                paused: invoice.remindersPaused,
+                collections: collectionsSettingsFromCompany(invoice.company),
+                lateFees: lateFeeSettingsFromCompany(invoice.company),
+                reminders: (reminders ?? []).map((reminder) => ({
+                  kind: reminder.kind,
+                  offsetDays: reminder.offsetDays,
+                  status: reminder.status,
+                })),
+                lateFeeAppliedAt: invoice.lateFees[0]?.appliedAt ?? null,
+                lateFeeAmountLabel:
+                  paymentSummary.amountLateFees > 0.001
+                    ? formatMoney(paymentSummary.amountLateFees, invoice.currency)
+                    : null,
+              })
+            : []
+        }
+      />
 
       <Card id="invoice-template" className="mb-6 scroll-mt-20">
         <CardContent>

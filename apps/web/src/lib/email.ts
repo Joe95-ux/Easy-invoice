@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { PRO_SUPPORT_SLA, SUPPORT_EMAIL, supportEmailSubject } from "@/lib/support";
 
 function getResend() {
   const apiKey = process.env.RESEND_API_KEY;
@@ -365,12 +366,12 @@ type SendContactEmailInput = {
   subject: string;
   topic: string;
   message: string;
+  priority?: boolean;
+  plan?: string;
 };
 
 export async function sendContactEmail(input: SendContactEmailInput) {
   const from = getEmailFromAddress();
-  const supportEmail =
-    process.env.SUPPORT_EMAIL ?? process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? "support@invoicedesk.app";
   const resend = getResend();
 
   const escapedMessage = input.message
@@ -386,12 +387,18 @@ export async function sendContactEmail(input: SendContactEmailInput) {
 
   const { data, error } = await resend.emails.send({
     from,
-    to: supportEmail,
+    to: SUPPORT_EMAIL,
     replyTo: input.fromEmail,
-    subject: `Invoice Desk support: ${input.subject}`,
+    subject: supportEmailSubject(input.subject, Boolean(input.priority)),
     html: `
       <p><strong>From:</strong> ${input.fromEmail}</p>
       <p><strong>Company:</strong> ${input.companyName}</p>
+      <p><strong>Plan:</strong> ${input.priority ? "Pro · priority queue" : input.plan ?? "Free"}</p>
+      ${
+        input.priority
+          ? `<p><strong>SLA:</strong> Reply by the ${PRO_SUPPORT_SLA}.</p>`
+          : ""
+      }
       <p><strong>Topic:</strong> ${input.topic}</p>
       <p><strong>Subject:</strong> ${escapedSubject}</p>
       <hr />

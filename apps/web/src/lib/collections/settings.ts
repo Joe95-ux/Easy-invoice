@@ -1,4 +1,5 @@
 import type { Company } from "@/lib/db";
+import { collectionsToneForStep, collectionsToneLabel } from "@/lib/collections/timeline";
 
 export type CollectionsSettings = {
   collectionsEnabled: boolean;
@@ -54,9 +55,11 @@ export function describeCollectionsSchedule(settings: CollectionsSettings): stri
   if (settings.collectionsDaysAfter.length === 0) {
     return ["No collections schedule configured."];
   }
-  return [
-    `${settings.collectionsDaysAfter.join(", ")} day(s) after due date (firm chase)`,
-  ];
+  const days = [...settings.collectionsDaysAfter].filter((day) => day > 0).sort((a, b) => a - b);
+  return days.map(
+    (day, index) =>
+      `Day ${day}: ${collectionsToneLabel(collectionsToneForStep(index, days.length)).toLowerCase()}`,
+  );
 }
 
 export function computeLateFeeAmount(

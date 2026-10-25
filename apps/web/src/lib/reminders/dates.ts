@@ -12,3 +12,8 @@ export function utcDayDiff(from: Date, to: Date): number {
 export function daysUntilDue(today: Date, dueDate: Date): number {
   return utcDayDiff(today, dueDate);
 }
+
+export function addUtcDays(date: Date, days: number): Date {
+  const start = startOfUtcDay(date);
+  return new Date(start.getTime() + days * 86_400_000);
+}

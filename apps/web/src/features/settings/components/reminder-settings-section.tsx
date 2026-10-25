@@ -314,7 +314,7 @@ export function ReminderSettingsSection({
           <div className="mb-4">
             <h3 className="font-heading text-base font-semibold">Collections & late fees</h3>
             <p className="text-sm text-muted-foreground">
-              Pro sends firmer chase emails on a schedule and can add a late fee without rewriting the sent invoice.
+              Pro runs a sequence: overdue notice, then a firmer chase, then a final notice. Optional late fee after grace.
             </p>
           </div>
           {!isPro ? (
@@ -329,7 +329,7 @@ export function ReminderSettingsSection({
                 <div className="space-y-1">
                   <Label htmlFor="collections-enabled">Automatic collections</Label>
                   <p className="text-sm text-muted-foreground">
-                    Send a firm follow-up on selected days past due. Replaces the gentle reminder on those days.
+                    First day is an overdue notice, later days get firmer, last day is a final notice. Replaces the gentle reminder on those days.
                   </p>
                 </div>
                 <Switch
