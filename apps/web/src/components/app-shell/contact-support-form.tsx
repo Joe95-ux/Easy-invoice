@@ -15,8 +15,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useCompanyPlan } from "@/components/billing/company-plan-context";
+import { Badge } from "@/components/ui/badge";
 import { CONTACT_TOPICS } from "@/lib/schemas/contact";
-import { SUPPORT_EMAIL } from "@/lib/support";
+import { PRO_SUPPORT_SLA, SUPPORT_EMAIL } from "@/lib/support";
 import { cn } from "@/lib/utils";
 
 const contactTopicItems = CONTACT_TOPICS.map((topic) => ({
@@ -128,7 +130,11 @@ export function ContactSupportForm({
         throw new Error(typeof body.error === "string" ? body.error : "Failed to send message");
       }
 
-      toast.success("Message sent — we'll get back to you soon.");
+      toast.success(
+        isPro
+          ? `Message sent — Pro priority. We'll reply by the ${PRO_SUPPORT_SLA}.`
+          : "Message sent — we'll get back to you soon.",
+      );
       setSubject("");
       setTopic(CONTACT_TOPICS[0].value);
       setMessage("");
@@ -164,7 +170,14 @@ export function ContactSupportForm({
         </button>
       ) : null}
 
-      {showIntro ? (
+      {isPro ? (
+        <div className="flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+          <Badge variant="default">Pro priority</Badge>
+          <p className="text-sm text-muted-foreground">
+            We aim to reply by the {PRO_SUPPORT_SLA} to your account email.
+          </p>
+        </div>
+      ) : showIntro ? (
         <p className="text-sm leading-relaxed text-muted-foreground">
           Did not find what you need? Send us a message and the Invoice Desk team will reply to your
           account email at {SUPPORT_EMAIL}.

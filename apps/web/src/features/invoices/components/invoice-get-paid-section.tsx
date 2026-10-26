@@ -29,6 +29,8 @@ type InvoiceGetPaidSectionProps = {
   unpaidInstallmentCount: number;
   canPayOnline: boolean;
   canWrite?: boolean;
+  timeline?: CollectionsTimelineStep[];
+  remindersPaused?: boolean;
 };
 
 export function InvoiceGetPaidSection({

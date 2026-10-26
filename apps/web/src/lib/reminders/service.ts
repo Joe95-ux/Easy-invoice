@@ -156,6 +156,7 @@ export async function sendInvoiceReminder(options: {
           reminderIncludePdf: true,
           collectionsIncludePdf: true,
           collectionsAttachStatement: true,
+          collectionsDaysAfter: true,
         },
       },
       installments: { orderBy: { sortOrder: "asc" } },
