@@ -55,6 +55,7 @@ export function InvoiceCollectionsCard({
   const router = useRouter();
   const { isPro } = useCompanyPlan();
   const [busy, setBusy] = useState<string | null>(null);
+  const [intervalDays, setIntervalDays] = useState<7 | 14 | 30>(14);
 
   // One clear nudge only — don't soft-sell plans on "On track".
   if (advice.action === "none") {
@@ -99,14 +100,16 @@ export function InvoiceCollectionsCard({
       const response = await fetch(`/api/invoices/${invoiceId}/payment-plan`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ parts }),
+        body: JSON.stringify({ parts, intervalDays }),
       });
       const data = await response.json();
       throwIfApiError(response, data, "Could not create plan");
       toast.success(`${parts}-part payment plan enabled`, {
-        description: canPayOnline
-          ? "Share the invoice link so they can pay the first installment online."
-          : "Share the link so they can see the schedule. Connect Stripe in Settings for card installments.",
+        description: data.emailed
+          ? `We emailed the schedule to ${clientEmail}.`
+          : canPayOnline
+            ? "Share the invoice link so they can pay the first installment online."
+            : "Share the link so they can see the schedule. Connect Stripe in Settings for card installments.",
         action: canPayOnline
           ? {
               label: "Share link",
@@ -188,6 +191,23 @@ export function InvoiceCollectionsCard({
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm text-muted-foreground">{advice.reason}</p>
+        {isPro && (primaryIsPlan || secondary === "plan") ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm text-muted-foreground">Installment every</span>
+            {([7, 14, 30] as const).map((days) => (
+              <Button
+                key={days}
+                type="button"
+                size="sm"
+                variant={intervalDays === days ? "secondary" : "outline"}
+                disabled={busy !== null}
+                onClick={() => setIntervalDays(days)}
+              >
+                {days} days
+              </Button>
+            ))}
+          </div>
+        ) : null}
         {primaryIsRemind && missingClientEmail ? (
           <p className="text-sm text-muted-foreground">
             Add a client email before sending a reminder.

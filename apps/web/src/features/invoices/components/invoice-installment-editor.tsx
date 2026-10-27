@@ -2,6 +2,8 @@
 
 import type { ReactNode } from "react";
 import { PlusIcon, Trash2Icon } from "lucide-react";
+import { ProFeatureGate } from "@/components/billing/pro-feature-gate";
+import { useCompanyPlan } from "@/components/billing/company-plan-context";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/forms/date-picker";
 import { Input } from "@/components/ui/input";
@@ -47,8 +49,19 @@ export function InvoiceInstallmentEditor({
   currency,
   disabled = false,
 }: InvoiceInstallmentEditorProps) {
+  const { isPro } = useCompanyPlan();
   const scheduledTotal = installments.reduce((sum, row) => sum + row.amount, 0);
   const remaining = Math.round((invoiceTotal - scheduledTotal) * 100) / 100;
+
+  if (!isPro) {
+    return (
+      <ProFeatureGate
+        variant="banner"
+        title="Payment plans are on Pro"
+        description="Split this invoice into a custom schedule before you send it, or offer 2- and 3-pay plans later from Get paid."
+      />
+    );
+  }
 
   function updateRow(index: number, patch: Partial<InstallmentRow>) {
     onChange(

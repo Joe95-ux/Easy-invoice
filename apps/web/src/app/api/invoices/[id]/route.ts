@@ -38,6 +38,11 @@ import {
   validateInstallments,
 } from "@/lib/invoice-payments";
 import { detachInvoicePaymentQr } from "@/lib/invoice-payment-qr";
+import {
+  assertProFeature,
+  isPlanLimitError,
+  planLimitResponse,
+} from "@/lib/billing/entitlements";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -274,6 +279,14 @@ export async function PATCH(request: Request, context: RouteContext) {
     const installmentError = validateInstallments(data.installments, nextTotal);
     if (installmentError) {
       return NextResponse.json({ error: installmentError }, { status: 400 });
+    }
+    if (data.installments.length > 0) {
+      try {
+        assertProFeature(member.company.plan, "payment_plans");
+      } catch (error) {
+        if (isPlanLimitError(error)) return planLimitResponse(error);
+        throw error;
+      }
     }
   }
 

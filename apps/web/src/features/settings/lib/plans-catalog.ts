@@ -52,7 +52,7 @@ export const BILLING_PLANS: PlanDefinition[] = [
     summary: "Unlimited invoicing that chases payment for you",
     features: [
       "Unlimited invoices, estimates & QR codes",
-      "Email invoices with Reply-To your company",
+      "Email invoices with PDF and pay link",
       "Recurring invoices that send on schedule",
       "Payment plans, automated collections & late fees",
       "Client account statements",

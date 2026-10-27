@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireApiMember, requireApiWriter } from "@/lib/api/validation";
 import { isPlanLimitError, planLimitResponse } from "@/lib/billing/entitlements";
 import { prisma } from "@/lib/db";
-import { createAndSendClientStatement } from "@/lib/statements";
+import { buildClientStatementSnapshot, createAndSendClientStatement } from "@/lib/statements";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -22,9 +22,23 @@ export async function GET(_request: Request, context: RouteContext) {
       totalDue: true,
       currency: true,
       toEmail: true,
+      publicToken: true,
     },
   });
-  return NextResponse.json({ statements });
+
+  let preview = null;
+  try {
+    const snapshot = await buildClientStatementSnapshot(id, member.companyId);
+    if (snapshot && snapshot.invoices.length > 0) {
+      preview = snapshot;
+    }
+  } catch (error) {
+    if (!isPlanLimitError(error)) {
+      console.error("Statement preview failed", error);
+    }
+  }
+
+  return NextResponse.json({ statements, preview });
 }
 
 export async function POST(request: Request, context: RouteContext) {

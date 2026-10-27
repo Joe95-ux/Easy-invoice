@@ -1,10 +1,14 @@
 import { AuditAction, AuditCategory, prisma } from "@/lib/db";
+import { getAppOrigin } from "@/lib/app-url";
 import { recordAuditEvent } from "@/lib/audit/service";
 import { assertProFeature } from "@/lib/billing/entitlements";
 import {
   computeLateFeeAmount,
   lateFeeSettingsFromCompany,
 } from "@/lib/collections/settings";
+import { publicDocumentUrl } from "@/lib/document-tokens";
+import { isEmailConfigured, sendLateFeeNoticeEmail } from "@/lib/email";
+import { formatMoney } from "@/lib/invoices";
 import { daysUntilDue, startOfUtcDay } from "@/lib/reminders/dates";
 import {
   buildInvoicePaymentSummary,
@@ -24,6 +28,7 @@ export async function applyInvoiceLateFee(input: {
     where: { id: input.invoiceId, companyId: input.companyId },
     include: {
       company: true,
+      client: { select: { email: true } },
       installments: { orderBy: { sortOrder: "asc" } },
       ...invoiceSettlementInclude,
     },
@@ -95,6 +100,19 @@ export async function applyInvoiceLateFee(input: {
   });
 
   await refreshInvoicePaymentStatus(invoice.id, input.companyId).catch(() => undefined);
+
+  const newBalance = Math.round((summary.balanceDue + amount) * 100) / 100;
+  const emailed = await notifyClientOfLateFee({
+    to: invoice.client?.email,
+    companyName: invoice.company.name,
+    companyEmail: invoice.company.email,
+    invoiceNumber: invoice.number,
+    currency: invoice.currency,
+    publicToken: invoice.publicToken,
+    amount,
+    newBalance,
+  });
+
   await recordAuditEvent({
     companyId: input.companyId,
     memberId: input.memberId ?? null,
@@ -103,8 +121,42 @@ export async function applyInvoiceLateFee(input: {
     summary: `Applied ${amount.toFixed(2)} ${invoice.currency} late fee on invoice ${invoice.number}`,
     entityType: "Invoice",
     entityId: invoice.id,
-    metadata: { amount, source: input.source, lateFeeId: created.id },
+    metadata: { amount, source: input.source, lateFeeId: created.id, emailed },
   });
 
   return created;
+}
+
+async function notifyClientOfLateFee(input: {
+  to?: string | null;
+  companyName: string;
+  companyEmail?: string | null;
+  invoiceNumber: string;
+  currency: string;
+  publicToken?: string | null;
+  amount: number;
+  newBalance: number;
+}): Promise<boolean> {
+  const to = input.to?.trim();
+  if (!to || !isEmailConfigured()) return false;
+
+  try {
+    const origin = await getAppOrigin();
+    const viewUrl = input.publicToken
+      ? publicDocumentUrl(origin, "invoice", input.publicToken)
+      : undefined;
+    await sendLateFeeNoticeEmail({
+      to,
+      companyName: input.companyName,
+      invoiceNumber: input.invoiceNumber,
+      feeAmount: formatMoney(input.amount, input.currency),
+      newBalance: formatMoney(input.newBalance, input.currency),
+      viewUrl,
+      replyTo: input.companyEmail,
+    });
+    return true;
+  } catch (error) {
+    console.error("Late fee notice email failed", error);
+    return false;
+  }
 }

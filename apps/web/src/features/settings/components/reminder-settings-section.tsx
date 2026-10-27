@@ -390,7 +390,7 @@ export function ReminderSettingsSection({
                 <div className="space-y-1">
                   <Label htmlFor="late-fees-enabled">Automatic late fees</Label>
                   <p className="text-sm text-muted-foreground">
-                    Add one late fee after the grace period. Original line items stay as sent.
+                    Add one late fee after the grace period. We email the client when it is applied. Original line items stay as sent.
                   </p>
                 </div>
                 <Switch

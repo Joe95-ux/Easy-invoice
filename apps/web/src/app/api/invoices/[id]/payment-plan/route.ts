@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiWriter, parseJsonBody, validationError } from "@/lib/api/validation";
+import { getAppOrigin } from "@/lib/app-url";
 import { buildEqualPaymentPlan, MIN_PLAN_BALANCE } from "@/lib/collections/advice";
 import { prisma } from "@/lib/db";
+import { publicDocumentUrl } from "@/lib/document-tokens";
+import { isEmailConfigured, sendPaymentPlanOfferEmail } from "@/lib/email";
 import {
   buildInvoicePaymentSummary,
   clearInvoiceInstallments,
@@ -10,6 +13,7 @@ import {
   validateInstallments,
 } from "@/lib/invoice-payments";
 import { invoiceSettlementInclude } from "@/lib/invoice-payments-utils";
+import { formatDate, formatMoney } from "@/lib/invoices";
 import {
   assertProFeature,
   isPlanLimitError,
@@ -20,6 +24,8 @@ type RouteContext = { params: Promise<{ id: string }> };
 
 const schema = z.object({
   parts: z.union([z.literal(2), z.literal(3)]),
+  intervalDays: z.union([z.literal(7), z.literal(14), z.literal(30)]).optional(),
+  notify: z.boolean().optional(),
 });
 
 /** Owner: split an unpaid invoice into a 2- or 3-part payment plan. */
@@ -46,6 +52,8 @@ export async function POST(request: Request, context: RouteContext) {
     include: {
       ...invoiceSettlementInclude,
       installments: { orderBy: { sortOrder: "asc" } },
+      client: { select: { email: true } },
+      company: { select: { name: true, email: true } },
     },
   });
   if (!invoice) {
@@ -79,10 +87,12 @@ export async function POST(request: Request, context: RouteContext) {
     );
   }
 
+  const intervalDays = parsed.data.intervalDays ?? 14;
   const installments = buildEqualPaymentPlan(
     Number(invoice.total),
     parsed.data.parts,
     new Date(),
+    intervalDays,
   );
   const error = validateInstallments(installments, Number(invoice.total));
   if (error) {
@@ -99,11 +109,65 @@ export async function POST(request: Request, context: RouteContext) {
     },
   });
 
+  const emailed =
+    parsed.data.notify === false
+      ? false
+      : await notifyClientOfPaymentPlan({
+          to: invoice.client?.email,
+          companyName: invoice.company.name,
+          companyEmail: invoice.company.email,
+          invoiceNumber: invoice.number,
+          currency: invoice.currency,
+          publicToken: invoice.publicToken,
+          total: Number(invoice.total),
+          installments,
+        });
+
   return NextResponse.json({
     ok: true,
     parts: parsed.data.parts,
+    intervalDays,
+    emailed,
     summary: updated ? buildInvoicePaymentSummary(updated) : null,
   });
+}
+
+async function notifyClientOfPaymentPlan(input: {
+  to?: string | null;
+  companyName: string;
+  companyEmail?: string | null;
+  invoiceNumber: string;
+  currency: string;
+  publicToken?: string | null;
+  total: number;
+  installments: { dueDate: string; amount: number; label: string }[];
+}): Promise<boolean> {
+  const to = input.to?.trim();
+  if (!to || !isEmailConfigured()) return false;
+
+  try {
+    const origin = await getAppOrigin();
+    const viewUrl = input.publicToken
+      ? publicDocumentUrl(origin, "invoice", input.publicToken)
+      : undefined;
+    await sendPaymentPlanOfferEmail({
+      to,
+      companyName: input.companyName,
+      invoiceNumber: input.invoiceNumber,
+      total: formatMoney(input.total, input.currency),
+      installments: input.installments.map((row) => ({
+        label: row.label,
+        dueDateLabel: formatDate(row.dueDate),
+        amount: formatMoney(row.amount, input.currency),
+      })),
+      viewUrl,
+      replyTo: input.companyEmail,
+    });
+    return true;
+  } catch (error) {
+    console.error("Payment plan offer email failed", error);
+    return false;
+  }
 }
 
 /** Owner: remove an unpaid payment schedule. */

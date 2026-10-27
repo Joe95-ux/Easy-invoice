@@ -131,6 +131,98 @@ export async function sendInvoiceEmail(input: SendInvoiceEmailInput) {
   return data;
 }
 
+type SendLateFeeNoticeEmailInput = {
+  to: string;
+  companyName: string;
+  invoiceNumber: string;
+  feeAmount: string;
+  newBalance: string;
+  viewUrl?: string;
+  replyTo?: string | null;
+};
+
+export async function sendLateFeeNoticeEmail(input: SendLateFeeNoticeEmailInput) {
+  const from = getEmailFromAddress();
+  const resend = getResend();
+  const viewLink = input.viewUrl
+    ? `<p><a href="${escapeHtml(input.viewUrl)}">View invoice online</a></p>`
+    : "";
+
+  const { data, error } = await resend.emails.send({
+    from,
+    to: input.to,
+    ...(sanitizeReplyTo(input.replyTo) ? { replyTo: sanitizeReplyTo(input.replyTo) } : {}),
+    subject: `Late fee applied: Invoice ${input.invoiceNumber} from ${input.companyName}`,
+    html: `
+      <p>Hello,</p>
+      <p>A late fee of <strong>${escapeHtml(input.feeAmount)}</strong> has been added to invoice <strong>${escapeHtml(input.invoiceNumber)}</strong> from <strong>${escapeHtml(input.companyName)}</strong>.</p>
+      <p>Updated amount due: <strong>${escapeHtml(input.newBalance)}</strong></p>
+      ${viewLink}
+      <p>If you have already sent payment, please disregard this message.</p>
+      <p>Thank you.</p>
+    `,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
+type PaymentPlanInstallmentRow = {
+  label: string;
+  dueDateLabel: string;
+  amount: string;
+};
+
+type SendPaymentPlanOfferEmailInput = {
+  to: string;
+  companyName: string;
+  invoiceNumber: string;
+  total: string;
+  installments: PaymentPlanInstallmentRow[];
+  viewUrl?: string;
+  replyTo?: string | null;
+};
+
+export async function sendPaymentPlanOfferEmail(input: SendPaymentPlanOfferEmailInput) {
+  const from = getEmailFromAddress();
+  const resend = getResend();
+  const viewLink = input.viewUrl
+    ? `<p><a href="${escapeHtml(input.viewUrl)}">View invoice and pay online</a></p>`
+    : "";
+  const rows = input.installments
+    .map(
+      (row) =>
+        `<li>${escapeHtml(row.label)} — <strong>${escapeHtml(row.amount)}</strong> due ${escapeHtml(row.dueDateLabel)}</li>`,
+    )
+    .join("");
+
+  const { data, error } = await resend.emails.send({
+    from,
+    to: input.to,
+    ...(sanitizeReplyTo(input.replyTo) ? { replyTo: sanitizeReplyTo(input.replyTo) } : {}),
+    subject: `Payment plan for invoice ${input.invoiceNumber} from ${input.companyName}`,
+    html: `
+      <p>Hello,</p>
+      <p><strong>${escapeHtml(input.companyName)}</strong> has set up a payment plan for invoice <strong>${escapeHtml(input.invoiceNumber)}</strong>.</p>
+      <p>Total remaining: <strong>${escapeHtml(input.total)}</strong></p>
+      <p>Schedule:</p>
+      <ul>${rows}</ul>
+      ${viewLink}
+      <p>Pay each installment by its due date. If you have questions, reply to this email.</p>
+      <p>Thank you.</p>
+    `,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
 type SendCreditNoteEmailInput = {
   to: string;
   companyName: string;

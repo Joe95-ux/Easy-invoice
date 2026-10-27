@@ -36,11 +36,11 @@ import { ClientActivityTab } from "@/features/clients/components/client-activity
 import { ClientEstimatesTab } from "@/features/clients/components/client-estimates-tab";
 import { ClientInvoicesTab } from "@/features/clients/components/client-invoices-tab";
 import { ClientOverviewTab } from "@/features/clients/components/client-overview-tab";
+import { ClientStatementsTab } from "@/features/clients/components/client-statements-tab";
 import { ClientReceiptsTab } from "@/features/clients/components/client-receipts-tab";
 import { InviteClientPortalButton } from "@/features/clients/components/invite-client-portal-button";
 import type { ClientFinancialProfile } from "@/lib/clients/financial-profile";
 import { formatMoney } from "@/lib/invoices";
-import { throwIfApiError, toastApiError } from "@/lib/billing/plan-api-error";
 import type { ClientInput } from "@/lib/schemas/client";
 import { invoiceFromTimeUrl } from "@/lib/time-tracking/invoice-from-time";
 
@@ -66,7 +66,6 @@ export function ClientDetail({
   const [deleting, setDeleting] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [sendingStatement, setSendingStatement] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
   const tabTriggerRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
@@ -100,29 +99,6 @@ export function ClientDetail({
 
     toast.success("Client updated");
     router.refresh();
-  }
-
-  async function handleSendStatement() {
-    if (!client.email) {
-      toast.error("Add a client email before sending a statement");
-      return;
-    }
-    setSendingStatement(true);
-    try {
-      const response = await fetch(`/api/clients/${client.id}/statements`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-      const data = await response.json().catch(() => ({}));
-      throwIfApiError(response, data, "Could not send statement");
-      toast.success("Statement sent");
-      router.refresh();
-    } catch (error) {
-      toastApiError(error, "Could not send statement");
-    } finally {
-      setSendingStatement(false);
-    }
   }
 
   async function handleDelete() {
@@ -194,12 +170,9 @@ export function ClientDetail({
                       New estimate
                     </DropdownMenuItem>
                   ) : null}
-                  {canWrite && isPro && summary.outstanding > 0.001 ? (
-                    <DropdownMenuItem
-                      disabled={sendingStatement || !client.email}
-                      onClick={() => void handleSendStatement()}
-                    >
-                      Send statement
+                  {canWrite ? (
+                    <DropdownMenuItem onClick={() => handleTabChange("statements")}>
+                      View statements
                     </DropdownMenuItem>
                   ) : null}
                   {canWrite && summary.unbilledEntryCount > 0 ? (
@@ -282,6 +255,13 @@ export function ClientDetail({
               Estimates{summary.estimateCount > 0 ? ` (${summary.estimateCount})` : ""}
             </TabsTrigger>
             <TabsTrigger
+              ref={setTabTriggerRef("statements")}
+              value="statements"
+              className={clientTabTriggerClass}
+            >
+              Statements
+            </TabsTrigger>
+            <TabsTrigger
               ref={setTabTriggerRef("receipts")}
               value="receipts"
               className={clientTabTriggerClass}
@@ -322,6 +302,15 @@ export function ClientDetail({
             estimates={client.estimates}
             companyName={companyName}
             clientId={client.id}
+          />
+        </TabsContent>
+
+        <TabsContent value="statements">
+          <ClientStatementsTab
+            clientId={client.id}
+            clientEmail={client.email}
+            isPro={isPro}
+            canWrite={canWrite}
           />
         </TabsContent>
 
