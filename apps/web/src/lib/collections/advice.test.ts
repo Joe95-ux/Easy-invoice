@@ -3,6 +3,7 @@
  */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { formatUtcDateLabel } from "../reminders/dates";
 import { buildEqualPaymentPlan } from "./advice";
 
 describe("buildEqualPaymentPlan", () => {
@@ -23,5 +24,17 @@ describe("buildEqualPaymentPlan", () => {
     assert.equal(plan[0]?.amount, 33.33);
     assert.equal(plan[1]?.amount, 33.33);
     assert.equal(plan[2]?.amount, 33.34);
+  });
+
+  it("uses the UTC calendar day even when the start timestamp is later in that day", () => {
+    const plan = buildEqualPaymentPlan(90, 2, new Date("2026-01-01T18:00:00.000Z"), 14);
+    assert.equal(plan[0]?.dueDate, "2026-01-01");
+    assert.equal(plan[1]?.dueDate, "2026-01-15");
+  });
+});
+
+describe("formatUtcDateLabel", () => {
+  it("keeps YYYY-MM-DD on the same calendar day in any local timezone", () => {
+    assert.equal(formatUtcDateLabel("2026-01-08"), "Jan 8, 2026");
   });
 });

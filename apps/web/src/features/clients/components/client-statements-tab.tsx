@@ -63,9 +63,9 @@ export function ClientStatementsTab({
   const [preview, setPreview] = useState<StatementPreview | null>(null);
   const [statements, setStatements] = useState<StatementRow[]>([]);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (!isPro) return;
-    setLoading(true);
+    if (!opts?.silent) setLoading(true);
     try {
       const response = await fetch(`/api/clients/${clientId}/statements`);
       const data = await response.json().catch(() => ({}));
@@ -98,7 +98,7 @@ export function ClientStatementsTab({
       const data = await response.json().catch(() => ({}));
       throwIfApiError(response, data, "Could not send statement");
       toast.success(`Statement sent to ${clientEmail}`);
-      await load();
+      await load({ silent: true });
     } catch (error) {
       toastApiError(error, "Could not send statement");
     } finally {

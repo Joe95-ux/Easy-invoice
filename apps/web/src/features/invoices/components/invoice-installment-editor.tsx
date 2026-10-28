@@ -52,8 +52,9 @@ export function InvoiceInstallmentEditor({
   const { isPro } = useCompanyPlan();
   const scheduledTotal = installments.reduce((sum, row) => sum + row.amount, 0);
   const remaining = Math.round((invoiceTotal - scheduledTotal) * 100) / 100;
+  const canEditSchedule = isPro && !disabled;
 
-  if (!isPro) {
+  if (!isPro && installments.length === 0) {
     return (
       <ProFeatureGate
         variant="banner"
@@ -102,6 +103,13 @@ export function InvoiceInstallmentEditor({
 
   return (
     <div className="space-y-3">
+      {!isPro ? (
+        <ProFeatureGate
+          variant="banner"
+          title="Payment plans are on Pro"
+          description="Remove this schedule to keep editing on Free, or upgrade to change the installments."
+        />
+      ) : null}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <Label>Payment schedule</Label>
@@ -111,11 +119,23 @@ export function InvoiceInstallmentEditor({
         </div>
         <div className="flex gap-2">
           {installments.length > 1 && (
-            <Button type="button" variant="outline" size="sm" onClick={splitEvenly} disabled={disabled}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={splitEvenly}
+              disabled={!canEditSchedule}
+            >
               Split evenly
             </Button>
           )}
-          <Button type="button" variant="outline" size="sm" onClick={addRow} disabled={disabled}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={addRow}
+            disabled={!canEditSchedule}
+          >
             <PlusIcon className="size-4" />
             Add installment
           </Button>
@@ -144,7 +164,7 @@ export function InvoiceInstallmentEditor({
                     value={row.label ?? ""}
                     onChange={(e) => updateRow(index, { label: e.target.value })}
                     placeholder={index === 0 ? "Deposit" : `Payment ${index + 1}`}
-                    disabled={disabled}
+                    disabled={!canEditSchedule}
                     aria-label={`Installment ${index + 1} label`}
                   />
                 </div>
@@ -154,7 +174,7 @@ export function InvoiceInstallmentEditor({
                     id={`installment-date-${index}`}
                     value={row.dueDate}
                     onChange={(value) => updateRow(index, { dueDate: value ?? row.dueDate })}
-                    disabled={disabled}
+                    disabled={!canEditSchedule}
                   />
                 </div>
                 <div className="space-y-1">
@@ -166,7 +186,7 @@ export function InvoiceInstallmentEditor({
                     step="0.01"
                     value={row.amount || ""}
                     onChange={(e) => updateRow(index, { amount: Number(e.target.value) })}
-                    disabled={disabled}
+                    disabled={!canEditSchedule}
                     aria-label={`Installment ${index + 1} amount`}
                   />
                 </div>

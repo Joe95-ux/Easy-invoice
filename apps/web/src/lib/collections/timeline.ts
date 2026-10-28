@@ -1,4 +1,4 @@
-import { addUtcDays, daysUntilDue, startOfUtcDay } from "@/lib/reminders/dates";
+import { addUtcDays, daysUntilDue, startOfUtcDay, toUtcIsoDate } from "@/lib/reminders/dates";
 import type { CollectionsSettings, LateFeeSettings } from "@/lib/collections/settings";
 
 export type CollectionsEmailTone = "notice" | "firm" | "final";
@@ -64,7 +64,7 @@ function normalizeSchedule(days: number[]): number[] {
 }
 
 function toIsoDate(date: Date): string {
-  return startOfUtcDay(date).toISOString().slice(0, 10);
+  return toUtcIsoDate(date);
 }
 
 function matchCollectionsReminder(

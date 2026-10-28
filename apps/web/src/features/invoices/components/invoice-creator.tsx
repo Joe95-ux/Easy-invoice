@@ -630,7 +630,9 @@ export function InvoiceCreator({
         ...(item.timeEntryIds?.length ? { timeEntryIds: item.timeEntryIds } : {}),
         ...(item.expenseIds?.length ? { expenseIds: item.expenseIds } : {}),
       })),
-      ...(installments.length > 0 ? { installments } : {}),
+      ...(installments.length > 0 || (isEditing && invoiceStatus === "DRAFT")
+        ? { installments }
+        : {}),
     };
   }
 

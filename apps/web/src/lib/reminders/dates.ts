@@ -17,3 +17,24 @@ export function addUtcDays(date: Date, days: number): Date {
   const start = startOfUtcDay(date);
   return new Date(start.getTime() + days * 86_400_000);
 }
+
+/** Calendar date as YYYY-MM-DD in UTC. */
+export function toUtcIsoDate(date: Date): string {
+  return startOfUtcDay(date).toISOString().slice(0, 10);
+}
+
+/** Format a UTC calendar day without local-timezone off-by-one (YYYY-MM-DD or Date). */
+export function formatUtcDateLabel(date: Date | string): string {
+  const iso =
+    typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date)
+      ? date
+      : toUtcIsoDate(typeof date === "string" ? new Date(date) : date);
+  const [year, month, day] = iso.split("-").map(Number);
+  if (!year || !month || !day) return iso;
+  return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+}

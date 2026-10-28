@@ -107,12 +107,13 @@ export async function POST(request: Request, context: RouteContext) {
     );
   }
 
+  const planTotal = summary.balanceDue;
   const installments = buildEqualPaymentPlan(
-    Number(invoice.total),
+    planTotal,
     parsed.data.parts,
     new Date(),
   );
-  const error = validateInstallments(installments, Number(invoice.total));
+  const error = validateInstallments(installments, planTotal);
   if (error) {
     return NextResponse.json({ error }, { status: 400 });
   }

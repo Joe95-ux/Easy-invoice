@@ -13,7 +13,8 @@ import {
   validateInstallments,
 } from "@/lib/invoice-payments";
 import { invoiceSettlementInclude } from "@/lib/invoice-payments-utils";
-import { formatDate, formatMoney } from "@/lib/invoices";
+import { formatMoney } from "@/lib/invoices";
+import { formatUtcDateLabel } from "@/lib/reminders/dates";
 import {
   assertProFeature,
   isPlanLimitError,
@@ -88,13 +89,14 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   const intervalDays = parsed.data.intervalDays ?? 14;
+  const planTotal = summary.balanceDue;
   const installments = buildEqualPaymentPlan(
-    Number(invoice.total),
+    planTotal,
     parsed.data.parts,
     new Date(),
     intervalDays,
   );
-  const error = validateInstallments(installments, Number(invoice.total));
+  const error = validateInstallments(installments, planTotal);
   if (error) {
     return NextResponse.json({ error }, { status: 400 });
   }
@@ -119,7 +121,7 @@ export async function POST(request: Request, context: RouteContext) {
           invoiceNumber: invoice.number,
           currency: invoice.currency,
           publicToken: invoice.publicToken,
-          total: Number(invoice.total),
+          total: planTotal,
           installments,
         });
 
@@ -157,7 +159,7 @@ async function notifyClientOfPaymentPlan(input: {
       total: formatMoney(input.total, input.currency),
       installments: input.installments.map((row) => ({
         label: row.label,
-        dueDateLabel: formatDate(row.dueDate),
+        dueDateLabel: formatUtcDateLabel(row.dueDate),
         amount: formatMoney(row.amount, input.currency),
       })),
       viewUrl,

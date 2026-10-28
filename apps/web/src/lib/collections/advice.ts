@@ -1,4 +1,4 @@
-import { daysUntilDue, startOfUtcDay } from "@/lib/reminders/dates";
+import { addUtcDays, daysUntilDue, startOfUtcDay, toUtcIsoDate } from "@/lib/reminders/dates";
 import type { InvoiceStatus } from "@easy-invoice/db";
 
 export type CollectionsAction =
@@ -213,14 +213,11 @@ export function buildEqualPaymentPlan(
   const sumBase = roundMoney(base * parts);
   amounts[parts - 1] = roundMoney(safeTotal - sumBase + base);
 
+  const start = startOfUtcDay(startDate);
   return amounts.map((amount, index) => {
-    const due = new Date(startDate);
-    due.setUTCDate(due.getUTCDate() + index * intervalDays);
-    const y = due.getUTCFullYear();
-    const m = String(due.getUTCMonth() + 1).padStart(2, "0");
-    const d = String(due.getUTCDate()).padStart(2, "0");
+    const due = addUtcDays(start, index * intervalDays);
     return {
-      dueDate: `${y}-${m}-${d}`,
+      dueDate: toUtcIsoDate(due),
       amount,
       label: `Payment ${index + 1} of ${parts}`,
       sortOrder: index,
