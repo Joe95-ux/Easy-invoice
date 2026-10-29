@@ -77,6 +77,7 @@ export default async function DashboardPage() {
       <DashboardAttention
         followUps={stats.followUps}
         unbilledTime={stats.unbilledTime}
+        unpaid={stats.unpaid}
         currency={company.currency}
       />
 

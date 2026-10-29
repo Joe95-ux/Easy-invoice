@@ -86,6 +86,7 @@ type InvoicesTableProps = {
   initialPage: number;
   initialPageSize: number;
   initialPageCount: number;
+  initialStatus?: string;
   companyName: string;
   celebrateInvoicePaid?: boolean;
   canWrite?: boolean;
@@ -217,6 +218,7 @@ export function InvoicesTable({
   initialPage,
   initialPageSize,
   initialPageCount,
+  initialStatus = "all",
   companyName,
   celebrateInvoicePaid = false,
   canWrite = true,
@@ -232,7 +234,7 @@ export function InvoicesTable({
   const [pageCount, setPageCount] = useState(initialPageCount);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter] = useState(initialStatus);
   const [sortKey, setSortKey] = useState<InvoiceListSortKey>("dueDate");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [loadingList, setLoadingList] = useState(false);
@@ -639,6 +641,11 @@ export function InvoicesTable({
         onFilterChange={(value) => {
           setFilter(value);
           setPage(1);
+          const params = new URLSearchParams(window.location.search);
+          if (!value || value === "all") params.delete("status");
+          else params.set("status", value);
+          const query = params.toString();
+          router.replace(query ? `/invoices?${query}` : "/invoices", { scroll: false });
         }}
         filterOptions={STATUS_FILTER_OPTIONS}
         filterLabel="Status"

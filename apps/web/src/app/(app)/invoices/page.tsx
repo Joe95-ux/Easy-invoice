@@ -8,17 +8,40 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { PageScroll } from "@/components/app-shell/app-shell";
 import { EmptyState, PageHeader, pageHeaderActionClass } from "@/components/app-shell/page-header";
+import type { InvoiceStatus } from "@easy-invoice/db";
 
-export default async function InvoicesPage() {
+const INVOICE_STATUS_FILTERS: InvoiceStatus[] = [
+  "DRAFT",
+  "SENT",
+  "VIEWED",
+  "PARTIALLY_PAID",
+  "PAID",
+  "OVERDUE",
+  "CANCELLED",
+  "CREDITED",
+];
+
+function parseStatusFilter(value?: string): InvoiceStatus | "all" {
+  if (!value || value === "all") return "all";
+  return INVOICE_STATUS_FILTERS.includes(value as InvoiceStatus)
+    ? (value as InvoiceStatus)
+    : "all";
+}
+
+type PageProps = { searchParams: Promise<{ status?: string }> };
+
+export default async function InvoicesPage({ searchParams }: PageProps) {
   const member = await requireMember();
   const canWrite = canWriteDocuments(member.role);
   const canDelete = canDeleteDocuments(member.role);
+  const status = parseStatusFilter((await searchParams).status);
   const list = await listInvoicesForMember({
     companyId: member.companyId,
     page: 1,
     pageSize: 15,
     sortKey: "dueDate",
     sortDir: "desc",
+    status,
   });
 
   return (
@@ -39,7 +62,7 @@ export default async function InvoicesPage() {
         }
       />
 
-      {list.totalCount === 0 ? (
+      {list.totalCount === 0 && status === "all" ? (
         <EmptyState
           icon={FileTextIcon}
           title="No invoices yet"
@@ -67,6 +90,7 @@ export default async function InvoicesPage() {
             initialPage={list.page}
             initialPageSize={list.pageSize}
             initialPageCount={list.pageCount}
+            initialStatus={status}
             companyName={member.company.name}
             celebrateInvoicePaid={member.celebrateInvoicePaid}
             canWrite={canWrite}

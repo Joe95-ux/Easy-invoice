@@ -1,6 +1,7 @@
 import type { InvoiceStatus } from "@easy-invoice/db";
 import type { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/db";
+import { formatUtcDateLabel, looksLikeUtcCalendarDate } from "@/lib/reminders/dates";
 
 export async function getInvoiceForMember(invoiceId: string, companyId: string) {
   return prisma.invoice.findFirst({
@@ -76,6 +77,7 @@ export function formatMoney(amount: MoneyInput, currency: string): string {
 
 export function formatDate(date: Date | string | null | undefined): string {
   if (!date) return "—";
+  if (looksLikeUtcCalendarDate(date)) return formatUtcDateLabel(date);
   return new Date(date).toLocaleDateString("en-US", {
     year: "numeric",
     month: "short",

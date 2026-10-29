@@ -23,6 +23,19 @@ export function toUtcIsoDate(date: Date): string {
   return startOfUtcDay(date).toISOString().slice(0, 10);
 }
 
+/** True for YYYY-MM-DD strings or Date/ISO values stored at UTC midnight. */
+export function looksLikeUtcCalendarDate(date: Date | string): boolean {
+  if (typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date.trim())) return true;
+  const value = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(value.getTime())) return false;
+  return (
+    value.getUTCHours() === 0 &&
+    value.getUTCMinutes() === 0 &&
+    value.getUTCSeconds() === 0 &&
+    value.getUTCMilliseconds() === 0
+  );
+}
+
 /** Format a UTC calendar day without local-timezone off-by-one (YYYY-MM-DD or Date). */
 export function formatUtcDateLabel(date: Date | string): string {
   const iso =

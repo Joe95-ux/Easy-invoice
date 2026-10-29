@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { buildUnpaidAttention } from "@/lib/dashboard-unpaid";
 import {
   getActionableFollowUpPreviews,
   getFollowUpActionCounts,
@@ -46,15 +47,22 @@ export async function getDashboardStats(companyId: string) {
         status: { in: ["SENT", "VIEWED", "OVERDUE", "PARTIALLY_PAID"] },
       },
       select: {
+        id: true,
+        number: true,
         total: true,
         currency: true,
+        dueDate: true,
         exchangeRate: true,
+        client: { select: { name: true } },
         payments: { select: { amount: true, kind: true } },
         creditNotes: {
           where: { status: "ISSUED" },
           select: { total: true, status: true },
         },
         lateFees: { select: { amount: true } },
+        installments: {
+          select: { id: true, dueDate: true, amount: true, label: true, sortOrder: true },
+        },
       },
     }),
     getCompanyUnbilledTimeStats(companyId),
@@ -69,22 +77,44 @@ export async function getDashboardStats(companyId: string) {
 
   const totalInvoices = statusGroups.reduce((sum, group) => sum + group._count._all, 0);
   const homeCurrency = company.currency;
-  const outstandingTotal = openInvoices.reduce((sum, invoice) => {
-    const balanceDueDoc = buildInvoicePaymentSummary({
+  const unpaidForAttention = openInvoices.map((invoice) => {
+    const summary = buildInvoicePaymentSummary({
       total: invoice.total,
+      dueDate: invoice.dueDate,
       payments: invoice.payments,
       creditNotes: invoice.creditNotes,
       lateFees: invoice.lateFees,
-    }).balanceDue;
-    if (balanceDueDoc <= 0) return sum;
+      installments: invoice.installments,
+    });
+    return {
+      invoice,
+      summary,
+    };
+  });
+
+  const outstandingTotal = unpaidForAttention.reduce((sum, { invoice, summary }) => {
+    if (summary.balanceDue <= 0) return sum;
     const balanceDue = paymentAmountInHomeCurrency({
-      amount: balanceDueDoc,
+      amount: summary.balanceDue,
       invoiceCurrency: invoice.currency,
       homeCurrency,
       exchangeRate: invoice.exchangeRate,
     });
     return balanceDue == null ? sum : sum + balanceDue;
   }, 0);
+
+  const unpaid = buildUnpaidAttention(
+    unpaidForAttention.map(({ invoice, summary }) => ({
+      id: invoice.id,
+      number: invoice.number,
+      currency: invoice.currency,
+      clientName: invoice.client?.name ?? null,
+      balanceDue: summary.balanceDue,
+      dueDate: summary.nextDueDate ?? invoice.dueDate,
+    })),
+    new Date(),
+    ATTENTION_PREVIEW_TAKE,
+  );
 
   return {
     totalInvoices,
@@ -95,6 +125,7 @@ export async function getDashboardStats(companyId: string) {
     recentInvoices,
     outstandingTotal,
     outstandingCount: openInvoices.length,
+    unpaid,
     unbilledTime: {
       ...unbilledTime,
       previews: unbilledPreviews,

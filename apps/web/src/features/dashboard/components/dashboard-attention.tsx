@@ -2,8 +2,15 @@
 
 import { useState, type ComponentType, type ReactNode } from "react";
 import Link from "next/link";
-import { CheckSquareIcon, ChevronDownIcon, ChevronRightIcon, ClockIcon } from "lucide-react";
+import {
+  CheckSquareIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  ClockIcon,
+  WalletIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import type { DashboardUnpaidAttention } from "@/lib/dashboard-unpaid";
 import { formatMoney } from "@/lib/invoices";
 import { cn } from "@/lib/utils";
 
@@ -45,6 +52,7 @@ export type DashboardUnbilledAttention = {
 type DashboardAttentionProps = {
   followUps: DashboardFollowUpAttention;
   unbilledTime: DashboardUnbilledAttention;
+  unpaid: DashboardUnpaidAttention;
   currency: string;
 };
 
@@ -55,11 +63,13 @@ type DashboardAttentionProps = {
 export function DashboardAttention({
   followUps,
   unbilledTime,
+  unpaid,
   currency,
 }: DashboardAttentionProps) {
+  const showUnpaid = unpaid.count > 0;
   const showFollowUps = followUps.actionable > 0;
   const showUnbilled = unbilledTime.entryCount > 0;
-  if (!showFollowUps && !showUnbilled) return null;
+  if (!showUnpaid && !showFollowUps && !showUnbilled) return null;
 
   const followUpMeta = [
     followUps.overdue > 0 ? `${followUps.overdue} overdue` : null,
@@ -83,11 +93,35 @@ export function DashboardAttention({
       <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5">
         <h2 className="text-sm font-medium tracking-tight">Needs attention</h2>
         <span className="text-xs tabular-nums text-muted-foreground">
-          {(showFollowUps ? 1 : 0) + (showUnbilled ? 1 : 0)}
+          {(showUnpaid ? 1 : 0) + (showFollowUps ? 1 : 0) + (showUnbilled ? 1 : 0)}
         </span>
       </div>
 
       <ul className="divide-y divide-border">
+        {showUnpaid && (
+          <AttentionGroup
+            accent={unpaid.overdueCount > 0 ? "destructive" : "warning"}
+            icon={WalletIcon}
+            title={`${unpaid.count} unpaid invoice${unpaid.count === 1 ? "" : "s"}`}
+            meta={unpaidMeta(unpaid) || "Needs a payment"}
+            viewAllHref={unpaid.overdueCount > 0 ? "/invoices?status=OVERDUE" : "/invoices"}
+            viewAllLabel={unpaid.overdueCount > 0 ? "View overdue invoices" : "View invoices"}
+          >
+            {unpaid.previews.map((item) => (
+              <PreviewRow
+                key={item.id}
+                title={item.clientName ? `${item.number} · ${item.clientName}` : item.number}
+                meta={[
+                  formatMoney(item.amount, item.currency),
+                  item.isOverdue ? `Overdue · ${item.dueLabel}` : `Due today · ${item.dueLabel}`,
+                ].join(" · ")}
+                href={item.href}
+                actionLabel="Invoice"
+              />
+            ))}
+          </AttentionGroup>
+        )}
+
         {showFollowUps && (
           <AttentionGroup
             accent="warning"
@@ -159,7 +193,7 @@ function AttentionGroup({
   viewAllLabel,
   children,
 }: {
-  accent: "warning" | "primary";
+  accent: "warning" | "primary" | "destructive";
   icon: ComponentType<{ className?: string }>;
   title: string;
   meta: string;
@@ -168,7 +202,8 @@ function AttentionGroup({
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
-  const band = accent === "warning" ? "bg-warning" : "bg-primary";
+  const band =
+    accent === "destructive" ? "bg-destructive" : accent === "warning" ? "bg-warning" : "bg-primary";
 
   return (
     <li>
@@ -247,6 +282,19 @@ function followUpActionLabel(href: string): string {
   if (href.startsWith("/invoices/")) return "Invoice";
   if (href.startsWith("/estimates/")) return "Estimate";
   return "Open";
+}
+
+function unpaidMeta(unpaid: DashboardUnpaidAttention): string {
+  return [
+    unpaid.overdueCount > 0
+      ? `${unpaid.overdueCount} overdue`
+      : null,
+    unpaid.dueTodayCount > 0
+      ? `${unpaid.dueTodayCount} due today`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 function formatHours(hours: number): string {
