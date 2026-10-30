@@ -234,7 +234,11 @@ export function InvoicesTable({
   const [pageCount, setPageCount] = useState(initialPageCount);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [filter, setFilter] = useState(initialStatus);
+  const [filter, setFilter] = useState(
+    STATUS_FILTER_OPTIONS.some((option) => option.value === initialStatus)
+      ? initialStatus
+      : "all",
+  );
   const [sortKey, setSortKey] = useState<InvoiceListSortKey>("dueDate");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [loadingList, setLoadingList] = useState(false);

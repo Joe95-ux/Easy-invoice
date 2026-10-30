@@ -10,6 +10,7 @@ import { formatPhoneForDisplay } from "@/lib/phone";
 import { formatTaxPercent } from "@/lib/tax-rates";
 import { formatFxSourceLabel } from "@/lib/schemas/fx-settings";
 import { normalizeCustomFieldsPdfPlacement } from "@/lib/custom-fields";
+import { looksLikeUtcCalendarDate, toUtcIsoDate } from "@/lib/reminders/dates";
 
 function escapeHtml(value: string): string {
   return value
@@ -28,6 +29,20 @@ function formatAddress(parts: Array<string | null | undefined>): string {
 }
 
 function formatDate(date: Date | string): string {
+  if (looksLikeUtcCalendarDate(date)) {
+    const iso =
+      typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date)
+        ? date
+        : toUtcIsoDate(typeof date === "string" ? new Date(date) : date);
+    const [year, month, day] = iso.split("-").map(Number);
+    if (!year || !month || !day) return iso;
+    return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      timeZone: "UTC",
+    });
+  }
   const value = date instanceof Date ? date : new Date(date);
   if (Number.isNaN(value.getTime())) return "—";
 
