@@ -172,8 +172,7 @@ export const LANDING_PLANS = [
     name: "Pro",
     price: "$12",
     cadence: "per month",
-    description:
-      "Unlimited invoicing that chases payment for you. $10/mo billed yearly.",
+    description: "Unlimited invoicing that chases payment for you.",
     features: [
       "Everything in Free, unlimited",
       "Email invoices & recurring auto-send",

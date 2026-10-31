@@ -64,42 +64,37 @@ export function LandingPricing({ proCta }: LandingPricingProps) {
           />
         </Reveal>
 
-        <div className="mx-auto mt-14 grid max-w-4xl items-stretch gap-6 md:grid-cols-2 md:gap-5">
+        <div className="mx-auto mt-14 grid max-w-4xl items-stretch gap-5 pt-4 md:grid-cols-2">
           {LANDING_PLANS.map((plan, index) => {
             const featured = plan.highlighted;
             const price = formatPlanPriceLabel(featured ? "PRO" : "FREE", interval);
             const showYearlyDeal = featured && interval === "yearly";
 
             return (
-              <Reveal
-                key={plan.name}
-                delay={80 + index * 70}
-                className={cn("relative flex", featured && "md:-mt-3 md:mb-3")}
-              >
+              <Reveal key={plan.name} delay={80 + index * 70} className="h-full overflow-visible">
                 <article
                   className={cn(
-                    "relative flex w-full flex-col overflow-hidden rounded-[1.75rem] border p-7 md:p-8",
+                    "relative flex h-full flex-col overflow-visible rounded-[1.75rem] border p-7 md:p-8",
                     featured
                       ? "border-primary/35 bg-gradient-to-b from-primary/10 via-background to-background shadow-[0_28px_64px_-28px_color-mix(in_oklch,var(--primary)_50%,transparent)] ring-1 ring-primary/20"
                       : "border-border bg-background",
                   )}
                 >
                   {featured ? (
-                    <>
-                      <div className="absolute inset-x-0 top-0 h-1 bg-primary" aria-hidden />
-                      <span className="absolute left-1/2 top-0 z-10 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary px-3 py-1 text-[11px] font-semibold tracking-wide text-primary-foreground">
-                        Most popular
-                      </span>
-                    </>
+                    <span className="absolute left-1/2 top-0 z-10 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full bg-primary px-3 py-1 text-[11px] font-semibold leading-none tracking-wide text-primary-foreground ring-4 ring-background">
+                      Most popular
+                    </span>
                   ) : null}
 
-                  <div className={cn(featured && "pt-2")}>
+                  <div>
                     <h3 className="font-heading text-lg font-semibold">{plan.name}</h3>
-                    <p className="mt-1.5 text-sm text-muted-foreground">{plan.description}</p>
+                    <p className="mt-1.5 min-h-10 text-sm text-muted-foreground">
+                      {plan.description}
+                    </p>
                   </div>
 
-                  <div className="mt-7">
-                    <p className="flex flex-wrap items-end gap-x-2 gap-y-1">
+                  <div className="mt-6 min-h-24">
+                    <p className="flex min-h-12 flex-wrap items-end gap-x-2 gap-y-1">
                       {showYearlyDeal ? (
                         <span className="mb-1 font-heading text-2xl font-semibold text-muted-foreground/70 line-through">
                           {PRO_PRICING.monthly.perMonthLabel}
@@ -110,7 +105,7 @@ export function LandingPricing({ proCta }: LandingPricingProps) {
                       </span>
                       <span className="mb-1.5 text-sm text-muted-foreground">/mo</span>
                     </p>
-                    <p className="mt-2 text-sm text-muted-foreground">
+                    <p className="mt-2 min-h-5 text-sm text-muted-foreground">
                       {featured
                         ? showYearlyDeal
                           ? `Billed ${PRO_PRICING.yearly.yearlyTotalLabel} yearly · save ${savings.amountLabel}`
@@ -154,10 +149,7 @@ export function LandingPricing({ proCta }: LandingPricingProps) {
         </Reveal>
 
         {compareOpen ? (
-          <div
-            id="plan-compare"
-            className="mx-auto mt-8 max-w-4xl rounded-2xl border border-border bg-background p-4 md:p-6"
-          >
+          <div id="plan-compare" className="mx-auto mt-10 max-w-[60rem]">
             <PlansComparisonTable
               interval={interval}
               onIntervalChange={setInterval}
@@ -167,7 +159,10 @@ export function LandingPricing({ proCta }: LandingPricingProps) {
                   <SignedOut>
                     <Button
                       variant="ghost"
-                      className={cn("w-full cursor-pointer", billingButtonClassName)}
+                      className={cn(
+                        "w-full cursor-pointer bg-muted text-muted-foreground hover:bg-muted hover:text-foreground",
+                        billingButtonClassName,
+                      )}
                       render={<Link href="/sign-up" />}
                     >
                       Start for free
@@ -176,7 +171,10 @@ export function LandingPricing({ proCta }: LandingPricingProps) {
                   <SignedIn>
                     <Button
                       variant="ghost"
-                      className={cn("w-full cursor-pointer", billingButtonClassName)}
+                      className={cn(
+                        "w-full cursor-pointer bg-muted text-muted-foreground hover:bg-muted hover:text-foreground",
+                        billingButtonClassName,
+                      )}
                       render={<Link href="/dashboard" />}
                     >
                       Open dashboard
@@ -199,7 +197,7 @@ export function LandingPricing({ proCta }: LandingPricingProps) {
                       className={cn("w-full cursor-pointer", billingButtonClassName)}
                       render={<Link href="/settings/billing/plans" />}
                     >
-                      View plans
+                      {proCta}
                     </Button>
                   </SignedIn>
                 </>
@@ -303,7 +301,7 @@ function PlanCta({
             <Link href={featured ? "/settings/billing/plans" : "/dashboard"} />
           }
         >
-          {featured ? "View plans" : "Open dashboard"}
+          {featured ? proLabel : "Open dashboard"}
         </Button>
       </SignedIn>
     </>
