@@ -29,6 +29,18 @@ export function getProPriceDisplay(interval: BillingInterval) {
   return interval === "yearly" ? PRO_PRICING.yearly : PRO_PRICING.monthly;
 }
 
+/** Yearly vs paying monthly for a year — used on public pricing cards. */
+export function getProYearlySavings(): { percent: number; amountLabel: string } {
+  const monthlyPerMonth = Number.parseInt(PRO_PRICING.monthly.perMonthLabel.replace(/\D/g, ""), 10);
+  const yearlyPerMonth = Number.parseInt(PRO_PRICING.yearly.perMonthLabel.replace(/\D/g, ""), 10);
+  const save = (monthlyPerMonth - yearlyPerMonth) * 12;
+  const monthlyYearTotal = monthlyPerMonth * 12;
+  return {
+    percent: monthlyYearTotal > 0 ? Math.round((save / monthlyYearTotal) * 100) : 0,
+    amountLabel: `$${save}`,
+  };
+}
+
 /** Plans shown in billing UI (Free + Pro only for now). */
 export const BILLING_PLANS: PlanDefinition[] = [
   {

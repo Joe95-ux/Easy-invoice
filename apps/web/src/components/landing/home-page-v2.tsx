@@ -2,7 +2,6 @@ import Link from "next/link";
 import { SignedIn, SignedOut } from "@clerk/nextjs";
 import {
   ArrowRightIcon,
-  CheckIcon,
   CreditCardIcon,
   Link2Icon,
   QrCodeIcon,
@@ -18,7 +17,8 @@ import { ProductCanvas } from "@/components/landing/product-canvas";
 import { QrTypeGrid } from "@/components/landing/qr-type-grid";
 import { FaqAccordion } from "@/components/landing/faq-accordion";
 import { MoneyFlowIllustration } from "@/components/landing/money-flow-illustration";
-import { LANDING_PLANS, getLandingProCta } from "@/features/settings/lib/plans-catalog";
+import { LandingPricing } from "@/components/landing/landing-pricing";
+import { getLandingProCta } from "@/features/settings/lib/plans-catalog";
 import { getProTrialDays } from "@/lib/stripe-billing";
 import { cn } from "@/lib/utils";
 
@@ -310,88 +310,7 @@ export function HomePageV2() {
           </div>
         </section>
 
-        {/* Pricing */}
-        <section id="pricing" className="landing-section landing-section-rule scroll-mt-20">
-          <div className="mx-auto max-w-6xl px-6 py-20 md:py-28">
-            <Reveal className="mx-auto max-w-xl text-center">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
-                Pricing
-              </p>
-              <h2 className={cn(landingH, "mt-3")}>
-                Start free. Upgrade when it pays off.
-              </h2>
-              <p className="mt-4 text-muted-foreground">
-                No credit card to begin. Cancel anytime.
-              </p>
-            </Reveal>
-            <div className="mx-auto mt-14 grid max-w-3xl gap-4 md:grid-cols-2">
-              {LANDING_PLANS.map((plan, index) => (
-                <Reveal
-                  key={plan.name}
-                  delay={index * 80}
-                  className={cn(
-                    "flex flex-col rounded-2xl border p-7",
-                    plan.highlighted
-                      ? "border-primary/40 bg-background ring-1 ring-primary/15"
-                      : "border-border bg-background",
-                  )}
-                >
-                  <div className="flex items-baseline justify-between gap-3">
-                    <h3 className="font-heading text-lg font-semibold">{plan.name}</h3>
-                    {plan.highlighted ? (
-                      <span className="text-xs font-medium text-primary">Popular</span>
-                    ) : null}
-                  </div>
-                  <p className="mt-4 flex items-baseline gap-1.5">
-                    <span className="font-heading text-4xl font-semibold tracking-tight">
-                      {plan.price}
-                    </span>
-                    <span className="text-sm text-muted-foreground">/ {plan.cadence}</span>
-                  </p>
-                  <p className="mt-2 text-sm text-muted-foreground">{plan.description}</p>
-                  <ul className="mt-6 flex-1 space-y-2.5">
-                    {plan.features.slice(0, 6).map((feature) => (
-                      <li key={feature} className="flex items-start gap-2.5 text-sm">
-                        <CheckIcon className="mt-0.5 size-3.5 shrink-0 text-primary" />
-                        <span>{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <SignedOut>
-                    <Button
-                      className={cn(
-                        "mt-8 w-full",
-                        plan.highlighted ? landingBtnPrimary : landingBtnOutline,
-                      )}
-                      size="lg"
-                      variant={plan.highlighted ? "default" : "outline"}
-                      render={<Link href="/sign-up" />}
-                    >
-                      {plan.highlighted ? landingProCta : plan.cta}
-                    </Button>
-                  </SignedOut>
-                  <SignedIn>
-                    <Button
-                      className={cn(
-                        "mt-8 w-full",
-                        plan.highlighted ? landingBtnPrimary : landingBtnOutline,
-                      )}
-                      size="lg"
-                      variant={plan.highlighted ? "default" : "outline"}
-                      render={
-                        <Link
-                          href={plan.highlighted ? "/settings/billing/plans" : "/dashboard"}
-                        />
-                      }
-                    >
-                      {plan.highlighted ? "View plans" : "Open dashboard"}
-                    </Button>
-                  </SignedIn>
-                </Reveal>
-              ))}
-            </div>
-          </div>
-        </section>
+        <LandingPricing proCta={landingProCta} />
 
         {/* FAQ */}
         <section id="faq" className="landing-section landing-section-rule scroll-mt-20">
