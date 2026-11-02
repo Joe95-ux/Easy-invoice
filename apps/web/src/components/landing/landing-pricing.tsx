@@ -134,7 +134,7 @@ export function LandingPricing({ proCta }: LandingPricingProps) {
           <button
             type="button"
             aria-expanded={compareOpen}
-            aria-controls="plan-compare"
+            aria-controls={compareOpen ? "plan-compare" : undefined}
             onClick={() => setCompareOpen((open) => !open)}
             className="inline-flex cursor-pointer items-center gap-1.5 text-sm font-medium text-foreground underline-offset-4 hover:underline"
           >

@@ -3,17 +3,9 @@
 import Link from "next/link";
 import { CalendarClockIcon } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { formatMoney } from "@/lib/invoices";
+import { formatDate, formatMoney } from "@/lib/invoices";
 import type { PortalUpcomingItem } from "@/lib/portal/types";
 import { withPortalReturn } from "@/lib/portal/urls";
-
-function formatDate(iso: string) {
-  return new Intl.DateTimeFormat(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  }).format(new Date(iso));
-}
 
 type PortalUpcomingSectionProps = {
   upcoming: PortalUpcomingItem[];

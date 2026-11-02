@@ -104,8 +104,16 @@ export function DashboardAttention({
             icon={WalletIcon}
             title={`${unpaid.count} unpaid invoice${unpaid.count === 1 ? "" : "s"}`}
             meta={unpaidMeta(unpaid) || "Needs a payment"}
-            viewAllHref={unpaid.overdueCount > 0 ? "/invoices?status=OVERDUE" : "/invoices"}
-            viewAllLabel={unpaid.overdueCount > 0 ? "View overdue invoices" : "View invoices"}
+            viewAllHref={
+              unpaid.overdueCount > 0 && unpaid.dueTodayCount === 0
+                ? "/invoices?status=OVERDUE"
+                : "/invoices"
+            }
+            viewAllLabel={
+              unpaid.overdueCount > 0 && unpaid.dueTodayCount === 0
+                ? "View overdue invoices"
+                : "View invoices"
+            }
           >
             {unpaid.previews.map((item) => (
               <PreviewRow

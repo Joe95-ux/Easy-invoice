@@ -1,5 +1,6 @@
 import type { InvoiceStatus, PaymentMethod } from "@easy-invoice/db";
 import type { Decimal } from "@prisma/client/runtime/library";
+import { daysUntilDue } from "@/lib/reminders/dates";
 
 type MoneyInput = number | string | Decimal | { toString(): string };
 
@@ -128,9 +129,6 @@ export function allocatePaymentsToInstallments(
   amountPaid: number,
   today = new Date(),
 ): InstallmentAllocation[] {
-  const todayStart = new Date(today);
-  todayStart.setHours(0, 0, 0, 0);
-
   let remaining = amountPaid;
   const sorted = [...installments].sort((a, b) => a.sortOrder - b.sortOrder);
 
@@ -140,8 +138,6 @@ export function allocatePaymentsToInstallments(
     remaining = roundMoney(Math.max(0, remaining - paidAmount));
     const balanceDue = roundMoney(amount - paidAmount);
     const isPaid = balanceDue <= 0.001;
-    const dueStart = new Date(installment.dueDate);
-    dueStart.setHours(0, 0, 0, 0);
 
     return {
       id: installment.id,
@@ -152,7 +148,7 @@ export function allocatePaymentsToInstallments(
       paidAmount,
       balanceDue,
       isPaid,
-      isOverdue: !isPaid && dueStart < todayStart,
+      isOverdue: !isPaid && daysUntilDue(today, installment.dueDate) < 0,
     };
   });
 }
@@ -207,11 +203,6 @@ export function buildInvoicePaymentSummary(
   }
 
   if (balanceDue > 0 && invoice.dueDate) {
-    const dueStart = new Date(invoice.dueDate);
-    dueStart.setHours(0, 0, 0, 0);
-    const todayStart = new Date(today);
-    todayStart.setHours(0, 0, 0, 0);
-
     return {
       grossPaid: splits.grossPaid,
       amountRefunded: splits.amountRefunded,
@@ -244,11 +235,7 @@ export function buildInvoicePaymentSummary(
 
 function isPastDue(date: Date | null, today: Date): boolean {
   if (!date) return false;
-  const dueStart = new Date(date);
-  dueStart.setHours(0, 0, 0, 0);
-  const todayStart = new Date(today);
-  todayStart.setHours(0, 0, 0, 0);
-  return dueStart < todayStart;
+  return daysUntilDue(today, date) < 0;
 }
 
 export function deriveInvoiceStatusAfterPayment(

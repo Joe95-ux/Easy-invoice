@@ -5,22 +5,13 @@ import { TablePagination } from "@/components/data-table/table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { useListTable } from "@/hooks/use-list-table";
-import { estimateStatusLabel, estimateStatusVariant } from "@/lib/estimates";
+import { estimateStatusLabel, estimateStatusVariant, formatDate } from "@/lib/estimates";
 import { formatMoney } from "@/lib/invoices";
 import type { PortalEstimateListItem } from "@/lib/portal/types";
 import { withPortalReturn } from "@/lib/portal/urls";
 import type { EstimateStatus } from "@easy-invoice/db";
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
-
-function formatDate(iso: string | null) {
-  if (!iso) return "—";
-  return new Intl.DateTimeFormat(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  }).format(new Date(iso));
-}
 
 type PortalEstimatesSectionProps = {
   estimates: PortalEstimateListItem[];

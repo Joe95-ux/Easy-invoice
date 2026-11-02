@@ -12,6 +12,7 @@ import {
   invoiceSettlementInclude,
   type InstallmentInput,
 } from "@/lib/invoice-payments-utils";
+import { daysUntilDue } from "@/lib/reminders/dates";
 
 export * from "@/lib/invoice-payments-utils";
 
@@ -48,7 +49,17 @@ export async function syncInvoiceInstallments(
 /** Remove a payment schedule when nothing has been paid yet. */
 export async function clearInvoiceInstallments(invoiceId: string) {
   await prisma.$transaction(async (tx) => {
+    const last = await tx.invoiceInstallment.findFirst({
+      where: { invoiceId },
+      orderBy: { sortOrder: "desc" },
+    });
     await tx.invoiceInstallment.deleteMany({ where: { invoiceId } });
+    if (last) {
+      await tx.invoice.update({
+        where: { id: invoiceId },
+        data: { dueDate: last.dueDate },
+      });
+    }
   });
 }
 
@@ -359,8 +370,10 @@ export async function deleteInvoicePayment(input: {
     // With no payments left, a formerly paid/partially-paid invoice returns to unpaid.
     if (summary.amountPaid <= 0.001 && nextStatus !== "OVERDUE") {
       const isOverdue =
-        invoice.dueDate !== null &&
-        invoice.dueDate < new Date(new Date().setHours(0, 0, 0, 0));
+        summary.installments.some((row) => row.isOverdue) ||
+        (summary.installments.length === 0 &&
+          invoice.dueDate !== null &&
+          daysUntilDue(new Date(), invoice.dueDate) < 0);
       nextStatus = isOverdue ? "OVERDUE" : invoice.viewedAt ? "VIEWED" : "SENT";
     }
   }

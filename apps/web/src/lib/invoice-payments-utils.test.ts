@@ -88,6 +88,47 @@ describe("invoice settlement math", () => {
     assert.equal(summary.balanceDue, 100);
   });
 
+  it("marks UTC-midnight installments overdue on the UTC calendar day", () => {
+    const today = new Date("2026-11-02T18:00:00.000Z");
+    const summary = buildInvoicePaymentSummary(
+      {
+        total: 100,
+        dueDate: new Date("2026-11-01T00:00:00.000Z"),
+        installments: [
+          {
+            id: "1",
+            dueDate: new Date("2026-11-01T00:00:00.000Z"),
+            amount: 100,
+            label: null,
+            sortOrder: 0,
+          },
+        ],
+      },
+      today,
+    );
+    assert.equal(summary.installments[0]?.isOverdue, true);
+  });
+
+  it("does not mark a UTC-midnight installment overdue on its due day", () => {
+    const today = new Date("2026-11-02T18:00:00.000Z");
+    const summary = buildInvoicePaymentSummary(
+      {
+        total: 100,
+        installments: [
+          {
+            id: "1",
+            dueDate: new Date("2026-11-02T00:00:00.000Z"),
+            amount: 100,
+            label: null,
+            sortOrder: 0,
+          },
+        ],
+      },
+      today,
+    );
+    assert.equal(summary.installments[0]?.isOverdue, false);
+  });
+
   it("adds late fees to the remaining balance", () => {
     const summary = buildInvoicePaymentSummary({
       total: 100,

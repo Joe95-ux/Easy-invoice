@@ -33,9 +33,16 @@ function FieldLabel({ children, className }: { children: ReactNode; className?: 
   );
 }
 
+function todayIsoDate(): string {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${now.getFullYear()}-${month}-${day}`;
+}
+
 function createEmptyInstallment(sortOrder: number): InstallmentRow {
   return {
-    dueDate: new Date().toISOString(),
+    dueDate: todayIsoDate(),
     amount: 0,
     label: "",
     sortOrder,
