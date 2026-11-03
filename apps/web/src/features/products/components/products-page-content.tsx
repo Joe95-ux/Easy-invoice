@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
+  ArchiveIcon,
   MoreHorizontalIcon,
   PackageIcon,
   PencilIcon,
   PlusIcon,
+  RotateCcwIcon,
   Trash2Icon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -46,6 +48,11 @@ import { formatMoney } from "@/lib/invoices";
 import type { SerializedProduct } from "@/lib/products";
 import { cn } from "@/lib/utils";
 
+const STATUS_FILTERS = [
+  { value: "active", label: "Active" },
+  { value: "archived", label: "Archived" },
+];
+
 type ProductsPageContentProps = {
   initialProducts: SerializedProduct[];
   currency: string;
@@ -58,26 +65,38 @@ export function ProductsPageContent({
   canWrite = true,
 }: ProductsPageContentProps) {
   const [products, setProducts] = useState(initialProducts);
+  const [statusFilter, setStatusFilter] = useState("active");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<SerializedProduct | null>(null);
   const [pendingDelete, setPendingDelete] = useState<SerializedProduct | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const visible = useMemo(
+    () =>
+      products.filter((product) =>
+        statusFilter === "archived" ? product.archivedAt : !product.archivedAt,
+      ),
+    [products, statusFilter],
+  );
 
   const table = useListTable<SerializedProduct>({
     tableId: "products",
-    data: products,
-    searchKeys: ["name", "description", "unit"],
+    data: visible,
+    searchKeys: ["name", "description", "unit", "sku"],
     defaultSortKey: "name",
     defaultSortDirection: "asc",
     getSortValue: (row, key) => {
       if (key === "unitPrice") return row.unitPrice;
       if (key === "defaultQuantity") return row.defaultQuantity;
-      if (key === "name" || key === "unit") return row[key] ?? "";
+      if (key === "taxable") return row.taxable ? 1 : 0;
+      if (key === "name" || key === "unit" || key === "sku") return row[key] ?? "";
       return row[key as keyof SerializedProduct];
     },
   });
 
-  const empty = products.length === 0;
+  const emptyLibrary = products.length === 0;
+  const viewingArchived = statusFilter === "archived";
 
   function openCreate() {
     setEditing(null);
@@ -99,6 +118,25 @@ export function ProductsPageContent({
     });
   }
 
+  async function setArchived(product: SerializedProduct, archived: boolean) {
+    setBusyId(product.id);
+    try {
+      const res = await fetch(`/api/products/${product.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ archived }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Could not update product");
+      handleSaved(data.product as SerializedProduct);
+      toast.success(archived ? "Product archived" : "Product restored");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not update product");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   async function confirmDelete() {
     if (!pendingDelete) return;
     setDeleting(true);
@@ -110,7 +148,7 @@ export function ProductsPageContent({
       }
       setProducts((prev) => prev.filter((item) => item.id !== pendingDelete.id));
       setPendingDelete(null);
-      toast.success("Product removed");
+      toast.success("Product deleted");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not delete product");
     } finally {
@@ -133,7 +171,7 @@ export function ProductsPageContent({
         }
       />
 
-      {empty ? (
+      {emptyLibrary ? (
         <EmptyState
           icon={PackageIcon}
           title="No products yet"
@@ -154,6 +192,10 @@ export function ProductsPageContent({
               search={table.searchQuery}
               onSearchChange={table.setSearchQuery}
               searchPlaceholder="Search products..."
+              filter={statusFilter}
+              onFilterChange={setStatusFilter}
+              filterOptions={STATUS_FILTERS}
+              filterLabel="Status"
             />
 
             <Table stickyColumnWidths={["5.5rem", "8rem"]}>
@@ -165,6 +207,14 @@ export function ProductsPageContent({
                     sortKey={table.sortKey}
                     sortDirection={table.sortDirection}
                     onSort={table.toggleSort}
+                  />
+                  <SortableTableHead
+                    label="SKU"
+                    column="sku"
+                    sortKey={table.sortKey}
+                    sortDirection={table.sortDirection}
+                    onSort={table.toggleSort}
+                    className="hidden w-28 md:table-cell"
                   />
                   <SortableTableHead
                     label="Price"
@@ -182,7 +232,15 @@ export function ProductsPageContent({
                     onSort={table.toggleSort}
                     className="w-24 text-right [&_button]:ml-auto"
                   />
-                  <TableHead className="w-28">Unit</TableHead>
+                  <TableHead className="hidden w-24 sm:table-cell">Unit</TableHead>
+                  <SortableTableHead
+                    label="Tax"
+                    column="taxable"
+                    sortKey={table.sortKey}
+                    sortDirection={table.sortDirection}
+                    onSort={table.toggleSort}
+                    className="hidden w-20 md:table-cell"
+                  />
                   {canWrite ? (
                     <TableHead className="w-14 text-right">Actions</TableHead>
                   ) : null}
@@ -192,19 +250,21 @@ export function ProductsPageContent({
                 {table.pageRows.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={canWrite ? 5 : 4}
+                      colSpan={canWrite ? 7 : 6}
                       className="h-24 text-center text-muted-foreground"
                     >
                       {table.hasActiveFilters
                         ? "No products match your search."
-                        : "No products."}
+                        : viewingArchived
+                          ? "No archived products."
+                          : "No products."}
                     </TableCell>
                   </TableRow>
                 ) : (
                   table.pageRows.map((product) => (
                     <TableRow key={product.id}>
                       <TableCell>
-                        {canWrite ? (
+                        {canWrite && !product.archivedAt ? (
                           <button
                             type="button"
                             onClick={() => openEdit(product)}
@@ -228,14 +288,20 @@ export function ProductsPageContent({
                           </div>
                         )}
                       </TableCell>
+                      <TableCell className="hidden font-mono text-xs text-muted-foreground md:table-cell">
+                        {product.sku || "—"}
+                      </TableCell>
                       <TableCell className="text-right tabular-nums">
                         {formatMoney(product.unitPrice, currency)}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
                         {product.defaultQuantity}
                       </TableCell>
-                      <TableCell className="text-muted-foreground">
+                      <TableCell className="hidden text-muted-foreground sm:table-cell">
                         {product.unit || "—"}
+                      </TableCell>
+                      <TableCell className="hidden text-muted-foreground md:table-cell">
+                        {product.taxable ? "Yes" : "No"}
                       </TableCell>
                       {canWrite ? (
                         <TableCell className="text-right">
@@ -245,22 +311,42 @@ export function ProductsPageContent({
                                 "inline-flex size-8 cursor-pointer items-center justify-center rounded-[10px] border border-transparent text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
                               )}
                               aria-label="Product actions"
+                              disabled={busyId === product.id}
                             >
                               <MoreHorizontalIcon className="size-4" />
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => openEdit(product)}>
-                                <PencilIcon className="size-4" />
-                                Edit
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                variant="destructive"
-                                onClick={() => setPendingDelete(product)}
-                              >
-                                <Trash2Icon className="size-4" />
-                                Delete
-                              </DropdownMenuItem>
+                              {product.archivedAt ? (
+                                <>
+                                  <DropdownMenuItem
+                                    onClick={() => void setArchived(product, false)}
+                                  >
+                                    <RotateCcwIcon className="size-4" />
+                                    Restore
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    variant="destructive"
+                                    onClick={() => setPendingDelete(product)}
+                                  >
+                                    <Trash2Icon className="size-4" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                </>
+                              ) : (
+                                <>
+                                  <DropdownMenuItem onClick={() => openEdit(product)}>
+                                    <PencilIcon className="size-4" />
+                                    Edit
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => void setArchived(product, true)}
+                                  >
+                                    <ArchiveIcon className="size-4" />
+                                    Archive
+                                  </DropdownMenuItem>
+                                </>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>

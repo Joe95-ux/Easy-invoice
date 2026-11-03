@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Loader2Icon } from "lucide-react";
+import { Loader2Icon, PackageIcon } from "lucide-react";
 import { toast } from "sonner";
 import { parsePlanApiError, toastApiError } from "@/lib/billing/plan-api-error";
 import { useCompanyPlan } from "@/components/billing/company-plan-context";
@@ -22,9 +22,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   InvoiceLineItems,
+  appendItemsToLastSection,
   createDefaultSections,
   type LineItemInput,
 } from "@/features/invoices/components/invoice-line-items";
+import { AddFromLibraryDialog } from "@/features/products/components/add-from-library-dialog";
 import { DocumentTaxPanel } from "@/features/documents/components/document-tax-panel";
 import {
   RecurringScheduleFields,
@@ -142,6 +144,7 @@ export function RecurringScheduleDrawer({
   const [sections, setSections] =
     useState<LineItemSectionInput<LineItemInput>[]>(createDefaultSections());
   const [saving, setSaving] = useState(false);
+  const [libraryDialogOpen, setLibraryDialogOpen] = useState(false);
   const [popupContainer, setPopupContainer] = useState<HTMLElement | null>(null);
   const wasOpen = useRef(false);
 
@@ -438,7 +441,12 @@ export function RecurringScheduleDrawer({
 
   const hideInvoicePicker = Boolean(preselectedInvoiceId) && !isEdit;
 
+  function handleAddFromLibrary(items: LineItemInput[]) {
+    setSections((current) => appendItemsToLastSection(current, items));
+  }
+
   return (
+    <>
     <Drawer
       direction="right"
       open={open}
@@ -570,10 +578,23 @@ export function RecurringScheduleDrawer({
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Line items</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Used for invoices generated from this schedule going forward.
-                  </p>
+                  <div className="flex flex-wrap items-end justify-between gap-2">
+                    <div className="space-y-1">
+                      <Label>Line items</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Used for invoices generated from this schedule going forward.
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setLibraryDialogOpen(true)}
+                    >
+                      <PackageIcon className="size-4" />
+                      Add from library
+                    </Button>
+                  </div>
                   <InvoiceLineItems
                     sections={sections}
                     onChange={setSections}
@@ -614,5 +635,12 @@ export function RecurringScheduleDrawer({
         )}
       </DrawerContent>
     </Drawer>
+    <AddFromLibraryDialog
+      open={libraryDialogOpen}
+      onOpenChange={setLibraryDialogOpen}
+      currency={editing?.currency ?? currency}
+      onAdd={handleAddFromLibrary}
+    />
+    </>
   );
 }

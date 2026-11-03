@@ -8,10 +8,12 @@ import {
 import {
   deleteProduct,
   getProductForCompany,
+  ProductSkuTakenError,
   serializeProduct,
+  setProductArchived,
   updateProduct,
 } from "@/lib/products";
-import { productSchema } from "@/lib/schemas/product";
+import { productArchiveSchema, productSchema } from "@/lib/schemas/product";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -36,15 +38,31 @@ export async function PATCH(request: Request, context: RouteContext) {
   const body = await parseJsonBody<unknown>(request);
   if (body instanceof NextResponse) return body;
 
+  if (body && typeof body === "object" && "archived" in body && !("name" in body)) {
+    const parsed = productArchiveSchema.safeParse(body);
+    if (!parsed.success) return validationError(parsed.error);
+    const product = await setProductArchived(member.companyId, id, parsed.data.archived);
+    if (!product) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+    return NextResponse.json({ product: serializeProduct(product) });
+  }
+
   const parsed = productSchema.safeParse(body);
   if (!parsed.success) return validationError(parsed.error);
 
-  const product = await updateProduct(member.companyId, id, parsed.data);
-  if (!product) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  try {
+    const product = await updateProduct(member.companyId, id, parsed.data);
+    if (!product) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+    return NextResponse.json({ product: serializeProduct(product) });
+  } catch (error) {
+    if (error instanceof ProductSkuTakenError) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+    throw error;
   }
-
-  return NextResponse.json({ product: serializeProduct(product) });
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {

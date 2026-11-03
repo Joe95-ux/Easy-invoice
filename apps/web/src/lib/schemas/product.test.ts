@@ -1,0 +1,56 @@
+/**
+ * Run: `npx tsx --test src/lib/schemas/product.test.ts`
+ */
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+import { normalizeSku, productInputFromLineItem, productSchema } from "./product";
+
+describe("normalizeSku", () => {
+  it("trims and drops empty values", () => {
+    assert.equal(normalizeSku("  SVC-01  "), "SVC-01");
+    assert.equal(normalizeSku("   "), null);
+    assert.equal(normalizeSku(null), null);
+  });
+});
+
+describe("productInputFromLineItem", () => {
+  it("uses the first line as the name and the rest as description", () => {
+    const input = productInputFromLineItem({
+      description: "Website design\nHomepage + contact",
+      quantity: 2,
+      unitPrice: 1200,
+      taxable: false,
+    });
+    assert.equal(input.name, "Website design");
+    assert.equal(input.description, "Homepage + contact");
+    assert.equal(input.defaultQuantity, 2);
+    assert.equal(input.unitPrice, 1200);
+    assert.equal(input.taxable, false);
+    assert.equal(input.sku, null);
+  });
+
+  it("defaults untitled and taxable when the line is sparse", () => {
+    const input = productInputFromLineItem({
+      description: "  ",
+      quantity: 0,
+      unitPrice: -4,
+    });
+    assert.equal(input.name, "Untitled");
+    assert.equal(input.defaultQuantity, 1);
+    assert.equal(input.unitPrice, 0);
+    assert.equal(input.taxable, true);
+  });
+});
+
+describe("productSchema", () => {
+  it("normalizes blank SKU to null and defaults taxable", () => {
+    const parsed = productSchema.parse({
+      name: "Retainer",
+      unitPrice: 500,
+      defaultQuantity: 1,
+      sku: "  ",
+    });
+    assert.equal(parsed.sku, null);
+    assert.equal(parsed.taxable, true);
+  });
+});

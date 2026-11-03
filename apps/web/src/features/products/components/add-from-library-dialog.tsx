@@ -75,7 +75,8 @@ export function AddFromLibraryDialog({
       (product) =>
         product.name.toLowerCase().includes(q) ||
         product.description?.toLowerCase().includes(q) ||
-        product.unit?.toLowerCase().includes(q),
+        product.unit?.toLowerCase().includes(q) ||
+        product.sku?.toLowerCase().includes(q),
     );
   }, [products, query]);
 
@@ -101,6 +102,7 @@ export function AddFromLibraryDialog({
         description: productLineDescription(product),
         quantity: product.defaultQuantity,
         unitPrice: product.unitPrice,
+        taxable: product.taxable,
       })),
     );
     onOpenChange(false);
@@ -129,9 +131,9 @@ export function AddFromLibraryDialog({
             <div className="flex flex-col items-center gap-3 py-10 text-center">
               <PackageIcon className="size-8 text-muted-foreground" />
               <div>
-                <p className="text-sm font-medium">No products yet</p>
+                <p className="text-sm font-medium">No active products</p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Save products in your library, then add them here.
+                  Save products in your library, then add them here. Archived items stay out of this list.
                 </p>
               </div>
               <Button variant="outline" size="sm" render={<Link href="/products" />}>
@@ -179,8 +181,10 @@ export function AddFromLibraryDialog({
                             </p>
                           </div>
                           <p className="mt-0.5 text-xs text-muted-foreground">
+                            {product.sku ? `${product.sku} · ` : ""}
                             Qty {product.defaultQuantity}
                             {product.unit ? ` · ${product.unit}` : ""}
+                            {product.taxable === false ? " · Not taxed" : ""}
                             {product.description
                               ? ` · ${product.description}`
                               : ""}

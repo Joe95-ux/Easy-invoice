@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import type { SerializedProduct } from "@/lib/products";
 
@@ -50,6 +51,8 @@ export function ProductDialog({
   const [unitPrice, setUnitPrice] = useState("0");
   const [defaultQuantity, setDefaultQuantity] = useState("1");
   const [unit, setUnit] = useState("");
+  const [sku, setSku] = useState("");
+  const [taxable, setTaxable] = useState(true);
   const [saving, setSaving] = useState(false);
   const wasOpen = useRef(false);
 
@@ -60,6 +63,8 @@ export function ProductDialog({
       setUnitPrice(product ? String(product.unitPrice) : "0");
       setDefaultQuantity(product ? String(product.defaultQuantity) : "1");
       setUnit(product?.unit ?? "");
+      setSku(product?.sku ?? "");
+      setTaxable(product?.taxable ?? true);
     }
     wasOpen.current = open;
   }, [open, product]);
@@ -90,6 +95,8 @@ export function ProductDialog({
         unitPrice: parsedPrice,
         defaultQuantity: parsedQty,
         unit: unit.trim() || null,
+        sku: sku.trim() || null,
+        taxable,
       };
       const res = await fetch(isEdit ? `/api/products/${product!.id}` : "/api/products", {
         method: isEdit ? "PATCH" : "POST",
@@ -171,17 +178,39 @@ export function ProductDialog({
                 />
               </div>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="product-unit">Unit</Label>
-              <Input
-                id="product-unit"
-                value={unit}
-                onChange={(event) => setUnit(event.target.value)}
-                placeholder="hour, each, project…"
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-2">
+                <Label htmlFor="product-unit">Unit</Label>
+                <Input
+                  id="product-unit"
+                  value={unit}
+                  onChange={(event) => setUnit(event.target.value)}
+                  placeholder="hour, each…"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="product-sku">SKU</Label>
+                <Input
+                  id="product-sku"
+                  value={sku}
+                  onChange={(event) => setSku(event.target.value)}
+                  placeholder="Optional"
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-border/70 px-3 py-2.5">
+              <div>
+                <Label htmlFor="product-taxable">Taxable</Label>
+                <p className="text-xs text-muted-foreground">
+                  New invoice and estimate lines start with this tax setting.
+                </p>
+              </div>
+              <Switch
+                id="product-taxable"
+                checked={taxable}
+                onCheckedChange={setTaxable}
+                aria-label="Taxable"
               />
-              <p className="text-xs text-muted-foreground">
-                Shown on the invoice line when useful, e.g. “Consulting (hour)”.
-              </p>
             </div>
           </DialogBody>
           <DialogFooter>

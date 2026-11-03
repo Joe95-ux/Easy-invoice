@@ -1,7 +1,8 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { PlusIcon, Trash2Icon } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { Loader2Icon, PackagePlusIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -11,6 +12,7 @@ import {
   type LineItemSectionInput,
 } from "@/lib/line-item-sections";
 import { formatMoney } from "@/lib/invoices";
+import { productInputFromLineItem } from "@/lib/schemas/product";
 import { cn } from "@/lib/utils";
 
 export type LineItemInput = {
@@ -82,7 +84,7 @@ type InvoiceLineItemsProps = {
 };
 
 const desktopGrid =
-  "sm:grid sm:grid-cols-[minmax(0,1fr)_84px_112px_52px_36px] sm:items-center sm:gap-2";
+  "sm:grid sm:grid-cols-[minmax(0,1fr)_84px_112px_52px_36px_36px] sm:items-center sm:gap-2";
 
 function FieldLabel({ children, className }: { children: ReactNode; className?: string }) {
   return (
@@ -98,6 +100,7 @@ export function InvoiceLineItems({
   currency = "USD",
 }: InvoiceLineItemsProps) {
   const showSectionChrome = sections.length > 1 || sections.some((s) => s.title.trim());
+  const [savingKey, setSavingKey] = useState<string | null>(null);
 
   function updateSection(
     sectionIndex: number,
@@ -159,6 +162,28 @@ export function InvoiceLineItems({
     onChange(sections.filter((_, i) => i !== sectionIndex));
   }
 
+  async function saveToLibrary(item: LineItemInput, key: string) {
+    if (!item.description.trim()) {
+      toast.error("Add a description before saving to the library");
+      return;
+    }
+    setSavingKey(key);
+    try {
+      const res = await fetch("/api/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(productInputFromLineItem(item)),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Could not save product");
+      toast.success("Saved to product library");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save product");
+    } finally {
+      setSavingKey(null);
+    }
+  }
+
   const totalItems = sections.reduce((n, s) => n + s.items.length, 0);
 
   return (
@@ -207,12 +232,16 @@ export function InvoiceLineItems({
                 <span>Qty</span>
                 <span>Rate</span>
                 <span>Tax</span>
+                <span className="sr-only">Save to library</span>
                 <span className="sr-only">Remove</span>
               </div>
 
               {section.items.map((item, itemIndex) => {
                 const isLast = itemIndex === section.items.length - 1;
                 const canRemove = totalItems > 1;
+                const lineKey = `${section.key}-${itemIndex}`;
+                const saving = savingKey === lineKey;
+                const canSave = Boolean(item.description.trim());
 
                 return (
                   <div
@@ -229,17 +258,35 @@ export function InvoiceLineItems({
                       <span className="text-xs font-medium text-muted-foreground">
                         Line {itemIndex + 1}
                       </span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        className="shrink-0 text-muted-foreground hover:text-destructive"
-                        disabled={!canRemove}
-                        onClick={() => removeItem(sectionIndex, itemIndex)}
-                        aria-label="Remove line item"
-                      >
-                        <Trash2Icon className="size-4" />
-                      </Button>
+                      <div className="flex items-center">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          className="shrink-0 text-muted-foreground"
+                          disabled={!canSave || saving}
+                          onClick={() => void saveToLibrary(item, lineKey)}
+                          aria-label="Save to product library"
+                          title="Save to product library"
+                        >
+                          {saving ? (
+                            <Loader2Icon className="size-4 animate-spin" />
+                          ) : (
+                            <PackagePlusIcon className="size-4" />
+                          )}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          className="shrink-0 text-muted-foreground hover:text-destructive"
+                          disabled={!canRemove}
+                          onClick={() => removeItem(sectionIndex, itemIndex)}
+                          aria-label="Remove line item"
+                        >
+                          <Trash2Icon className="size-4" />
+                        </Button>
+                      </div>
                     </div>
 
                     <div className="space-y-1.5 sm:contents">
@@ -309,6 +356,23 @@ export function InvoiceLineItems({
                         }
                       >
                         {item.taxable === false ? "No" : "Yes"}
+                      </Button>
+
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        className="hidden shrink-0 text-muted-foreground sm:inline-flex"
+                        disabled={!canSave || saving}
+                        onClick={() => void saveToLibrary(item, lineKey)}
+                        aria-label="Save to product library"
+                        title="Save to product library"
+                      >
+                        {saving ? (
+                          <Loader2Icon className="size-4 animate-spin" />
+                        ) : (
+                          <PackagePlusIcon className="size-4" />
+                        )}
                       </Button>
 
                       <Button

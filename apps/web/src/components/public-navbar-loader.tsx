@@ -3,8 +3,14 @@ import { getCurrentMember, getUserMemberships } from "@/lib/auth";
 import { membershipsToCompanySummaries } from "@/lib/companies";
 
 export async function PublicNavbarLoader() {
-  const member = await getCurrentMember();
-  const memberships = member ? await getUserMemberships(member.clerkId) : [];
+  let member = null;
+  let memberships: Awaited<ReturnType<typeof getUserMemberships>> = [];
+  try {
+    member = await getCurrentMember();
+    memberships = member ? await getUserMemberships(member.clerkId) : [];
+  } catch {
+    // Public pages should still render if the database is down.
+  }
 
   return (
     <PublicNavbar

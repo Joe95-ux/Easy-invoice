@@ -8,15 +8,23 @@ import {
 import {
   createProduct,
   getProductsForCompany,
+  ProductSkuTakenError,
   serializeProduct,
+  type ProductArchiveFilter,
 } from "@/lib/products";
 import { productSchema } from "@/lib/schemas/product";
 
-export async function GET() {
+function parseArchiveFilter(value: string | null): ProductArchiveFilter {
+  if (value === "all" || value === "archived") return value;
+  return "active";
+}
+
+export async function GET(request: Request) {
   const { member, response } = await requireApiMember();
   if (response) return response;
 
-  const products = await getProductsForCompany(member.companyId);
+  const archived = parseArchiveFilter(new URL(request.url).searchParams.get("archived"));
+  const products = await getProductsForCompany(member.companyId, archived);
   return NextResponse.json({ products: products.map(serializeProduct) });
 }
 
@@ -30,6 +38,13 @@ export async function POST(request: Request) {
   const parsed = productSchema.safeParse(body);
   if (!parsed.success) return validationError(parsed.error);
 
-  const product = await createProduct(member.companyId, parsed.data);
-  return NextResponse.json({ product: serializeProduct(product) }, { status: 201 });
+  try {
+    const product = await createProduct(member.companyId, parsed.data);
+    return NextResponse.json({ product: serializeProduct(product) }, { status: 201 });
+  } catch (error) {
+    if (error instanceof ProductSkuTakenError) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+    throw error;
+  }
 }

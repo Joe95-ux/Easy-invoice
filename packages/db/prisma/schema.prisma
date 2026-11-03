@@ -500,21 +500,28 @@ model ClientPortalEvent {
 
 /// Reusable product/service for faster invoice and estimate line items.
 model Product {
-  id               String   @id @default(cuid())
+  id               String    @id @default(cuid())
   companyId        String
   name             String
   /// Optional longer text used as the line-item description when set; otherwise `name` is used.
   description      String?
-  unitPrice        Decimal  @default(0) @db.Decimal(12, 2)
-  defaultQuantity  Decimal  @default(1) @db.Decimal(12, 4)
+  unitPrice        Decimal   @default(0) @db.Decimal(12, 2)
+  defaultQuantity  Decimal   @default(1) @db.Decimal(12, 4)
   unit             String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  /// Optional catalog code; uniqueness is enforced per company in app code.
+  sku              String?
+  /// Copied onto new invoice/estimate lines. Document tax still applies at totals.
+  taxable          Boolean   @default(true)
+  archivedAt       DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
   @@index([companyId, name])
+  @@index([companyId, archivedAt])
+  @@index([companyId, sku])
 }
 
 /// Schedule that generates invoices on a cadence (retainers, subscriptions, etc.).
