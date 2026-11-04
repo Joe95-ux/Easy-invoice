@@ -139,6 +139,7 @@ export function ProductDialog({
                 value={name}
                 onChange={(event) => setName(event.target.value)}
                 placeholder="Website design"
+                maxLength={200}
                 autoFocus
               />
             </div>
@@ -149,6 +150,7 @@ export function ProductDialog({
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
                 placeholder="Optional line-item text (uses name if empty)"
+                maxLength={2000}
                 rows={3}
               />
             </div>
@@ -186,6 +188,7 @@ export function ProductDialog({
                   value={unit}
                   onChange={(event) => setUnit(event.target.value)}
                   placeholder="hour, each…"
+                  maxLength={40}
                 />
               </div>
               <div className="grid gap-2">
@@ -195,6 +198,7 @@ export function ProductDialog({
                   value={sku}
                   onChange={(event) => setSku(event.target.value)}
                   placeholder="Optional"
+                  maxLength={40}
                 />
               </div>
             </div>
@@ -208,7 +212,7 @@ export function ProductDialog({
               <Switch
                 id="product-taxable"
                 checked={taxable}
-                onCheckedChange={setTaxable}
+                onCheckedChange={(checked) => setTaxable(checked === true)}
                 aria-label="Taxable"
               />
             </div>

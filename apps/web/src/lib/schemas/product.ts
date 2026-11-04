@@ -36,6 +36,8 @@ export const productArchiveSchema = z.object({
 
 export type ProductInput = z.infer<typeof productSchema>;
 
+const LINE_UNIT_SUFFIX = /\s+\(([^()\n]{1,40})\)$/;
+
 /** Map a document line into a new catalog product. */
 export function productInputFromLineItem(item: {
   description: string;
@@ -43,7 +45,14 @@ export function productInputFromLineItem(item: {
   unitPrice: number;
   taxable?: boolean;
 }): ProductInput {
-  const text = item.description.trim();
+  let text = item.description.trim();
+  let unit: string | null = null;
+  const unitMatch = text.match(LINE_UNIT_SUFFIX);
+  if (unitMatch?.index != null) {
+    unit = unitMatch[1]!.trim() || null;
+    text = text.slice(0, unitMatch.index).trim();
+  }
+
   const [firstLine, ...rest] = text.split("\n");
   const name = (firstLine || "Untitled").slice(0, 200);
   const description = rest.join("\n").trim() || null;
@@ -55,7 +64,7 @@ export function productInputFromLineItem(item: {
     description,
     unitPrice,
     defaultQuantity: quantity,
-    unit: null,
+    unit,
     sku: null,
     taxable: item.taxable !== false,
   };

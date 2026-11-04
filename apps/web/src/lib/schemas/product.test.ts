@@ -29,6 +29,16 @@ describe("productInputFromLineItem", () => {
     assert.equal(input.sku, null);
   });
 
+  it("recovers a trailing unit suffix from library line text", () => {
+    const input = productInputFromLineItem({
+      description: "Consulting (hour)",
+      quantity: 1,
+      unitPrice: 150,
+    });
+    assert.equal(input.name, "Consulting");
+    assert.equal(input.unit, "hour");
+  });
+
   it("defaults untitled and taxable when the line is sparse", () => {
     const input = productInputFromLineItem({
       description: "  ",

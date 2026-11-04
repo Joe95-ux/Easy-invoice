@@ -8,6 +8,7 @@ import {
 import {
   deleteProduct,
   getProductForCompany,
+  ProductNotArchivedError,
   ProductSkuTakenError,
   serializeProduct,
   setProductArchived,
@@ -70,10 +71,16 @@ export async function DELETE(_request: Request, context: RouteContext) {
   if (response) return response;
 
   const { id } = await context.params;
-  const deleted = await deleteProduct(member.companyId, id);
-  if (!deleted) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  try {
+    const deleted = await deleteProduct(member.companyId, id);
+    if (!deleted) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    if (error instanceof ProductNotArchivedError) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+    throw error;
   }
-
-  return NextResponse.json({ success: true });
 }

@@ -22,6 +22,13 @@ export class ProductSkuTakenError extends Error {
   }
 }
 
+export class ProductNotArchivedError extends Error {
+  constructor() {
+    super("Archive this product before deleting it");
+    this.name = "ProductNotArchivedError";
+  }
+}
+
 type ProductRow = {
   id: string;
   name: string;
@@ -155,6 +162,9 @@ export async function setProductArchived(companyId: string, id: string, archived
 export async function deleteProduct(companyId: string, id: string) {
   const existing = await getProductForCompany(id, companyId);
   if (!existing) return null;
+  if (!existing.archivedAt) {
+    throw new ProductNotArchivedError();
+  }
   await prisma.product.delete({ where: { id } });
   return existing;
 }

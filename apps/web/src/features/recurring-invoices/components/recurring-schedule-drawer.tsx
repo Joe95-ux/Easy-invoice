@@ -26,7 +26,7 @@ import {
   createDefaultSections,
   type LineItemInput,
 } from "@/features/invoices/components/invoice-line-items";
-import { AddFromLibraryDialog } from "@/features/products/components/add-from-library-dialog";
+import { ProductLibraryPicker } from "@/features/products/components/product-library-picker";
 import { DocumentTaxPanel } from "@/features/documents/components/document-tax-panel";
 import {
   RecurringScheduleFields,
@@ -172,6 +172,7 @@ export function RecurringScheduleDrawer({
 
   useEffect(() => {
     if (open && !wasOpen.current) {
+      setLibraryDialogOpen(false);
       if (isEdit && editing) {
         setSchedule({
           name: editing.name,
@@ -446,7 +447,6 @@ export function RecurringScheduleDrawer({
   }
 
   return (
-    <>
     <Drawer
       direction="right"
       open={open}
@@ -582,24 +582,40 @@ export function RecurringScheduleDrawer({
                     <div className="space-y-1">
                       <Label>Line items</Label>
                       <p className="text-xs text-muted-foreground">
-                        Used for invoices generated from this schedule going forward.
+                        {libraryDialogOpen
+                          ? "Choose products to insert into this schedule."
+                          : "Used for invoices generated from this schedule going forward."}
                       </p>
                     </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setLibraryDialogOpen(true)}
-                    >
-                      <PackageIcon className="size-4" />
-                      Add from library
-                    </Button>
+                    {libraryDialogOpen ? null : (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setLibraryDialogOpen(true)}
+                      >
+                        <PackageIcon className="size-4" />
+                        Add from library
+                      </Button>
+                    )}
                   </div>
-                  <InvoiceLineItems
-                    sections={sections}
-                    onChange={setSections}
-                    currency={editing?.currency ?? currency}
-                  />
+                  {libraryDialogOpen ? (
+                    <ProductLibraryPicker
+                      currency={editing?.currency ?? currency}
+                      showCatalogLink={false}
+                      onCancel={() => setLibraryDialogOpen(false)}
+                      onAdd={(items) => {
+                        handleAddFromLibrary(items);
+                        setLibraryDialogOpen(false);
+                      }}
+                    />
+                  ) : (
+                    <InvoiceLineItems
+                      sections={sections}
+                      onChange={setSections}
+                      currency={editing?.currency ?? currency}
+                    />
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -635,12 +651,5 @@ export function RecurringScheduleDrawer({
         )}
       </DrawerContent>
     </Drawer>
-    <AddFromLibraryDialog
-      open={libraryDialogOpen}
-      onOpenChange={setLibraryDialogOpen}
-      currency={editing?.currency ?? currency}
-      onAdd={handleAddFromLibrary}
-    />
-    </>
   );
 }
