@@ -8,6 +8,7 @@ import {
 import {
   deleteProduct,
   getProductForCompany,
+  ProductDuplicateError,
   ProductNotArchivedError,
   ProductSkuTakenError,
   serializeProduct,
@@ -42,11 +43,18 @@ export async function PATCH(request: Request, context: RouteContext) {
   if (body && typeof body === "object" && "archived" in body && !("name" in body)) {
     const parsed = productArchiveSchema.safeParse(body);
     if (!parsed.success) return validationError(parsed.error);
-    const product = await setProductArchived(member.companyId, id, parsed.data.archived);
-    if (!product) {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    try {
+      const product = await setProductArchived(member.companyId, id, parsed.data.archived);
+      if (!product) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
+      return NextResponse.json({ product: serializeProduct(product) });
+    } catch (error) {
+      if (error instanceof ProductDuplicateError) {
+        return NextResponse.json({ error: error.message }, { status: 409 });
+      }
+      throw error;
     }
-    return NextResponse.json({ product: serializeProduct(product) });
   }
 
   const parsed = productSchema.safeParse(body);
@@ -59,7 +67,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     }
     return NextResponse.json({ product: serializeProduct(product) });
   } catch (error) {
-    if (error instanceof ProductSkuTakenError) {
+    if (error instanceof ProductSkuTakenError || error instanceof ProductDuplicateError) {
       return NextResponse.json({ error: error.message }, { status: 409 });
     }
     throw error;

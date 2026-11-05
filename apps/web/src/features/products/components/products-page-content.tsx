@@ -3,12 +3,14 @@
 import { useMemo, useState } from "react";
 import {
   ArchiveIcon,
+  DownloadIcon,
   MoreHorizontalIcon,
   PackageIcon,
   PencilIcon,
   PlusIcon,
   RotateCcwIcon,
   Trash2Icon,
+  UploadIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { EmptyState, PageHeader, pageHeaderActionClass } from "@/components/app-shell/page-header";
@@ -42,7 +44,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ImportProductsDialog } from "@/features/products/components/import-products-dialog";
 import { ProductDialog } from "@/features/products/components/product-dialog";
+import { downloadProductsCsv } from "@/features/products/lib/export-products-csv";
 import { useListTable } from "@/hooks/use-list-table";
 import { formatMoney } from "@/lib/invoices";
 import type { SerializedProduct } from "@/lib/products";
@@ -71,6 +75,7 @@ export function ProductsPageContent({
   const [pendingDelete, setPendingDelete] = useState<SerializedProduct | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   const visible = useMemo(
     () =>
@@ -115,6 +120,14 @@ export function ProductsPageContent({
         return prev.map((item) => (item.id === product.id ? product : item));
       }
       return [...prev, product];
+    });
+  }
+
+  function handleImported(created: SerializedProduct[]) {
+    if (created.length === 0) return;
+    setProducts((prev) => {
+      const ids = new Set(prev.map((item) => item.id));
+      return [...prev, ...created.filter((item) => !ids.has(item.id))];
     });
   }
 
@@ -178,10 +191,16 @@ export function ProductsPageContent({
           description="Save products or services once, then add them to invoices and estimates in one click."
           action={
             canWrite ? (
-              <Button onClick={openCreate}>
-                <PlusIcon className="size-4" />
-                Add your first product
-              </Button>
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <Button onClick={openCreate}>
+                  <PlusIcon className="size-4" />
+                  Add your first product
+                </Button>
+                <Button variant="outline" onClick={() => setImportOpen(true)}>
+                  <UploadIcon className="size-4" />
+                  Import CSV
+                </Button>
+              </div>
             ) : undefined
           }
         />
@@ -196,6 +215,33 @@ export function ProductsPageContent({
               onFilterChange={setStatusFilter}
               filterOptions={STATUS_FILTERS}
               filterLabel="Status"
+              actions={
+                <div className="flex flex-wrap items-center gap-2">
+                  {canWrite ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="cursor-pointer"
+                      onClick={() => setImportOpen(true)}
+                    >
+                      <UploadIcon className="size-4" />
+                      Import
+                    </Button>
+                  ) : null}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="cursor-pointer"
+                    disabled={table.totalCount === 0}
+                    onClick={() => downloadProductsCsv(table.rows)}
+                  >
+                    <DownloadIcon className="size-4" />
+                    Export
+                  </Button>
+                </div>
+              }
             />
 
             <Table stickyColumnWidths={["5.5rem", "8rem"]}>
@@ -373,16 +419,23 @@ export function ProductsPageContent({
       )}
 
       {canWrite ? (
-        <ProductDialog
-          open={dialogOpen}
-          onOpenChange={(open) => {
-            setDialogOpen(open);
-            if (!open) setEditing(null);
-          }}
-          product={editing}
-          currency={currency}
-          onSaved={handleSaved}
-        />
+        <>
+          <ProductDialog
+            open={dialogOpen}
+            onOpenChange={(open) => {
+              setDialogOpen(open);
+              if (!open) setEditing(null);
+            }}
+            product={editing}
+            currency={currency}
+            onSaved={handleSaved}
+          />
+          <ImportProductsDialog
+            open={importOpen}
+            onOpenChange={setImportOpen}
+            onImported={handleImported}
+          />
+        </>
       ) : null}
 
       <AlertDialog

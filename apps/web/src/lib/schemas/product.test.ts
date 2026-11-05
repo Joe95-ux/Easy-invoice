@@ -3,7 +3,13 @@
  */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { normalizeSku, productInputFromLineItem, productSchema } from "./product";
+import {
+  normalizeSku,
+  parseTaxableCsv,
+  productFingerprint,
+  productInputFromLineItem,
+  productSchema,
+} from "./product";
 
 describe("normalizeSku", () => {
   it("trims and drops empty values", () => {
@@ -49,6 +55,31 @@ describe("productInputFromLineItem", () => {
     assert.equal(input.defaultQuantity, 1);
     assert.equal(input.unitPrice, 0);
     assert.equal(input.taxable, true);
+  });
+});
+
+describe("productFingerprint", () => {
+  it("treats same name, unit, and price as twins, ignoring case and money float", () => {
+    assert.equal(
+      productFingerprint({ name: "Consulting", unitPrice: 150, unit: "Hour" }),
+      productFingerprint({ name: "consulting", unitPrice: 150.001, unit: "hour" }),
+    );
+  });
+
+  it("keeps the same name at a different rate distinct", () => {
+    assert.notEqual(
+      productFingerprint({ name: "Consulting", unitPrice: 150, unit: "hour" }),
+      productFingerprint({ name: "Consulting", unitPrice: 200, unit: "hour" }),
+    );
+  });
+});
+
+describe("parseTaxableCsv", () => {
+  it("defaults empty to taxed and maps common no values", () => {
+    assert.equal(parseTaxableCsv(""), true);
+    assert.equal(parseTaxableCsv("yes"), true);
+    assert.equal(parseTaxableCsv("No"), false);
+    assert.equal(parseTaxableCsv("0"), false);
   });
 });
 

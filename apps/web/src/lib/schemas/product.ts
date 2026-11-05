@@ -17,6 +17,25 @@ export function normalizeSku(value: string | null | undefined): string | null {
   return trimmed ? trimmed.slice(0, 40) : null;
 }
 
+/** Same name + unit + price is a catalog twin. Different rates of the same name are allowed. */
+export function productFingerprint(input: {
+  name: string;
+  unitPrice: number;
+  unit?: string | null;
+}): string {
+  const name = input.name.trim().toLowerCase();
+  const unit = (input.unit ?? "").trim().toLowerCase();
+  const cents = Math.round((Number.isFinite(input.unitPrice) ? input.unitPrice : 0) * 100);
+  return `${name}|${unit}|${cents}`;
+}
+
+export function parseTaxableCsv(value: string | null | undefined): boolean {
+  const raw = value?.trim().toLowerCase() ?? "";
+  if (!raw) return true;
+  if (["no", "false", "0", "n", "untaxed", "not taxed"].includes(raw)) return false;
+  return true;
+}
+
 export const productSchema = z.object({
   name: z.string().min(1, "Name is required").max(200),
   description: z.string().max(2000).optional().nullable(),

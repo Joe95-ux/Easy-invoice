@@ -8,6 +8,7 @@ import {
 import {
   createProduct,
   getProductsForCompany,
+  ProductDuplicateError,
   ProductSkuTakenError,
   serializeProduct,
   type ProductArchiveFilter,
@@ -42,7 +43,7 @@ export async function POST(request: Request) {
     const product = await createProduct(member.companyId, parsed.data);
     return NextResponse.json({ product: serializeProduct(product) }, { status: 201 });
   } catch (error) {
-    if (error instanceof ProductSkuTakenError) {
+    if (error instanceof ProductSkuTakenError || error instanceof ProductDuplicateError) {
       return NextResponse.json({ error: error.message }, { status: 409 });
     }
     throw error;

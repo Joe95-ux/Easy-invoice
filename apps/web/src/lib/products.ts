@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { normalizeSku, type ProductInput } from "@/lib/schemas/product";
+import { normalizeSku, productFingerprint, type ProductInput } from "@/lib/schemas/product";
 
 export type SerializedProduct = {
   id: string;
@@ -26,6 +26,13 @@ export class ProductNotArchivedError extends Error {
   constructor() {
     super("Archive this product before deleting it");
     this.name = "ProductNotArchivedError";
+  }
+}
+
+export class ProductDuplicateError extends Error {
+  constructor() {
+    super("A product with this name, unit, and price is already in your library");
+    this.name = "ProductDuplicateError";
   }
 }
 
@@ -110,9 +117,41 @@ async function assertSkuAvailable(companyId: string, sku: string | null, exclude
   if (existing) throw new ProductSkuTakenError();
 }
 
+async function assertFingerprintAvailable(
+  companyId: string,
+  input: ProductInput,
+  excludeId?: string,
+) {
+  const name = input.name.trim();
+  const twins = await prisma.product.findMany({
+    where: {
+      companyId,
+      archivedAt: null,
+      name: { equals: name, mode: "insensitive" },
+      ...(excludeId ? { id: { not: excludeId } } : {}),
+    },
+    select: { name: true, unitPrice: true, unit: true },
+  });
+  const fingerprint = productFingerprint({
+    name,
+    unitPrice: input.unitPrice,
+    unit: input.unit,
+  });
+  const taken = twins.some(
+    (row) =>
+      productFingerprint({
+        name: row.name,
+        unitPrice: Number(row.unitPrice),
+        unit: row.unit,
+      }) === fingerprint,
+  );
+  if (taken) throw new ProductDuplicateError();
+}
+
 export async function createProduct(companyId: string, input: ProductInput) {
   const sku = normalizeSku(input.sku);
   await assertSkuAvailable(companyId, sku);
+  await assertFingerprintAvailable(companyId, input);
 
   return prisma.product.create({
     data: {
@@ -134,6 +173,7 @@ export async function updateProduct(companyId: string, id: string, input: Produc
 
   const sku = normalizeSku(input.sku);
   await assertSkuAvailable(companyId, sku, id);
+  await assertFingerprintAvailable(companyId, input, id);
 
   return prisma.product.update({
     where: { id },
@@ -152,6 +192,21 @@ export async function updateProduct(companyId: string, id: string, input: Produc
 export async function setProductArchived(companyId: string, id: string, archived: boolean) {
   const existing = await getProductForCompany(id, companyId);
   if (!existing) return null;
+
+  if (!archived) {
+    await assertFingerprintAvailable(
+      companyId,
+      {
+        name: existing.name,
+        unitPrice: Number(existing.unitPrice),
+        defaultQuantity: Number(existing.defaultQuantity),
+        unit: existing.unit,
+        sku: existing.sku,
+        taxable: existing.taxable,
+      },
+      id,
+    );
+  }
 
   return prisma.product.update({
     where: { id },
