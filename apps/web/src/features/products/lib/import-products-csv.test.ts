@@ -34,6 +34,12 @@ describe("parseProductsCsvText", () => {
     assert.equal(withEmpty.skippedEmpty, 1);
   });
 
+  it("rejects a zero quantity instead of silently defaulting to 1", () => {
+    const parsed = parseProductsCsvText("Name,Default qty,Unit price\nWidget,0,9");
+    assert.equal(parsed.rows.length, 0);
+    assert.match(parsed.errors[0]?.message ?? "", /Quantity/);
+  });
+
   it("fingerprints twins so import can skip exact duplicates", () => {
     const csv = "Name,Unit price,Unit\nConsulting,150,hour\nconsulting,150.00,Hour";
     const parsed = parseProductsCsvText(csv);

@@ -66,7 +66,7 @@ export async function POST(request: Request) {
       .map((row) =>
         productFingerprint({
           name: row.name,
-          unitPrice: Number(row.unitPrice),
+          unitPrice: parseFloat(row.unitPrice.toString()),
           unit: row.unit,
         }),
       ),

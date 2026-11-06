@@ -9,6 +9,7 @@ import {
   productFingerprint,
   productInputFromLineItem,
   productSchema,
+  withLineUnitSuffix,
 } from "./product";
 
 describe("normalizeSku", () => {
@@ -83,6 +84,13 @@ describe("parseTaxableCsv", () => {
   });
 });
 
+describe("withLineUnitSuffix", () => {
+  it("does not treat a unit as present just because it appears inside a word", () => {
+    assert.equal(withLineUnitSuffix("Beach cleanup", "each"), "Beach cleanup (each)");
+    assert.equal(withLineUnitSuffix("Consulting (hour)", "hour"), "Consulting (hour)");
+  });
+});
+
 describe("productSchema", () => {
   it("normalizes blank SKU to null and defaults taxable", () => {
     const parsed = productSchema.parse({
@@ -93,5 +101,22 @@ describe("productSchema", () => {
     });
     assert.equal(parsed.sku, null);
     assert.equal(parsed.taxable, true);
+  });
+
+  it("trims the name and rejects whitespace-only names", () => {
+    const parsed = productSchema.parse({
+      name: "  Retainer  ",
+      unitPrice: 500,
+      defaultQuantity: 1,
+    });
+    assert.equal(parsed.name, "Retainer");
+    assert.equal(
+      productSchema.safeParse({
+        name: "   ",
+        unitPrice: 500,
+        defaultQuantity: 1,
+      }).success,
+      false,
+    );
   });
 });

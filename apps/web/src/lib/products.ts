@@ -1,5 +1,10 @@
 import { prisma } from "@/lib/db";
-import { normalizeSku, productFingerprint, type ProductInput } from "@/lib/schemas/product";
+import {
+  normalizeSku,
+  productFingerprint,
+  withLineUnitSuffix,
+  type ProductInput,
+} from "@/lib/schemas/product";
 
 export type SerializedProduct = {
   id: string;
@@ -50,13 +55,17 @@ type ProductRow = {
   updatedAt: Date;
 };
 
+function decimalToNumber(value: { toString(): string } | number): number {
+  return typeof value === "number" ? value : parseFloat(value.toString());
+}
+
 export function serializeProduct(product: ProductRow): SerializedProduct {
   return {
     id: product.id,
     name: product.name,
     description: product.description,
-    unitPrice: Number(product.unitPrice),
-    defaultQuantity: Number(product.defaultQuantity),
+    unitPrice: decimalToNumber(product.unitPrice),
+    defaultQuantity: decimalToNumber(product.defaultQuantity),
     unit: product.unit,
     sku: product.sku,
     taxable: product.taxable,
@@ -73,11 +82,7 @@ export function productLineDescription(product: {
   unit?: string | null;
 }): string {
   const detail = product.description?.trim() || product.name;
-  const unit = product.unit?.trim();
-  if (!unit) return detail;
-  // Avoid duplicating unit if the description already mentions it.
-  if (detail.toLowerCase().includes(unit.toLowerCase())) return detail;
-  return `${detail} (${unit})`;
+  return withLineUnitSuffix(detail, product.unit);
 }
 
 export type ProductArchiveFilter = "active" | "archived" | "all";
@@ -141,7 +146,7 @@ async function assertFingerprintAvailable(
     (row) =>
       productFingerprint({
         name: row.name,
-        unitPrice: Number(row.unitPrice),
+        unitPrice: decimalToNumber(row.unitPrice),
         unit: row.unit,
       }) === fingerprint,
   );
@@ -198,8 +203,8 @@ export async function setProductArchived(companyId: string, id: string, archived
       companyId,
       {
         name: existing.name,
-        unitPrice: Number(existing.unitPrice),
-        defaultQuantity: Number(existing.defaultQuantity),
+        unitPrice: decimalToNumber(existing.unitPrice),
+        defaultQuantity: decimalToNumber(existing.defaultQuantity),
         unit: existing.unit,
         sku: existing.sku,
         taxable: existing.taxable,

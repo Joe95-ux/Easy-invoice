@@ -106,7 +106,7 @@ export function parseProductsCsvText(
       break;
     }
 
-    const cells = rows[i];
+    const cells = rows[i] ?? [];
     const draft: Record<string, string> = {};
     for (const [colIndex, fieldId] of columnMap) {
       draft[fieldId] = (cells[colIndex] ?? "").trim();
@@ -121,8 +121,8 @@ export function parseProductsCsvText(
     const candidate = {
       name,
       description: draft.description || null,
-      unitPrice: draft.unitPrice || 0,
-      defaultQuantity: draft.defaultQuantity || 1,
+      unitPrice: draft.unitPrice,
+      defaultQuantity: draft.defaultQuantity,
       unit: draft.unit || null,
       sku: draft.sku || null,
       taxable: parseTaxableCsv(draft.taxable),

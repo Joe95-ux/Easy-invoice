@@ -175,6 +175,12 @@ export function InvoiceLineItems({
         body: JSON.stringify(productInputFromLineItem(item)),
       });
       const data = await res.json().catch(() => ({}));
+      if (res.status === 409) {
+        toast.message(
+          typeof data.error === "string" ? data.error : "Already in your library",
+        );
+        return;
+      }
       if (!res.ok) throw new Error(data.error ?? "Could not save product");
       toast.success("Saved to product library");
     } catch (error) {

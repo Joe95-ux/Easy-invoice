@@ -4,13 +4,13 @@ const money = z.preprocess((value) => {
   if (value === "" || value === null || value === undefined) return 0;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : value;
-}, z.number().min(0, "Price must be zero or more"));
+}, z.number().min(0, "Price must be zero or more").max(9_999_999_999.99, "Price is too large"));
 
 const quantity = z.preprocess((value) => {
   if (value === "" || value === null || value === undefined) return 1;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : value;
-}, z.number().positive("Quantity must be greater than zero"));
+}, z.number().positive("Quantity must be greater than zero").max(99_999_999.9999, "Quantity is too large"));
 
 export function normalizeSku(value: string | null | undefined): string | null {
   const trimmed = value?.trim() ?? "";
@@ -37,11 +37,11 @@ export function parseTaxableCsv(value: string | null | undefined): boolean {
 }
 
 export const productSchema = z.object({
-  name: z.string().min(1, "Name is required").max(200),
-  description: z.string().max(2000).optional().nullable(),
+  name: z.string().trim().min(1, "Name is required").max(200),
+  description: z.string().trim().max(2000).optional().nullable(),
   unitPrice: money,
   defaultQuantity: quantity,
-  unit: z.string().max(40).optional().nullable(),
+  unit: z.string().trim().max(40).optional().nullable(),
   sku: z.preprocess(
     (value) => (typeof value === "string" ? normalizeSku(value) : value ?? null),
     z.string().max(40).nullable().optional(),
@@ -56,6 +56,14 @@ export const productArchiveSchema = z.object({
 export type ProductInput = z.infer<typeof productSchema>;
 
 const LINE_UNIT_SUFFIX = /\s+\(([^()\n]{1,40})\)$/;
+
+/** Append `(unit)` unless the line already ends with that suffix. */
+export function withLineUnitSuffix(detail: string, unit?: string | null): string {
+  const trimmedUnit = unit?.trim();
+  if (!trimmedUnit) return detail;
+  if (detail.toLowerCase().endsWith(`(${trimmedUnit.toLowerCase()})`)) return detail;
+  return `${detail} (${trimmedUnit})`;
+}
 
 /** Map a document line into a new catalog product. */
 export function productInputFromLineItem(item: {
@@ -74,7 +82,7 @@ export function productInputFromLineItem(item: {
 
   const [firstLine, ...rest] = text.split("\n");
   const name = (firstLine || "Untitled").slice(0, 200);
-  const description = rest.join("\n").trim() || null;
+  const description = rest.join("\n").trim().slice(0, 2000) || null;
   const quantity = Number.isFinite(item.quantity) && item.quantity > 0 ? item.quantity : 1;
   const unitPrice = Number.isFinite(item.unitPrice) && item.unitPrice >= 0 ? item.unitPrice : 0;
 

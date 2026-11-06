@@ -129,6 +129,7 @@ export function ProductsPageContent({
       const ids = new Set(prev.map((item) => item.id));
       return [...prev, ...created.filter((item) => !ids.has(item.id))];
     });
+    setStatusFilter("active");
   }
 
   async function setArchived(product: SerializedProduct, archived: boolean) {
