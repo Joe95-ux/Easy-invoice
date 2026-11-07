@@ -62,15 +62,14 @@ export async function getCreditNoteForMember(id: string, companyId: string) {
   });
 }
 
-export async function listCreditNotesForMember(companyId: string, limit = 100) {
+export async function listCreditNotesForMember(companyId: string) {
   return prisma.creditNote.findMany({
     where: { companyId },
     include: {
       client: { select: { id: true, name: true, email: true } },
       invoice: { select: { id: true, number: true } },
     },
-    orderBy: { createdAt: "desc" },
-    take: limit,
+    orderBy: [{ issueDate: "desc" }, { createdAt: "desc" }],
   });
 }
 
@@ -659,21 +658,8 @@ export async function recordInvoiceRefund(input: {
   return updated;
 }
 
-export function creditNoteStatusLabel(status: CreditNoteStatus): string {
-  if (status === "ISSUED") return "Issued";
-  if (status === "CANCELLED") return "Cancelled";
-  return "Draft";
-}
-
-export function creditNoteStatusVariant(
-  status: CreditNoteStatus,
-): "secondary" | "destructive" | "outline" | "success" | "info" | "warning" {
-  switch (status) {
-    case "ISSUED":
-      return "success";
-    case "CANCELLED":
-      return "outline";
-    default:
-      return "secondary";
-  }
-}
+export {
+  creditNoteKindLabel,
+  creditNoteStatusLabel,
+  creditNoteStatusVariant,
+} from "@/lib/credit-note-display";

@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/table";
 import { RecordRefundDialog } from "@/features/credit-notes/components/record-refund-dialog";
 import { formatDate, formatMoney } from "@/lib/invoices";
-import { creditNoteStatusLabel, creditNoteStatusVariant } from "@/lib/credit-notes";
+import { creditNoteStatusLabel, creditNoteStatusVariant } from "@/lib/credit-note-display";
 import type { CreditNoteStatus, InvoiceStatus } from "@easy-invoice/db";
 
 type CreditNoteRow = {
