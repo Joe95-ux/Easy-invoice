@@ -25,7 +25,7 @@ export default async function FollowUpsPage() {
 
   const [followUps, clients, invoices, estimates, members] = await Promise.all([
     getFollowUpsForCompany(member.companyId),
-    getClientsForMember(member.companyId),
+    getClientsForMember(member.companyId, "active"),
     prisma.invoice.findMany({
       where: { companyId: member.companyId },
       select: { id: true, number: true, clientId: true, client: { select: { name: true } } },

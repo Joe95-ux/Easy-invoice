@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
+  ArchiveIcon,
   ClipboardListIcon,
   DownloadIcon,
   EyeIcon,
@@ -12,6 +13,7 @@ import {
   GitMergeIcon,
   Loader2Icon,
   MoreHorizontalIcon,
+  RotateCcwIcon,
   SendIcon,
   Trash2Icon,
   UploadIcon,
@@ -47,9 +49,10 @@ import type { ClientListItem } from "@/lib/clients";
 import { formatPhoneForDisplay } from "@/lib/phone";
 
 const CLIENT_FILTER_OPTIONS = [
-  { value: "all", label: "All clients" },
+  { value: "active", label: "Active" },
   { value: "with-invoices", label: "With invoices" },
   { value: "without-invoices", label: "No invoices" },
+  { value: "archived", label: "Archived" },
 ];
 
 type ClientsTableProps = {
@@ -79,8 +82,11 @@ export function ClientsTable({
     data: clients,
     searchKeys: ["name", "email", "phone"],
     filterOptions: CLIENT_FILTER_OPTIONS,
-    defaultFilter: "all",
+    defaultFilter: "active",
     filterFn: (row, filter) => {
+      const archived = Boolean(row.archivedAt);
+      if (filter === "archived") return archived;
+      if (archived) return false;
       if (filter === "with-invoices") return row._count.invoices > 0;
       if (filter === "without-invoices") return row._count.invoices === 0;
       return true;
@@ -122,6 +128,29 @@ export function ClientsTable({
     }
   }
 
+  async function setArchived(client: ClientListItem, archived: boolean) {
+    setLoadingId(client.id);
+    try {
+      const response = await fetch(`/api/clients/${client.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ archived }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(
+          typeof data.error === "string" ? data.error : "Could not update client",
+        );
+      }
+      toast.success(archived ? "Client archived" : "Client restored");
+      router.refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not update client");
+    } finally {
+      setLoadingId(null);
+    }
+  }
+
   async function confirmDelete() {
     if (!pendingDelete) return;
 
@@ -129,12 +158,15 @@ export function ClientsTable({
     setLoadingId(pendingDelete.id);
     try {
       const response = await fetch(`/api/clients/${pendingDelete.id}`, { method: "DELETE" });
-      if (!response.ok) throw new Error("Failed to delete");
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(typeof data.error === "string" ? data.error : "Failed to delete");
+      }
       toast.success("Client deleted");
       setPendingDelete(null);
       router.refresh();
-    } catch {
-      toast.error("Could not delete client");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not delete client");
     } finally {
       setDeleting(false);
       setLoadingId(null);
@@ -260,7 +292,13 @@ export function ClientsTable({
           {table.pageRows.length === 0 ? (
             <TableRow>
               <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
-                {table.hasActiveFilters ? "No clients match your filters." : "No clients."}
+                {table.filter === "archived"
+                  ? "No archived clients."
+                  : table.filter === "active"
+                    ? "No active clients."
+                    : table.hasActiveFilters
+                      ? "No clients match your filters."
+                      : "No clients."}
               </TableCell>
             </TableRow>
           ) : (
@@ -296,7 +334,7 @@ export function ClientsTable({
                         <EyeIcon className="size-4" />
                         View details
                       </DropdownMenuItem>
-                      {canWrite ? (
+                      {canWrite && !client.archivedAt ? (
                         <DropdownMenuItem
                           render={<Link href={`/invoices/new?clientId=${client.id}`} />}
                           onClick={(event) => event.stopPropagation()}
@@ -305,7 +343,7 @@ export function ClientsTable({
                           New invoice
                         </DropdownMenuItem>
                       ) : null}
-                      {canWrite ? (
+                      {canWrite && !client.archivedAt ? (
                         <DropdownMenuItem
                           render={<Link href={`/estimates/new?clientId=${client.id}`} />}
                           onClick={(event) => event.stopPropagation()}
@@ -331,20 +369,42 @@ export function ClientsTable({
                           Invite to portal
                         </DropdownMenuItem>
                       ) : null}
-                      {canDelete ? (
-                        <>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            variant="destructive"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setPendingDelete(client);
-                            }}
-                          >
-                            <Trash2Icon className="size-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        </>
+                      {canWrite || (canDelete && client.archivedAt) ? (
+                        <DropdownMenuSeparator />
+                      ) : null}
+                      {canWrite && client.archivedAt ? (
+                        <DropdownMenuItem
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void setArchived(client, false);
+                          }}
+                        >
+                          <RotateCcwIcon className="size-4" />
+                          Restore
+                        </DropdownMenuItem>
+                      ) : null}
+                      {canWrite && !client.archivedAt ? (
+                        <DropdownMenuItem
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void setArchived(client, true);
+                          }}
+                        >
+                          <ArchiveIcon className="size-4" />
+                          Archive
+                        </DropdownMenuItem>
+                      ) : null}
+                      {canDelete && client.archivedAt ? (
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setPendingDelete(client);
+                          }}
+                        >
+                          <Trash2Icon className="size-4" />
+                          Delete
+                        </DropdownMenuItem>
                       ) : null}
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -394,10 +454,10 @@ export function ClientsTable({
         onOpenChange={(open) => {
           if (!open && !deleting) setPendingDelete(null);
         }}
-        title="Delete client?"
+        title="Delete archived client?"
         description={
           <>
-            Delete{" "}
+            Permanently delete{" "}
             <span className="font-medium text-foreground">
               {pendingDelete?.name ?? "this client"}
             </span>

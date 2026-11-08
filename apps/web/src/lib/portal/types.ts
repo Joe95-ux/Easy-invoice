@@ -29,6 +29,27 @@ export type PortalEstimateListItem = {
   href: string;
 };
 
+export type PortalCreditNoteListItem = {
+  id: string;
+  number: string;
+  status: string;
+  kind: string;
+  total: number;
+  currency: string;
+  issuedAt: string;
+  invoiceNumber: string;
+  href: string;
+};
+
+export type PortalStatementListItem = {
+  id: string;
+  number: string;
+  totalDue: number;
+  currency: string;
+  issuedAt: string;
+  href: string;
+};
+
 export type PortalUpcomingItem = {
   id: string;
   kind: "recurring" | "installment";

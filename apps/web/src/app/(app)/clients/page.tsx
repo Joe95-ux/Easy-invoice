@@ -17,7 +17,7 @@ export default async function ClientsPage() {
   const canDelete = canDeleteDocuments(member.role);
 
   const [clients, duplicateEmailGroups] = await Promise.all([
-    getClientsForMember(member.companyId),
+    getClientsForMember(member.companyId, "all"),
     countClientEmailDuplicateGroups(member.companyId),
   ]);
 

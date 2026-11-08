@@ -27,7 +27,7 @@ export default async function EditInvoicePage({ params }: PageProps) {
   const [invoice, clients, templates, defaultTemplateId, lineItemsWithTime, linkedExpenses] =
     await Promise.all([
     getInvoiceForMember(id, member.companyId),
-    getClientsForMember(member.companyId),
+    getClientsForMember(member.companyId, "active"),
     getTemplatesForCompany(member.companyId),
     getDefaultTemplateId(member.companyId),
     getInvoiceLineItemsWithTimeEntries(id, member.companyId),

@@ -4,7 +4,7 @@ import { NewProjectForm } from "@/features/projects/components/new-project-form"
 
 export default async function NewProjectPage() {
   const member = await requireWriter();
-  const clients = await getClientsForMember(member.companyId);
+  const clients = await getClientsForMember(member.companyId, "active");
 
   return (
     <NewProjectForm clients={clients} defaultCurrency={member.company.currency} />

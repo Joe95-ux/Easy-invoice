@@ -22,7 +22,7 @@ export default async function EditEstimatePage({ params }: PageProps) {
   const { id } = await params;
   const [estimate, clients, templates, defaultTemplateId] = await Promise.all([
     getEstimateForMember(id, member.companyId),
-    getClientsForMember(member.companyId),
+    getClientsForMember(member.companyId, "active"),
     getTemplatesForCompany(member.companyId),
     getDefaultTemplateId(member.companyId),
   ]);

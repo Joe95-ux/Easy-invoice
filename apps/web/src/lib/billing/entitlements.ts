@@ -23,7 +23,7 @@ export type PlanFeature =
 
 const PRO_FEATURE_LABEL: Record<PlanFeature, string> = {
   custom_branding: "Custom branding is available on Pro",
-  email_invoices: "Email invoices so clients can pay faster — available on Pro",
+  email_invoices: "Email invoices and estimates so clients can reply and pay faster — available on Pro",
   recurring_invoices: "Recurring invoices that chase payment for you — available on Pro",
   payment_plans: "Payment plans are available on Pro",
   collections: "Collections chase tools are available on Pro",

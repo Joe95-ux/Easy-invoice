@@ -5,15 +5,21 @@ import {
   parseJsonBody,
   validationError,
 } from "@/lib/api/validation";
-import { getClientsForMember } from "@/lib/clients";
+import { getClientsForMember, type ClientArchiveFilter } from "@/lib/clients";
 import { prisma } from "@/lib/db";
 import { clientSchema } from "@/lib/schemas/client";
 
-export async function GET() {
+function parseArchiveFilter(value: string | null): ClientArchiveFilter {
+  if (value === "all" || value === "archived") return value;
+  return "active";
+}
+
+export async function GET(request: Request) {
   const { member, response } = await requireApiMember();
   if (response) return response;
 
-  const clients = await getClientsForMember(member.companyId);
+  const archived = parseArchiveFilter(new URL(request.url).searchParams.get("archived"));
+  const clients = await getClientsForMember(member.companyId, archived);
   return NextResponse.json({ clients });
 }
 

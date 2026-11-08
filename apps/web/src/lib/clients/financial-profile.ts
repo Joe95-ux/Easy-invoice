@@ -89,6 +89,7 @@ export type ClientFinancialProfile = {
   country: string | null;
   notes: string | null;
   defaultHourlyRate: number | null;
+  archivedAt: string | null;
   updatedAt: string;
   summary: ClientFinancialSummary;
   invoices: ClientInvoiceRow[];
@@ -361,6 +362,7 @@ export async function getClientFinancialProfile(
     country: client.country,
     notes: client.notes,
     defaultHourlyRate: client.defaultHourlyRate ? Number(client.defaultHourlyRate) : null,
+    archivedAt: client.archivedAt?.toISOString() ?? null,
     updatedAt: client.updatedAt.toISOString(),
     summary: {
       totalBilled: Math.round(totalBilled * 100) / 100,

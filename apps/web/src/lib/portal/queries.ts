@@ -1,25 +1,37 @@
 import "server-only";
 
 import type { EstimateStatus, InvoiceStatus } from "@easy-invoice/db";
+import { isProPlan } from "@/lib/billing/entitlements";
 import { prisma } from "@/lib/db";
 import {
+  ensureCreditNotePublicToken,
   ensureEstimatePublicToken,
   ensureInvoicePublicToken,
+  ensureStatementPublicToken,
 } from "@/lib/public-documents";
-import { estimatePublicPath, invoicePublicPath } from "@/lib/document-tokens";
+import {
+  creditNotePublicPath,
+  estimatePublicPath,
+  invoicePublicPath,
+  statementPublicPath,
+} from "@/lib/document-tokens";
 import { buildInvoicePaymentSummary } from "@/lib/invoice-payments-utils";
 import { buildInvoiceTotals } from "@/lib/invoice-service";
 import { frequencyLabel } from "@/lib/recurring-invoices-shared";
 import { normalizeAppliedTaxes } from "@/lib/tax-rates";
 import type {
+  PortalCreditNoteListItem,
   PortalEstimateListItem,
   PortalInvoiceListItem,
+  PortalStatementListItem,
   PortalUpcomingItem,
 } from "@/lib/portal/types";
 
 export type {
+  PortalCreditNoteListItem,
   PortalEstimateListItem,
   PortalInvoiceListItem,
+  PortalStatementListItem,
   PortalUpcomingItem,
 };
 
@@ -43,9 +55,12 @@ const PORTAL_ESTIMATE_STATUSES: EstimateStatus[] = [
 export type PortalDashboard = {
   invoices: PortalInvoiceListItem[];
   estimates: PortalEstimateListItem[];
+  creditNotes: PortalCreditNoteListItem[];
+  statements: PortalStatementListItem[];
   upcoming: PortalUpcomingItem[];
   openBalance: number;
   currency: string;
+  isPro: boolean;
 };
 
 function toNumber(value: { toNumber?: () => number } | number): number {
@@ -57,7 +72,7 @@ export async function getPortalDashboard(input: {
   clientId: string;
   companyId: string;
 }): Promise<PortalDashboard> {
-  const [invoices, estimates, recurring, company] = await Promise.all([
+  const [invoices, estimates, creditNotes, statements, recurring, company] = await Promise.all([
     prisma.invoice.findMany({
       where: {
         clientId: input.clientId,
@@ -92,6 +107,41 @@ export async function getPortalDashboard(input: {
       },
       orderBy: [{ validUntil: "asc" }, { createdAt: "desc" }],
     }),
+    prisma.creditNote.findMany({
+      where: {
+        companyId: input.companyId,
+        status: "ISSUED",
+        OR: [
+          { clientId: input.clientId },
+          { invoice: { clientId: input.clientId } },
+        ],
+      },
+      select: {
+        id: true,
+        number: true,
+        status: true,
+        kind: true,
+        total: true,
+        currency: true,
+        issueDate: true,
+        invoice: { select: { number: true } },
+      },
+      orderBy: { issueDate: "desc" },
+    }),
+    prisma.clientStatement.findMany({
+      where: {
+        clientId: input.clientId,
+        companyId: input.companyId,
+      },
+      select: {
+        id: true,
+        number: true,
+        totalDue: true,
+        currency: true,
+        issuedAt: true,
+      },
+      orderBy: { issuedAt: "desc" },
+    }),
     prisma.recurringInvoice.findMany({
       where: {
         clientId: input.clientId,
@@ -117,7 +167,7 @@ export async function getPortalDashboard(input: {
     }),
     prisma.company.findUniqueOrThrow({
       where: { id: input.companyId },
-      select: { currency: true },
+      select: { currency: true, plan: true },
     }),
   ]);
 
@@ -220,11 +270,48 @@ export async function getPortalDashboard(input: {
     });
   }
 
+  const creditNoteItems: PortalCreditNoteListItem[] = [];
+  for (const note of creditNotes) {
+    const token = await ensureCreditNotePublicToken(note.id, input.companyId);
+    if (!token) continue;
+    creditNoteItems.push({
+      id: note.id,
+      number: note.number,
+      status: note.status,
+      kind: note.kind,
+      total: toNumber(note.total),
+      currency: note.currency,
+      issuedAt: note.issueDate.toISOString(),
+      invoiceNumber: note.invoice.number,
+      href: creditNotePublicPath(token),
+    });
+  }
+
+  const isPro = isProPlan(company.plan);
+  const statementItems: PortalStatementListItem[] = [];
+  if (isPro || statements.length > 0) {
+    for (const statement of statements) {
+      const token = await ensureStatementPublicToken(statement.id, input.companyId);
+      if (!token) continue;
+      statementItems.push({
+        id: statement.id,
+        number: statement.number,
+        totalDue: toNumber(statement.totalDue),
+        currency: statement.currency,
+        issuedAt: statement.issuedAt.toISOString(),
+        href: statementPublicPath(token),
+      });
+    }
+  }
+
   return {
     invoices: invoiceItems,
     estimates: estimateItems,
+    creditNotes: creditNoteItems,
+    statements: statementItems,
     upcoming: upcoming.slice(0, 25),
     openBalance,
     currency: company.currency || "USD",
+    isPro,
   };
 }

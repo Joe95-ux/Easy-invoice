@@ -5,10 +5,12 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import {
+  ArchiveIcon,
   ClipboardListIcon,
   ClockIcon,
   FileTextIcon,
   MoreHorizontalIcon,
+  RotateCcwIcon,
   Trash2Icon,
 } from "lucide-react";
 import {
@@ -65,8 +67,10 @@ export function ClientDetail({
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [archiving, setArchiving] = useState(false);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
+  const archived = Boolean(client.archivedAt);
   const tabTriggerRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   function handleTabChange(value: string | null) {
@@ -101,17 +105,43 @@ export function ClientDetail({
     router.refresh();
   }
 
+  async function handleSetArchived(nextArchived: boolean) {
+    setArchiving(true);
+    try {
+      const response = await fetch(`/api/clients/${client.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ archived: nextArchived }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(
+          typeof body.error === "string" ? body.error : "Could not update client",
+        );
+      }
+      toast.success(nextArchived ? "Client archived" : "Client restored");
+      router.refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not update client");
+    } finally {
+      setArchiving(false);
+    }
+  }
+
   async function handleDelete() {
     setDeleting(true);
     try {
       const response = await fetch(`/api/clients/${client.id}`, { method: "DELETE" });
-      if (!response.ok) throw new Error("Failed to delete client");
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(typeof body.error === "string" ? body.error : "Failed to delete client");
+      }
 
       toast.success("Client deleted");
       router.push("/clients");
       router.refresh();
-    } catch {
-      toast.error("Could not delete client");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not delete client");
       setDeleting(false);
       setDeleteOpen(false);
     }
@@ -133,7 +163,7 @@ export function ClientDetail({
         description={descriptionParts.join(" · ")}
         actions={
           <>
-            {canWrite ? (
+            {canWrite && !archived ? (
               <Button
                 className={pageHeaderActionClass}
                 render={<Link href={`/invoices/new?clientId=${client.id}`} />}
@@ -145,7 +175,7 @@ export function ClientDetail({
             {canWrite ? (
               <InviteClientPortalButton clientId={client.id} clientEmail={client.email} />
             ) : null}
-            {canWrite || canDelete ? (
+            {canWrite || (canDelete && archived) ? (
               <DropdownMenu>
                 <DropdownMenuTrigger
                   render={
@@ -155,14 +185,14 @@ export function ClientDetail({
                       size="icon"
                       className="shrink-0"
                       aria-label="More client actions"
-                      disabled={deleting}
+                      disabled={deleting || archiving}
                     />
                   }
                 >
                   <MoreHorizontalIcon className="size-4" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="min-w-48">
-                  {canWrite ? (
+                  {canWrite && !archived ? (
                     <DropdownMenuItem
                       render={<Link href={`/estimates/new?clientId=${client.id}`} />}
                     >
@@ -175,7 +205,7 @@ export function ClientDetail({
                       View statements
                     </DropdownMenuItem>
                   ) : null}
-                  {canWrite && summary.unbilledEntryCount > 0 ? (
+                  {canWrite && !archived && summary.unbilledEntryCount > 0 ? (
                     <DropdownMenuItem
                       render={
                         <Link
@@ -190,9 +220,31 @@ export function ClientDetail({
                       Invoice time
                     </DropdownMenuItem>
                   ) : null}
-                  {canDelete ? (
+                  {canWrite ? (
                     <>
-                      {canWrite ? <DropdownMenuSeparator /> : null}
+                      <DropdownMenuSeparator />
+                      {archived ? (
+                        <DropdownMenuItem
+                          disabled={archiving}
+                          onClick={() => void handleSetArchived(false)}
+                        >
+                          <RotateCcwIcon className="size-4" />
+                          Restore client
+                        </DropdownMenuItem>
+                      ) : (
+                        <DropdownMenuItem
+                          disabled={archiving}
+                          onClick={() => void handleSetArchived(true)}
+                        >
+                          <ArchiveIcon className="size-4" />
+                          Archive client
+                        </DropdownMenuItem>
+                      )}
+                    </>
+                  ) : null}
+                  {canDelete && archived ? (
+                    <>
+                      {canWrite ? null : <DropdownMenuSeparator />}
                       <DropdownMenuItem
                         variant="destructive"
                         disabled={deleting}
@@ -210,11 +262,11 @@ export function ClientDetail({
               <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Delete client?</AlertDialogTitle>
+                    <AlertDialogTitle>Delete archived client?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This will delete {client.name}. Their invoices and estimates will remain but
-                      will no longer be linked to this client. Any recurring invoice schedules for
-                      this client will be deleted.
+                      This will permanently delete {client.name}. Their invoices and estimates will
+                      remain but will no longer be linked to this client. Any recurring invoice
+                      schedules for this client will be deleted.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -229,6 +281,27 @@ export function ClientDetail({
           </>
         }
       />
+
+      {archived ? (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-muted/40 px-4 py-3">
+          <p className="text-sm text-muted-foreground">
+            This client is archived and hidden from the working list. History stays intact.
+          </p>
+          {canWrite ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="cursor-pointer"
+              disabled={archiving}
+              onClick={() => void handleSetArchived(false)}
+            >
+              <RotateCcwIcon className="size-4" />
+              Restore
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="mt-6 gap-6">
         <div className="-mx-4 overflow-x-auto px-4 no-scrollbar sm:mx-0 sm:px-0">

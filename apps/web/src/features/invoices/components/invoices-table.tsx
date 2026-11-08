@@ -452,7 +452,7 @@ export function InvoicesTable({
 
   async function bulkSend() {
     if (!isPro) {
-      toast.message("Email invoices so clients can pay faster — available on Pro", {
+      toast.message("Email invoices and estimates so clients can reply and pay faster — available on Pro", {
         action: {
           label: "Upgrade",
           onClick: () => router.push("/settings/billing/plans"),

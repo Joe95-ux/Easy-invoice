@@ -35,7 +35,7 @@ export default async function NewInvoicePage({ searchParams }: PageProps) {
     : [];
 
   const [clients, templates, defaultTemplateId, project] = await Promise.all([
-    getClientsForMember(member.companyId),
+    getClientsForMember(member.companyId, "active"),
     getTemplatesForCompany(member.companyId),
     getDefaultTemplateId(member.companyId),
     projectId

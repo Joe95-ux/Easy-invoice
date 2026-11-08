@@ -8,7 +8,7 @@ export async function countClientEmailDuplicateGroups(
   companyId: string,
 ): Promise<number> {
   const clients = await prisma.client.findMany({
-    where: { companyId, email: { not: null } },
+    where: { companyId, archivedAt: null, email: { not: null } },
     select: { email: true },
   });
 

@@ -22,4 +22,16 @@ export const clientSchema = z.object({
   defaultHourlyRate: optionalHourlyRate,
 });
 
+export const clientArchiveSchema = z.object({
+  archived: z.boolean(),
+});
+
+export type ClientArchiveFilter = "active" | "archived" | "all";
+
+export function clientArchiveWhere(archived: ClientArchiveFilter) {
+  if (archived === "active") return { archivedAt: null };
+  if (archived === "archived") return { archivedAt: { not: null } };
+  return {};
+}
+
 export type ClientInput = z.infer<typeof clientSchema>;

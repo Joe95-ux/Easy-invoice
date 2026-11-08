@@ -25,6 +25,7 @@ export async function mergeClientDuplicatesByEmail(input: {
   const clients = await prisma.client.findMany({
     where: {
       companyId: input.companyId,
+      archivedAt: null,
       email: { equals: email, mode: "insensitive" },
     },
     select: {
@@ -136,6 +137,7 @@ export async function mergeAllClientEmailDuplicates(
   const clients = await prisma.client.findMany({
     where: {
       companyId,
+      archivedAt: null,
       email: { not: null },
     },
     select: { email: true },

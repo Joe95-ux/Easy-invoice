@@ -64,7 +64,7 @@ export const BILLING_PLANS: PlanDefinition[] = [
     summary: "Unlimited invoicing that chases payment for you",
     features: [
       "Unlimited invoices, estimates & QR codes",
-      "Email invoices with PDF and pay link",
+      "Email invoices and estimates with PDF",
       "Recurring invoices that send on schedule",
       "Payment plans, automated collections & late fees",
       "Client account statements",
@@ -85,7 +85,7 @@ export const PRO_UPGRADE_COLUMNS: { title: string; features: string[] }[] = [
     title: "Invoicing",
     features: [
       "Unlimited invoices",
-      "Email invoices",
+      "Email invoices & estimates",
       "Recurring auto-send",
       "Custom branding & logo",
     ],
@@ -137,7 +137,7 @@ export const PLAN_COMPARISON_SECTIONS: ComparisonSection[] = [
       { label: "Payment reminders", free: true, pro: true },
       { label: "Follow-ups", free: true, pro: true },
       { label: "Custom branding & logo", free: false, pro: true },
-      { label: "Email invoices", free: false, pro: true },
+      { label: "Email invoices & estimates", free: false, pro: true },
       { label: "Recurring invoices", free: false, pro: true },
       { label: "Payment plans & collections", free: false, pro: true },
       { label: "Automated collections sequences", free: false, pro: true },
@@ -175,7 +175,7 @@ export const LANDING_PLANS = [
     description: "Unlimited invoicing that chases payment for you.",
     features: [
       "Everything in Free, unlimited",
-      "Email invoices & recurring auto-send",
+      "Email invoices & estimates, recurring auto-send",
       "Payment plans, collections, late fees & statements",
       "Custom branding & logo on PDFs",
       "Unlimited QR codes + scan history",

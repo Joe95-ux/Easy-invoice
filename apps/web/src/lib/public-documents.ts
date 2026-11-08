@@ -114,6 +114,30 @@ export async function ensureCreditNotePublicToken(creditNoteId: string, companyI
   return null;
 }
 
+export async function ensureStatementPublicToken(statementId: string, companyId: string) {
+  const statement = await prisma.clientStatement.findFirst({
+    where: { id: statementId, companyId },
+    select: { id: true, publicToken: true },
+  });
+  if (!statement) return null;
+  if (statement.publicToken) return statement.publicToken;
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const token = generatePublicToken();
+    try {
+      const updated = await prisma.clientStatement.update({
+        where: { id: statementId },
+        data: { publicToken: token },
+        select: { publicToken: true },
+      });
+      return updated.publicToken;
+    } catch {
+      // Unique collision — retry
+    }
+  }
+  return null;
+}
+
 export async function getCreditNoteByPublicToken(token: string) {
   return prisma.creditNote.findUnique({
     where: { publicToken: token },

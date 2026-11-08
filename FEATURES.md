@@ -75,7 +75,7 @@ Platform Stripe Checkout + Customer Portal for upgrading the company plan (separ
 | Helpers | `lib/stripe-billing.ts` |
 | API | `GET/POST /api/stripe/billing` (checkout + portal), `POST /api/stripe/billing/confirm` |
 | Webhook | `/api/webhooks/stripe` sets `Company.plan` from Price IDs / lookup keys |
-| Limits | `lib/billing/entitlements.ts` — Free: 20 invoices/mo, 2 companies, 2 members, 5 workspace QR codes (invoice scan-to-pay extra); manual payment ledger on Free. Pro-only: branding, email invoices, recurring, payment plans, collections, QR scan history |
+| Limits | `lib/billing/entitlements.ts` — Free: 20 invoices/mo, 2 companies, 2 members, 5 workspace QR codes (invoice scan-to-pay extra); manual payment ledger on Free. Pro-only: branding, email invoices and estimates, recurring, payment plans, collections, QR scan history |
 | UI | Settings → Billing; sidebar Upgrade / Manage billing |
 | Env | `STRIPE_PRICE_PRO_MONTHLY`, `STRIPE_PRICE_PRO_YEARLY`, `STRIPE_PRO_TRIAL_DAYS` |
 

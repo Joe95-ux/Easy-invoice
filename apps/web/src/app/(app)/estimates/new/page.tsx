@@ -32,7 +32,7 @@ export default async function NewEstimatePage({ searchParams }: PageProps) {
     : [];
 
   const [clients, templates, defaultTemplateId, submissionPrefill] = await Promise.all([
-    getClientsForMember(member.companyId),
+    getClientsForMember(member.companyId, "active"),
     getTemplatesForCompany(member.companyId),
     getDefaultTemplateId(member.companyId),
     submissionId

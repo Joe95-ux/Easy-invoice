@@ -16,7 +16,7 @@ export default async function TimePage() {
 
   const [entries, clients, projects, company, recentDescriptions] = await Promise.all([
     getTimeEntriesForCompany(member.companyId),
-    getClientsForMember(member.companyId),
+    getClientsForMember(member.companyId, "active"),
     getProjectsForCompany(member.companyId),
     prisma.company.findUnique({
       where: { id: member.companyId },

@@ -19,7 +19,7 @@ export default async function RecurringInvoicesPage({ searchParams }: PageProps)
   const params = await searchParams;
   const [rows, clients, invoices] = await Promise.all([
     listRecurringInvoices(member.companyId),
-    getClientsForMember(member.companyId),
+    getClientsForMember(member.companyId, "active"),
     getInvoicesForMember(member.companyId, 200),
   ]);
 

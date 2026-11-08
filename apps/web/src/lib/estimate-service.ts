@@ -21,12 +21,11 @@ import {
   prepareCustomFieldsForSave,
 } from "@/lib/custom-fields";
 
-export async function getEstimatesForMember(companyId: string, limit = 50) {
+export async function getEstimatesForMember(companyId: string) {
   return prisma.estimate.findMany({
     where: { companyId },
     include: { client: true },
     orderBy: { createdAt: "desc" },
-    take: limit,
   });
 }
 

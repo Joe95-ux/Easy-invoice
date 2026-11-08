@@ -1,5 +1,8 @@
 import { prisma } from "@/lib/db";
 import type { InvoiceStatus } from "@easy-invoice/db";
+import { clientArchiveWhere, type ClientArchiveFilter } from "@/lib/schemas/client";
+
+export type { ClientArchiveFilter };
 
 export type ClientListItem = Awaited<ReturnType<typeof getClientsForMember>>[number];
 
@@ -57,10 +60,83 @@ export async function getClientForMember(clientId: string, companyId: string) {
   });
 }
 
-export async function getClientsForMember(companyId: string) {
+const OPEN_INVOICE_STATUSES: InvoiceStatus[] = [
+  "SENT",
+  "VIEWED",
+  "OVERDUE",
+  "PARTIALLY_PAID",
+];
+
+export class ClientNotArchivedError extends Error {
+  constructor() {
+    super("Archive this client before deleting it");
+    this.name = "ClientNotArchivedError";
+  }
+}
+
+export class ClientHasOpenWorkError extends Error {
+  constructor() {
+    super(
+      "This client has open invoices or an active recurring schedule. Settle or pause that work before archiving.",
+    );
+    this.name = "ClientHasOpenWorkError";
+  }
+}
+
+export async function getClientsForMember(
+  companyId: string,
+  archived: ClientArchiveFilter = "all",
+) {
   return prisma.client.findMany({
-    where: { companyId },
+    where: { companyId, ...clientArchiveWhere(archived) },
     include: { _count: { select: { invoices: true } } },
     orderBy: { name: "asc" },
   });
+}
+
+export async function setClientArchived(
+  companyId: string,
+  id: string,
+  archived: boolean,
+) {
+  const existing = await prisma.client.findFirst({
+    where: { id, companyId },
+    select: { id: true },
+  });
+  if (!existing) return null;
+
+  if (archived) {
+    const [openInvoices, activeRecurring] = await Promise.all([
+      prisma.invoice.count({
+        where: {
+          clientId: id,
+          companyId,
+          status: { in: OPEN_INVOICE_STATUSES },
+        },
+      }),
+      prisma.recurringInvoice.count({
+        where: { clientId: id, companyId, status: "ACTIVE" },
+      }),
+    ]);
+    if (openInvoices > 0 || activeRecurring > 0) {
+      throw new ClientHasOpenWorkError();
+    }
+  }
+
+  return prisma.client.update({
+    where: { id },
+    data: { archivedAt: archived ? new Date() : null },
+  });
+}
+
+export async function deleteClientIfArchived(companyId: string, id: string) {
+  const existing = await prisma.client.findFirst({
+    where: { id, companyId },
+  });
+  if (!existing) return null;
+  if (!existing.archivedAt) {
+    throw new ClientNotArchivedError();
+  }
+  await prisma.client.delete({ where: { id } });
+  return existing;
 }

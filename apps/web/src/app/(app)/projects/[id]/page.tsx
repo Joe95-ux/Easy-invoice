@@ -46,7 +46,7 @@ export default async function ProjectDetailPage({ params }: PageProps) {
   const { id } = await params;
   const [project, clients, recentDescriptions, formRows] = await Promise.all([
     getProjectForCompany(id, member.companyId),
-    getClientsForMember(member.companyId),
+    getClientsForMember(member.companyId, "active"),
     getRecentTimeDescriptions(member.companyId),
     listProjectForms(member.companyId, id).catch(() => []),
   ]);

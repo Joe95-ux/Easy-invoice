@@ -428,6 +428,8 @@ model Client {
   country   String?
   notes     String?
   defaultHourlyRate Decimal? @db.Decimal(12, 2)
+  /// Hidden from the working list without deleting history.
+  archivedAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -447,6 +449,7 @@ model Client {
   projectExpenses ProjectExpense[]
 
   @@index([companyId])
+  @@index([companyId, archivedAt])
   @@index([email])
 }
 

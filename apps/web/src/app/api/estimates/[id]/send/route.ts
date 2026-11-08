@@ -14,6 +14,11 @@ import { ensureEstimatePublicToken } from "@/lib/public-documents";
 import { recordDocumentRevision } from "@/lib/document-revisions/service";
 import { prisma } from "@/lib/db";
 import { z } from "zod";
+import {
+  assertProFeature,
+  isPlanLimitError,
+  planLimitResponse,
+} from "@/lib/billing/entitlements";
 
 const sendSchema = z.object({
   email: z.string().email().optional(),
@@ -33,6 +38,13 @@ export async function POST(request: Request, context: RouteContext) {
 
   const parsed = sendSchema.safeParse(body);
   if (!parsed.success) return validationError(parsed.error);
+
+  try {
+    assertProFeature(member.company.plan, "email_invoices");
+  } catch (error) {
+    if (isPlanLimitError(error)) return planLimitResponse(error);
+    throw error;
+  }
 
   try {
     const result = await generateEstimatePdfBuffer(id, member.companyId);
