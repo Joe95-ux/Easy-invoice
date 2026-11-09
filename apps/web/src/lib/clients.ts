@@ -83,15 +83,53 @@ export class ClientHasOpenWorkError extends Error {
   }
 }
 
+export class ClientArchivedError extends Error {
+  constructor() {
+    super("This client is archived. Restore them before creating new work.");
+    this.name = "ClientArchivedError";
+  }
+}
+
+export class ClientEmailTakenError extends Error {
+  constructor() {
+    super("An active client already uses this email. Change it or merge before restoring.");
+    this.name = "ClientEmailTakenError";
+  }
+}
+
 export async function getClientsForMember(
   companyId: string,
   archived: ClientArchiveFilter = "all",
+  options?: { includeIds?: Array<string | null | undefined> },
 ) {
+  const includeIds = [
+    ...new Set((options?.includeIds ?? []).filter((id): id is string => Boolean(id))),
+  ];
+  const archiveClause = clientArchiveWhere(archived);
   return prisma.client.findMany({
-    where: { companyId, ...clientArchiveWhere(archived) },
+    where:
+      includeIds.length > 0 && archived !== "all"
+        ? { companyId, OR: [{ ...archiveClause }, { id: { in: includeIds } }] }
+        : { companyId, ...archiveClause },
     include: { _count: { select: { invoices: true } } },
     orderBy: { name: "asc" },
   });
+}
+
+export async function ensureClientsInList(
+  companyId: string,
+  clients: ClientListItem[],
+  includeIds: Array<string | null | undefined>,
+): Promise<ClientListItem[]> {
+  const missing = [
+    ...new Set(includeIds.filter((id): id is string => Boolean(id))),
+  ].filter((id) => !clients.some((client) => client.id === id));
+  if (missing.length === 0) return clients;
+  const extra = await prisma.client.findMany({
+    where: { companyId, id: { in: missing } },
+    include: { _count: { select: { invoices: true } } },
+  });
+  return extra.length === 0 ? clients : [...extra, ...clients];
 }
 
 export async function setClientArchived(
@@ -101,9 +139,22 @@ export async function setClientArchived(
 ) {
   const existing = await prisma.client.findFirst({
     where: { id, companyId },
-    select: { id: true },
+    select: { id: true, email: true },
   });
   if (!existing) return null;
+
+  if (!archived && existing.email) {
+    const twin = await prisma.client.findFirst({
+      where: {
+        companyId,
+        archivedAt: null,
+        id: { not: id },
+        email: { equals: existing.email, mode: "insensitive" },
+      },
+      select: { id: true },
+    });
+    if (twin) throw new ClientEmailTakenError();
+  }
 
   if (archived) {
     const [openInvoices, activeRecurring] = await Promise.all([

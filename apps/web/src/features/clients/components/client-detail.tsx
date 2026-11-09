@@ -367,6 +367,7 @@ export function ClientDetail({
             companyName={companyName}
             clientEmail={client.email}
             clientId={client.id}
+            canCreate={canWrite && !archived}
           />
         </TabsContent>
 
@@ -375,6 +376,7 @@ export function ClientDetail({
             estimates={client.estimates}
             companyName={companyName}
             clientId={client.id}
+            canCreate={canWrite && !archived}
           />
         </TabsContent>
 

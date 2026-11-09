@@ -15,6 +15,7 @@ type ClientInvoicesTabProps = {
   companyName: string;
   clientEmail?: string | null;
   clientId: string;
+  canCreate?: boolean;
 };
 
 export function ClientInvoicesTab({
@@ -22,6 +23,7 @@ export function ClientInvoicesTab({
   companyName,
   clientEmail,
   clientId,
+  canCreate = true,
 }: ClientInvoicesTabProps) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
@@ -49,14 +51,18 @@ export function ClientInvoicesTab({
       <div className="rounded-lg border border-dashed border-border px-6 py-12 text-center">
         <p className="text-sm font-medium">No invoices yet</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Create an invoice for this client to start tracking billing.
+          {canCreate
+            ? "Create an invoice for this client to start tracking billing."
+            : "Restore this client to create a new invoice."}
         </p>
-        <Link
-          href={`/invoices/new?clientId=${clientId}`}
-          className="mt-4 inline-flex text-sm font-medium text-primary hover:underline"
-        >
-          Create invoice
-        </Link>
+        {canCreate ? (
+          <Link
+            href={`/invoices/new?clientId=${clientId}`}
+            className="mt-4 inline-flex text-sm font-medium text-primary hover:underline"
+          >
+            Create invoice
+          </Link>
+        ) : null}
       </div>
     );
   }

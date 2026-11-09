@@ -65,7 +65,7 @@ export function useListTable<T extends object>({
       );
     }
 
-    if (filterFn && filter !== defaultFilter) {
+    if (filterFn) {
       rows = rows.filter((row) => filterFn(row, filter));
     }
 
@@ -88,7 +88,6 @@ export function useListTable<T extends object>({
     searchKeys,
     filter,
     filterFn,
-    defaultFilter,
     sortKey,
     sortDirection,
     getSortValue,

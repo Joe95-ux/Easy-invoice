@@ -129,7 +129,7 @@ export function RecurringInvoicesPageContent({
     searchKeys: ["name", "clientName"],
     filterOptions: STATUS_FILTER_OPTIONS,
     defaultFilter: "all",
-    filterFn: (row, filter) => row.status === filter,
+    filterFn: (row, filter) => filter === "all" || row.status === filter,
     defaultSortKey: "nextIssueDate",
     defaultSortDirection: "asc",
     getSortValue: (row, key) => {

@@ -178,6 +178,7 @@ export async function resolveClientForInvoice(companyId: string, input: ClientIn
       where: { id: input.clientId, companyId },
     });
     if (!existing) return null;
+    if (existing.archivedAt) return existing;
 
     return prisma.client.update({
       where: { id: existing.id },
@@ -191,7 +192,7 @@ export async function resolveClientForInvoice(companyId: string, input: ClientIn
   }
 
   const existingByName = await prisma.client.findFirst({
-    where: { companyId, name: input.clientName },
+    where: { companyId, archivedAt: null, name: input.clientName },
   });
 
   if (existingByName) {

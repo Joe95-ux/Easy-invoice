@@ -40,7 +40,9 @@ export default async function NewEstimatePage({ searchParams }: PageProps) {
       : Promise.resolve(null),
   ]);
 
-  const resolvedClientId = clientId || submissionPrefill?.clientId || undefined;
+  const resolvedClientId = [clientId, submissionPrefill?.clientId].find(
+    (id) => id && clients.some((client) => client.id === id),
+  );
   const resolvedProjectId = projectId || submissionPrefill?.projectId || undefined;
   const scopeFromSubmission = submissionPrefill
     ? formatSubmissionAsScope({

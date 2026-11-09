@@ -8,6 +8,7 @@ import {
 } from "@/lib/api/validation";
 import { recordAuditEvent } from "@/lib/audit/service";
 import {
+  ClientEmailTakenError,
   ClientHasOpenWorkError,
   ClientNotArchivedError,
   deleteClientIfArchived,
@@ -56,7 +57,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       }
       return NextResponse.json({ client });
     } catch (error) {
-      if (error instanceof ClientHasOpenWorkError) {
+      if (error instanceof ClientHasOpenWorkError || error instanceof ClientEmailTakenError) {
         return NextResponse.json({ error: error.message }, { status: 409 });
       }
       throw error;

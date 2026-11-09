@@ -24,6 +24,13 @@ export async function POST(_request: Request, context: RouteContext) {
       );
     }
 
+    if ("error" in result && result.error === "client_archived") {
+      return NextResponse.json(
+        { error: "This client is archived. Restore them before creating new work." },
+        { status: 409 },
+      );
+    }
+
     if ("error" in result && result.error === "custom_fields") {
       return NextResponse.json(
         { error: result.message ?? "Custom fields need attention before converting" },

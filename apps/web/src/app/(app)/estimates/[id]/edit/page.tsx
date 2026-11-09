@@ -3,7 +3,7 @@ import { PageScroll } from "@/components/app-shell/app-shell";
 import { PageBackLink, PageHeader } from "@/components/app-shell/page-header";
 import { EstimateCreator } from "@/features/estimates/components/estimate-creator";
 import { requireWriter } from "@/lib/auth";
-import { getClientsForMember } from "@/lib/clients";
+import { ensureClientsInList, getClientsForMember } from "@/lib/clients";
 import { getEstimateForMember } from "@/lib/estimates";
 import { companyBrandingFields } from "@/lib/company-branding";
 import {
@@ -27,6 +27,9 @@ export default async function EditEstimatePage({ params }: PageProps) {
     getDefaultTemplateId(member.companyId),
   ]);
   if (!estimate) notFound();
+  const pickerClients = await ensureClientsInList(member.companyId, clients, [
+    estimate.clientId,
+  ]);
 
   return (
     <PageScroll>
@@ -68,7 +71,7 @@ export default async function EditEstimatePage({ params }: PageProps) {
         customFieldDefinitions={normalizeCustomFieldDefinitions(
           member.company.customFieldDefinitions,
         )}
-        clients={clients}
+        clients={pickerClients}
         templates={templates}
         defaultTemplateId={defaultTemplateId}
         estimateId={estimate.id}

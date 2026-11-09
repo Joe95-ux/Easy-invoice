@@ -46,7 +46,9 @@ export default async function NewInvoicePage({ searchParams }: PageProps) {
       : Promise.resolve(null),
   ]);
 
-  const resolvedClientId = clientId || project?.clientId || undefined;
+  const resolvedClientId = [clientId, project?.clientId].find(
+    (id) => id && clients.some((client) => client.id === id),
+  );
   const currency = project?.currency || member.company.currency;
 
   return (

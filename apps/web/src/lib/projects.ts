@@ -279,9 +279,12 @@ export async function createProject(companyId: string, input: CreateProjectInput
   if (input.clientId) {
     const client = await prisma.client.findFirst({
       where: { id: input.clientId, companyId },
-      select: { id: true },
+      select: { id: true, archivedAt: true },
     });
     if (!client) throw new Error("Client not found");
+    if (client.archivedAt) {
+      throw new Error("This client is archived. Restore them before creating new work.");
+    }
   }
 
   const company = await prisma.company.findUnique({

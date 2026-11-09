@@ -25,7 +25,7 @@ import { ProjectFormsSection } from "@/features/projects/components/project-form
 import { ProjectLogTimeButton } from "@/features/projects/components/project-log-time-button";
 import { ProjectStatusSelect } from "@/features/projects/components/project-status-select";
 import { requireMember } from "@/lib/auth";
-import { getClientsForMember } from "@/lib/clients";
+import { ensureClientsInList, getClientsForMember } from "@/lib/clients";
 import type { EstimateStatus, InvoiceStatus } from "@/lib/db";
 import { estimateStatusLabel, estimateStatusVariant } from "@/lib/estimates";
 import { listProjectForms, serializeProjectForm } from "@/lib/project-forms";
@@ -51,6 +51,9 @@ export default async function ProjectDetailPage({ params }: PageProps) {
     listProjectForms(member.companyId, id).catch(() => []),
   ]);
   if (!project) notFound();
+  const pickerClients = await ensureClientsInList(member.companyId, clients, [
+    project.clientId,
+  ]);
 
   const detail = await serializeProjectDetail(project);
   const forms = formRows.map(serializeProjectForm);
@@ -96,7 +99,7 @@ export default async function ProjectDetailPage({ params }: PageProps) {
                 budget: detail.budget,
                 notes: detail.notes,
               }}
-              clients={clients}
+              clients={pickerClients}
             />
             <ProjectStatusSelect projectId={detail.id} status={detail.status} />
             {detail.client?.id ? (
@@ -251,7 +254,7 @@ export default async function ProjectDetailPage({ params }: PageProps) {
               projectId={detail.id}
               projectName={detail.name}
               clientId={detail.client?.id ?? null}
-              clients={clients}
+              clients={pickerClients}
               defaultHourlyRate={defaultHourlyRate}
               recentDescriptions={recentDescriptions}
             />

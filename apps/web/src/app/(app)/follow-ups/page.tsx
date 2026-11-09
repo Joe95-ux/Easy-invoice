@@ -1,7 +1,7 @@
 import { PageScroll } from "@/components/app-shell/app-shell";
 import { FollowUpsPageContent } from "@/features/follow-ups/components/follow-ups-page-content";
 import { requireMember } from "@/lib/auth";
-import { getClientsForMember } from "@/lib/clients";
+import { ensureClientsInList, getClientsForMember } from "@/lib/clients";
 import { prisma } from "@/lib/db";
 import {
   getFollowUpsForCompany,
@@ -44,6 +44,11 @@ export default async function FollowUpsPage() {
       orderBy: { createdAt: "asc" },
     }),
   ]);
+  const pickerClients = await ensureClientsInList(
+    member.companyId,
+    clients,
+    followUps.map((item) => item.clientId),
+  );
 
   return (
     <PageScroll>
@@ -51,7 +56,7 @@ export default async function FollowUpsPage() {
         initialFollowUps={followUps.map(serializeFollowUp)}
         currentMemberId={member.id}
         canWrite={canWrite}
-        clients={clients.map((client) => ({ id: client.id, label: client.name }))}
+        clients={pickerClients.map((client) => ({ id: client.id, label: client.name }))}
         invoices={invoices.map((invoice) => ({
           id: invoice.id,
           label: invoice.client?.name

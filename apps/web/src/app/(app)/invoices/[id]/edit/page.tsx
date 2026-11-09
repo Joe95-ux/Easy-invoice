@@ -3,7 +3,7 @@ import { PageScroll } from "@/components/app-shell/app-shell";
 import { PageBackLink, PageHeader } from "@/components/app-shell/page-header";
 import { InvoiceCreator } from "@/features/invoices/components/invoice-creator";
 import { requireWriter } from "@/lib/auth";
-import { getClientsForMember } from "@/lib/clients";
+import { ensureClientsInList, getClientsForMember } from "@/lib/clients";
 import { getInvoiceForMember, getInvoiceLineItemsWithTimeEntries } from "@/lib/invoices";
 import { companyBrandingFields } from "@/lib/company-branding";
 import {
@@ -34,6 +34,9 @@ export default async function EditInvoicePage({ params }: PageProps) {
     getExpensesForInvoice(member.companyId, id),
   ]);
   if (!invoice) notFound();
+  const pickerClients = await ensureClientsInList(member.companyId, clients, [
+    invoice.clientId,
+  ]);
 
   const lineItems = attachExpenseIdsToLineItems(
     lineItemsWithTime.map((item) => ({
@@ -88,7 +91,7 @@ export default async function EditInvoicePage({ params }: PageProps) {
         customFieldDefinitions={normalizeCustomFieldDefinitions(
           member.company.customFieldDefinitions,
         )}
-        clients={clients}
+        clients={pickerClients}
         templates={templates}
         defaultTemplateId={defaultTemplateId}
         invoiceId={invoice.id}

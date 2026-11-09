@@ -44,6 +44,12 @@ export async function POST(request: Request) {
   if (!client) {
     return NextResponse.json({ error: "Client not found" }, { status: 404 });
   }
+  if (client.archivedAt) {
+    return NextResponse.json(
+      { error: "This client is archived. Restore them before creating new work." },
+      { status: 409 },
+    );
+  }
 
   let projectId = parsed.data.projectId || null;
   if (projectId) {

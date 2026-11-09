@@ -332,8 +332,13 @@ export async function getRecurringInvoice(id: string, companyId: string) {
   });
 }
 
-async function assertClient(companyId: string, clientId: string) {
-  return prisma.client.findFirst({ where: { id: clientId, companyId } });
+async function assertClient(companyId: string, clientId: string, allowArchived = false) {
+  const client = await prisma.client.findFirst({ where: { id: clientId, companyId } });
+  if (!client) return null;
+  if (client.archivedAt && !allowArchived) {
+    throw new Error("This client is archived. Restore them before creating new work.");
+  }
+  return client;
 }
 
 async function resolveTemplateId(
@@ -511,7 +516,7 @@ export async function updateRecurringInvoice(
   if (!existing) return null;
 
   const nextClientId = input.clientId ?? existing.clientId;
-  const client = await assertClient(companyId, nextClientId);
+  const client = await assertClient(companyId, nextClientId, true);
   if (!client) throw new Error("Client not found");
 
   const nextAutoSend = input.autoSend ?? existing.autoSend;

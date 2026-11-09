@@ -1,7 +1,7 @@
 import { PageScroll } from "@/components/app-shell/app-shell";
 import { TimePageContent } from "@/features/time/components/time-page-content";
 import { requireMember } from "@/lib/auth";
-import { getClientsForMember } from "@/lib/clients";
+import { ensureClientsInList, getClientsForMember } from "@/lib/clients";
 import { prisma } from "@/lib/db";
 import { getProjectsForCompany } from "@/lib/projects";
 import { canWriteDocuments } from "@/lib/team";
@@ -24,12 +24,17 @@ export default async function TimePage() {
     }),
     getRecentTimeDescriptions(member.companyId),
   ]);
+  const pickerClients = await ensureClientsInList(
+    member.companyId,
+    clients,
+    entries.map((entry) => entry.clientId),
+  );
 
   return (
     <PageScroll>
       <TimePageContent
         entries={entries.map(serializeTimeEntry)}
-        clients={clients}
+        clients={pickerClients}
         projects={projects.map((project) => ({
           id: project.id,
           name: project.name,

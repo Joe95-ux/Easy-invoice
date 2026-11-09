@@ -14,12 +14,14 @@ type ClientEstimatesTabProps = {
   estimates: ClientEstimateRow[];
   companyName: string;
   clientId: string;
+  canCreate?: boolean;
 };
 
 export function ClientEstimatesTab({
   estimates,
   companyName,
   clientId,
+  canCreate = true,
 }: ClientEstimatesTabProps) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
@@ -47,14 +49,18 @@ export function ClientEstimatesTab({
       <div className="rounded-lg border border-dashed border-border px-6 py-12 text-center">
         <p className="text-sm font-medium">No estimates yet</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Send a quote before invoicing this client.
+          {canCreate
+            ? "Send a quote before invoicing this client."
+            : "Restore this client to create a new estimate."}
         </p>
-        <Link
-          href={`/estimates/new?clientId=${clientId}`}
-          className="mt-4 inline-flex text-sm font-medium text-primary hover:underline"
-        >
-          Create estimate
-        </Link>
+        {canCreate ? (
+          <Link
+            href={`/estimates/new?clientId=${clientId}`}
+            className="mt-4 inline-flex text-sm font-medium text-primary hover:underline"
+          >
+            Create estimate
+          </Link>
+        ) : null}
       </div>
     );
   }

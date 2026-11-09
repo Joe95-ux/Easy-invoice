@@ -1,7 +1,7 @@
 import { PageScroll } from "@/components/app-shell/app-shell";
 import { RecurringInvoicesPageContent } from "@/features/recurring-invoices/components/recurring-invoices-page-content";
 import { requireMember } from "@/lib/auth";
-import { getClientsForMember } from "@/lib/clients";
+import { ensureClientsInList, getClientsForMember } from "@/lib/clients";
 import { getInvoicesForMember } from "@/lib/invoice-service";
 import {
   listRecurringInvoices,
@@ -22,12 +22,17 @@ export default async function RecurringInvoicesPage({ searchParams }: PageProps)
     getClientsForMember(member.companyId, "active"),
     getInvoicesForMember(member.companyId, 200),
   ]);
+  const pickerClients = await ensureClientsInList(
+    member.companyId,
+    clients,
+    rows.map((row) => row.clientId),
+  );
 
   return (
     <PageScroll>
       <RecurringInvoicesPageContent
         initialRows={rows.map(serializeRecurringInvoice)}
-        clients={clients.map((client) => ({
+        clients={pickerClients.map((client) => ({
           id: client.id,
           name: client.name,
           email: client.email,

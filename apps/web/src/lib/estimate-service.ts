@@ -95,6 +95,10 @@ export async function convertEstimateToInvoice(estimateId: string, companyId: st
     return { error: "cannot_convert" as const };
   }
 
+  if (estimate.client?.archivedAt) {
+    return { error: "client_archived" as const };
+  }
+
   const company = await prisma.company.findUniqueOrThrow({
     where: { id: companyId },
     select: { plan: true, customFieldDefinitions: true, currency: true },
