@@ -5,13 +5,13 @@ import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
 import {
   ArrowRightIcon,
-  BellRingIcon,
   ChevronRightIcon,
   ClipboardListIcon,
   CreditCardIcon,
   FileTextIcon,
   QrCodeIcon,
   SparklesIcon,
+  UsersIcon,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -66,7 +66,7 @@ export const PUBLIC_FEATURE_COLUMNS: PublicFeatureColumn[] = [
       },
       {
         title: "Invoices",
-        description: "Send, track, and get paid",
+        description: "Share a pay link and track views",
         hrefGuest: "/#how",
         hrefSignedIn: "/invoices",
         icon: FileTextIcon,
@@ -74,7 +74,7 @@ export const PUBLIC_FEATURE_COLUMNS: PublicFeatureColumn[] = [
       {
         title: "Estimates",
         description: "Quotes clients can e-sign",
-        hrefGuest: "/#how",
+        hrefGuest: "/#estimates",
         hrefSignedIn: "/estimates",
         icon: ClipboardListIcon,
       },
@@ -86,16 +86,16 @@ export const PUBLIC_FEATURE_COLUMNS: PublicFeatureColumn[] = [
       {
         title: "Card checkout",
         description: "Stripe Connect — paid to you",
-        hrefGuest: "/#pricing",
+        hrefGuest: "/#collect",
         hrefSignedIn: "/settings/billing",
         icon: CreditCardIcon,
       },
       {
-        title: "Reminders",
-        description: "Automatic follow-ups on due dates",
-        hrefGuest: "/#how",
-        hrefSignedIn: "/settings/general",
-        icon: BellRingIcon,
+        title: "Client portal",
+        description: "Invoices, estimates, and credits in one place",
+        hrefGuest: "/#portal",
+        hrefSignedIn: "/clients",
+        icon: UsersIcon,
       },
       {
         title: "QR codes",

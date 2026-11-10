@@ -206,6 +206,26 @@ export function HomePageV2() {
           </div>
         </section>
 
+        {/* Estimates */}
+        <section id="estimates" className="landing-section landing-section-rule scroll-mt-20">
+          <div className="mx-auto max-w-6xl px-6 py-20 md:py-28">
+            <Reveal className="max-w-xl">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
+                Estimates
+              </p>
+              <h2 className={cn(landingH, "mt-3")}>
+                Quote it. They e-sign.
+                <br />
+                You invoice.
+              </h2>
+              <p className="mt-4 text-muted-foreground">
+                Send a public estimate, collect a signature, and convert it to an invoice
+                without retyping the job.
+              </p>
+            </Reveal>
+          </div>
+        </section>
+
         {/* Path map */}
         <section className="landing-section landing-section-rule">
           <div className="mx-auto max-w-6xl px-6 py-20 md:py-28">
@@ -228,7 +248,7 @@ export function HomePageV2() {
         </section>
 
         {/* Get paid */}
-        <section className="landing-section landing-section-rule landing-band">
+        <section id="collect" className="landing-section landing-section-rule landing-band scroll-mt-20">
           <div className="mx-auto max-w-6xl px-6 py-24 md:py-32">
             <Reveal>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
@@ -244,6 +264,24 @@ export function HomePageV2() {
             </Reveal>
             <Reveal delay={80} className="mt-14">
               <CollectShowcase />
+            </Reveal>
+          </div>
+        </section>
+
+        {/* Client portal */}
+        <section id="portal" className="landing-section landing-section-rule scroll-mt-20">
+          <div className="mx-auto max-w-6xl px-6 py-20 md:py-28">
+            <Reveal className="max-w-xl">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
+                Client portal
+              </p>
+              <h2 className={cn(landingH, "mt-3")}>
+                One place for the documents you issued.
+              </h2>
+              <p className="mt-4 text-muted-foreground">
+                Clients open invoices, estimates, and credits from a login link — no staff
+                seat required. Pro statements show up there too.
+              </p>
             </Reveal>
           </div>
         </section>
