@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
 const isPublicRoute = createRouteMatcher([
@@ -24,7 +24,7 @@ const isPublicRoute = createRouteMatcher([
 
 const isApiRoute = createRouteMatcher(["/api(.*)"]);
 
-export default clerkMiddleware(async (auth, request) => {
+const clerkHandler = clerkMiddleware(async (auth, request) => {
   if (isPublicRoute(request)) return;
 
   const { userId, redirectToSignIn } = await auth();
@@ -37,6 +37,51 @@ export default clerkMiddleware(async (auth, request) => {
     return redirectToSignIn({ returnBackUrl: request.url });
   }
 });
+
+/** Clerk rewrites to http://localhost:3000; Next then HTTP-proxies that as a foreign origin and loops. */
+function sameOriginLoopbackRewrite(res: Response, request: NextRequest): Response {
+  const rewrite = res.headers.get("x-middleware-rewrite");
+  if (!rewrite) return res;
+  let dest: URL;
+  try {
+    dest = new URL(rewrite);
+  } catch {
+    return res;
+  }
+  const src = request.nextUrl;
+  const loopback =
+    dest.hostname === "localhost" ||
+    dest.hostname === "127.0.0.1" ||
+    dest.origin === src.origin;
+  if (!loopback) return res;
+
+  const destPath = dest.pathname + dest.search;
+  const srcPath = src.pathname + src.search;
+  if (destPath === srcPath) {
+    const requestHeaders = new Headers(request.headers);
+    res.headers.forEach((value, key) => {
+      const lower = key.toLowerCase();
+      if (lower.startsWith("x-middleware-request-")) {
+        requestHeaders.set(key.slice("x-middleware-request-".length), value);
+      }
+    });
+    return NextResponse.next({ request: { headers: requestHeaders } });
+  }
+
+  if (dest.origin === src.origin) return res;
+  dest.protocol = src.protocol;
+  dest.hostname = src.hostname;
+  dest.port = src.port;
+  const headers = new Headers(res.headers);
+  headers.set("x-middleware-rewrite", dest.toString());
+  return new NextResponse(res.body, { status: res.status, statusText: res.statusText, headers });
+}
+
+export default async function middleware(request: NextRequest, event: NextFetchEvent) {
+  const res = await clerkHandler(request, event);
+  if (!res) return res;
+  return sameOriginLoopbackRewrite(res, request);
+}
 
 export const config = {
   matcher: [
