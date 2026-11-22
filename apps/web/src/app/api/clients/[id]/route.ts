@@ -80,6 +80,12 @@ export async function PATCH(request: Request, context: RouteContext) {
       country: parsed.data.country || null,
       notes: parsed.data.notes || null,
       defaultHourlyRate: parsed.data.defaultHourlyRate ?? null,
+      marketingOptIn: parsed.data.marketingOptIn ?? true,
+      ...(parsed.data.marketingOptIn === false
+        ? { marketingOptOutAt: new Date(), marketingOptInAt: null }
+        : existing.marketingOptIn
+          ? {}
+          : { marketingOptInAt: new Date(), marketingOptOutAt: null }),
     },
   });
 

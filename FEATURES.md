@@ -141,6 +141,44 @@ Company-scoped checklist + calendar for invoice/estimate follow-through (not a g
 
 ---
 
+### 5d. Client retention outreach (win-back)
+
+**Status:** In progress (v1)
+
+Retention follow-ups — not a Mailchimp clone. One-off personalized emails to segments built from data Invoice Desk already has (paid clients, quiet clients, open estimates). Framed as **win more from people who already know you**, with marketing opt-in, unsubscribe, and send caps.
+
+#### Product principles
+
+- Sell retention / win-back, not “campaigns” or retargeting ads.
+- Segments from existing clients only (no lead-gen funnel in v1).
+- Explicit marketing consent + one-click unsubscribe on every message.
+- Hard recipient caps; Pro-gated send (same bar as emailing invoices).
+
+#### v1 scope
+
+| Piece | Notes |
+|-------|--------|
+| Consent | `Client.marketingOptIn` (default true for existing SMB contacts; editable on client; cleared by unsubscribe) |
+| Segments | Paid clients · Inactive 60+ days · Open estimates · All reachable |
+| Compose | Subject + short personal message (`{{name}}`, `{{company}}`) |
+| Send | One-off blast to segment (max 25 Free preview / Pro send up to 200) |
+| Log | Campaign + per-recipient send status |
+| Unsubscribe | Signed public link `/unsubscribe/[token]` |
+
+#### Out of scope (later)
+
+Automations / drip sequences, A/B tests, open/click analytics suite, SMS, arbitrary audience builders, QR lead capture → marketing list.
+
+| Piece | Location |
+|-------|----------|
+| Schema | `Client.marketingOptIn`; `RetentionCampaign`; `RetentionCampaignSend` |
+| Lib | `lib/retention/*` |
+| API | `GET/POST /api/retention/campaigns`, `GET /api/retention/segments`, `POST /api/public/unsubscribe` |
+| UI | `/retention` (Workspace); marketing opt-in on client form |
+| Email | `sendRetentionEmail` + unsubscribe footer |
+
+---
+
 ### 5c. Projects (jobs)
 
 **Status:** Done

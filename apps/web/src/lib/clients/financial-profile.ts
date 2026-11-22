@@ -89,6 +89,7 @@ export type ClientFinancialProfile = {
   country: string | null;
   notes: string | null;
   defaultHourlyRate: number | null;
+  marketingOptIn: boolean;
   archivedAt: string | null;
   updatedAt: string;
   summary: ClientFinancialSummary;
@@ -362,6 +363,7 @@ export async function getClientFinancialProfile(
     country: client.country,
     notes: client.notes,
     defaultHourlyRate: client.defaultHourlyRate ? Number(client.defaultHourlyRate) : null,
+    marketingOptIn: client.marketingOptIn,
     archivedAt: client.archivedAt?.toISOString() ?? null,
     updatedAt: client.updatedAt.toISOString(),
     summary: {

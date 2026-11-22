@@ -63,6 +63,7 @@ function clientToInput(client: ClientFinancialProfile, notes: string): ClientInp
     country: client.country ?? "US",
     notes,
     defaultHourlyRate: client.defaultHourlyRate,
+    marketingOptIn: client.marketingOptIn,
   };
 }
 
@@ -283,6 +284,7 @@ export function ClientOverviewTab({
               country: client.country ?? "US",
               notes: client.notes ?? "",
               defaultHourlyRate: client.defaultHourlyRate,
+              marketingOptIn: client.marketingOptIn,
             }}
             submitLabel="Save changes"
             onSubmit={onUpdate}

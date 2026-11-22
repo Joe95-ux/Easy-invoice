@@ -20,6 +20,8 @@ export const clientSchema = z.object({
   country: z.string().min(2).default("US"),
   notes: z.string().optional(),
   defaultHourlyRate: optionalHourlyRate,
+  /// Retention / win-back emails (not invoice or payment mail).
+  marketingOptIn: z.boolean().optional().default(true),
 });
 
 export const clientArchiveSchema = z.object({

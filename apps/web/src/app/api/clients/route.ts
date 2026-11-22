@@ -46,6 +46,10 @@ export async function POST(request: Request) {
       country: parsed.data.country || null,
       notes: parsed.data.notes || null,
       defaultHourlyRate: parsed.data.defaultHourlyRate ?? null,
+      marketingOptIn: parsed.data.marketingOptIn ?? true,
+      ...(parsed.data.marketingOptIn === false
+        ? { marketingOptOutAt: new Date() }
+        : { marketingOptInAt: new Date() }),
     },
   });
 

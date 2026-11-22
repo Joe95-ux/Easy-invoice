@@ -8,11 +8,13 @@ import { CountrySelect } from "@/components/forms/country-select";
 import { FormField } from "@/components/forms/form-field";
 import { FormSection } from "@/components/forms/form-section";
 import { PhoneInput } from "@/components/forms/phone-input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Field,
   FieldContent,
   FieldLabel,
+  FieldDescription,
 } from "@/components/ui/field";
 import { zodFieldErrors } from "@/lib/validation/zod";
 import { clientSchema, type ClientInput } from "@/lib/schemas/client";
@@ -28,6 +30,7 @@ const emptyValues: ClientInput = {
   country: "US",
   notes: "",
   defaultHourlyRate: null,
+  marketingOptIn: true,
 };
 
 type ClientFormProps = {
@@ -152,6 +155,26 @@ export function ClientForm({
           error={errors.defaultHourlyRate}
           placeholder="Uses company default if empty"
         />
+      </FormSection>
+
+      <FormSection
+        title="Retention"
+        description="Win-back and thank-you emails — separate from invoice and payment mail."
+      >
+        <Field orientation="horizontal">
+          <Checkbox
+            id="marketingOptIn"
+            checked={form.marketingOptIn ?? true}
+            onCheckedChange={(checked) => updateField("marketingOptIn", checked === true)}
+          />
+          <div className="space-y-1">
+            <FieldLabel htmlFor="marketingOptIn">Include in retention outreach</FieldLabel>
+            <FieldDescription>
+              When off, this client is skipped by Retention sends. Invoice, estimate, and payment
+              emails still go out.
+            </FieldDescription>
+          </div>
+        </Field>
       </FormSection>
 
       <FormSection title="Notes" description="Optional context for this client.">

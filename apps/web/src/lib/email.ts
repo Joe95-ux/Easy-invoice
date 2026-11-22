@@ -688,3 +688,47 @@ export async function sendClientPortalMagicLinkEmail(
 
   return data;
 }
+
+type SendRetentionEmailInput = {
+  to: string;
+  companyName: string;
+  subject: string;
+  message: string;
+  unsubscribeUrl: string;
+  replyTo?: string | null;
+};
+
+/** One-off retention / win-back email (not transactional invoice mail). */
+export async function sendRetentionEmail(input: SendRetentionEmailInput) {
+  const from = getEmailFromAddress();
+  const resend = getResend();
+  const body = formatPersonalMessage(input.message);
+  const company = escapeHtml(input.companyName);
+
+  const { data, error } = await resend.emails.send({
+    from,
+    to: input.to,
+    subject: input.subject,
+    ...(sanitizeReplyTo(input.replyTo) ? { replyTo: sanitizeReplyTo(input.replyTo) } : {}),
+    headers: {
+      "List-Unsubscribe": `<${input.unsubscribeUrl}>`,
+    },
+    html: `
+      <p>Hello,</p>
+      ${body}
+      <p style="margin-top:24px">— ${company}</p>
+      <hr style="border:none;border-top:1px solid #e5e7eb;margin:28px 0 16px" />
+      <p style="color:#6b7280;font-size:12px;line-height:1.5">
+        You received this because you are a client of ${company}.
+        <a href="${escapeHtml(input.unsubscribeUrl)}">Unsubscribe from updates like this</a>
+        (invoice and payment emails are unaffected).
+      </p>
+    `,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}

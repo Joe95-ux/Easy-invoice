@@ -14,6 +14,7 @@ const isPublicRoute = createRouteMatcher([
   // Must be `/f/...` only — `/f(.*)` also matched `/follow-ups`, `/forms`, `/foo`, etc.
   "/f/(.*)",
   "/q/(.*)",
+  "/unsubscribe(.*)",
   "/accept-invite(.*)",
   "/api/webhooks(.*)",
   "/api/public(.*)",

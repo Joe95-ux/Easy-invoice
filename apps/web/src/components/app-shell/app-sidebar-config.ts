@@ -9,6 +9,7 @@ import {
   FileTextIcon,
   LayoutDashboardIcon,
   LayoutTemplateIcon,
+  MegaphoneIcon,
   PackageIcon,
   PlusIcon,
   QrCodeIcon,
@@ -55,6 +56,7 @@ export const APP_WORKSPACE_ITEMS: AppNavItem[] = [
   { href: "/products", label: "Products", icon: PackageIcon, motion: "lift" },
   { href: "/time", label: "Time", icon: ClockIcon, motion: "tick" },
   { href: "/follow-ups", label: "Follow-ups", icon: CheckSquareIcon, motion: "check" },
+  { href: "/retention", label: "Retention", icon: MegaphoneIcon, motion: "soft" },
   {
     href: "/qr-codes",
     label: "QR codes",
