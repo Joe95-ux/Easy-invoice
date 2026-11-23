@@ -187,10 +187,10 @@ export async function optOutClientMarketing(clientId: string, companyId: string)
   if (!client) return null;
 
   if (!client.marketingOptIn) {
-    return client;
+    return { client, alreadyOptedOut: true as const };
   }
 
-  return prisma.client.update({
+  const updated = await prisma.client.update({
     where: { id: clientId },
     data: {
       marketingOptIn: false,
@@ -198,4 +198,6 @@ export async function optOutClientMarketing(clientId: string, companyId: string)
     },
     select: { id: true, name: true, marketingOptIn: true },
   });
+
+  return { client: updated, alreadyOptedOut: false as const };
 }

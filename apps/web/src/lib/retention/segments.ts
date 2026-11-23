@@ -30,7 +30,8 @@ function baseWhere(companyId: string) {
     companyId,
     archivedAt: null,
     marketingOptIn: true,
-    email: { not: null },
+    // Exclude null and blank emails stored as "".
+    AND: [{ email: { not: null } }, { email: { not: "" } }],
   } as const;
 }
 
@@ -47,7 +48,7 @@ export async function listRetentionAudience(
       select: { id: true, name: true, email: true },
       orderBy: { name: "asc" },
     });
-    return rows.filter((row): row is RetentionAudienceClient => Boolean(row.email));
+    return toAudience(rows);
   }
 
   if (segment === "PAID_CLIENTS") {
@@ -59,7 +60,7 @@ export async function listRetentionAudience(
       select: { id: true, name: true, email: true },
       orderBy: { name: "asc" },
     });
-    return rows.filter((row): row is RetentionAudienceClient => Boolean(row.email));
+    return toAudience(rows);
   }
 
   if (segment === "OPEN_ESTIMATES") {
@@ -69,14 +70,14 @@ export async function listRetentionAudience(
         estimates: {
           some: {
             status: { in: ["SENT", "VIEWED"] },
-            convertedInvoiceId: null,
+            convertedInvoice: { is: null },
           },
         },
       },
       select: { id: true, name: true, email: true },
       orderBy: { name: "asc" },
     });
-    return rows.filter((row): row is RetentionAudienceClient => Boolean(row.email));
+    return toAudience(rows);
   }
 
   // INACTIVE_60 — no invoice created/sent/paid in the window
@@ -99,22 +100,28 @@ export async function listRetentionAudience(
     orderBy: { name: "asc" },
   });
 
-  return candidates
-    .filter((client) => {
-      if (!client.email) return false;
+  return toAudience(
+    candidates.filter((client) => {
       const latest = client.invoices[0];
       if (!latest) return client.createdAt < cutoff;
       const stamps = [latest.createdAt, latest.issueDate, latest.sentAt, latest.paidAt].filter(
         (d): d is Date => d instanceof Date,
       );
-      const mostRecent = stamps.reduce((max, d) => (d > max ? d : max), stamps[0]!);
+      if (stamps.length === 0) return client.createdAt < cutoff;
+      const mostRecent = stamps.reduce((max, d) => (d > max ? d : max));
       return mostRecent < cutoff;
-    })
-    .map((client) => ({
-      id: client.id,
-      name: client.name,
-      email: client.email!,
-    }));
+    }),
+  );
+}
+
+function toAudience(
+  rows: Array<{ id: string; name: string; email: string | null }>,
+): RetentionAudienceClient[] {
+  return rows.flatMap((row) => {
+    const email = row.email?.trim();
+    if (!email) return [];
+    return [{ id: row.id, name: row.name, email }];
+  });
 }
 
 export async function countRetentionSegments(companyId: string) {

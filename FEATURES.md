@@ -143,7 +143,7 @@ Company-scoped checklist + calendar for invoice/estimate follow-through (not a g
 
 ### 5d. Client retention outreach (win-back)
 
-**Status:** In progress (v1)
+**Status:** In progress (v1 in codebase; schema pushed)
 
 Retention follow-ups — not a Mailchimp clone. One-off personalized emails to segments built from data Invoice Desk already has (paid clients, quiet clients, open estimates). Framed as **win more from people who already know you**, with marketing opt-in, unsubscribe, and send caps.
 
@@ -161,7 +161,7 @@ Retention follow-ups — not a Mailchimp clone. One-off personalized emails to s
 | Consent | `Client.marketingOptIn` (default true for existing SMB contacts; editable on client; cleared by unsubscribe) |
 | Segments | Paid clients · Inactive 60+ days · Open estimates · All reachable |
 | Compose | Subject + short personal message (`{{name}}`, `{{company}}`) |
-| Send | One-off blast to segment (max 25 Free preview / Pro send up to 200) |
+| Send | One-off blast to segment (Pro; max 200 recipients) |
 | Log | Campaign + per-recipient send status |
 | Unsubscribe | Signed public link `/unsubscribe/[token]` |
 
@@ -171,11 +171,12 @@ Automations / drip sequences, A/B tests, open/click analytics suite, SMS, arbitr
 
 | Piece | Location |
 |-------|----------|
-| Schema | `Client.marketingOptIn`; `RetentionCampaign`; `RetentionCampaignSend` |
-| Lib | `lib/retention/*` |
-| API | `GET/POST /api/retention/campaigns`, `GET /api/retention/segments`, `POST /api/public/unsubscribe` |
-| UI | `/retention` (Workspace); marketing opt-in on client form |
-| Email | `sendRetentionEmail` + unsubscribe footer |
+| Schema | `Client.marketingOptIn` / opt-in timestamps; `RetentionCampaign`; `RetentionCampaignSend` |
+| Lib | `lib/retention/segments.ts`, `service.ts`, `unsubscribe.ts` |
+| API | `GET /api/retention/segments`, `GET/POST /api/retention/campaigns`, `POST /api/public/unsubscribe` |
+| UI | `/retention` (Workspace nav); marketing opt-in on client form; `/unsubscribe/[token]` |
+| Email | `sendRetentionEmail` + List-Unsubscribe header + footer link |
+| Gate | Pro (`email_invoices`); max 200 recipients per send |
 
 ---
 

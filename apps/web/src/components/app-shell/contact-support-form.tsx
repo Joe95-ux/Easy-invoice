@@ -104,6 +104,7 @@ export function ContactSupportForm({
   showIntro = true,
   className,
 }: ContactSupportFormProps) {
+  const { isPro } = useCompanyPlan();
   const [subject, setSubject] = useState("");
   const [topic, setTopic] = useState<string>(CONTACT_TOPICS[0].value);
   const [message, setMessage] = useState("");

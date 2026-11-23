@@ -20,14 +20,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid or expired unsubscribe link" }, { status: 400 });
   }
 
-  const client = await optOutClientMarketing(claims.clientId, claims.companyId);
-  if (!client) {
+  const result = await optOutClientMarketing(claims.clientId, claims.companyId);
+  if (!result) {
     return NextResponse.json({ error: "Client not found" }, { status: 404 });
   }
 
   return NextResponse.json({
     ok: true,
-    alreadyOptedOut: !client.marketingOptIn,
-    name: client.name,
+    alreadyOptedOut: result.alreadyOptedOut,
+    name: result.client.name,
   });
 }

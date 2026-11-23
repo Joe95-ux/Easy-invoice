@@ -161,11 +161,12 @@ export function ClientForm({
         title="Retention"
         description="Win-back and thank-you emails — separate from invoice and payment mail."
       >
-        <Field orientation="horizontal">
+        <div className="flex items-start gap-3 rounded-lg border border-border px-3 py-3">
           <Checkbox
             id="marketingOptIn"
             checked={form.marketingOptIn ?? true}
             onCheckedChange={(checked) => updateField("marketingOptIn", checked === true)}
+            className="mt-0.5"
           />
           <div className="space-y-1">
             <FieldLabel htmlFor="marketingOptIn">Include in retention outreach</FieldLabel>
@@ -174,7 +175,7 @@ export function ClientForm({
               emails still go out.
             </FieldDescription>
           </div>
-        </Field>
+        </div>
       </FormSection>
 
       <FormSection title="Notes" description="Optional context for this client.">
