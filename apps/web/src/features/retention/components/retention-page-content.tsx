@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Loader2Icon, MegaphoneIcon, SendIcon } from "lucide-react";
+import { ChevronDownIcon, Loader2Icon, MegaphoneIcon, SendIcon } from "lucide-react";
 import { toast } from "sonner";
 import { EmptyState, PageHeader, pageHeaderActionClass } from "@/components/app-shell/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +32,20 @@ import type { RetentionSegment } from "@easy-invoice/db";
 import type { SerializedRetentionCampaign } from "@/lib/retention/service";
 import { formatDateTime } from "@/lib/invoices";
 import { cn } from "@/lib/utils";
+
+const SEND_STATUS_LABEL: Record<SerializedRetentionCampaign["sends"][number]["status"], string> = {
+  SENT: "Sent",
+  FAILED: "Failed",
+  SKIPPED: "Skipped",
+};
+
+function sendStatusVariant(
+  status: SerializedRetentionCampaign["sends"][number]["status"],
+): "success" | "destructive" | "outline" {
+  if (status === "SENT") return "success";
+  if (status === "FAILED") return "destructive";
+  return "outline";
+}
 
 type SegmentOption = {
   id: RetentionSegment;
@@ -66,6 +81,9 @@ export function RetentionPageContent({
   );
   const [sending, setSending] = useState(false);
   const [campaigns, setCampaigns] = useState(initialCampaigns);
+  const [openCampaignId, setOpenCampaignId] = useState<string | null>(null);
+  const [loadingCampaignId, setLoadingCampaignId] = useState<string | null>(null);
+  const [recipientError, setRecipientError] = useState<string | null>(null);
 
   const selected = useMemo(
     () => segments.find((s) => s.id === segment) ?? segments[0],
@@ -79,6 +97,32 @@ export function RetentionPageContent({
     (selected?.count ?? 0) > 0 &&
     subject.trim().length > 0 &&
     message.trim().length > 0;
+
+  async function toggleRecipients(campaign: SerializedRetentionCampaign) {
+    if (openCampaignId === campaign.id) {
+      setOpenCampaignId(null);
+      return;
+    }
+
+    setOpenCampaignId(campaign.id);
+    setRecipientError(null);
+    if (campaign.recipientsLoaded || loadingCampaignId === campaign.id) return;
+
+    setLoadingCampaignId(campaign.id);
+    try {
+      const response = await fetch(`/api/retention/campaigns/${campaign.id}`);
+      const data = await response.json();
+      throwIfApiError(response, data, "Could not load recipients");
+      const loaded = data.campaign as SerializedRetentionCampaign;
+      setCampaigns((prev) => prev.map((row) => (row.id === loaded.id ? loaded : row)));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not load recipients";
+      setRecipientError(message);
+      toastApiError(error, "Could not load recipients");
+    } finally {
+      setLoadingCampaignId(null);
+    }
+  }
 
   async function handleSend() {
     if (!canSend) return;
@@ -241,7 +285,9 @@ export function RetentionPageContent({
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Send history</CardTitle>
-          <CardDescription>Recent retention emails and delivery status.</CardDescription>
+          <CardDescription>
+            Recent retention emails. Open a row to see each recipient.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {campaigns.length === 0 ? (
@@ -253,6 +299,9 @@ export function RetentionPageContent({
             <Table stickyColumns={0}>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-10">
+                    <span className="sr-only">Recipients</span>
+                  </TableHead>
                   <TableHead>When</TableHead>
                   <TableHead>Segment</TableHead>
                   <TableHead>Subject</TableHead>
@@ -262,39 +311,123 @@ export function RetentionPageContent({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {campaigns.map((campaign) => (
-                  <TableRow key={campaign.id}>
-                    <TableCell>
-                      {campaign.sentAt ? formatDateTime(campaign.sentAt) : "—"}
-                    </TableCell>
-                    <TableCell>
-                      {segments.find((s) => s.id === campaign.segment)?.label ?? campaign.segment}
-                    </TableCell>
-                    <TableCell className="max-w-[16rem] truncate font-medium">
-                      {campaign.subject}
-                    </TableCell>
-                    <TableCell className="text-right">{campaign.sentCount}</TableCell>
-                    <TableCell className="text-right">{campaign.failedCount}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          campaign.status === "SENT"
-                            ? "success"
-                            : campaign.status === "FAILED"
-                              ? "destructive"
-                              : "outline"
-                        }
-                      >
-                        {campaign.status.toLowerCase()}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {campaigns.map((campaign) => {
+                  const open = openCampaignId === campaign.id;
+                  const loading = loadingCampaignId === campaign.id;
+                  return (
+                    <Fragment key={campaign.id}>
+                      <TableRow>
+                        <TableCell>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-expanded={open}
+                            aria-label={open ? "Hide recipients" : "Show recipients"}
+                            onClick={() => void toggleRecipients(campaign)}
+                          >
+                            {loading ? (
+                              <Loader2Icon className="size-4 animate-spin" />
+                            ) : (
+                              <ChevronDownIcon
+                                className={cn("size-4 transition-transform", open && "rotate-180")}
+                              />
+                            )}
+                          </Button>
+                        </TableCell>
+                        <TableCell>
+                          {campaign.sentAt ? formatDateTime(campaign.sentAt) : "—"}
+                        </TableCell>
+                        <TableCell>
+                          {segments.find((s) => s.id === campaign.segment)?.label ?? campaign.segment}
+                        </TableCell>
+                        <TableCell className="max-w-[16rem] truncate font-medium">
+                          {campaign.subject}
+                        </TableCell>
+                        <TableCell className="text-right">{campaign.sentCount}</TableCell>
+                        <TableCell className="text-right">{campaign.failedCount}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              campaign.status === "SENT"
+                                ? "success"
+                                : campaign.status === "FAILED"
+                                  ? "destructive"
+                                  : "outline"
+                            }
+                          >
+                            {campaign.status.toLowerCase()}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                      {open ? (
+                        <TableRow>
+                          <TableCell colSpan={7} className="bg-muted/30">
+                            <RecipientLog
+                              loading={loading && !campaign.recipientsLoaded}
+                              error={campaign.recipientsLoaded ? null : recipientError}
+                              sends={campaign.sends}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      ) : null}
+                    </Fragment>
+                  );
+                })}
               </TableBody>
             </Table>
           )}
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function RecipientLog({
+  loading,
+  error,
+  sends,
+}: {
+  loading: boolean;
+  error: string | null;
+  sends: SerializedRetentionCampaign["sends"];
+}) {
+  if (loading) {
+    return (
+      <p className="flex items-center gap-2 px-2 py-3 text-sm text-muted-foreground">
+        <Loader2Icon className="size-4 animate-spin" />
+        Loading recipients…
+      </p>
+    );
+  }
+
+  if (error) {
+    return <p className="px-2 py-3 text-sm text-destructive">{error}</p>;
+  }
+
+  if (sends.length === 0) {
+    return (
+      <p className="px-2 py-3 text-sm text-muted-foreground">No recipients recorded for this send.</p>
+    );
+  }
+
+  return (
+    <ul className="max-h-72 divide-y divide-border overflow-y-auto rounded-md border border-border bg-card">
+      {sends.map((send) => (
+        <li key={send.id} className="flex items-start justify-between gap-3 px-3 py-2">
+          <div className="min-w-0">
+            <Link href={`/clients/${send.client.id}`} className="text-sm font-medium hover:underline">
+              {send.client.name}
+            </Link>
+            <p className="truncate text-xs text-muted-foreground">{send.email}</p>
+            {send.error ? <p className="mt-1 text-xs text-destructive">{send.error}</p> : null}
+          </div>
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            <Badge variant={sendStatusVariant(send.status)}>{SEND_STATUS_LABEL[send.status]}</Badge>
+            <span className="text-xs text-muted-foreground">{formatDateTime(send.sentAt)}</span>
+          </div>
+        </li>
+      ))}
+    </ul>
   );
 }

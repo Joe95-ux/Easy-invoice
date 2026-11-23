@@ -143,7 +143,7 @@ Company-scoped checklist + calendar for invoice/estimate follow-through (not a g
 
 ### 5d. Client retention outreach (win-back)
 
-**Status:** In progress (v1 in codebase; schema pushed)
+**Status:** Done (v1)
 
 Retention follow-ups — not a Mailchimp clone. One-off personalized emails to segments built from data Invoice Desk already has (paid clients, quiet clients, open estimates). Framed as **win more from people who already know you**, with marketing opt-in, unsubscribe, and send caps.
 
@@ -162,7 +162,7 @@ Retention follow-ups — not a Mailchimp clone. One-off personalized emails to s
 | Segments | Paid clients · Inactive 60+ days · Open estimates · All reachable |
 | Compose | Subject + short personal message (`{{name}}`, `{{company}}`) |
 | Send | One-off blast to segment (Pro; max 200 recipients) |
-| Log | Campaign + per-recipient send status |
+| Log | Campaign totals, plus each recipient’s status and error |
 | Unsubscribe | Signed public link `/unsubscribe/[token]` |
 
 #### Out of scope (later)

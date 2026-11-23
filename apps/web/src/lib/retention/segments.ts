@@ -29,10 +29,10 @@ function baseWhere(companyId: string) {
   return {
     companyId,
     archivedAt: null,
-    marketingOptIn: true,
+    marketingOptIn: true as const,
     // Exclude null and blank emails stored as "".
     AND: [{ email: { not: null } }, { email: { not: "" } }],
-  } as const;
+  };
 }
 
 /** Clients eligible for a retention segment (email + opt-in + not archived). */

@@ -1,4 +1,8 @@
-import type { RetentionSegment } from "@easy-invoice/db";
+import type {
+  RetentionCampaignStatus,
+  RetentionSegment,
+  RetentionSendStatus,
+} from "@easy-invoice/db";
 import { prisma } from "@/lib/db";
 import { getAppOrigin } from "@/lib/app-url";
 import {
@@ -11,6 +15,44 @@ import { retentionUnsubscribeToken } from "@/lib/retention/unsubscribe";
 
 export const RETENTION_MAX_RECIPIENTS = 200;
 
+const SEND_STATUS_RANK: Record<RetentionSendStatus, number> = {
+  FAILED: 0,
+  SKIPPED: 1,
+  SENT: 2,
+};
+
+type RetentionSendRecord = {
+  id: string;
+  email: string;
+  status: RetentionSendStatus;
+  error: string | null;
+  sentAt: Date;
+  client: { id: string; name: string };
+};
+
+type RetentionCampaignRecord = {
+  id: string;
+  name: string | null;
+  subject: string;
+  message: string;
+  segment: RetentionSegment;
+  status: RetentionCampaignStatus;
+  sentAt: Date | null;
+  recipientCount: number;
+  sentCount: number;
+  failedCount: number;
+  createdAt: Date;
+  member: { id: string; name: string | null; email: string } | null;
+  /** Present only when recipient rows were loaded. */
+  sends?: RetentionSendRecord[];
+};
+
+const campaignMemberSelect = {
+  id: true,
+  name: true,
+  email: true,
+} as const;
+
 export function personalizeRetentionMessage(
   template: string,
   vars: { name: string; company: string },
@@ -20,9 +62,13 @@ export function personalizeRetentionMessage(
     .replaceAll("{{company}}", vars.company);
 }
 
-export function serializeRetentionCampaign(
-  campaign: Awaited<ReturnType<typeof getRetentionCampaigns>>[number],
-) {
+export function serializeRetentionCampaign(campaign: RetentionCampaignRecord) {
+  const sends = [...(campaign.sends ?? [])].sort((a, b) => {
+    const rank = SEND_STATUS_RANK[a.status] - SEND_STATUS_RANK[b.status];
+    if (rank !== 0) return rank;
+    return b.sentAt.getTime() - a.sentAt.getTime();
+  });
+
   return {
     id: campaign.id,
     name: campaign.name,
@@ -38,7 +84,8 @@ export function serializeRetentionCampaign(
     member: campaign.member
       ? { id: campaign.member.id, name: campaign.member.name, email: campaign.member.email }
       : null,
-    sends: campaign.sends.map((send) => ({
+    recipientsLoaded: campaign.sends != null,
+    sends: sends.map((send) => ({
       id: send.id,
       email: send.email,
       status: send.status,
@@ -55,15 +102,22 @@ export async function getRetentionCampaigns(companyId: string) {
   return prisma.retentionCampaign.findMany({
     where: { companyId },
     include: {
-      member: { select: { id: true, name: true, email: true } },
-      sends: {
-        include: { client: { select: { id: true, name: true } } },
-        orderBy: { sentAt: "desc" },
-        take: 50,
-      },
+      member: { select: campaignMemberSelect },
     },
     orderBy: { createdAt: "desc" },
     take: 50,
+  });
+}
+
+export async function getRetentionCampaign(companyId: string, campaignId: string) {
+  return prisma.retentionCampaign.findFirst({
+    where: { id: campaignId, companyId },
+    include: {
+      member: { select: campaignMemberSelect },
+      sends: {
+        include: { client: { select: { id: true, name: true } } },
+      },
+    },
   });
 }
 
@@ -94,7 +148,7 @@ export async function sendRetentionCampaign(input: {
   }
   if (audience.length > RETENTION_MAX_RECIPIENTS) {
     throw new PlanLimitError(
-      `This segment has ${audience.length} recipients. Cap is ${RETENTION_MAX_RECIPIENTS} per send — narrow the audience or split later.`,
+      `This segment has ${audience.length} people. Each send is limited to ${RETENTION_MAX_RECIPIENTS}. Choose a smaller segment and try again.`,
     );
   }
 
@@ -168,10 +222,9 @@ export async function sendRetentionCampaign(input: {
       failedCount,
     },
     include: {
-      member: { select: { id: true, name: true, email: true } },
+      member: { select: campaignMemberSelect },
       sends: {
         include: { client: { select: { id: true, name: true } } },
-        orderBy: { sentAt: "desc" },
       },
     },
   });
