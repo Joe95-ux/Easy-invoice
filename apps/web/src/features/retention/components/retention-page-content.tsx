@@ -6,18 +6,22 @@ import { useRouter } from "next/navigation";
 import { ChevronDownIcon, Loader2Icon, MegaphoneIcon, SendIcon } from "lucide-react";
 import { toast } from "sonner";
 import { EmptyState, PageHeader, pageHeaderActionClass } from "@/components/app-shell/page-header";
+import { ProFeatureGate } from "@/components/billing/pro-feature-gate";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -44,6 +48,23 @@ function sendStatusVariant(
 ): "success" | "destructive" | "outline" {
   if (status === "SENT") return "success";
   if (status === "FAILED") return "destructive";
+  return "outline";
+}
+
+function campaignStatusLabel(campaign: SerializedRetentionCampaign): string {
+  if (campaign.sentCount > 0 && campaign.failedCount > 0) return "Partial";
+  if (campaign.status === "SENT") return "Sent";
+  if (campaign.status === "FAILED") return "Failed";
+  if (campaign.status === "SENDING") return "Sending";
+  return "Draft";
+}
+
+function campaignStatusVariant(
+  campaign: SerializedRetentionCampaign,
+): "success" | "destructive" | "warning" | "outline" {
+  if (campaign.sentCount > 0 && campaign.failedCount > 0) return "warning";
+  if (campaign.status === "SENT") return "success";
+  if (campaign.status === "FAILED") return "destructive";
   return "outline";
 }
 
@@ -77,8 +98,9 @@ export function RetentionPageContent({
   );
   const [subject, setSubject] = useState(`A note from ${companyName}`);
   const [message, setMessage] = useState(
-    "Hi {{name}},\n\nThanks for working with {{company}}. We have a small thank-you offer on your next visit — reply if you'd like details.",
+    "Hi {{name}},\n\nIt's been a while since we worked together. Reply if you need anything from {{company}}.",
   );
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [sending, setSending] = useState(false);
   const [campaigns, setCampaigns] = useState(initialCampaigns);
   const [openCampaignId, setOpenCampaignId] = useState<string | null>(null);
@@ -90,6 +112,15 @@ export function RetentionPageContent({
     [segment, segments],
   );
   const overCap = (selected?.count ?? 0) > maxRecipients;
+  const audienceCount = selected?.count ?? 0;
+  const sendBlockReason =
+    !isPro || !canWrite
+      ? null
+      : audienceCount === 0
+        ? "No one in this segment has an email and marketing opt-in."
+        : overCap
+          ? `This segment has ${audienceCount} people. Each send is limited to ${maxRecipients}.`
+          : null;
   const canSend =
     canWrite &&
     isPro &&
@@ -143,6 +174,7 @@ export function RetentionPageContent({
       toast.success("Outreach sent", {
         description: `${data.campaign.sentCount} delivered${data.campaign.failedCount ? `, ${data.campaign.failedCount} failed` : ""}.`,
       });
+      setConfirmOpen(false);
       setCampaigns((prev) => [data.campaign, ...prev]);
       router.refresh();
     } catch (error) {
@@ -155,21 +187,28 @@ export function RetentionPageContent({
   return (
     <div className="space-y-6">
       <PageHeader
+        className="mb-0"
         title="Retention"
         description="Win-back notes for clients you already serve — not cold marketing blasts."
         actions={
-          <div className={cn("flex gap-2", pageHeaderActionClass)}>
-            {!isPro && (
-              <Button variant="outline" render={<a href="/settings/billing/plans" />}>
-                Upgrade to send
-              </Button>
-            )}
-          </div>
+          !canWrite || isPro ? undefined : (
+            <Button className={pageHeaderActionClass} render={<Link href="/settings/billing/plans" />}>
+              Upgrade to Pro
+            </Button>
+          )
         }
       />
 
+      {!isPro && canWrite ? (
+        <ProFeatureGate
+          variant="banner"
+          title="Retention email is on Pro"
+          description="Send a short note to clients you already work with. Free plans can still email invoices and estimates one at a time."
+        />
+      ) : null}
+
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
-        <Card>
+        <Card className="order-2 lg:order-1">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <MegaphoneIcon className="size-4 text-muted-foreground" />
@@ -183,31 +222,12 @@ export function RetentionPageContent({
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Audience</Label>
-              <Select
-                value={segment}
-                onValueChange={(value) => value && setSegment(value as RetentionSegment)}
-                items={segments.map((s) => ({
-                  value: s.id,
-                  label: `${s.label} (${s.count})`,
-                }))}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {segments.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.label} ({s.count})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="rounded-lg border border-border px-3 py-3">
+              <p className="text-xs font-medium text-muted-foreground">Audience</p>
+              <p className="mt-1 text-sm font-medium">{selected?.label ?? "No segment"}</p>
               <p className="text-xs text-muted-foreground">
                 {selected?.description}
-                {selected ? ` · ${selected.count} reachable` : null}
-                {overCap ? ` · over the ${maxRecipients} per-send cap` : null}
+                {selected ? ` · ${audienceCount} reachable` : null}
               </p>
             </div>
 
@@ -235,7 +255,10 @@ export function RetentionPageContent({
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              <Button onClick={() => void handleSend()} disabled={!canSend || sending}>
+              <Button
+                onClick={() => setConfirmOpen(true)}
+                disabled={!canSend || sending}
+              >
                 {sending ? (
                   <Loader2Icon className="size-4 animate-spin" />
                 ) : (
@@ -243,19 +266,19 @@ export function RetentionPageContent({
                 )}
                 {sending ? "Sending…" : "Send outreach"}
               </Button>
-              {!isPro && (
+              {sendBlockReason ? (
+                <p className="text-xs text-muted-foreground">{sendBlockReason}</p>
+              ) : null}
+              {isPro && !canWrite ? (
                 <p className="text-xs text-muted-foreground">
-                  Sending retention email is available on Pro.
+                  You have view-only access, so you can&apos;t send outreach.
                 </p>
-              )}
-              {isPro && !canWrite && (
-                <p className="text-xs text-muted-foreground">Viewers cannot send outreach.</p>
-              )}
+              ) : null}
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="order-1 lg:order-2">
           <CardHeader>
             <CardTitle className="text-base">Segments</CardTitle>
             <CardDescription>Built from clients already in your workspace.</CardDescription>
@@ -266,8 +289,9 @@ export function RetentionPageContent({
                 key={s.id}
                 type="button"
                 onClick={() => setSegment(s.id)}
+                aria-pressed={segment === s.id}
                 className={cn(
-                  "flex w-full items-start justify-between gap-3 rounded-lg border px-3 py-3 text-left transition-colors",
+                  "flex w-full items-start justify-between gap-3 rounded-lg border px-3 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   segment === s.id ? "border-primary bg-primary/5" : "hover:bg-muted/40",
                 )}
               >
@@ -341,22 +365,14 @@ export function RetentionPageContent({
                         <TableCell>
                           {segments.find((s) => s.id === campaign.segment)?.label ?? campaign.segment}
                         </TableCell>
-                        <TableCell className="max-w-[16rem] truncate font-medium">
+                        <TableCell className="max-w-[16rem] truncate font-medium" title={campaign.subject}>
                           {campaign.subject}
                         </TableCell>
                         <TableCell className="text-right">{campaign.sentCount}</TableCell>
                         <TableCell className="text-right">{campaign.failedCount}</TableCell>
                         <TableCell>
-                          <Badge
-                            variant={
-                              campaign.status === "SENT"
-                                ? "success"
-                                : campaign.status === "FAILED"
-                                  ? "destructive"
-                                  : "outline"
-                            }
-                          >
-                            {campaign.status.toLowerCase()}
+                          <Badge variant={campaignStatusVariant(campaign)}>
+                            {campaignStatusLabel(campaign)}
                           </Badge>
                         </TableCell>
                       </TableRow>
@@ -379,6 +395,25 @@ export function RetentionPageContent({
           )}
         </CardContent>
       </Card>
+
+      <AlertDialog open={confirmOpen} onOpenChange={(open) => !sending && setConfirmOpen(open)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Send this note?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This emails {audienceCount}{" "}
+              {audienceCount === 1 ? "client" : "clients"} in {selected?.label ?? "this segment"}.
+              Each person can unsubscribe. Invoice and payment emails are separate.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={sending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction disabled={sending || !canSend} onClick={() => void handleSend()}>
+              {sending ? "Sending…" : `Send to ${audienceCount}`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

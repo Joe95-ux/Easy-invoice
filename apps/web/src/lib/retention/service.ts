@@ -165,52 +165,60 @@ export async function sendRetentionCampaign(input: {
     },
   });
 
-  const origin = await getAppOrigin();
   let sentCount = 0;
   let failedCount = 0;
+  let fatal: unknown = null;
 
-  for (const client of audience) {
-    const unsubscribeUrl = `${origin}/unsubscribe/${retentionUnsubscribeToken(client.id, input.companyId)}`;
-    const personalized = personalizeRetentionMessage(input.message, {
-      name: client.name,
-      company: company.name,
-    });
-    const personalizedSubject = personalizeRetentionMessage(input.subject, {
-      name: client.name,
-      company: company.name,
-    });
-
-    try {
-      await sendRetentionEmail({
-        to: client.email,
-        companyName: company.name,
-        subject: personalizedSubject,
-        message: personalized,
-        unsubscribeUrl,
-        replyTo: company.email,
+  try {
+    const origin = await getAppOrigin();
+    for (const client of audience) {
+      const token = retentionUnsubscribeToken(client.id, input.companyId);
+      const unsubscribeUrl = `${origin}/unsubscribe/${token}`;
+      const listUnsubscribeUrl = `${origin}/api/public/unsubscribe?token=${encodeURIComponent(token)}`;
+      const personalized = personalizeRetentionMessage(input.message, {
+        name: client.name,
+        company: company.name,
+      });
+      const personalizedSubject = personalizeRetentionMessage(input.subject, {
+        name: client.name,
+        company: company.name,
       });
 
-      await prisma.retentionCampaignSend.create({
-        data: {
-          campaignId: campaign.id,
-          clientId: client.id,
-          email: client.email,
-          status: "SENT",
-        },
-      });
-      sentCount += 1;
-    } catch (error) {
-      failedCount += 1;
-      await prisma.retentionCampaignSend.create({
-        data: {
-          campaignId: campaign.id,
-          clientId: client.id,
-          email: client.email,
-          status: "FAILED",
-          error: error instanceof Error ? error.message : "Send failed",
-        },
-      });
+      try {
+        await sendRetentionEmail({
+          to: client.email,
+          companyName: company.name,
+          subject: personalizedSubject,
+          message: personalized,
+          unsubscribeUrl,
+          listUnsubscribeUrl,
+          replyTo: company.email,
+        });
+
+        await prisma.retentionCampaignSend.create({
+          data: {
+            campaignId: campaign.id,
+            clientId: client.id,
+            email: client.email,
+            status: "SENT",
+          },
+        });
+        sentCount += 1;
+      } catch (error) {
+        failedCount += 1;
+        await prisma.retentionCampaignSend.create({
+          data: {
+            campaignId: campaign.id,
+            clientId: client.id,
+            email: client.email,
+            status: "FAILED",
+            error: error instanceof Error ? error.message : "Send failed",
+          },
+        });
+      }
     }
+  } catch (error) {
+    fatal = error;
   }
 
   const updated = await prisma.retentionCampaign.update({
@@ -228,6 +236,10 @@ export async function sendRetentionCampaign(input: {
       },
     },
   });
+
+  if (fatal && sentCount === 0 && failedCount === 0) {
+    throw fatal instanceof Error ? fatal : new Error("Could not send outreach");
+  }
 
   return updated;
 }

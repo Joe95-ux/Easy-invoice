@@ -694,7 +694,10 @@ type SendRetentionEmailInput = {
   companyName: string;
   subject: string;
   message: string;
+  /** Human page. Shown in the footer. */
   unsubscribeUrl: string;
+  /** One-click endpoint for mail clients. Falls back to unsubscribeUrl. */
+  listUnsubscribeUrl?: string;
   replyTo?: string | null;
 };
 
@@ -711,10 +714,10 @@ export async function sendRetentionEmail(input: SendRetentionEmailInput) {
     subject: input.subject,
     ...(sanitizeReplyTo(input.replyTo) ? { replyTo: sanitizeReplyTo(input.replyTo) } : {}),
     headers: {
-      "List-Unsubscribe": `<${input.unsubscribeUrl}>`,
+      "List-Unsubscribe": `<${input.listUnsubscribeUrl ?? input.unsubscribeUrl}>`,
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
     },
     html: `
-      <p>Hello,</p>
       ${body}
       <p style="margin-top:24px">— ${company}</p>
       <hr style="border:none;border-top:1px solid #e5e7eb;margin:28px 0 16px" />

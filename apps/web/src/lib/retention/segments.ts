@@ -80,38 +80,30 @@ export async function listRetentionAudience(
     return toAudience(rows);
   }
 
-  // INACTIVE_60 — no invoice created/sent/paid in the window
+  // INACTIVE_60 — no invoice created, issued, sent, or paid in the window.
+  // Activity on any invoice counts, not only the newest one.
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - INACTIVE_DAYS);
 
-  const candidates = await prisma.client.findMany({
-    where: whereBase,
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      createdAt: true,
+  const rows = await prisma.client.findMany({
+    where: {
+      ...whereBase,
+      createdAt: { lt: cutoff },
       invoices: {
-        select: { issueDate: true, sentAt: true, paidAt: true, createdAt: true },
-        orderBy: { createdAt: "desc" },
-        take: 1,
+        none: {
+          OR: [
+            { createdAt: { gte: cutoff } },
+            { issueDate: { gte: cutoff } },
+            { sentAt: { gte: cutoff } },
+            { paidAt: { gte: cutoff } },
+          ],
+        },
       },
     },
+    select: { id: true, name: true, email: true },
     orderBy: { name: "asc" },
   });
-
-  return toAudience(
-    candidates.filter((client) => {
-      const latest = client.invoices[0];
-      if (!latest) return client.createdAt < cutoff;
-      const stamps = [latest.createdAt, latest.issueDate, latest.sentAt, latest.paidAt].filter(
-        (d): d is Date => d instanceof Date,
-      );
-      if (stamps.length === 0) return client.createdAt < cutoff;
-      const mostRecent = stamps.reduce((max, d) => (d > max ? d : max));
-      return mostRecent < cutoff;
-    }),
-  );
+  return toAudience(rows);
 }
 
 function toAudience(
