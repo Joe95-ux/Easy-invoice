@@ -2,7 +2,6 @@
 
 import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { ChevronDownIcon, Loader2Icon, MegaphoneIcon, SendIcon } from "lucide-react";
 import { toast } from "sonner";
 import { EmptyState, PageHeader, pageHeaderActionClass } from "@/components/app-shell/page-header";
@@ -92,7 +91,6 @@ export function RetentionPageContent({
   segments,
   initialCampaigns,
 }: RetentionPageContentProps) {
-  const router = useRouter();
   const [segment, setSegment] = useState<RetentionSegment>(
     segments.find((s) => s.count > 0)?.id ?? "PAID_CLIENTS",
   );
@@ -125,7 +123,7 @@ export function RetentionPageContent({
     canWrite &&
     isPro &&
     !overCap &&
-    (selected?.count ?? 0) > 0 &&
+    audienceCount > 0 &&
     subject.trim().length > 0 &&
     message.trim().length > 0;
 
@@ -147,9 +145,7 @@ export function RetentionPageContent({
       const loaded = data.campaign as SerializedRetentionCampaign;
       setCampaigns((prev) => prev.map((row) => (row.id === loaded.id ? loaded : row)));
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Could not load recipients";
-      setRecipientError(message);
-      toastApiError(error, "Could not load recipients");
+      setRecipientError(error instanceof Error ? error.message : "Could not load recipients");
     } finally {
       setLoadingCampaignId(null);
     }
@@ -176,7 +172,6 @@ export function RetentionPageContent({
       });
       setConfirmOpen(false);
       setCampaigns((prev) => [data.campaign, ...prev]);
-      router.refresh();
     } catch (error) {
       toastApiError(error, "Could not send outreach");
     } finally {
@@ -222,15 +217,6 @@ export function RetentionPageContent({
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="rounded-lg border border-border px-3 py-3">
-              <p className="text-xs font-medium text-muted-foreground">Audience</p>
-              <p className="mt-1 text-sm font-medium">{selected?.label ?? "No segment"}</p>
-              <p className="text-xs text-muted-foreground">
-                {selected?.description}
-                {selected ? ` · ${audienceCount} reachable` : null}
-              </p>
-            </div>
-
             <div className="space-y-2">
               <Label htmlFor="retention-subject">Subject</Label>
               <Input
@@ -281,7 +267,6 @@ export function RetentionPageContent({
         <Card className="order-1 lg:order-2">
           <CardHeader>
             <CardTitle className="text-base">Segments</CardTitle>
-            <CardDescription>Built from clients already in your workspace.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {segments.map((s) => (
@@ -309,9 +294,7 @@ export function RetentionPageContent({
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Send history</CardTitle>
-          <CardDescription>
-            Recent retention emails. Open a row to see each recipient.
-          </CardDescription>
+          <CardDescription>Recent notes. Select a row to see who received it.</CardDescription>
         </CardHeader>
         <CardContent>
           {campaigns.length === 0 ? (
@@ -340,7 +323,10 @@ export function RetentionPageContent({
                   const loading = loadingCampaignId === campaign.id;
                   return (
                     <Fragment key={campaign.id}>
-                      <TableRow>
+                      <TableRow
+                        className="cursor-pointer"
+                        onClick={() => void toggleRecipients(campaign)}
+                      >
                         <TableCell>
                           <Button
                             type="button"
@@ -348,7 +334,10 @@ export function RetentionPageContent({
                             size="icon-sm"
                             aria-expanded={open}
                             aria-label={open ? "Hide recipients" : "Show recipients"}
-                            onClick={() => void toggleRecipients(campaign)}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              void toggleRecipients(campaign);
+                            }}
                           >
                             {loading ? (
                               <Loader2Icon className="size-4 animate-spin" />

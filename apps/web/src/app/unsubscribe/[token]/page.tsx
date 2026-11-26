@@ -27,7 +27,7 @@ export default function UnsubscribePage({ params }: PageProps) {
       setMessage(
         data.alreadyOptedOut
           ? "You were already unsubscribed from these updates."
-          : "You're unsubscribed from promotional updates. Invoice and payment emails are unchanged.",
+          : "You're unsubscribed from these updates.",
       );
     } catch (error) {
       setStatus("error");
@@ -40,19 +40,17 @@ export default function UnsubscribePage({ params }: PageProps) {
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Email preferences</CardTitle>
-          <CardDescription>Promotional notes only. Invoices and payment emails stay on.</CardDescription>
+          <CardDescription>
+            Unsubscribe from win-back and thank-you emails from this business? Invoices and payment
+            emails stay on.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {status === "idle" || status === "loading" ? (
-            <>
-              <p className="text-sm text-foreground">
-                Unsubscribe from win-back and thank-you emails from this business?
-              </p>
-              <Button onClick={() => void unsubscribe()} disabled={status === "loading"}>
-                {status === "loading" ? <Loader2Icon className="size-4 animate-spin" /> : null}
-                {status === "loading" ? "Unsubscribing…" : "Unsubscribe"}
-              </Button>
-            </>
+            <Button onClick={() => void unsubscribe()} disabled={status === "loading"}>
+              {status === "loading" ? <Loader2Icon className="size-4 animate-spin" /> : null}
+              {status === "loading" ? "Unsubscribing…" : "Unsubscribe"}
+            </Button>
           ) : (
             <p className={status === "error" ? "text-sm text-destructive" : "text-sm text-foreground"}>
               {message}
