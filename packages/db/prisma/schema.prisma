@@ -179,6 +179,7 @@ enum RetentionCampaignStatus {
 }
 
 enum RetentionSendStatus {
+  QUEUED
   SENT
   FAILED
   SKIPPED

@@ -161,7 +161,7 @@ Retention follow-ups — not a Mailchimp clone. One-off personalized emails to s
 | Consent | `Client.marketingOptIn` (default true for existing SMB contacts; editable on client; cleared by unsubscribe) |
 | Segments | Paid clients · Inactive 60+ days · Open estimates · All reachable |
 | Compose | Subject + short personal message (`{{name}}`, `{{company}}`) |
-| Send | One-off blast to segment (Pro; max 200 recipients) |
+| Send | One-off blast to segment (Pro; max 200). Queued after the request returns, in batches of 8, so a long list is not cut off by a timeout |
 | Log | Campaign totals, plus each recipient’s status and error |
 | Unsubscribe | Signed public link `/unsubscribe/[token]` |
 

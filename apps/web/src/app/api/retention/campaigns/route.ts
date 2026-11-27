@@ -7,6 +7,8 @@ import {
 } from "@/lib/api/validation";
 import { PlanLimitError, planLimitResponse } from "@/lib/billing/entitlements";
 import { createRetentionCampaignSchema } from "@/lib/schemas/retention";
+import { getAppOrigin } from "@/lib/app-url";
+import { scheduleRetentionBatch } from "@/lib/retention/dispatch";
 import {
   getRetentionCampaigns,
   sendRetentionCampaign,
@@ -43,6 +45,7 @@ export async function POST(request: Request) {
       message: parsed.data.message,
       name: parsed.data.name,
     });
+    scheduleRetentionBatch(campaign.id, await getAppOrigin());
 
     return NextResponse.json(
       { campaign: serializeRetentionCampaign(campaign) },

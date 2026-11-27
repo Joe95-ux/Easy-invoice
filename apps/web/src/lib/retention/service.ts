@@ -17,9 +17,13 @@ export const RETENTION_MAX_RECIPIENTS = 200;
 
 const SEND_STATUS_RANK: Record<RetentionSendStatus, number> = {
   FAILED: 0,
-  SKIPPED: 1,
-  SENT: 2,
+  QUEUED: 1,
+  SKIPPED: 2,
+  SENT: 3,
 };
+
+/** Emails per background batch. Kept small so one invocation stays inside a function timeout. */
+export const RETENTION_SEND_BATCH = 8;
 
 type RetentionSendRecord = {
   id: string;
@@ -138,7 +142,7 @@ export async function sendRetentionCampaign(input: {
 
   const company = await prisma.company.findUnique({
     where: { id: input.companyId },
-    select: { id: true, name: true, email: true },
+    select: { id: true },
   });
   if (!company) throw new Error("Company not found");
 
@@ -162,72 +166,13 @@ export async function sendRetentionCampaign(input: {
       segment: input.segment,
       status: "SENDING",
       recipientCount: audience.length,
-    },
-  });
-
-  let sentCount = 0;
-  let failedCount = 0;
-  let fatal: unknown = null;
-
-  try {
-    const origin = await getAppOrigin();
-    for (const client of audience) {
-      const token = retentionUnsubscribeToken(client.id, input.companyId);
-      const unsubscribeUrl = `${origin}/unsubscribe/${token}`;
-      const listUnsubscribeUrl = `${origin}/api/public/unsubscribe?token=${encodeURIComponent(token)}`;
-      const personalized = personalizeRetentionMessage(input.message, {
-        name: client.name,
-        company: company.name,
-      });
-      const personalizedSubject = personalizeRetentionMessage(input.subject, {
-        name: client.name,
-        company: company.name,
-      });
-
-      try {
-        await sendRetentionEmail({
-          to: client.email,
-          companyName: company.name,
-          subject: personalizedSubject,
-          message: personalized,
-          unsubscribeUrl,
-          listUnsubscribeUrl,
-          replyTo: company.email,
-        });
-
-        await prisma.retentionCampaignSend.create({
-          data: {
-            campaignId: campaign.id,
-            clientId: client.id,
-            email: client.email,
-            status: "SENT",
-          },
-        });
-        sentCount += 1;
-      } catch (error) {
-        failedCount += 1;
-        await prisma.retentionCampaignSend.create({
-          data: {
-            campaignId: campaign.id,
-            clientId: client.id,
-            email: client.email,
-            status: "FAILED",
-            error: error instanceof Error ? error.message : "Send failed",
-          },
-        });
-      }
-    }
-  } catch (error) {
-    fatal = error;
-  }
-
-  const updated = await prisma.retentionCampaign.update({
-    where: { id: campaign.id },
-    data: {
-      status: sentCount === 0 ? "FAILED" : "SENT",
-      sentAt: new Date(),
-      sentCount,
-      failedCount,
+      sends: {
+        create: audience.map((client) => ({
+          clientId: client.id,
+          email: client.email,
+          status: "QUEUED" as const,
+        })),
+      },
     },
     include: {
       member: { select: campaignMemberSelect },
@@ -237,11 +182,170 @@ export async function sendRetentionCampaign(input: {
     },
   });
 
-  if (fatal && sentCount === 0 && failedCount === 0) {
-    throw fatal instanceof Error ? fatal : new Error("Could not send outreach");
+  return campaign;
+}
+
+export type RetentionBatchResult = {
+  done: boolean;
+  busy: boolean;
+  processed: number;
+};
+
+function isTransactionBusy(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code: string }).code === "P2028"
+  );
+}
+
+async function finishRetentionCampaign(
+  tx: Pick<typeof prisma, "retentionCampaignSend" | "retentionCampaign">,
+  campaignId: string,
+) {
+  const [sentCount, failedCount] = await Promise.all([
+    tx.retentionCampaignSend.count({ where: { campaignId, status: "SENT" } }),
+    tx.retentionCampaignSend.count({ where: { campaignId, status: "FAILED" } }),
+  ]);
+  await tx.retentionCampaign.update({
+    where: { id: campaignId },
+    data: {
+      status: sentCount > 0 ? "SENT" : "FAILED",
+      sentAt: new Date(),
+      sentCount,
+      failedCount,
+    },
+  });
+}
+
+/** Send the next handful of queued recipients. Safe to run more than once. */
+export async function processRetentionBatch(
+  campaignId: string,
+  originInput?: string,
+): Promise<RetentionBatchResult> {
+  const configured = originInput ?? process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL;
+  let origin = configured?.replace(/\/$/, "") ?? "";
+  if (!origin) {
+    try {
+      origin = await getAppOrigin();
+    } catch {
+      throw new Error("APP_URL is required to send retention email");
+    }
   }
 
-  return updated;
+  try {
+    return await prisma.$transaction(
+      async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`retention:${campaignId}`}, 0))`;
+
+        const campaign = await tx.retentionCampaign.findUnique({
+          where: { id: campaignId },
+          include: { company: { select: { id: true, name: true, email: true } } },
+        });
+        if (!campaign || campaign.status !== "SENDING") {
+          return { done: true, busy: false, processed: 0 };
+        }
+
+        const queued = await tx.retentionCampaignSend.findMany({
+          where: { campaignId, status: "QUEUED" },
+          orderBy: { id: "asc" },
+          take: RETENTION_SEND_BATCH,
+          include: { client: { select: { id: true, name: true, marketingOptIn: true } } },
+        });
+
+        if (queued.length === 0) {
+          await finishRetentionCampaign(tx, campaignId);
+          return { done: true, busy: false, processed: 0 };
+        }
+
+        for (const row of queued) {
+          if (!row.client.marketingOptIn) {
+            await tx.retentionCampaignSend.update({
+              where: { id: row.id },
+              data: { status: "SKIPPED", error: null },
+            });
+            continue;
+          }
+
+          const token = retentionUnsubscribeToken(row.clientId, campaign.companyId);
+          const unsubscribeUrl = `${origin}/unsubscribe/${token}`;
+          const listUnsubscribeUrl = `${origin}/api/public/unsubscribe?token=${encodeURIComponent(token)}`;
+          try {
+            await sendRetentionEmail({
+              to: row.email,
+              companyName: campaign.company.name,
+              subject: personalizeRetentionMessage(campaign.subject, {
+                name: row.client.name,
+                company: campaign.company.name,
+              }),
+              message: personalizeRetentionMessage(campaign.message, {
+                name: row.client.name,
+                company: campaign.company.name,
+              }),
+              unsubscribeUrl,
+              listUnsubscribeUrl,
+              replyTo: campaign.company.email,
+            });
+            await tx.retentionCampaignSend.update({
+              where: { id: row.id },
+              data: { status: "SENT", sentAt: new Date(), error: null },
+            });
+          } catch (error) {
+            await tx.retentionCampaignSend.update({
+              where: { id: row.id },
+              data: {
+                status: "FAILED",
+                sentAt: new Date(),
+                error: error instanceof Error ? error.message : "Send failed",
+              },
+            });
+          }
+        }
+
+        const remaining = await tx.retentionCampaignSend.count({
+          where: { campaignId, status: "QUEUED" },
+        });
+        const [sentCount, failedCount] = await Promise.all([
+          tx.retentionCampaignSend.count({ where: { campaignId, status: "SENT" } }),
+          tx.retentionCampaignSend.count({ where: { campaignId, status: "FAILED" } }),
+        ]);
+
+        if (remaining === 0) {
+          await tx.retentionCampaign.update({
+            where: { id: campaignId },
+            data: {
+              status: sentCount > 0 ? "SENT" : "FAILED",
+              sentAt: new Date(),
+              sentCount,
+              failedCount,
+            },
+          });
+          return { done: true, busy: false, processed: queued.length };
+        }
+
+        await tx.retentionCampaign.update({
+          where: { id: campaignId },
+          data: { sentCount, failedCount },
+        });
+        return { done: false, busy: false, processed: queued.length };
+      },
+      { maxWait: 10_000, timeout: 55_000 },
+    );
+  } catch (error) {
+    if (isTransactionBusy(error)) return { done: false, busy: true, processed: 0 };
+    throw error;
+  }
+}
+
+export async function listSendingRetentionCampaignIds(): Promise<string[]> {
+  const rows = await prisma.retentionCampaign.findMany({
+    where: { status: "SENDING" },
+    select: { id: true },
+    orderBy: { createdAt: "asc" },
+    take: 20,
+  });
+  return rows.map((row) => row.id);
 }
 
 export async function optOutClientMarketing(clientId: string, companyId: string) {

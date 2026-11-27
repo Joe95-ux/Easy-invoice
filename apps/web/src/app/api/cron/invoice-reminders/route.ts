@@ -1,5 +1,7 @@
 import { timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
+import { getAppOrigin } from "@/lib/app-url";
+import { resumeRetentionSends } from "@/lib/retention/dispatch";
 import { runInvoiceReminderJob } from "@/lib/reminders/service";
 import { runEstimateReminderJob } from "@/lib/reminders/estimate-service";
 import { runRecurringInvoiceJob } from "@/lib/recurring-invoices";
@@ -28,12 +30,13 @@ export async function GET(request: Request) {
   }
 
   try {
-    const [invoices, estimates, recurring] = await Promise.all([
+    const [invoices, estimates, recurring, retention] = await Promise.all([
       runInvoiceReminderJob(),
       runEstimateReminderJob(),
       runRecurringInvoiceJob(),
+      resumeRetentionSends(await getAppOrigin()),
     ]);
-    return NextResponse.json({ invoices, estimates, recurring });
+    return NextResponse.json({ invoices, estimates, recurring, retention });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Reminder job failed";
     return NextResponse.json({ error: message }, { status: 500 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ChevronDownIcon, Loader2Icon, MegaphoneIcon, SendIcon } from "lucide-react";
 import { toast } from "sonner";
@@ -37,6 +37,7 @@ import { formatDateTime } from "@/lib/invoices";
 import { cn } from "@/lib/utils";
 
 const SEND_STATUS_LABEL: Record<SerializedRetentionCampaign["sends"][number]["status"], string> = {
+  QUEUED: "Queued",
   SENT: "Sent",
   FAILED: "Failed",
   SKIPPED: "Skipped",
@@ -51,16 +52,17 @@ function sendStatusVariant(
 }
 
 function campaignStatusLabel(campaign: SerializedRetentionCampaign): string {
+  if (campaign.status === "SENDING") return "Sending";
   if (campaign.sentCount > 0 && campaign.failedCount > 0) return "Partial";
   if (campaign.status === "SENT") return "Sent";
   if (campaign.status === "FAILED") return "Failed";
-  if (campaign.status === "SENDING") return "Sending";
   return "Draft";
 }
 
 function campaignStatusVariant(
   campaign: SerializedRetentionCampaign,
 ): "success" | "destructive" | "warning" | "outline" {
+  if (campaign.status === "SENDING") return "outline";
   if (campaign.sentCount > 0 && campaign.failedCount > 0) return "warning";
   if (campaign.status === "SENT") return "success";
   if (campaign.status === "FAILED") return "destructive";
@@ -104,6 +106,59 @@ export function RetentionPageContent({
   const [openCampaignId, setOpenCampaignId] = useState<string | null>(null);
   const [loadingCampaignId, setLoadingCampaignId] = useState<string | null>(null);
   const [recipientError, setRecipientError] = useState<string | null>(null);
+  const finishedToast = useRef(new Set<string>());
+  const sendingKey = campaigns
+    .filter((campaign) => campaign.status === "SENDING")
+    .map((campaign) => campaign.id)
+    .join(",");
+
+  useEffect(() => {
+    if (!sendingKey) return;
+    let cancelled = false;
+
+    async function refresh() {
+      const ids = sendingKey.split(",");
+      const updates = await Promise.all(
+        ids.map(async (id) => {
+          try {
+            const response = await fetch(`/api/retention/campaigns/${id}`);
+            if (!response.ok) return null;
+            const data = await response.json();
+            return data.campaign as SerializedRetentionCampaign;
+          } catch {
+            return null;
+          }
+        }),
+      );
+      if (cancelled) return;
+
+      setCampaigns((prev) =>
+        prev.map((row) => updates.find((item) => item?.id === row.id) ?? row),
+      );
+
+      for (const updated of updates) {
+        if (!updated || updated.status === "SENDING") continue;
+        if (finishedToast.current.has(updated.id)) continue;
+        finishedToast.current.add(updated.id);
+        const delivered =
+          updated.sentCount > 0
+            ? `${updated.sentCount} delivered${updated.failedCount ? `, ${updated.failedCount} failed` : ""}.`
+            : "No messages were delivered.";
+        if (updated.status === "FAILED") {
+          toast.error("Outreach failed", { description: delivered });
+        } else {
+          toast.success("Outreach sent", { description: delivered });
+        }
+      }
+    }
+
+    void refresh();
+    const timer = setInterval(() => void refresh(), 3000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [sendingKey]);
 
   const selected = useMemo(
     () => segments.find((s) => s.id === segment) ?? segments[0],
@@ -167,8 +222,9 @@ export function RetentionPageContent({
       const data = await response.json();
       throwIfApiError(response, data, "Could not send outreach");
 
-      toast.success("Outreach sent", {
-        description: `${data.campaign.sentCount} delivered${data.campaign.failedCount ? `, ${data.campaign.failedCount} failed` : ""}.`,
+      const count = data.campaign.recipientCount as number;
+      toast.success("Sending outreach", {
+        description: `Sending to ${count} ${count === 1 ? "client" : "clients"}.`,
       });
       setConfirmOpen(false);
       setCampaigns((prev) => [data.campaign, ...prev]);
@@ -448,7 +504,9 @@ function RecipientLog({
           </div>
           <div className="flex shrink-0 flex-col items-end gap-1">
             <Badge variant={sendStatusVariant(send.status)}>{SEND_STATUS_LABEL[send.status]}</Badge>
-            <span className="text-xs text-muted-foreground">{formatDateTime(send.sentAt)}</span>
+            {send.status === "QUEUED" ? null : (
+              <span className="text-xs text-muted-foreground">{formatDateTime(send.sentAt)}</span>
+            )}
           </div>
         </li>
       ))}

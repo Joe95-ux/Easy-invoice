@@ -1,5 +1,6 @@
 import { PageScroll } from "@/components/app-shell/app-shell";
 import { RetentionPageContent } from "@/features/retention/components/retention-page-content";
+import { getAppOrigin } from "@/lib/app-url";
 import { requireMember } from "@/lib/auth";
 import { isProPlan } from "@/lib/billing/entitlements";
 import {
@@ -13,6 +14,7 @@ import {
   RETENTION_MAX_RECIPIENTS,
   serializeRetentionCampaign,
 } from "@/lib/retention/service";
+import { scheduleRetentionBatch } from "@/lib/retention/dispatch";
 import { canWriteDocuments } from "@/lib/team";
 
 export default async function RetentionPage() {
@@ -21,6 +23,12 @@ export default async function RetentionPage() {
     countRetentionSegments(member.companyId),
     getRetentionCampaigns(member.companyId),
   ]);
+
+  const sending = campaigns.filter((campaign) => campaign.status === "SENDING");
+  if (sending.length > 0) {
+    const origin = await getAppOrigin();
+    for (const campaign of sending) scheduleRetentionBatch(campaign.id, origin);
+  }
 
   return (
     <PageScroll>
